@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo, useReducer } from "react";
 import * as THREE from "three";
-import { loadEntries, saveEntry, deleteEntry, loadConfig as loadCfg, saveConfig as saveCfg } from "./supabase.js";
+import { loadEntries, saveEntry, deleteEntry, loadConfig as loadCfg, saveConfig as saveCfg, uploadPhoto } from "./supabase.js";
 
 /* =================================================================
    🌍 OUR WORLD — Seth & Rosie Posie
@@ -291,6 +291,8 @@ export default function OurWorld() {
   const tDistR = useRef(0);
 
   const [selected, setSelected] = useState(null);
+  const selectedRef = useRef(null);
+  useEffect(() => { selectedRef.current = selected; }, [selected]);
   const [curZoom, setCurZoom] = useState(8);
   const [ready, setReady] = useState(false);
   const [introComplete, setIntroComplete] = useState(false);
@@ -620,7 +622,7 @@ export default function OurWorld() {
     const animate = () => {
       frameRef.current = requestAnimationFrame(animate);
       spinSpd.current = lerp(spinSpd.current, tSpinSpd.current, 0.04);
-      if (!dragR.current) tRot.current.y += spinSpd.current;
+      if (!dragR.current && !selectedRef.current) tRot.current.y += spinSpd.current;
       rot.current.x = lerp(rot.current.x, tRot.current.x, 0.05);
       rot.current.y = lerp(rot.current.y, tRot.current.y, 0.05);
       globe.rotation.x = rot.current.x;
@@ -640,6 +642,9 @@ export default function OurWorld() {
         const ht = Date.now() * 0.004;
         hMesh.scale.set(1 + Math.sin(ht) * 0.15, 1 + Math.sin(ht) * 0.15, 1);
         hMesh.material.opacity = 0.5 + Math.sin(ht * 0.7) * 0.2;
+        // Billboard: counter globe rotation so heart always faces camera
+        const invGlobe = new THREE.Quaternion().setFromEuler(globe.rotation).invert();
+        hMesh.quaternion.copy(invGlobe);
       }
       particles.rotation.y += 0.0001;
       rend.render(scene, cam);
@@ -699,7 +704,6 @@ export default function OurWorld() {
       if (heartRef.current) {
         const hp = ll2v(positions.together.lat, positions.together.lng, RAD * 1.045);
         heartRef.current.position.copy(hp);
-        heartRef.current.lookAt(hp.clone().multiplyScalar(2));
         heartRef.current.visible = true;
       }
     } else if (heartRef.current) { heartRef.current.visible = false; }
@@ -773,9 +777,17 @@ export default function OurWorld() {
   const onTS = useCallback(e => { if (e.touches.length === 1) { dragR.current = true; prevR.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; clickSR.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() }; } else if (e.touches.length === 2) { const dx = e.touches[0].clientX - e.touches[1].clientX, dy = e.touches[0].clientY - e.touches[1].clientY; tDistR.current = Math.sqrt(dx * dx + dy * dy); } }, []);
   const onTM = useCallback(e => { e.preventDefault(); if (e.touches.length === 1 && dragR.current) { tRot.current.y += (e.touches[0].clientX - prevR.current.x) * 0.005; tRot.current.x = clamp(tRot.current.x + (e.touches[0].clientY - prevR.current.y) * 0.005, -1.2, 1.2); prevR.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; } else if (e.touches.length === 2) { const dx = e.touches[0].clientX - e.touches[1].clientX, dy = e.touches[0].clientY - e.touches[1].clientY; const d = Math.sqrt(dx * dx + dy * dy); tZm.current = clamp(tZm.current + (tDistR.current - d) * 0.008, MIN_Z, MAX_Z); tDistR.current = d; } }, []);
 
-  const handlePhotos = useCallback(id => {
+  const handlePhotos = useCallback((id) => {
     const input = document.createElement("input"); input.type = "file"; input.accept = "image/*"; input.multiple = true;
-    input.onchange = e => { const files = Array.from(e.target.files); const urls = []; let done = 0; files.forEach(f => { const r = new FileReader(); r.onload = ev => { urls.push(ev.target.result); done++; if (done === files.length) dispatch({ type: "ADD_PHOTOS", id, urls }); }; r.readAsDataURL(f); }); };
+    input.onchange = async (e) => {
+      const files = Array.from(e.target.files);
+      const urls = [];
+      for (const file of files) {
+        const url = await uploadPhoto(file, id);
+        if (url) urls.push(url);
+      }
+      if (urls.length > 0) dispatch({ type: "ADD_PHOTOS", id, urls });
+    };
     input.click();
   }, []);
 
