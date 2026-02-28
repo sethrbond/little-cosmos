@@ -5,6 +5,19 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 
 export const supabase = createClient(supabaseUrl, supabaseKey)
 
+// ---- Photo upload to Supabase Storage ----
+
+export async function uploadPhoto(file, entryId) {
+  const ext = file.name.split('.').pop() || 'jpg'
+  const path = `${entryId}/${Date.now()}.${ext}`
+  const { error } = await supabase.storage
+    .from('photos')
+    .upload(path, file, { cacheControl: '31536000', upsert: false })
+  if (error) { console.error('Photo upload error:', error); return null; }
+  const { data: urlData } = supabase.storage.from('photos').getPublicUrl(path)
+  return urlData?.publicUrl || null
+}
+
 // ---- Database operations ----
 
 export async function loadEntries() {
@@ -97,51 +110,3 @@ export async function saveConfig(config) {
   const { error } = await supabase.from('config').upsert(row, { onConflict: 'id' })
   if (error) console.error('Save config error:', error)
 }
-
-// ---- Setup: creates tables if they don't exist ----
-// Run this SQL in the Supabase SQL editor:
-export const SETUP_SQL = `
--- Entries table
-CREATE TABLE IF NOT EXISTS entries (
-  id TEXT PRIMARY KEY,
-  city TEXT NOT NULL,
-  country TEXT DEFAULT '',
-  lat DOUBLE PRECISION NOT NULL,
-  lng DOUBLE PRECISION NOT NULL,
-  date_start DATE NOT NULL,
-  date_end DATE,
-  entry_type TEXT NOT NULL DEFAULT 'together',
-  who TEXT NOT NULL DEFAULT 'both',
-  zoom_level INTEGER DEFAULT 1,
-  notes TEXT DEFAULT '',
-  memories JSONB DEFAULT '[]',
-  museums JSONB DEFAULT '[]',
-  restaurants JSONB DEFAULT '[]',
-  highlights JSONB DEFAULT '[]',
-  photos JSONB DEFAULT '[]',
-  stops JSONB DEFAULT '[]',
-  music_url TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Config table
-CREATE TABLE IF NOT EXISTS config (
-  id TEXT PRIMARY KEY DEFAULT 'main',
-  start_date DATE DEFAULT '2021-06-01',
-  title TEXT DEFAULT 'Our World',
-  subtitle TEXT DEFAULT 'every moment, every adventure',
-  love_letter TEXT DEFAULT '',
-  you_name TEXT DEFAULT 'Seth',
-  partner_name TEXT DEFAULT 'Rosie Posie'
-);
-
--- Enable RLS but allow all operations with anon key
-ALTER TABLE entries ENABLE ROW LEVEL SECURITY;
-ALTER TABLE config ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Allow all on entries" ON entries FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all on config" ON config FOR ALL USING (true) WITH CHECK (true);
-
--- Insert default config
-INSERT INTO config (id) VALUES ('main') ON CONFLICT DO NOTHING;
-`;
