@@ -8,13 +8,10 @@ export const supabase = createClient(supabaseUrl, supabaseKey)
 // ---- Photo upload to Supabase Storage ----
 
 export async function uploadPhoto(file, entryId) {
-  console.log('[uploadPhoto] called with:', { fileName: file.name, fileSize: file.size, fileType: file.type, entryId })
-  
   try {
     const ext = file.name.split('.').pop() || 'jpg'
     const safeName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
     const path = `${entryId}/${safeName}`
-    console.log('[uploadPhoto] uploading to path:', path)
     
     const { data: uploadData, error } = await supabase.storage
       .from('photos')
@@ -25,18 +22,14 @@ export async function uploadPhoto(file, entryId) {
       })
     
     if (error) {
-      console.error('[uploadPhoto] UPLOAD FAILED:', error.message, error)
+      console.error('[uploadPhoto] failed:', error.message)
       return null
     }
     
-    console.log('[uploadPhoto] upload success:', uploadData)
-    
     const { data: urlData } = supabase.storage.from('photos').getPublicUrl(path)
-    console.log('[uploadPhoto] public URL:', urlData?.publicUrl)
-    
     return urlData?.publicUrl || null
   } catch (err) {
-    console.error('[uploadPhoto] EXCEPTION:', err)
+    console.error('[uploadPhoto] exception:', err)
     return null
   }
 }
@@ -137,6 +130,9 @@ export async function loadConfig() {
     loveLetter: data.love_letter || '',
     youName: data.you_name || 'Seth',
     partnerName: data.partner_name || 'Rosie Posie',
+    chapters: data.chapters || [],
+    dreamDestinations: data.dream_destinations || [],
+    darkMode: data.dark_mode ?? true,
   }
 }
 
@@ -149,6 +145,9 @@ export async function saveConfig(config) {
     love_letter: config.loveLetter || '',
     you_name: config.youName,
     partner_name: config.partnerName,
+    chapters: config.chapters || [],
+    dream_destinations: config.dreamDestinations || [],
+    dark_mode: config.darkMode ?? true,
   }
   const { error } = await supabase.from('config').upsert(row, { onConflict: 'id' })
   if (error) console.error('Save config error:', error)
