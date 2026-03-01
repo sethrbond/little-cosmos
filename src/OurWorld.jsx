@@ -97,8 +97,8 @@ const GEO_LINES = [
   {n:"europe_internal",t:"border",p:[[42,-2],[43,0],[46,6],[47,7],[47,13],[50,14],[52,14],[54,14],[55,10]]},
 ];
 
-// 328 world cities
-// 495 world cities
+// 887 world cities
+// 1067 world cities
 const CITIES = [
   ["New York City","USA",40.7128,-74.006],["Los Angeles","USA",34.0522,-118.2437],["Chicago","USA",41.8781,-87.6298],
   ["Houston","USA",29.7604,-95.3698],["Phoenix","USA",33.4484,-112.074],["Philadelphia","USA",39.9526,-75.1652],
@@ -139,133 +139,325 @@ const CITIES = [
   ["Bar Harbor","USA",44.3876,-68.2039],["Hilton Head","USA",32.2163,-80.7526],["Outer Banks","USA",35.9582,-75.6241],
   ["Moab","USA",38.5733,-109.5498],["Yellowstone","USA",44.428,-110.5885],["Grand Canyon","USA",36.1069,-112.1129],
   ["Yosemite","USA",37.8651,-119.5383],["Glacier National Park","USA",48.7596,-113.787],["Zion","USA",37.2982,-113.0263],
-  ["Joshua Tree","USA",33.8734,-115.901],["Toronto","Canada",43.6532,-79.3832],["Vancouver","Canada",49.2827,-123.1207],
-  ["Montréal","Canada",45.5017,-73.5673],["Calgary","Canada",51.0447,-114.0719],["Ottawa","Canada",45.4215,-75.6972],
-  ["Edmonton","Canada",53.5461,-113.4938],["Winnipeg","Canada",49.8951,-97.1384],["Québec City","Canada",46.8139,-71.208],
-  ["Halifax","Canada",44.6488,-63.5752],["Victoria","Canada",48.4284,-123.3656],["Whistler","Canada",50.1163,-122.9574],
-  ["Banff","Canada",51.1784,-115.5708],["Jasper","Canada",52.8737,-117.0814],["Kelowna","Canada",49.888,-119.4961],
-  ["Tofino","Canada",49.1529,-125.9066],["St. John's","Canada",47.5615,-52.7126],["Niagara Falls","Canada",43.0896,-79.0849],
-  ["Prince Edward Island","Canada",46.2382,-63.1311],["Mexico City","Mexico",19.4326,-99.1332],["Cancún","Mexico",21.1619,-86.8515],
-  ["Guadalajara","Mexico",20.6597,-103.3496],["Monterrey","Mexico",25.6866,-100.3161],["Playa del Carmen","Mexico",20.6296,-87.0739],
-  ["Tulum","Mexico",20.2115,-87.4653],["Puerto Vallarta","Mexico",20.6534,-105.2253],["Oaxaca","Mexico",17.0732,-96.7266],
-  ["San Miguel de Allende","Mexico",20.9144,-100.7452],["Cabo San Lucas","Mexico",22.8905,-109.9167],["Mérida","Mexico",20.9674,-89.6243],
-  ["Puebla","Mexico",19.0414,-98.2063],["Sayulita","Mexico",20.8691,-105.4421],["Guanajuato","Mexico",21.019,-101.2574],
-  ["Guatemala City","Guatemala",14.6349,-90.5069],["Antigua Guatemala","Guatemala",14.5586,-90.7295],["San José","Costa Rica",9.9281,-84.0907],
-  ["Monteverde","Costa Rica",10.3153,-84.8257],["Manuel Antonio","Costa Rica",9.3927,-84.1367],["Tamarindo","Costa Rica",10.2996,-85.8373],
-  ["Panama City","Panama",8.9824,-79.5199],["Bocas del Toro","Panama",9.3405,-82.2418],["Belize City","Belize",17.5046,-88.1962],
-  ["San Pedro Belize","Belize",17.9211,-87.9601],["Roatán","Honduras",16.3306,-86.534],["Havana","Cuba",23.1136,-82.3666],
+  ["Joshua Tree","USA",33.8734,-115.901],["Telluride","USA",37.9375,-107.8123],["Vail","USA",39.6403,-106.3742],
+  ["Steamboat Springs","USA",40.485,-106.8317],["Durango","USA",37.2753,-107.88],["Taos","USA",36.4072,-105.5734],
+  ["Whitefish","USA",48.4106,-114.3528],["Sun Valley","USA",43.6977,-114.3514],["Galveston","USA",29.3013,-94.7977],
+  ["Pensacola","USA",30.4213,-87.2169],["Naples FL","USA",26.142,-81.7948],["St. Augustine","USA",29.9012,-81.3124],
+  ["Destin","USA",30.3935,-86.4958],["Beaufort","USA",32.4316,-80.6698],["Traverse City","USA",44.7631,-85.6206],
+  ["Mackinac Island","USA",45.8492,-84.6189],["Mystic","USA",41.3545,-71.9665],["Newport RI","USA",41.4901,-71.3128],
+  ["Lake Placid","USA",44.2795,-73.9799],["Woodstock VT","USA",43.6234,-72.5185],["Stowe","USA",44.4654,-72.6874],
+  ["Portland ME","USA",43.6591,-70.2568],["Flagstaff","USA",35.1983,-111.6513],["Paso Robles","USA",35.6266,-120.691],
+  ["Sonoma","USA",38.292,-122.458],["Healdsburg","USA",38.6105,-122.8697],["Half Moon Bay","USA",37.4636,-122.4286],
+  ["Big Sur","USA",36.2704,-121.8081],["Mendocino","USA",39.3077,-123.7995],["Hood River","USA",45.7054,-121.5215],
+  ["Cannon Beach","USA",45.8918,-123.9615],["Olympic National Park","USA",47.8021,-123.6044],["Leavenworth","USA",47.5962,-120.6615],
+  ["Fredericksburg TX","USA",30.2752,-98.8719],["Marfa","USA",30.3087,-104.0214],["Toronto","Canada",43.6532,-79.3832],
+  ["Vancouver","Canada",49.2827,-123.1207],["Montréal","Canada",45.5017,-73.5673],["Calgary","Canada",51.0447,-114.0719],
+  ["Ottawa","Canada",45.4215,-75.6972],["Edmonton","Canada",53.5461,-113.4938],["Winnipeg","Canada",49.8951,-97.1384],
+  ["Québec City","Canada",46.8139,-71.208],["Halifax","Canada",44.6488,-63.5752],["Victoria","Canada",48.4284,-123.3656],
+  ["Whistler","Canada",50.1163,-122.9574],["Banff","Canada",51.1784,-115.5708],["Jasper","Canada",52.8737,-117.0814],
+  ["Kelowna","Canada",49.888,-119.4961],["Tofino","Canada",49.1529,-125.9066],["St. John's","Canada",47.5615,-52.7126],
+  ["Niagara Falls","Canada",43.0896,-79.0849],["Prince Edward Island","Canada",46.2382,-63.1311],["Yellowknife","Canada",62.454,-114.3718],
+  ["Saskatoon","Canada",52.1332,-106.67],["Regina","Canada",50.4452,-104.6189],["Churchill","Canada",58.7684,-94.1659],
+  ["Mexico City","Mexico",19.4326,-99.1332],["Cancún","Mexico",21.1619,-86.8515],["Guadalajara","Mexico",20.6597,-103.3496],
+  ["Monterrey","Mexico",25.6866,-100.3161],["Playa del Carmen","Mexico",20.6296,-87.0739],["Tulum","Mexico",20.2115,-87.4653],
+  ["Puerto Vallarta","Mexico",20.6534,-105.2253],["Oaxaca","Mexico",17.0732,-96.7266],["San Miguel de Allende","Mexico",20.9144,-100.7452],
+  ["Cabo San Lucas","Mexico",22.8905,-109.9167],["Mérida","Mexico",20.9674,-89.6243],["Puebla","Mexico",19.0414,-98.2063],
+  ["Sayulita","Mexico",20.8691,-105.4421],["Guanajuato","Mexico",21.019,-101.2574],["Isla Holbox","Mexico",21.5224,-87.3793],
+  ["Bacalar","Mexico",18.6787,-88.395],["Cozumel","Mexico",20.4318,-86.9223],["Zihuatanejo","Mexico",17.6381,-101.5516],
+  ["Mazatlán","Mexico",23.2494,-106.4111],["Querétaro","Mexico",20.5888,-100.3899],["Guatemala City","Guatemala",14.6349,-90.5069],
+  ["Antigua Guatemala","Guatemala",14.5586,-90.7295],["San José","Costa Rica",9.9281,-84.0907],["Monteverde","Costa Rica",10.3153,-84.8257],
+  ["Manuel Antonio","Costa Rica",9.3927,-84.1367],["Tamarindo","Costa Rica",10.2996,-85.8373],["La Fortuna","Costa Rica",10.4679,-84.6427],
+  ["Santa Teresa","Costa Rica",9.6406,-85.1688],["Panama City","Panama",8.9824,-79.5199],["Bocas del Toro","Panama",9.3405,-82.2418],
+  ["Belize City","Belize",17.5046,-88.1962],["San Pedro Belize","Belize",17.9211,-87.9601],["Caye Caulker","Belize",17.7514,-88.0247],
+  ["Roatán","Honduras",16.3306,-86.534],["Havana","Cuba",23.1136,-82.3666],["Trinidad Cuba","Cuba",21.8035,-79.9838],
   ["Kingston","Jamaica",18.0179,-76.8099],["Montego Bay","Jamaica",18.4762,-77.8939],["Nassau","Bahamas",25.0343,-77.3963],
-  ["Santo Domingo","Dominican Republic",18.4861,-69.9312],["Punta Cana","Dominican Republic",18.582,-68.4055],["Aruba","Aruba",12.5093,-69.9688],
-  ["Barbados","Barbados",13.1939,-59.5432],["St. Lucia","St. Lucia",13.9094,-60.9789],["Curaçao","Curaçao",12.1696,-68.99],
-  ["Turks and Caicos","Turks and Caicos",21.694,-71.7979],["St. Kitts","St. Kitts",17.346,-62.7559],["Bermuda","Bermuda",32.3078,-64.7505],
-  ["São Paulo","Brazil",-23.5505,-46.6333],["Rio de Janeiro","Brazil",-22.9068,-43.1729],["Buenos Aires","Argentina",-34.6037,-58.3816],
-  ["Lima","Peru",-12.0464,-77.0428],["Bogotá","Colombia",4.711,-74.0721],["Santiago","Chile",-33.4489,-70.6693],
-  ["Medellín","Colombia",6.2442,-75.5812],["Cartagena","Colombia",10.391,-75.5144],["Cusco","Peru",-13.532,-71.9675],
-  ["Machu Picchu","Peru",-13.1631,-72.545],["Quito","Ecuador",-0.1807,-78.4678],["Montevideo","Uruguay",-34.9011,-56.1645],
-  ["La Paz","Bolivia",-16.5,-68.15],["Galápagos Islands","Ecuador",-0.9538,-90.9656],["Patagonia","Argentina",-41.8101,-68.9063],
-  ["Salvador","Brazil",-12.9714,-38.5124],["Florianópolis","Brazil",-27.5954,-48.548],["Bariloche","Argentina",-41.1335,-71.3103],
-  ["Valparaíso","Chile",-33.0472,-71.6127],["Iguazu Falls","Argentina",-25.6953,-54.4367],["Uyuni","Bolivia",-20.4606,-66.8261],
-  ["Torres del Paine","Chile",-51.2533,-72.3483],["Cali","Colombia",3.4516,-76.532],["Santa Marta","Colombia",11.2408,-74.199],
-  ["Manaus","Brazil",-3.119,-60.0217],["Atacama","Chile",-23.6509,-68.1591],["London","UK",51.5074,-0.1278],
-  ["Edinburgh","UK",55.9533,-3.1883],["Manchester","UK",53.4808,-2.2426],["Liverpool","UK",53.4084,-2.9916],
-  ["Glasgow","UK",55.8642,-4.2518],["Belfast","UK",54.5973,-5.9301],["Dublin","Ireland",53.3498,-6.2603],
-  ["Galway","Ireland",53.2707,-9.0568],["Cork","Ireland",51.8985,-8.4756],["Bath","UK",51.3811,-2.359],
-  ["Oxford","UK",51.752,-1.2577],["Cambridge","UK",52.2053,0.1218],["Brighton","UK",50.8225,-0.1372],
-  ["Bristol","UK",51.4545,-2.5879],["York","UK",53.9591,-1.0815],["Inverness","UK",57.4778,-4.2247],
-  ["Isle of Skye","UK",57.2736,-6.2153],["Cotswolds","UK",51.8286,-1.6926],["Killarney","Ireland",52.0599,-9.5044],
-  ["Dingle","Ireland",52.1409,-10.2686],["Paris","France",48.8566,2.3522],["Nice","France",43.7102,7.262],
+  ["Exuma","Bahamas",23.6279,-75.9693],["Santo Domingo","Dominican Republic",18.4861,-69.9312],["Punta Cana","Dominican Republic",18.582,-68.4055],
+  ["Aruba","Aruba",12.5093,-69.9688],["Barbados","Barbados",13.1939,-59.5432],["St. Lucia","St. Lucia",13.9094,-60.9789],
+  ["Curaçao","Curaçao",12.1696,-68.99],["Turks and Caicos","Turks and Caicos",21.694,-71.7979],["St. Kitts","St. Kitts",17.346,-62.7559],
+  ["Bermuda","Bermuda",32.3078,-64.7505],["Grenada","Grenada",12.1165,-61.679],["Dominica","Dominica",15.415,-61.371],
+  ["Antigua","Antigua",17.1274,-61.8468],["Virgin Gorda","BVI",18.4484,-64.4372],["San Juan del Sur","Nicaragua",11.253,-85.8699],
+  ["León Nicaragua","Nicaragua",12.4346,-86.8783],["São Paulo","Brazil",-23.5505,-46.6333],["Rio de Janeiro","Brazil",-22.9068,-43.1729],
+  ["Buenos Aires","Argentina",-34.6037,-58.3816],["Lima","Peru",-12.0464,-77.0428],["Bogotá","Colombia",4.711,-74.0721],
+  ["Santiago","Chile",-33.4489,-70.6693],["Medellín","Colombia",6.2442,-75.5812],["Cartagena","Colombia",10.391,-75.5144],
+  ["Cusco","Peru",-13.532,-71.9675],["Machu Picchu","Peru",-13.1631,-72.545],["Quito","Ecuador",-0.1807,-78.4678],
+  ["Montevideo","Uruguay",-34.9011,-56.1645],["La Paz","Bolivia",-16.5,-68.15],["Galápagos Islands","Ecuador",-0.9538,-90.9656],
+  ["Patagonia","Argentina",-41.8101,-68.9063],["Salvador","Brazil",-12.9714,-38.5124],["Florianópolis","Brazil",-27.5954,-48.548],
+  ["Bariloche","Argentina",-41.1335,-71.3103],["Valparaíso","Chile",-33.0472,-71.6127],["Iguazu Falls","Argentina",-25.6953,-54.4367],
+  ["Uyuni","Bolivia",-20.4606,-66.8261],["Torres del Paine","Chile",-51.2533,-72.3483],["Cali","Colombia",3.4516,-76.532],
+  ["Santa Marta","Colombia",11.2408,-74.199],["Manaus","Brazil",-3.119,-60.0217],["Atacama","Chile",-23.6509,-68.1591],
+  ["Ushuaia","Argentina",-54.8019,-68.303],["Mendoza","Argentina",-32.8895,-68.8458],["Paraty","Brazil",-23.2178,-44.713],
+  ["Minca","Colombia",11.1434,-74.1156],["Huacachina","Peru",-14.0875,-75.7633],["Colchagua Valley","Chile",-34.6,-71.2],
+  ["Tayrona","Colombia",11.32,-73.93],["Baños","Ecuador",-1.3928,-78.4269],["Sucre","Bolivia",-19.0196,-65.2619],
+  ["Asunción","Paraguay",-25.2637,-57.5759],["Georgetown","Guyana",6.8013,-58.1553],["Paramaribo","Suriname",5.852,-55.2038],
+  ["London","UK",51.5074,-0.1278],["Edinburgh","UK",55.9533,-3.1883],["Manchester","UK",53.4808,-2.2426],
+  ["Liverpool","UK",53.4084,-2.9916],["Glasgow","UK",55.8642,-4.2518],["Belfast","UK",54.5973,-5.9301],
+  ["Dublin","Ireland",53.3498,-6.2603],["Galway","Ireland",53.2707,-9.0568],["Cork","Ireland",51.8985,-8.4756],
+  ["Bath","UK",51.3811,-2.359],["Oxford","UK",51.752,-1.2577],["Cambridge","UK",52.2053,0.1218],
+  ["Brighton","UK",50.8225,-0.1372],["Bristol","UK",51.4545,-2.5879],["York","UK",53.9591,-1.0815],
+  ["Inverness","UK",57.4778,-4.2247],["Isle of Skye","UK",57.2736,-6.2153],["Cotswolds","UK",51.8286,-1.6926],
+  ["Killarney","Ireland",52.0599,-9.5044],["Dingle","Ireland",52.1409,-10.2686],["Canterbury","UK",51.2802,1.0789],
+  ["Stratford-upon-Avon","UK",52.1917,-1.7083],["Lake District","UK",54.4609,-3.0886],["Stonehenge","UK",51.1789,-1.8262],
+  ["St Andrews","UK",56.3398,-2.7967],["Cardiff","UK",51.4816,-3.1791],["Cornwall","UK",50.266,-5.0527],
+  ["Cliffs of Moher","Ireland",52.9715,-9.4309],["Paris","France",48.8566,2.3522],["Nice","France",43.7102,7.262],
   ["Lyon","France",45.764,4.8357],["Marseille","France",43.2965,5.3698],["Bordeaux","France",44.8378,-0.5792],
   ["Provence","France",43.9493,6.0679],["Strasbourg","France",48.5734,7.7521],["Toulouse","France",43.6047,1.4442],
   ["Cannes","France",43.5528,7.0174],["Mont Saint-Michel","France",48.636,-1.5115],["Chamonix","France",45.9237,6.8694],
   ["Annecy","France",45.8992,6.1294],["Avignon","France",43.9493,4.8055],["Colmar","France",48.0794,7.3586],
+  ["Saint-Tropez","France",43.2727,6.6407],["Biarritz","France",43.4832,-1.5586],["Normandy","France",48.8797,-0.1712],
+  ["Loire Valley","France",47.3517,0.6848],["Aix-en-Provence","France",43.5297,5.4474],["Giverny","France",49.0757,1.5337],
   ["Rome","Italy",41.9028,12.4964],["Milan","Italy",45.4642,9.19],["Florence","Italy",43.7696,11.2558],
   ["Venice","Italy",45.4408,12.3155],["Naples","Italy",40.8518,14.2681],["Bologna","Italy",44.4949,11.3426],
   ["Amalfi","Italy",40.634,14.6027],["Cinque Terre","Italy",44.1461,9.6439],["Lake Como","Italy",45.9983,9.2572],
   ["Tuscany","Italy",43.7711,11.2486],["Positano","Italy",40.6281,14.485],["Ravello","Italy",40.6492,14.6114],
   ["Capri","Italy",40.5532,14.2222],["Siena","Italy",43.3188,11.3308],["Verona","Italy",45.4384,10.9916],
   ["Turin","Italy",45.0703,7.6869],["Palermo","Italy",38.1157,13.3615],["Sardinia","Italy",40.1209,9.0129],
-  ["Lake Garda","Italy",45.6494,10.6352],["Sorrento","Italy",40.6263,14.3758],["Barcelona","Spain",41.3874,2.1686],
+  ["Lake Garda","Italy",45.6494,10.6352],["Sorrento","Italy",40.6263,14.3758],["Puglia","Italy",41.1257,16.8666],
+  ["Matera","Italy",40.6664,16.6043],["Perugia","Italy",43.1107,12.3908],["San Gimignano","Italy",43.4677,11.0432],
+  ["Orvieto","Italy",42.7186,12.1138],["Taormina","Italy",37.8516,15.2882],["Barcelona","Spain",41.3874,2.1686],
   ["Madrid","Spain",40.4168,-3.7038],["Seville","Spain",37.3891,-5.9845],["Granada","Spain",37.1773,-3.5986],
   ["Valencia","Spain",39.4699,-0.3763],["Málaga","Spain",36.7213,-4.4214],["Ibiza","Spain",38.9067,1.4206],
   ["Mallorca","Spain",39.6953,3.0176],["San Sebastián","Spain",43.3183,-1.9812],["Bilbao","Spain",43.263,-2.935],
   ["Tenerife","Spain",28.2916,-16.6291],["Marbella","Spain",36.5099,-4.8866],["Salamanca","Spain",40.9701,-5.6635],
-  ["Toledo","Spain",39.8628,-4.0273],["Lisbon","Portugal",38.7223,-9.1393],["Porto","Portugal",41.1579,-8.6291],
+  ["Toledo","Spain",39.8628,-4.0273],["Córdoba","Spain",37.8882,-4.7794],["Cádiz","Spain",36.527,-6.2886],
+  ["Menorca","Spain",39.9496,4.1104],["Ronda","Spain",36.7462,-5.1612],["Santiago de Compostela","Spain",42.8782,-8.5448],
+  ["Formentera","Spain",38.7065,1.4363],["Lisbon","Portugal",38.7223,-9.1393],["Porto","Portugal",41.1579,-8.6291],
   ["Algarve","Portugal",37.0179,-7.9304],["Madeira","Portugal",32.6669,-16.9241],["Azores","Portugal",37.7833,-25.5],
-  ["Sintra","Portugal",38.7981,-9.3882],["Berlin","Germany",52.52,13.405],["Munich","Germany",48.1351,11.582],
-  ["Hamburg","Germany",53.5511,9.9937],["Frankfurt","Germany",50.1109,8.6821],["Cologne","Germany",50.9375,6.9603],
-  ["Dresden","Germany",51.0504,13.7373],["Heidelberg","Germany",49.3988,8.6724],["Rothenburg","Germany",49.3769,10.1789],
-  ["Baden-Baden","Germany",48.7651,8.2401],["Nuremberg","Germany",49.4521,11.0767],["Amsterdam","Netherlands",52.3676,4.9041],
+  ["Sintra","Portugal",38.7981,-9.3882],["Lagos Portugal","Portugal",37.1028,-8.6731],["Cascais","Portugal",38.6979,-9.4215],
+  ["Évora","Portugal",38.5719,-7.9097],["Coimbra","Portugal",40.2033,-8.4103],["Berlin","Germany",52.52,13.405],
+  ["Munich","Germany",48.1351,11.582],["Hamburg","Germany",53.5511,9.9937],["Frankfurt","Germany",50.1109,8.6821],
+  ["Cologne","Germany",50.9375,6.9603],["Dresden","Germany",51.0504,13.7373],["Heidelberg","Germany",49.3988,8.6724],
+  ["Rothenburg","Germany",49.3769,10.1789],["Baden-Baden","Germany",48.7651,8.2401],["Nuremberg","Germany",49.4521,11.0767],
+  ["Stuttgart","Germany",48.7758,9.1829],["Düsseldorf","Germany",51.2277,6.7735],["Leipzig","Germany",51.3397,12.3731],
+  ["Freiburg","Germany",47.999,7.842],["Black Forest","Germany",48.0,8.0],["Amsterdam","Netherlands",52.3676,4.9041],
   ["Brussels","Belgium",50.8503,4.3517],["Bruges","Belgium",51.2093,3.2247],["Ghent","Belgium",51.0543,3.7174],
   ["Zürich","Switzerland",47.3769,8.5417],["Geneva","Switzerland",46.2044,6.1432],["Interlaken","Switzerland",46.6863,7.8632],
   ["Lucerne","Switzerland",47.0502,8.3093],["Zermatt","Switzerland",46.0207,7.7491],["Luxembourg","Luxembourg",49.6117,6.13],
   ["Rotterdam","Netherlands",51.9225,4.4792],["The Hague","Netherlands",52.0705,4.3007],["Utrecht","Netherlands",52.0907,5.1214],
-  ["Bern","Switzerland",46.948,7.4474],["Copenhagen","Denmark",55.6761,12.5683],["Stockholm","Sweden",59.3293,18.0686],
-  ["Oslo","Norway",59.9139,10.7522],["Helsinki","Finland",60.1699,24.9384],["Bergen","Norway",60.3913,5.3221],
-  ["Tromsø","Norway",69.6492,18.9553],["Lofoten","Norway",68.2094,14.1534],["Gothenburg","Sweden",57.7089,11.9746],
-  ["Malmö","Sweden",55.604,13.004],["Rovaniemi","Finland",66.5039,25.7294],["Reykjavik","Iceland",64.1466,-21.9426],
-  ["Blue Lagoon Iceland","Iceland",63.8804,-22.4495],["Prague","Czech Republic",50.0755,14.4378],["Budapest","Hungary",47.4979,19.0402],
+  ["Bern","Switzerland",46.948,7.4474],["Antwerp","Belgium",51.2194,4.4025],["Grindelwald","Switzerland",46.6242,8.0414],
+  ["St. Moritz","Switzerland",46.4983,9.8381],["Montreux","Switzerland",46.431,6.9109],["Copenhagen","Denmark",55.6761,12.5683],
+  ["Stockholm","Sweden",59.3293,18.0686],["Oslo","Norway",59.9139,10.7522],["Helsinki","Finland",60.1699,24.9384],
+  ["Bergen","Norway",60.3913,5.3221],["Tromsø","Norway",69.6492,18.9553],["Lofoten","Norway",68.2094,14.1534],
+  ["Gothenburg","Sweden",57.7089,11.9746],["Malmö","Sweden",55.604,13.004],["Rovaniemi","Finland",66.5039,25.7294],
+  ["Reykjavik","Iceland",64.1466,-21.9426],["Blue Lagoon Iceland","Iceland",63.8804,-22.4495],["Ålesund","Norway",62.4722,6.1495],
+  ["Stavanger","Norway",58.97,5.7331],["Tampere","Finland",61.4978,23.761],["Turku","Finland",60.4518,22.2666],
+  ["Aarhus","Denmark",56.1629,10.2039],["Faroe Islands","Denmark",62.0,-6.7833],["Golden Circle Iceland","Iceland",64.3,-20.5],
+  ["Vik Iceland","Iceland",63.4186,-19.006],["Prague","Czech Republic",50.0755,14.4378],["Budapest","Hungary",47.4979,19.0402],
   ["Warsaw","Poland",52.2297,21.0122],["Kraków","Poland",50.0647,19.945],["Vienna","Austria",48.2082,16.3738],
   ["Salzburg","Austria",47.8095,13.055],["Hallstatt","Austria",47.5622,13.6493],["Innsbruck","Austria",47.2692,11.4041],
-  ["Athens","Greece",37.9838,23.7275],["Santorini","Greece",36.3932,25.4615],["Mykonos","Greece",37.4467,25.3289],
-  ["Crete","Greece",35.2401,24.4709],["Corfu","Greece",39.6243,19.9217],["Rhodes","Greece",36.4349,28.2176],
-  ["Istanbul","Turkey",41.0082,28.9784],["Cappadocia","Turkey",38.6431,34.8289],["Antalya","Turkey",36.8969,30.7133],
-  ["Bodrum","Turkey",37.0344,27.4305],["Dubrovnik","Croatia",42.6507,18.0944],["Split","Croatia",43.5081,16.4402],
-  ["Hvar","Croatia",43.1729,16.4411],["Plitvice Lakes","Croatia",44.8654,15.582],["Kotor","Montenegro",42.4247,18.7712],
-  ["Belgrade","Serbia",44.7866,20.4489],["Bucharest","Romania",44.4268,26.1025],["Sofia","Bulgaria",42.6977,23.3219],
-  ["Tallinn","Estonia",59.437,24.7536],["Riga","Latvia",56.9496,24.1052],["Vilnius","Lithuania",54.6872,25.2797],
-  ["Ljubljana","Slovenia",46.0569,14.5058],["Lake Bled","Slovenia",46.3639,14.094],["Bratislava","Slovakia",48.1486,17.1077],
-  ["Malta","Malta",35.8989,14.5146],["Cyprus","Cyprus",35.1264,33.4299],["Mostar","Bosnia",43.3438,17.8078],
-  ["Tirana","Albania",41.3275,19.8187],["Monaco","Monaco",43.7384,7.4246],["Moscow","Russia",55.7558,37.6173],
-  ["St. Petersburg","Russia",59.9343,30.3351],["Cape Town","South Africa",-33.9249,18.4241],["Johannesburg","South Africa",-26.2041,28.0473],
-  ["Cairo","Egypt",30.0444,31.2357],["Marrakech","Morocco",31.6295,-7.9811],["Casablanca","Morocco",33.5731,-7.5898],
-  ["Nairobi","Kenya",-1.2921,36.8219],["Lagos","Nigeria",6.5244,3.3792],["Accra","Ghana",5.6037,-0.187],
-  ["Addis Ababa","Ethiopia",9.02,38.7469],["Zanzibar","Tanzania",-6.1659,39.199],["Dar es Salaam","Tanzania",-6.7924,39.2083],
-  ["Victoria Falls","Zimbabwe",-17.9243,25.8572],["Serengeti","Tanzania",-2.3333,34.8333],["Luxor","Egypt",25.6872,32.6396],
-  ["Fez","Morocco",34.0181,-5.0078],["Tunis","Tunisia",36.8065,10.1815],["Dakar","Senegal",14.7167,-17.4677],
-  ["Windhoek","Namibia",-22.5609,17.0658],["Kruger Park","South Africa",-23.9884,31.5547],["Mauritius","Mauritius",-20.3484,57.5522],
-  ["Seychelles","Seychelles",-4.6796,55.492],["Kigali","Rwanda",-1.9403,29.8739],["Essaouira","Morocco",31.5085,-9.7595],
-  ["Chefchaouen","Morocco",35.1688,-5.2636],["Kilimanjaro","Tanzania",-3.0674,37.3556],["Masai Mara","Kenya",-1.4061,35.0],
-  ["Stone Town","Tanzania",-6.1622,39.187],["Sossusvlei","Namibia",-24.7275,15.3394],["Garden Route","South Africa",-33.9614,22.4614],
-  ["Stellenbosch","South Africa",-33.9321,18.8602],["Dubai","UAE",25.2048,55.2708],["Abu Dhabi","UAE",24.4539,54.3773],
+  ["Gdańsk","Poland",54.352,18.6466],["Wrocław","Poland",51.1079,17.0385],["Český Krumlov","Czech Republic",48.8127,14.3175],
+  ["Brno","Czech Republic",49.1951,16.6068],["Athens","Greece",37.9838,23.7275],["Santorini","Greece",36.3932,25.4615],
+  ["Mykonos","Greece",37.4467,25.3289],["Crete","Greece",35.2401,24.4709],["Corfu","Greece",39.6243,19.9217],
+  ["Rhodes","Greece",36.4349,28.2176],["Istanbul","Turkey",41.0082,28.9784],["Cappadocia","Turkey",38.6431,34.8289],
+  ["Antalya","Turkey",36.8969,30.7133],["Bodrum","Turkey",37.0344,27.4305],["Dubrovnik","Croatia",42.6507,18.0944],
+  ["Split","Croatia",43.5081,16.4402],["Hvar","Croatia",43.1729,16.4411],["Plitvice Lakes","Croatia",44.8654,15.582],
+  ["Kotor","Montenegro",42.4247,18.7712],["Belgrade","Serbia",44.7866,20.4489],["Bucharest","Romania",44.4268,26.1025],
+  ["Sofia","Bulgaria",42.6977,23.3219],["Tallinn","Estonia",59.437,24.7536],["Riga","Latvia",56.9496,24.1052],
+  ["Vilnius","Lithuania",54.6872,25.2797],["Ljubljana","Slovenia",46.0569,14.5058],["Lake Bled","Slovenia",46.3639,14.094],
+  ["Bratislava","Slovakia",48.1486,17.1077],["Malta","Malta",35.8989,14.5146],["Cyprus","Cyprus",35.1264,33.4299],
+  ["Mostar","Bosnia",43.3438,17.8078],["Tirana","Albania",41.3275,19.8187],["Thessaloniki","Greece",40.6401,22.9444],
+  ["Naxos","Greece",37.1036,25.3762],["Paros","Greece",37.0853,25.15],["Milos","Greece",36.745,24.445],
+  ["Zadar","Croatia",44.1194,15.2314],["Rovinj","Croatia",45.0812,13.6387],["Ephesus","Turkey",37.9394,27.3422],
+  ["Pamukkale","Turkey",37.9204,29.1184],["Fethiye","Turkey",36.6216,29.1143],["Izmir","Turkey",38.4237,27.1428],
+  ["Monaco","Monaco",43.7384,7.4246],["Moscow","Russia",55.7558,37.6173],["St. Petersburg","Russia",59.9343,30.3351],
+  ["Cape Town","South Africa",-33.9249,18.4241],["Johannesburg","South Africa",-26.2041,28.0473],["Cairo","Egypt",30.0444,31.2357],
+  ["Marrakech","Morocco",31.6295,-7.9811],["Casablanca","Morocco",33.5731,-7.5898],["Nairobi","Kenya",-1.2921,36.8219],
+  ["Lagos","Nigeria",6.5244,3.3792],["Accra","Ghana",5.6037,-0.187],["Addis Ababa","Ethiopia",9.02,38.7469],
+  ["Zanzibar","Tanzania",-6.1659,39.199],["Dar es Salaam","Tanzania",-6.7924,39.2083],["Victoria Falls","Zimbabwe",-17.9243,25.8572],
+  ["Serengeti","Tanzania",-2.3333,34.8333],["Luxor","Egypt",25.6872,32.6396],["Fez","Morocco",34.0181,-5.0078],
+  ["Tunis","Tunisia",36.8065,10.1815],["Dakar","Senegal",14.7167,-17.4677],["Windhoek","Namibia",-22.5609,17.0658],
+  ["Kruger Park","South Africa",-23.9884,31.5547],["Mauritius","Mauritius",-20.3484,57.5522],["Seychelles","Seychelles",-4.6796,55.492],
+  ["Kigali","Rwanda",-1.9403,29.8739],["Essaouira","Morocco",31.5085,-9.7595],["Chefchaouen","Morocco",35.1688,-5.2636],
+  ["Kilimanjaro","Tanzania",-3.0674,37.3556],["Masai Mara","Kenya",-1.4061,35.0],["Stone Town","Tanzania",-6.1622,39.187],
+  ["Sossusvlei","Namibia",-24.7275,15.3394],["Garden Route","South Africa",-33.9614,22.4614],["Stellenbosch","South Africa",-33.9321,18.8602],
+  ["Ngorongoro Crater","Tanzania",-3.1806,35.5877],["Diani Beach","Kenya",-4.3144,39.5708],["Lamu","Kenya",-2.2717,40.9022],
+  ["Bazaruto","Mozambique",-21.65,35.45],["Luanda","Angola",-8.8399,13.2894],["Kampala","Uganda",0.3476,32.5825],
+  ["Arusha","Tanzania",-3.3869,36.683],["Giza","Egypt",30.0131,31.2089],["Aswan","Egypt",24.0889,32.8998],
+  ["Rabat","Morocco",34.0209,-6.8416],["Dubai","UAE",25.2048,55.2708],["Abu Dhabi","UAE",24.4539,54.3773],
   ["Doha","Qatar",25.2854,51.531],["Tel Aviv","Israel",32.0853,34.7818],["Jerusalem","Israel",31.7683,35.2137],
   ["Amman","Jordan",31.9454,35.9284],["Petra","Jordan",30.3285,35.4444],["Muscat","Oman",23.588,58.3829],
   ["Beirut","Lebanon",33.8938,35.5018],["Riyadh","Saudi Arabia",24.7136,46.6753],["Dead Sea","Jordan",31.5,35.5],
-  ["Wadi Rum","Jordan",29.5321,35.4132],["Tokyo","Japan",35.6762,139.6503],["Osaka","Japan",34.6937,135.5023],
-  ["Kyoto","Japan",35.0116,135.7681],["Seoul","South Korea",37.5665,126.978],["Beijing","China",39.9042,116.4074],
-  ["Shanghai","China",31.2304,121.4737],["Hong Kong","China",22.3193,114.1694],["Taipei","Taiwan",25.033,121.5654],
-  ["Busan","South Korea",35.1796,129.0756],["Hiroshima","Japan",34.3853,132.4553],["Nara","Japan",34.6851,135.8048],
-  ["Okinawa","Japan",26.3344,127.8056],["Hakone","Japan",35.2326,139.107],["Sapporo","Japan",43.0618,141.3545],
-  ["Fukuoka","Japan",33.5904,130.4017],["Guangzhou","China",23.1291,113.2644],["Shenzhen","China",22.5431,114.058],
-  ["Chengdu","China",30.5728,104.0668],["Xi'an","China",34.3416,108.9398],["Guilin","China",25.2742,110.29],
-  ["Macau","China",22.1987,113.5439],["Kaohsiung","Taiwan",22.6273,120.3014],["Jeju Island","South Korea",33.4996,126.5312],
-  ["Takayama","Japan",36.146,137.2522],["Kamakura","Japan",35.3192,139.5467],["Nikko","Japan",36.7198,139.6982],
-  ["Kanazawa","Japan",36.5613,136.6562],["Bangkok","Thailand",13.7563,100.5018],["Singapore","Singapore",1.3521,103.8198],
-  ["Bali","Indonesia",-8.3405,115.092],["Hanoi","Vietnam",21.0278,105.8342],["Ho Chi Minh City","Vietnam",10.8231,106.6297],
-  ["Kuala Lumpur","Malaysia",3.139,101.6869],["Jakarta","Indonesia",-6.2088,106.8456],["Manila","Philippines",14.5995,120.9842],
-  ["Phnom Penh","Cambodia",11.5564,104.9282],["Siem Reap","Cambodia",13.3671,103.8448],["Chiang Mai","Thailand",18.7883,98.9853],
-  ["Phuket","Thailand",7.8804,98.3923],["Koh Samui","Thailand",9.5121,100.0134],["Luang Prabang","Laos",19.8856,102.1347],
-  ["Yangon","Myanmar",16.8661,96.1951],["Ubud","Indonesia",-8.5069,115.2625],["Yogyakarta","Indonesia",-7.7956,110.3695],
-  ["Da Nang","Vietnam",16.0544,108.2022],["Hoi An","Vietnam",15.8801,108.338],["Penang","Malaysia",5.4164,100.3327],
-  ["Langkawi","Malaysia",6.35,99.8],["Boracay","Philippines",11.9674,121.9248],["Palawan","Philippines",9.8349,118.7384],
-  ["Koh Phi Phi","Thailand",7.7407,98.7784],["Koh Lanta","Thailand",7.6501,99.0299],["Pai","Thailand",19.3593,98.4421],
-  ["Krabi","Thailand",8.0863,98.9063],["Vientiane","Laos",17.9757,102.6331],["Ha Long Bay","Vietnam",20.9101,107.1839],
-  ["Nha Trang","Vietnam",12.2388,109.1967],["Lombok","Indonesia",-8.6505,116.3249],["Komodo","Indonesia",-8.5463,119.4884],
-  ["El Nido","Philippines",11.1789,119.3929],["Delhi","India",28.7041,77.1025],["Mumbai","India",19.076,72.8777],
+  ["Wadi Rum","Jordan",29.5321,35.4132],["Jeddah","Saudi Arabia",21.4858,39.1925],["AlUla","Saudi Arabia",26.5973,37.9188],
+  ["Aqaba","Jordan",29.5267,35.0078],["Haifa","Israel",32.794,34.9896],["Tokyo","Japan",35.6762,139.6503],
+  ["Osaka","Japan",34.6937,135.5023],["Kyoto","Japan",35.0116,135.7681],["Seoul","South Korea",37.5665,126.978],
+  ["Beijing","China",39.9042,116.4074],["Shanghai","China",31.2304,121.4737],["Hong Kong","China",22.3193,114.1694],
+  ["Taipei","Taiwan",25.033,121.5654],["Busan","South Korea",35.1796,129.0756],["Hiroshima","Japan",34.3853,132.4553],
+  ["Nara","Japan",34.6851,135.8048],["Okinawa","Japan",26.3344,127.8056],["Hakone","Japan",35.2326,139.107],
+  ["Sapporo","Japan",43.0618,141.3545],["Fukuoka","Japan",33.5904,130.4017],["Guangzhou","China",23.1291,113.2644],
+  ["Shenzhen","China",22.5431,114.058],["Chengdu","China",30.5728,104.0668],["Xi'an","China",34.3416,108.9398],
+  ["Guilin","China",25.2742,110.29],["Macau","China",22.1987,113.5439],["Kaohsiung","Taiwan",22.6273,120.3014],
+  ["Jeju Island","South Korea",33.4996,126.5312],["Takayama","Japan",36.146,137.2522],["Kamakura","Japan",35.3192,139.5467],
+  ["Nikko","Japan",36.7198,139.6982],["Kanazawa","Japan",36.5613,136.6562],["Nagoya","Japan",35.1815,136.9066],
+  ["Kobe","Japan",34.6901,135.1956],["Naoshima","Japan",34.4602,133.9957],["Yangshuo","China",24.7753,110.4897],
+  ["Zhangjiajie","China",29.1167,110.4833],["Ulaanbaatar","Mongolia",47.9184,106.9177],["Gyeongju","South Korea",35.8563,129.225],
+  ["Bangkok","Thailand",13.7563,100.5018],["Singapore","Singapore",1.3521,103.8198],["Bali","Indonesia",-8.3405,115.092],
+  ["Hanoi","Vietnam",21.0278,105.8342],["Ho Chi Minh City","Vietnam",10.8231,106.6297],["Kuala Lumpur","Malaysia",3.139,101.6869],
+  ["Jakarta","Indonesia",-6.2088,106.8456],["Manila","Philippines",14.5995,120.9842],["Phnom Penh","Cambodia",11.5564,104.9282],
+  ["Siem Reap","Cambodia",13.3671,103.8448],["Chiang Mai","Thailand",18.7883,98.9853],["Phuket","Thailand",7.8804,98.3923],
+  ["Koh Samui","Thailand",9.5121,100.0134],["Luang Prabang","Laos",19.8856,102.1347],["Yangon","Myanmar",16.8661,96.1951],
+  ["Ubud","Indonesia",-8.5069,115.2625],["Yogyakarta","Indonesia",-7.7956,110.3695],["Da Nang","Vietnam",16.0544,108.2022],
+  ["Hoi An","Vietnam",15.8801,108.338],["Penang","Malaysia",5.4164,100.3327],["Langkawi","Malaysia",6.35,99.8],
+  ["Boracay","Philippines",11.9674,121.9248],["Palawan","Philippines",9.8349,118.7384],["Koh Phi Phi","Thailand",7.7407,98.7784],
+  ["Koh Lanta","Thailand",7.6501,99.0299],["Pai","Thailand",19.3593,98.4421],["Krabi","Thailand",8.0863,98.9063],
+  ["Vientiane","Laos",17.9757,102.6331],["Ha Long Bay","Vietnam",20.9101,107.1839],["Nha Trang","Vietnam",12.2388,109.1967],
+  ["Lombok","Indonesia",-8.6505,116.3249],["Komodo","Indonesia",-8.5463,119.4884],["El Nido","Philippines",11.1789,119.3929],
+  ["Bagan","Myanmar",21.1717,94.8585],["Koh Tao","Thailand",10.0956,99.8404],["Koh Rong","Cambodia",10.7283,103.2399],
+  ["Siargao","Philippines",9.8482,126.045],["Gili Islands","Indonesia",-8.35,116.05],["Cameron Highlands","Malaysia",4.4715,101.3762],
+  ["Hué","Vietnam",16.4637,107.5909],["Sa Pa","Vietnam",22.3363,103.8438],["Phú Quốc","Vietnam",10.227,103.9671],
+  ["Ninh Binh","Vietnam",20.2541,105.975],["Seminyak","Indonesia",-8.6916,115.1683],["Canggu","Indonesia",-8.6478,115.1385],
+  ["Nusa Penida","Indonesia",-8.7275,115.5444],["Delhi","India",28.7041,77.1025],["Mumbai","India",19.076,72.8777],
   ["Bangalore","India",12.9716,77.5946],["Jaipur","India",26.9124,75.7873],["Goa","India",15.2993,74.124],
   ["Agra","India",27.1767,78.0081],["Varanasi","India",25.3176,83.0064],["Kerala","India",10.8505,76.2711],
   ["Colombo","Sri Lanka",6.9271,79.8612],["Kathmandu","Nepal",27.7172,85.324],["Dhaka","Bangladesh",23.8103,90.4125],
   ["Maldives","Maldives",3.2028,73.2207],["Lhasa","Tibet",29.65,91.1],["Udaipur","India",24.5854,73.7125],
   ["Rishikesh","India",30.0869,78.2676],["Darjeeling","India",27.041,88.2663],["Ella","Sri Lanka",6.8667,81.0466],
-  ["Kandy","Sri Lanka",7.2906,80.6337],["Pokhara","Nepal",28.2096,83.9856],["Sydney","Australia",-33.8688,151.2093],
-  ["Melbourne","Australia",-37.8136,144.9631],["Brisbane","Australia",-27.4698,153.0251],["Perth","Australia",-31.9505,115.8605],
-  ["Adelaide","Australia",-34.9285,138.6007],["Auckland","New Zealand",-36.8485,174.7633],["Queenstown","New Zealand",-45.0312,168.6626],
-  ["Christchurch","New Zealand",-43.532,172.6306],["Wellington","New Zealand",-41.2865,174.7762],["Gold Coast","Australia",-28.0167,153.4],
-  ["Cairns","Australia",-16.9186,145.7781],["Great Barrier Reef","Australia",-18.2871,147.6992],["Fiji","Fiji",-17.7134,178.065],
-  ["Tahiti","French Polynesia",-17.6509,-149.426],["Bora Bora","French Polynesia",-16.5004,-151.7415],["Tasmania","Australia",-42.0409,146.8087],
-  ["Darwin","Australia",-12.4634,130.8456],["Uluru","Australia",-25.3444,131.0369],["Byron Bay","Australia",-28.6474,153.612],
-  ["Noosa","Australia",-26.3889,153.0914],["Rotorua","New Zealand",-38.1368,176.2497],["Milford Sound","New Zealand",-44.6141,167.8984],
-  ["Hobbiton","New Zealand",-37.8721,175.6827],["Samoa","Samoa",-13.759,-172.1046],["Rarotonga","Cook Islands",-21.2367,-159.7777]
+  ["Kandy","Sri Lanka",7.2906,80.6337],["Pokhara","Nepal",28.2096,83.9856],["Jodhpur","India",26.2389,73.0243],
+  ["Hampi","India",15.335,76.46],["Pushkar","India",26.4899,74.5542],["Kochi","India",9.9312,76.2673],
+  ["Amritsar","India",31.634,74.8723],["Galle","Sri Lanka",6.0535,80.221],["Sigiriya","Sri Lanka",7.957,80.76],
+  ["Bhutan","Bhutan",27.5142,90.4336],["Sydney","Australia",-33.8688,151.2093],["Melbourne","Australia",-37.8136,144.9631],
+  ["Brisbane","Australia",-27.4698,153.0251],["Perth","Australia",-31.9505,115.8605],["Adelaide","Australia",-34.9285,138.6007],
+  ["Auckland","New Zealand",-36.8485,174.7633],["Queenstown","New Zealand",-45.0312,168.6626],["Christchurch","New Zealand",-43.532,172.6306],
+  ["Wellington","New Zealand",-41.2865,174.7762],["Gold Coast","Australia",-28.0167,153.4],["Cairns","Australia",-16.9186,145.7781],
+  ["Great Barrier Reef","Australia",-18.2871,147.6992],["Fiji","Fiji",-17.7134,178.065],["Tahiti","French Polynesia",-17.6509,-149.426],
+  ["Bora Bora","French Polynesia",-16.5004,-151.7415],["Tasmania","Australia",-42.0409,146.8087],["Darwin","Australia",-12.4634,130.8456],
+  ["Uluru","Australia",-25.3444,131.0369],["Byron Bay","Australia",-28.6474,153.612],["Noosa","Australia",-26.3889,153.0914],
+  ["Rotorua","New Zealand",-38.1368,176.2497],["Milford Sound","New Zealand",-44.6141,167.8984],["Hobbiton","New Zealand",-37.8721,175.6827],
+  ["Samoa","Samoa",-13.759,-172.1046],["Rarotonga","Cook Islands",-21.2367,-159.7777],["Wanaka","New Zealand",-44.7032,169.1321],
+  ["Margaret River","Australia",-33.9536,115.0753],["Kangaroo Island","Australia",-35.8,-137.2],["Whitsunday Islands","Australia",-20.2,-149.0],
+  ["Blue Mountains","Australia",-33.7,150.3],["Tongariro","New Zealand",-39.2,175.6],["Abel Tasman","New Zealand",-40.9,173.0],
+  ["Wichita","USA",37.6872,-97.3301],["Little Rock","USA",34.7465,-92.2896],["Des Moines","USA",41.5868,-93.625],
+  ["Baton Rouge","USA",30.4515,-91.1871],["Hartford","USA",41.7658,-72.6734],["Wilmington DE","USA",39.7391,-75.5398],
+  ["Rapid City","USA",44.0805,-103.231],["Bismarck","USA",46.8084,-100.7837],["Helena","USA",46.5927,-112.036],
+  ["Juneau","USA",58.3005,-134.42],["Cheyenne","USA",41.14,-104.82],["Sioux Falls","USA",43.5446,-96.7311],
+  ["Fargo","USA",46.8772,-96.7898],["Missoula","USA",46.8721,-114.0],["Bozeman","USA",45.677,-111.0429],
+  ["Billings","USA",45.7833,-108.5007],["Great Falls","USA",47.5,-111.3],["Coeur d'Alene","USA",47.6777,-116.78],
+  ["Sandpoint","USA",48.2766,-116.5533],["McCall","USA",44.9119,-116.1211],["Ketchum","USA",43.6808,-114.3637],
+  ["Lahaina","USA",20.8783,-156.6825],["Hilo","USA",19.7071,-155.0885],["Waimea","USA",20.0231,-155.6694],
+  ["Lanai","USA",20.8283,-156.9219],["Molokai","USA",21.1333,-157.0],["Poipu","USA",21.8767,-159.4483],
+  ["Princeville","USA",22.2173,-159.4735],["Wailea","USA",20.6905,-156.4413],["Seaside","USA",45.9933,-123.9228],
+  ["Astoria","USA",46.1879,-123.8313],["Ashland OR","USA",42.1946,-122.7095],["Sisters","USA",44.291,-121.549],
+  ["Joseph","USA",45.3543,-117.2295],["Walla Walla","USA",46.0646,-118.343],["Ellensburg","USA",46.9965,-120.5478],
+  ["Whidbey Island","USA",48.212,-122.6824],["San Luis Obispo","USA",35.2828,-120.6596],["Pismo Beach","USA",35.1428,-120.6412],
+  ["Cambria","USA",35.5639,-121.0808],["Solvang","USA",34.5958,-120.1376],["Ojai","USA",34.448,-119.2429],
+  ["Catalina Island","USA",33.3872,-118.416],["Laguna Beach","USA",33.5427,-117.7854],["Dana Point","USA",33.4672,-117.6981],
+  ["Coronado","USA",32.6859,-117.1831],["Julian","USA",33.0786,-116.6019],["Idyllwild","USA",33.7464,-116.718],
+  ["Palm Desert","USA",33.7222,-116.3744],["Portofino","Italy",44.3035,9.2097],["Como","Italy",45.808,9.0852],
+  ["Stresa","Italy",45.8833,8.5333],["Bellagio","Italy",45.9884,9.2605],["Varenna","Italy",46.01,9.2833],
+  ["Burano","Italy",45.4853,12.4167],["Murano","Italy",45.4583,12.3528],["Ravenna","Italy",44.4184,12.2035],
+  ["Assisi","Italy",43.07,12.6167],["Cortina d'Ampezzo","Italy",46.5369,12.1356],["Alberobello","Italy",40.7833,17.2333],
+  ["Cefalù","Italy",38.0381,14.0228],["Catania","Italy",37.5079,15.09],["Syracuse Italy","Italy",37.0755,15.2866],
+  ["Modica","Italy",36.86,14.76],["Lecce","Italy",40.3516,18.1718],["Procida","Italy",40.7581,14.0214],
+  ["Ischia","Italy",40.73,13.9],["Vernazza","Italy",44.1346,9.6844],["Riomaggiore","Italy",44.1,9.7333],
+  ["Trastevere","Italy",41.886,12.467],["Dolomites","Italy",46.4102,11.844],["Douro Valley","Portugal",41.1561,-7.7228],
+  ["Obidos","Portugal",39.362,-9.157],["Nazaré","Portugal",39.6012,-9.0714],["Wachau Valley","Austria",48.35,15.4167],
+  ["Graz","Austria",47.0707,15.4395],["Lauterbrunnen","Switzerland",46.5935,7.909],["Murren","Switzerland",46.5588,7.8925],
+  ["Lugano","Switzerland",46.0037,8.9511],["Davos","Switzerland",46.8027,9.836],["Gimmelwald","Switzerland",46.5441,7.8874],
+  ["Cintra","Portugal",38.7981,-9.3882],["Sifnos","Greece",36.9667,24.7167],["Hydra","Greece",37.3487,23.463],
+  ["Zakynthos","Greece",37.7879,20.8979],["Lefkada","Greece",38.7128,20.6561],["Meteora","Greece",39.7139,21.6306],
+  ["Delphi","Greece",38.4824,22.501],["Nafplio","Greece",37.5673,22.8017],["Chania","Greece",35.5138,24.018],
+  ["Skiathos","Greece",39.1614,23.4897],["Kefalonia","Greece",38.175,20.5],["Inle Lake","Myanmar",20.4833,96.9],
+  ["Mandalay","Myanmar",21.9588,96.0891],["Battambang","Cambodia",13.1,103.2],["Kampot","Cambodia",10.6,104.18],
+  ["Mekong Delta","Vietnam",10.0,106.0],["Dalat","Vietnam",11.9404,108.4583],["Phong Nha","Vietnam",17.5928,106.2835],
+  ["Kota Kinabalu","Malaysia",5.9804,116.0735],["Malacca","Malaysia",2.1896,102.2501],["Tioman","Malaysia",2.8,104.15],
+  ["Ipoh","Malaysia",4.5975,101.09],["Brunei","Brunei",4.9431,114.9453],["Nagano","Japan",36.6485,138.181],
+  ["Miyajima","Japan",34.2964,132.3192],["Shirakawa-go","Japan",36.2598,136.9072],["Onomichi","Japan",34.4089,133.2051],
+  ["Yakushima","Japan",30.3556,130.5072],["Ishigaki","Japan",24.3448,124.1572],["Aomori","Japan",40.8246,140.74],
+  ["Matsumoto","Japan",36.2381,137.972],["Kumano Kodo","Japan",33.84,135.77],["Jiuzhaigou","China",33.26,103.916],
+  ["Lijiang","China",26.8721,100.236],["Dali","China",25.6065,100.2679],["Hangzhou","China",30.2741,120.1551],
+  ["Suzhou","China",31.299,120.5853],["Kunming","China",25.0389,102.7183],["Nanjing","China",32.0603,118.7969],
+  ["Qingdao","China",36.0671,120.3826],["Harbin","China",45.8038,126.535],["Gangtok","India",27.3389,88.6065],
+  ["Ladakh","India",34.1526,77.5771],["Munnar","India",10.0889,77.0595],["Alleppey","India",9.4981,76.3388],
+  ["Mysore","India",12.2958,76.6394],["Pondicherry","India",11.9416,79.8083],["Shimla","India",31.1048,77.1734],
+  ["Manali","India",32.2396,77.1887],["McLeod Ganj","India",32.2426,76.3213],["Jaisalmer","India",26.9157,70.9083],
+  ["Khajuraho","India",24.8318,79.9199],["Orchha","India",25.3519,78.6403],["Bodh Gaya","India",24.6961,84.9869],
+  ["Chitwan","Nepal",27.5291,84.3542],["Lumbini","Nepal",27.4833,83.2833],["Annapurna","Nepal",28.596,83.8203],
+  ["Everest Base Camp","Nepal",28.0025,86.8528],["Djerba","Tunisia",33.8076,10.8451],["Tangier","Morocco",35.7595,-5.834],
+  ["Ouarzazate","Morocco",30.9202,-6.8935],["Sahara Desert","Morocco",30.0,-5.0],["Toubkal","Morocco",31.0596,-7.916],
+  ["Maputo","Mozambique",-25.9692,32.5732],["Pemba","Mozambique",-12.975,40.5],["Maun","Botswana",-19.9833,23.4167],
+  ["Okavango Delta","Botswana",-19.5,22.5],["Chobe","Botswana",-18.5,25.0],["Etosha","Namibia",-18.8,16.0],
+  ["Swakopmund","Namibia",-22.6784,14.5266],["Fish River Canyon","Namibia",-27.6,17.6],["Livingstone","Zambia",-17.8419,25.8607],
+  ["South Luangwa","Zambia",-13.1,31.55],["Lake Malawi","Malawi",-12.0,34.5],["Blantyre","Malawi",-15.7667,35.0167],
+  ["Antananarivo","Madagascar",-18.9137,47.5361],["Nosy Be","Madagascar",-13.33,48.25],["Harare","Zimbabwe",-17.8252,31.0335],
+  ["Masvingo","Zimbabwe",-20.0633,30.8322],["Vanuatu","Vanuatu",-17.7334,168.3273],["New Caledonia","New Caledonia",-22.2558,166.4505],
+  ["Tonga","Tonga",-21.179,-175.198],["Solomon Islands","Solomon Islands",-9.4456,160.0],["Palau","Palau",7.515,134.5825],
+  ["Guam","Guam",13.4443,144.7937],["Norfolk Island","Australia",-29.0408,167.9547],["Lord Howe Island","Australia",-31.555,159.082],
+  ["Broome","Australia",-17.9614,122.2359],["Ningaloo Reef","Australia",-22.7,113.7],["Rottnest Island","Australia",-32.0,115.5],
+  ["Phillip Island","Australia",-38.5,145.2],["Hamilton Island","Australia",-20.3486,148.9556],["Fraser Island","Australia",-25.3,153.1],
+  ["Kakadu","Australia",-13.0,132.5],["Kimberley","Australia",-15.0,127.0],["Coober Pedy","Australia",-29.0135,134.7544],
+  ["Alice Springs","Australia",-23.698,133.8807],["Kaikoura","New Zealand",-42.4008,173.6814],["Coromandel","New Zealand",-36.7617,175.4978],
+  ["Bay of Islands","New Zealand",-35.2833,174.1],["Lake Tekapo","New Zealand",-44.0,170.4833],["Franz Josef","New Zealand",-43.3869,170.1833],
+  ["Punakaiki","New Zealand",-42.1,171.3333],["Musandam","Oman",26.1667,56.25],["Salalah","Oman",17.0151,54.0924],
+  ["Socotra","Yemen",12.4634,53.8237],["Tbilisi","Georgia",41.7151,44.8271],["Batumi","Georgia",41.6168,41.6367],
+  ["Yerevan","Armenia",40.1872,44.5152],["Baku","Azerbaijan",40.4093,49.8671],["Huaraz","Peru",-9.5278,-77.5278],
+  ["Arequipa","Peru",-16.409,-71.5375],["Colca Canyon","Peru",-15.6333,-71.8833],["Lake Titicaca","Peru",-15.5,-69.3],
+  ["Sacred Valley","Peru",-13.33,-72.0],["Nazca","Peru",-14.8378,-75.1133],["Cuenca Ecuador","Ecuador",-2.9001,-79.0059],
+  ["Montañita","Ecuador",-1.827,-80.749],["Mindo","Ecuador",-0.05,-78.78],["Perito Moreno","Argentina",-50.5,-73.0],
+  ["Salta","Argentina",-24.7883,-65.4106],["Cafayate","Argentina",-26.0718,-65.9756],["El Chaltén","Argentina",-49.3314,-72.8867],
+  ["Purmamarca","Argentina",-23.698,-65.5],["Punta del Este","Uruguay",-34.9667,-54.95],["Colonia del Sacramento","Uruguay",-34.4626,-57.8399],
+  ["Fernando de Noronha","Brazil",-3.854,-32.4247],["Jericoacoara","Brazil",-2.795,-40.5131],["Chapada Diamantina","Brazil",-12.4,-41.35],
+  ["Bonito","Brazil",-21.1261,-56.4836],["Lençóis Maranhenses","Brazil",-2.5,-43.1],["Olinda","Brazil",-8.0089,-34.8553],
+  ["Búzios","Brazil",-22.7479,-41.8817],["Pantanal","Brazil",-19.0,-56.5],["Talloires","France",45.844,6.211],
+  ["Étretat","France",49.707,0.204],["Carcassonne","France",43.2130,2.3491],["Gordes","France",43.9114,5.2006],
+  ["Menton","France",43.7747,7.4974],["Honfleur","France",49.4186,0.2332],["Beaune","France",47.026,4.840],
+  ["Rocamadour","France",44.7992,1.618],["Polignano a Mare","Italy",40.9935,17.2193],["Tropea","Italy",38.6722,15.8978],
+  ["Ostuni","Italy",40.7294,17.5772],["Castellana Grotte","Italy",40.887,17.167],["Scala dei Turchi","Italy",37.3878,13.4760],
+  ["Montalcino","Italy",43.0580,11.489],["Montepulciano","Italy",43.099,11.782],["Pienza","Italy",43.0762,11.6793],
+  ["Val d'Orcia","Italy",43.06,11.55],["Volterra","Italy",43.4006,10.8606],["Trieste","Italy",45.6495,13.7768],
+  ["Bergamo","Italy",45.6983,9.6773],["Lucca","Italy",43.8376,10.495],["Monopoli","Italy",40.9511,17.293],
+  ["Nerja","Spain",36.7441,-3.8778],["Cadaqués","Spain",42.2883,3.2768],["Frigiliana","Spain",36.7913,-3.895],
+  ["Úbeda","Spain",38.0134,-3.370],["Baeza","Spain",37.9936,-3.471],["Albarracín","Spain",40.408,-1.444],
+  ["Pedraza","Spain",41.129,-3.8125],["La Granja","Spain",40.8977,-4.0033],["Llafranc","Spain",41.892,3.190],
+  ["Sitges","Spain",41.2371,1.812],["Tavira","Portugal",37.127,-7.650],["Monsaraz","Portugal",38.443,-7.380],
+  ["Comporta","Portugal",38.380,-8.789],["Dinant","Belgium",50.261,4.912],["Delft","Netherlands",52.0116,4.357],
+  ["Leiden","Netherlands",52.160,4.494],["Haarlem","Netherlands",52.381,4.637],["Kinderdijk","Netherlands",51.883,4.638],
+  ["Giethoorn","Netherlands",52.720,6.077],["Appenzell","Switzerland",47.331,9.409],["Wengen","Switzerland",46.607,7.923],
+  ["Stein am Rhein","Switzerland",47.659,8.860],["Thun","Switzerland",46.758,7.628],["Flåm","Norway",60.863,7.114],
+  ["Geirangerfjord","Norway",62.101,7.094],["Preikestolen","Norway",58.986,6.186],["Reine","Norway",67.934,13.089],
+  ["Henningsvær","Norway",68.152,14.201],["Svolvær","Norway",68.234,14.568],["Visby","Sweden",57.639,18.295],
+  ["Smögen","Sweden",58.354,11.227],["Porvoo","Finland",60.395,25.664],["Savonlinna","Finland",61.869,28.878],
+  ["Dragor","Denmark",55.594,12.672],["Skagen","Denmark",57.722,10.592],["Ísafjörður","Iceland",66.075,-23.124],
+  ["Akureyri","Iceland",65.684,-18.090],["Húsavík","Iceland",66.045,-17.338],["Jökulsárlón","Iceland",64.048,-16.179],
+  ["Blagaj","Bosnia",43.257,17.886],["Ohrid","North Macedonia",41.117,20.802],["Gjirokastër","Albania",40.076,20.139],
+  ["Berat","Albania",40.706,19.853],["Plovdiv","Bulgaria",42.150,24.750],["Veliko Tarnovo","Bulgaria",43.081,25.629],
+  ["Sibiu","Romania",45.798,24.152],["Sighișoara","Romania",46.219,24.792],["Brașov","Romania",45.655,25.611],
+  ["Piran","Slovenia",45.528,13.568],["Bohinj","Slovenia",46.286,13.860],["Perast","Montenegro",42.487,18.698],
+  ["Budva","Montenegro",42.291,18.840],["Sveti Stefan","Montenegro",42.257,18.893],["Goreme","Turkey",38.643,34.829],
+  ["Olympos","Turkey",36.398,30.474],["Kaş","Turkey",36.199,29.639],["Alaçatı","Turkey",38.283,26.377],
+  ["Safranbolu","Turkey",41.254,32.691],["Chora Mykonos","Greece",37.447,25.329],["Oia Santorini","Greece",36.461,25.376],
+  ["Lindos Rhodes","Greece",36.091,28.088],["Monemvasia","Greece",36.687,23.057],["Skopelos","Greece",39.120,23.726],
+  ["Luang Namtha","Laos",21.003,101.410],["Nong Khiaw","Laos",20.570,102.611],["Kep","Cambodia",10.483,104.316],
+  ["Mergui Archipelago","Myanmar",12.0,98.0],["Spiti Valley","India",32.5,78.0],["Kodaikanal","India",10.239,77.489],
+  ["Meghalaya","India",25.467,91.366],["Nuwara Eliya","Sri Lanka",6.971,80.783],["Mirissa","Sri Lanka",5.947,80.453],
+  ["Arugam Bay","Sri Lanka",6.840,81.836],["Trincomalee","Sri Lanka",8.588,81.234],["Vang Vieng","Laos",18.922,102.451],
+  ["Con Dao","Vietnam",8.684,106.607],["Tam Coc","Vietnam",20.215,105.938],["Cat Ba Island","Vietnam",20.727,106.999],
+  ["Raja Ampat","Indonesia",-0.5,130.5],["Flores","Indonesia",-8.5,121.0],["Tana Toraja","Indonesia",-3.1,119.9],
+  ["Banda Islands","Indonesia",-4.5,129.9],["Coron","Philippines",12.0,120.2],["Batanes","Philippines",20.449,121.97],
+  ["Kalaw","Myanmar",20.634,96.563],["Zhangye Danxia","China",38.9,100.1],["Fenghuang","China",27.948,109.599],
+  ["Wulingyuan","China",29.347,110.55],["Tiger Leaping Gorge","China",27.2,100.2],["Pingyao","China",37.189,112.176],
+  ["Karuizawa","Japan",36.349,138.636],["Ise","Japan",34.487,136.709],["Tottori","Japan",35.501,134.235],
+  ["Kagoshima","Japan",31.596,130.557],["Shiretoko","Japan",44.1,145.0],["Ogasawara","Japan",27.097,142.218],
+  ["Jeonju","South Korea",35.825,127.149],["Andong","South Korea",36.567,128.725],["Boseong","South Korea",34.771,127.080],
+  ["Merzouga","Morocco",31.080,-4.013],["Dades Gorge","Morocco",31.464,-5.964],["Aït Benhaddou","Morocco",31.047,-7.130],
+  ["Lamu Island","Kenya",-2.272,40.902],["Watamu","Kenya",-3.354,40.024],["Lake Nakuru","Kenya",-0.367,36.083],
+  ["Tofo","Mozambique",-23.754,35.544],["Vilanculos","Mozambique",-22.0,35.317],["Knysna","South Africa",-34.036,23.048],
+  ["Hermanus","South Africa",-34.418,19.235],["Franschhoek","South Africa",-33.913,19.118],["Camps Bay","South Africa",-33.951,18.378],
+  ["Spitzkoppe","Namibia",-21.824,15.200],["Kolmanskop","Namibia",-26.704,15.226],["Rodrigues","Mauritius",-19.717,63.427],
+  ["Praslin","Seychelles",-4.327,55.735],["La Digue","Seychelles",-4.364,55.832],["Tequila","Mexico",20.882,-103.837],
+  ["Hierve el Agua","Mexico",16.866,-96.275],["Cenotes Yucatán","Mexico",20.7,-88.5],["Izamal","Mexico",20.932,-89.017],
+  ["Valladolid Mexico","Mexico",20.690,-88.202],["Todos Santos","Mexico",23.449,-110.223],["Isla Mujeres","Mexico",21.258,-86.731],
+  ["Copper Canyon","Mexico",27.5,-108.3],["Semuc Champey","Guatemala",15.530,-89.955],["Flores Guatemala","Guatemala",16.930,-89.892],
+  ["Ometepe","Nicaragua",11.5,-85.55],["Granada Nicaragua","Nicaragua",11.929,-85.956],["Suchitoto","El Salvador",13.938,-89.025],
+  ["Providencia","Colombia",13.35,-81.37],["Salento","Colombia",4.638,-75.571],["Guatapé","Colombia",6.232,-75.157],
+  ["Villa de Leyva","Colombia",5.634,-73.524],["Jardin","Colombia",5.598,-75.819],["Barichara","Colombia",6.635,-73.226],
+  ["Máncora","Peru",-4.104,-81.045],["Rainbow Mountain","Peru",-13.872,-71.302],["Pucon","Chile",-39.282,-71.978],
+  ["Valdivia","Chile",-39.814,-73.246],["San Pedro de Atacama","Chile",-22.908,-68.200],["Chiloé","Chile",-42.5,-73.9],
+  ["Tigre","Argentina",-34.426,-58.580],["San Martín de los Andes","Argentina",-40.152,-71.354],["Colonia Suiza","Argentina",-41.066,-71.540],
+  ["Tilcara","Argentina",-23.577,-65.396],["Chapada dos Veadeiros","Brazil",-14.1,-47.6],["Alter do Chão","Brazil",-2.503,-54.957],
+  ["Trancoso","Brazil",-16.589,-39.093],["Arraial d'Ajuda","Brazil",-16.490,-39.076],["Praia do Forte","Brazil",-12.577,-38.007],
+  ["Akaroa","New Zealand",-43.804,172.968],["Te Anau","New Zealand",-45.414,167.718],["Napier","New Zealand",-39.493,176.912],
+  ["Ningaloo","Australia",-22.7,113.7],["Cradle Mountain","Australia",-41.637,145.938],["Bay of Fires","Australia",-41.1,148.3],
+  ["Esperance","Australia",-33.861,121.892],["Exmouth","Australia",-21.940,114.124]
 ];
+
 
 
 
@@ -368,7 +560,6 @@ export default function OurWorld() {
   const frameRef = useRef(0);
   const heartRef = useRef(null);
   const glowLayersRef = useRef([]);
-  const geoLinesRef = useRef([]);
   const particlesRef = useRef(null);
 
   const dragR = useRef(false);
@@ -385,7 +576,7 @@ export default function OurWorld() {
   const [selected, setSelected] = useState(null);
   const selectedRef = useRef(null);
   useEffect(() => { selectedRef.current = selected; }, [selected]);
-  const [curZoom, setCurZoom] = useState(8);
+  // zoom tracked via zmR ref (used in animation loop directly)
   const [ready, setReady] = useState(false);
   const [introComplete, setIntroComplete] = useState(false);
   const [editMode, setEditMode] = useState(false);
@@ -401,6 +592,9 @@ export default function OurWorld() {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [showGallery, setShowGallery] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [cardGallery, setCardGallery] = useState(false);
+  const [markerFilter, setMarkerFilter] = useState("all"); // "all", "together", "special", "home-seth", "home-rosie", "seth-solo", "rosie-solo"
+  const [showFilter, setShowFilter] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const playRef = useRef(null);
   const animRef = useRef(null);
@@ -519,7 +713,8 @@ export default function OurWorld() {
       if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") return;
       if (e.key === "ArrowLeft") { e.preventDefault(); stepDay(-1); }
       if (e.key === "ArrowRight") { e.preventDefault(); stepDay(1); }
-      if (e.key === "Escape") { setSelected(null); setEditing(null); setShowAdd(false); setShowLetter(false); setShowSettings(false); setShowGallery(false); if (isPlaying) stopPlay(); }
+      if (e.key === "Escape") { setSelected(null); setEditing(null); setShowAdd(false); setShowLetter(false); setShowSettings(false); setShowGallery(false); setCardGallery(false); setShowFilter(false); if (isPlaying) stopPlay(); }
+      if (e.key === "f" && !showAdd && !editing && !showSettings) setShowFilter(v => !v);
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
@@ -703,7 +898,7 @@ export default function OurWorld() {
       globe.add(line);
       geoGroup.push({ line, mat, isBorder });
     });
-    geoLinesRef.current = geoGroup;
+    // geoGroup managed via closure in animation loop
 
     // Particles — multi-layered, varied colors and sizes
     const pN = 350;
@@ -753,15 +948,13 @@ export default function OurWorld() {
       globe.rotation.y = rot.current.y;
       zmR.current = lerp(zmR.current, tZm.current, 0.03);
       cam.position.z = zmR.current;
-      setCurZoom(zmR.current);
 
       // Gentle breathing pulse on markers
       mkRef.current.forEach((m, i) => {
         const t = Date.now() * 0.002 + i * 0.5;
         const breath = 1 + Math.sin(t) * 0.08;
         if (m.dot) { m.dot.scale.set(breath, breath, breath); }
-        if (m.ring) { m.ring.material.opacity = 0.1 + Math.sin(t * 0.5) * 0.06; }
-        if (m.glow) m.glow.material.opacity = 0.05 + Math.sin(t * 0.4) * 0.03;
+        if (m.glow) m.glow.material.opacity = 0.04 + Math.sin(t * 0.4) * 0.02;
       });
 
       if (hMesh.visible) {
@@ -820,14 +1013,15 @@ export default function OurWorld() {
   // ---- REBUILD MARKERS ----
   // Group entries by location (within ~0.5 degrees)
   const locationGroups = useMemo(() => {
+    const filtered = markerFilter === "all" ? data.entries : data.entries.filter(e => e.type === markerFilter);
     const groups = [];
-    data.entries.forEach(e => {
+    filtered.forEach(e => {
       const existing = groups.find(g => Math.abs(g.lat - e.lat) < 0.5 && Math.abs(g.lng - e.lng) < 0.5);
       if (existing) { existing.entries.push(e); }
       else { groups.push({ lat: e.lat, lng: e.lng, city: e.city, entries: [e] }); }
     });
     return groups;
-  }, [data.entries]);
+  }, [data.entries, markerFilter]);
 
   const [locationList, setLocationList] = useState(null); // for multi-entry popup
 
@@ -911,11 +1105,9 @@ export default function OurWorld() {
     const p = ll2v(lat, lng, RAD * 1.012);
     const dot = new THREE.Mesh(new THREE.CircleGeometry(size, 20), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: faint ? 0.28 : 0.85, side: THREE.DoubleSide, depthTest: true }));
     dot.position.copy(p); dot.lookAt(p.clone().multiplyScalar(2)); dot.userData = { entryId: id }; dot.renderOrder = 2; group.add(dot);
-    const ring = new THREE.Mesh(new THREE.RingGeometry(size * 1.2, size * 1.5, 32), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: faint ? 0.04 : 0.1, side: THREE.DoubleSide, depthTest: true }));
-    ring.position.copy(p); ring.lookAt(p.clone().multiplyScalar(2)); ring.renderOrder = 1; group.add(ring);
-    const glow = new THREE.Mesh(new THREE.CircleGeometry(size * (faint ? 1.8 : 3), 20), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: faint ? 0.02 : 0.06, side: THREE.DoubleSide, depthTest: true }));
+    const glow = new THREE.Mesh(new THREE.CircleGeometry(size * (faint ? 1.8 : 2.8), 20), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: faint ? 0.02 : 0.06, side: THREE.DoubleSide, depthTest: true }));
     glow.position.copy(p); glow.lookAt(p.clone().multiplyScalar(2)); glow.renderOrder = 0; group.add(glow);
-    return { entryId: id, dot, ring, glow };
+    return { entryId: id, dot, ring: null, glow };
   }
 
   // ---- POINTER ----
@@ -1048,6 +1240,32 @@ export default function OurWorld() {
         <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".08em", lineHeight: 1.6 }}>
           {stats.daysTog} days together<br />{stats.trips} adventures · {stats.countries} countries<br />{stats.totalMiles.toLocaleString()} miles traveled
         </div>
+        {/* Entry type filter */}
+        {data.entries.length > 0 && (
+          <div style={{ marginTop: 10, position: "relative" }}>
+            <button onClick={() => setShowFilter(v => !v)} style={{ background: showFilter ? P.blush : "rgba(255,255,255,.6)", border: `1px solid ${P.rose}20`, borderRadius: 8, padding: "4px 10px", fontSize: 8, cursor: "pointer", fontFamily: "inherit", color: P.textMid, letterSpacing: ".06em", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", gap: 4, marginLeft: "auto" }}>
+              {markerFilter === "all" ? "🌍 All Entries" : `${(TYPES[markerFilter] || {}).icon || "✨"} ${(TYPES[markerFilter] || {}).label || markerFilter}`}
+              <span style={{ fontSize: 6, opacity: 0.5 }}>{showFilter ? "▲" : "▼"}</span>
+            </button>
+            {showFilter && (
+              <div style={{ position: "absolute", top: "100%", right: 0, marginTop: 4, background: P.card, backdropFilter: "blur(16px)", borderRadius: 10, boxShadow: "0 8px 28px rgba(61,53,82,.12)", border: `1px solid ${P.rose}10`, overflow: "hidden", minWidth: 150, zIndex: 20 }}>
+                {[{ key: "all", icon: "🌍", label: "All Entries", count: data.entries.length },
+                  ...Object.entries(TYPES).map(([k, v]) => ({ key: k, icon: v.icon, label: v.label, count: data.entries.filter(e => e.type === k).length }))
+                ].filter(f => f.count > 0).map(f => (
+                  <button key={f.key} onClick={() => { setMarkerFilter(f.key); setShowFilter(false); }}
+                    style={{ display: "flex", width: "100%", alignItems: "center", gap: 8, padding: "7px 12px", border: "none", borderBottom: `1px solid ${P.parchment}`, background: markerFilter === f.key ? P.blush : "transparent", cursor: "pointer", fontFamily: "inherit", fontSize: 9, color: markerFilter === f.key ? P.text : P.textMid, textAlign: "left" }}
+                    onMouseEnter={e => { if (markerFilter !== f.key) e.currentTarget.style.background = P.lavMist; }}
+                    onMouseLeave={e => { if (markerFilter !== f.key) e.currentTarget.style.background = "transparent"; }}
+                  >
+                    <span>{f.icon}</span>
+                    <span style={{ flex: 1 }}>{f.label}</span>
+                    <span style={{ fontSize: 7, color: P.textFaint, background: `${P.parchment}`, borderRadius: 10, padding: "1px 5px" }}>{f.count}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* TOOLBAR */}
@@ -1108,7 +1326,7 @@ export default function OurWorld() {
               const t = TYPES[e.type] || TYPES.together;
               return (
                 <button key={e.id} onClick={() => {
-                  setSelected(e); setPhotoIdx(0); setLocationList(null);
+                  setSelected(e); setPhotoIdx(0); setLocationList(null); setCardGallery(false);
                   setSliderDate(e.dateStart);
                 }} style={{
                   display: "block", width: "100%", textAlign: "left", padding: "10px 12px",
@@ -1130,19 +1348,36 @@ export default function OurWorld() {
 
       {/* DETAIL CARD */}
       {cur && !editing && (
-        <div style={{ position: "absolute", top: "42%", right: 18, transform: "translateY(-50%)", zIndex: 25, background: P.card, backdropFilter: "blur(24px)", borderRadius: 16, maxWidth: 330, minWidth: 260, maxHeight: "55vh", boxShadow: "0 12px 44px rgba(61,53,82,.1)", border: `1px solid ${P.rose}10`, animation: "cardIn .5s ease", overflow: "hidden", display: "flex", flexDirection: "column" }}>
-          {(cur.photos || []).length > 0 && (
-            <div style={{ position: "relative", width: "100%", height: 180, flexShrink: 0, overflow: "hidden" }}>
-              <img src={cur.photos[photoIdx % cur.photos.length]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", transition: "opacity .6s" }} />
+        <div style={{ position: "absolute", top: "42%", right: 18, transform: "translateY(-50%)", zIndex: 25, background: P.card, backdropFilter: "blur(24px)", borderRadius: 16, maxWidth: 340, minWidth: 260, maxHeight: "65vh", boxShadow: "0 12px 44px rgba(61,53,82,.1)", border: `1px solid ${P.rose}10`, animation: "cardIn .5s ease", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+          {(cur.photos || []).length > 0 && !cardGallery && (
+            <div style={{ position: "relative", width: "100%", background: "#f5f0eb", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", minHeight: 120, maxHeight: 220 }}>
+              <img src={cur.photos[photoIdx % cur.photos.length]} alt="" style={{ maxWidth: "100%", maxHeight: 220, objectFit: "contain", display: "block" }} />
               {cur.photos.length > 1 && (<><button onClick={() => setPhotoIdx(i => (i - 1 + cur.photos.length) % cur.photos.length)} style={imgN("left")}>‹</button><button onClick={() => setPhotoIdx(i => (i + 1) % cur.photos.length)} style={imgN("right")}>›</button>
                 <div style={{ position: "absolute", bottom: 6, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 3 }}>{cur.photos.map((_, i) => <div key={i} style={{ width: 4, height: 4, borderRadius: "50%", background: i === photoIdx % cur.photos.length ? "#fff" : "rgba(255,255,255,.3)" }} />)}</div></>)}
+              <button onClick={() => setCardGallery(true)} style={{ position: "absolute", top: 6, right: 6, background: "rgba(255,255,255,.85)", border: "none", borderRadius: 5, padding: "2px 8px", fontSize: 9, cursor: "pointer", fontFamily: "inherit", color: P.textMid }}>📷 {cur.photos.length}</button>
               {editMode && <button onClick={() => handlePhotos(cur.id)} style={{ position: "absolute", top: 6, left: 6, background: "rgba(255,255,255,.85)", border: "none", borderRadius: 5, padding: "2px 8px", fontSize: 9, cursor: "pointer", fontFamily: "inherit" }}>+ Photos</button>}
+            </div>
+          )}
+          {(cur.photos || []).length > 0 && cardGallery && (
+            <div style={{ flexShrink: 0, maxHeight: 280, overflowY: "auto", background: "#f5f0eb", padding: 6 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, padding: "0 4px" }}>
+                <span style={{ fontSize: 9, color: P.textMid, letterSpacing: ".1em" }}>📷 {cur.photos.length} photos</span>
+                <button onClick={() => setCardGallery(false)} style={{ background: "none", border: "none", fontSize: 12, color: P.textFaint, cursor: "pointer" }}>×</button>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(90px, 1fr))", gap: 4 }}>
+                {cur.photos.map((url, i) => (
+                  <button key={i} onClick={() => { setPhotoIdx(i); setCardGallery(false); }} style={{ padding: 0, border: photoIdx === i ? `2px solid ${P.rose}` : "2px solid transparent", background: "#ece6dc", cursor: "pointer", borderRadius: 6, overflow: "hidden", aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <img src={url} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", borderRadius: 4 }} />
+                  </button>
+                ))}
+              </div>
+              {editMode && <button onClick={() => handlePhotos(cur.id)} style={{ marginTop: 6, width: "100%", padding: "5px", background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: "none", borderRadius: 5, cursor: "pointer", fontSize: 9, color: P.textMuted, fontFamily: "inherit" }}>+ Add More Photos</button>}
             </div>
           )}
           {(cur.photos || []).length === 0 && editMode && <button onClick={() => handlePhotos(cur.id)} style={{ width: "100%", height: 60, background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4, color: P.textMuted, fontSize: 10, fontFamily: "inherit", flexShrink: 0 }}>📷 Upload Photos</button>}
 
           <div style={{ padding: "14px 18px 18px", overflowY: "auto", flex: 1 }}>
-            <button onClick={() => setSelected(null)} style={{ position: "absolute", top: (cur.photos || []).length > 0 ? 186 : 6, right: 10, background: "none", border: "none", fontSize: 16, color: P.textFaint, cursor: "pointer", zIndex: 5 }}>×</button>
+            <button onClick={() => setSelected(null)} style={{ float: "right", background: "none", border: "none", fontSize: 16, color: P.textFaint, cursor: "pointer", marginLeft: 4, marginTop: -4 }}>×</button>
 
             {firstBadges[cur.id] && <div style={{ fontSize: 8, color: P.gold, letterSpacing: ".12em", marginBottom: 4 }}>🏅 {firstBadges[cur.id]}</div>}
             {togetherIndex(cur.id) && <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".1em", marginBottom: 4 }}>Trip #{togetherIndex(cur.id)}</div>}
@@ -1160,7 +1395,8 @@ export default function OurWorld() {
             {renderList("Museums & Culture", cur.museums, "🏛", P.sky)}
             {renderList("Restaurants & Food", cur.restaurants, "🍽", P.sage)}
             {renderList("Highlights", cur.highlights, "⭐", P.gold)}
-            {(cur.stops || []).length > 0 && (<div style={{ marginTop: 10 }}><div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".16em", textTransform: "uppercase", marginBottom: 4 }}>Trip Route</div>{cur.stops.map(s => <div key={s.sid} style={{ padding: "5px 8px", background: `${P.sage}08`, borderRadius: 6, marginBottom: 4, borderLeft: `2px solid ${P.sage}35` }}><div style={{ fontSize: 11, fontWeight: 500 }}>{s.city}</div>{s.notes && <p style={{ fontSize: 10, color: P.textMid, margin: "2px 0 0" }}>{s.notes}</p>}</div>)}</div>)}
+            {(cur.stops || []).length > 0 && (<div style={{ marginTop: 10 }}><div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".16em", textTransform: "uppercase", marginBottom: 4 }}>Trip Route</div>{cur.stops.map(s => <div key={s.sid} style={{ padding: "5px 8px", background: `${P.sage}08`, borderRadius: 6, marginBottom: 4, borderLeft: `2px solid ${P.sage}35` }}><div style={{ fontSize: 11, fontWeight: 500 }}>{s.city}</div>{s.dateStart && <div style={{ fontSize: 9, color: P.textFaint }}>{fmtDate(s.dateStart)}{s.dateEnd ? ` → ${fmtDate(s.dateEnd)}` : ""}</div>}{s.notes && <p style={{ fontSize: 10, color: P.textMid, margin: "2px 0 0" }}>{s.notes}</p>}</div>)}</div>)}
+            {(cur.photos || []).length > 0 && !cardGallery && <button onClick={() => setCardGallery(true)} style={{ marginTop: 8, width: "100%", padding: "6px 0", background: `${P.rose}08`, border: `1px solid ${P.rose}15`, borderRadius: 6, cursor: "pointer", fontSize: 9, color: P.textMid, fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>📷 View All {cur.photos.length} Photos</button>}
             {cur.musicUrl && <div style={{ marginTop: 8, padding: "6px 8px", background: `${P.lavender}0a`, borderRadius: 6 }}><div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 3 }}>Our Song</div><audio controls src={cur.musicUrl} style={{ width: "100%", height: 26 }} /></div>}
             {editMode && <button onClick={() => setEditing({ ...cur })} style={{ marginTop: 10, width: "100%", padding: "7px 0", background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: `1px solid ${P.rose}15`, borderRadius: 7, cursor: "pointer", fontSize: 9, color: P.textMuted, fontFamily: "inherit" }}>✏️ Edit</button>}
           </div>
