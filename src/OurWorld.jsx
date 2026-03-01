@@ -868,24 +868,6 @@ function OurWorldInner() {
     animRef.current = requestAnimationFrame(anim);
   }, [sliderDate, togetherList, isAnimating]);
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handler = e => {
-      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") return;
-      if (e.key === "ArrowLeft") { e.preventDefault(); stepDay(-1); }
-      if (e.key === "ArrowRight") { e.preventDefault(); stepDay(1); }
-      if (e.key === "Escape") { setSelected(null); setEditing(null); setShowAdd(false); setShowLetter(false); setShowSettings(false); setShowGallery(false); setCardGallery(false); setShowFilter(false); setShowStats(false); setShowRecap(false); setShowSearch(false); setSearchQuery(""); if (isPlaying) stopPlay(); }
-      if (e.key === "f" && !showAdd && !editing && !showSettings) setShowFilter(v => !v);
-      if (e.key === "i" && !showAdd && !editing && !showSettings) setShowStats(v => !v);
-      if (e.key === "s" && !showAdd && !editing && !showSettings && !showSearch) { e.preventDefault(); setShowSearch(true); }
-      if (e.key === "g" && !showAdd && !editing && !showSettings) setShowGallery(v => !v);
-      if (e.key === "t" && !showAdd && !editing && !showSettings) setSliderDate(todayStr());
-      if (e.key === " " && !showAdd && !editing && !showSettings && !showSearch) { e.preventDefault(); if (isPlaying) stopPlay(); else if (togetherList.length > 0) playStory(); }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [stepDay, isPlaying, showAdd, editing, showSettings, showSearch, stopPlay, playStory, togetherList]);
-
   // ---- PLAY OUR STORY ----
   const stopPlay = useCallback(() => {
     setIsPlaying(false);
@@ -929,6 +911,24 @@ function OurWorldInner() {
     };
     step();
   }, [togetherList, isPlaying, stopPlay]);
+
+  // Keyboard shortcuts (must be after stopPlay/playStory declarations)
+  useEffect(() => {
+    const handler = e => {
+      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") return;
+      if (e.key === "ArrowLeft") { e.preventDefault(); stepDay(-1); }
+      if (e.key === "ArrowRight") { e.preventDefault(); stepDay(1); }
+      if (e.key === "Escape") { setSelected(null); setEditing(null); setShowAdd(false); setShowLetter(false); setShowSettings(false); setShowGallery(false); setCardGallery(false); setShowFilter(false); setShowStats(false); setShowRecap(false); setShowSearch(false); setSearchQuery(""); if (isPlaying) stopPlay(); }
+      if (e.key === "f" && !showAdd && !editing && !showSettings) setShowFilter(v => !v);
+      if (e.key === "i" && !showAdd && !editing && !showSettings) setShowStats(v => !v);
+      if (e.key === "s" && !showAdd && !editing && !showSettings && !showSearch) { e.preventDefault(); setShowSearch(true); }
+      if (e.key === "g" && !showAdd && !editing && !showSettings) setShowGallery(v => !v);
+      if (e.key === "t" && !showAdd && !editing && !showSettings) setSliderDate(todayStr());
+      if (e.key === " " && !showAdd && !editing && !showSettings && !showSearch) { e.preventDefault(); if (isPlaying) stopPlay(); else if (togetherList.length > 0) playStory(); }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [stepDay, isPlaying, showAdd, editing, showSettings, showSearch, stopPlay, playStory, togetherList]);
 
   // ---- YEAR-IN-REVIEW RECAP ----
   const startRecap = useCallback((year) => {
