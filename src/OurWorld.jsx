@@ -24,7 +24,9 @@ const P = {
   rose: "#d4a0b9", roseLight: "#f0d4e4", roseSoft: "#e8c0d4",
   sky: "#9bb5d6", skyLight: "#c8daf0", skySoft: "#b0c8e0",
   sage: "#a8bf94", gold: "#d4b078", goldWarm: "#e8c88a", lavender: "#b8a5cc",
+  together: "#c4a8e0", togetherSoft: "#d8c4f0", togetherLight: "#ece0f8",
   heart: "#e07a9a", heartSoft: "#f0a0b8",
+  special: "#dfc090", specialSoft: "#eedbb0",
   card: "rgba(253,251,247,0.96)", glass: "rgba(250,248,244,0.92)",
 };
 
@@ -33,8 +35,8 @@ const TYPES = {
   "home-rosie": { label: "Rosie's Home", icon: "🌹", color: P.rose, who: "rosie" },
   "seth-solo": { label: "Seth Traveling", icon: "🧭", color: P.skySoft, who: "seth" },
   "rosie-solo": { label: "Rosie Traveling", icon: "🌹", color: P.roseSoft, who: "rosie" },
-  together: { label: "Together", icon: "💕", color: P.gold, who: "both" },
-  special: { label: "Special Moment", icon: "✨", color: P.lavender, who: "both" },
+  together: { label: "Together", icon: "💕", color: P.together, who: "both" },
+  special: { label: "Special Moment", icon: "✨", color: P.special, who: "both" },
 };
 
 // ---- UTILS ----
@@ -87,6 +89,7 @@ const GEO_LINES = [
   {n:"cuba",t:"coast",p:[[22,-84],[23,-82],[22,-79],[20,-77],[21,-78],[22,-80],[22,-84]]},
   {n:"sri_lanka",t:"coast",p:[[10,80],[8,80],[7,80],[6,81],[7,82],[10,80]]},
   {n:"taiwan",t:"coast",p:[[25,121],[23,120],[22,121],[25,122],[25,121]]},
+  {n:"central_america",t:"coast",p:[[18,-88],[16,-88],[15,-84],[12,-84],[11,-84],[10,-83],[9,-83],[8,-80],[8,-77],[9,-79],[10,-83],[12,-87],[15,-88],[18,-88]]},
   {n:"us_canada",t:"border",p:[[49,-123],[49,-95],[47,-85],[46,-82],[43,-79],[44,-76],[45,-72],[47,-67]]},
   {n:"us_mexico",t:"border",p:[[32,-117],[32,-111],[31,-108],[30,-105],[29,-103],[26,-99],[26,-97]]},
   {n:"india",t:"border",p:[[35,74],[28,70],[24,69],[23,68],[21,69],[18,73],[8,77],[10,80]]},
@@ -329,6 +332,7 @@ export default function OurWorld() {
   const [data, dispatch] = useReducer(reducer, { entries: [] });
   const [config, setConfigState] = useState(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(true);
+  const [sceneReady, setSceneReady] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -646,14 +650,14 @@ export default function OurWorld() {
       new THREE.MeshPhongMaterial({ color: "#ece6dc", emissive: "#3d2050", emissiveIntensity: 0.05, shininess: 25, transparent: false })
     ));
 
-    // Glow layers — enhanced, dreamy, airy
+    // Glow layers — lush, dreamy, airy
     const glows = [
-      { r: 1.02, color: "#d8b0e0", op: 0.16 },
-      { r: 1.05, color: "#f0b8d0", op: 0.12 },
-      { r: 1.09, color: "#fce0ec", op: 0.08 },
-      { r: 1.14, color: "#f8d8e8", op: 0.06 },
-      { r: 1.22, color: "#f5e8f0", op: 0.035 },
-      { r: 1.32, color: "#faf0f4", op: 0.02 },
+      { r: 1.02, color: "#d0a0e0", op: 0.22 },
+      { r: 1.05, color: "#e8a8d0", op: 0.16 },
+      { r: 1.09, color: "#f0c0d8", op: 0.12 },
+      { r: 1.14, color: "#f0c8e4", op: 0.08 },
+      { r: 1.22, color: "#f4d8ee", op: 0.05 },
+      { r: 1.35, color: "#f8e8f4", op: 0.03 },
     ].map(({ r, color, op }) => {
       const m = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: op, side: THREE.BackSide });
       const mesh = new THREE.Mesh(new THREE.SphereGeometry(RAD * r, 48, 48), m);
@@ -750,11 +754,13 @@ export default function OurWorld() {
       cam.position.z = zmR.current;
       setCurZoom(zmR.current);
 
-      // Pulse markers
+      // Gentle breathing pulse on markers
       mkRef.current.forEach((m, i) => {
-        const t = Date.now() * 0.003 + i * 0.8;
-        if (m.ring) { const s = 1 + Math.sin(t) * 0.22; m.ring.scale.set(s, s, s); m.ring.material.opacity = 0.18 + Math.sin(t) * 0.12; }
-        if (m.glow) m.glow.material.opacity = 0.07 + Math.sin(t * 0.6) * 0.04;
+        const t = Date.now() * 0.002 + i * 0.5;
+        const breath = 1 + Math.sin(t) * 0.08;
+        if (m.dot) { m.dot.scale.set(breath, breath, breath); }
+        if (m.ring) { m.ring.material.opacity = 0.1 + Math.sin(t * 0.5) * 0.06; }
+        if (m.glow) m.glow.material.opacity = 0.05 + Math.sin(t * 0.4) * 0.03;
       });
 
       if (hMesh.visible) {
@@ -770,9 +776,9 @@ export default function OurWorld() {
       particles2.rotation.x += 0.00003;
 
       // Fade geography lines based on zoom (closer = more visible)
-      const zoomFactor = clamp((3.2 - zmR.current) / 1.6, 0, 1); // fully visible below ~1.6, invisible above ~3.2
+      const zoomFactor = clamp((3.5 - zmR.current) / 1.5, 0, 1); // starts showing earlier, fully visible below ~2.0
       geoGroup.forEach(g => {
-        const maxOp = g.isBorder ? 0.12 : 0.25;
+        const maxOp = g.isBorder ? 0.18 : 0.4;
         g.mat.opacity = zoomFactor * maxOp;
       });
 
@@ -783,6 +789,7 @@ export default function OurWorld() {
     // Intro sequence
     setTimeout(() => setReady(true), 300);
     setTimeout(() => setIntroComplete(true), 2500);
+    setSceneReady(true);
 
     const onR = () => { const nw = el.clientWidth, nh = el.clientHeight; cam.aspect = nw / nh; cam.updateProjectionMatrix(); rend.setSize(nw, nh); };
     window.addEventListener("resize", onR);
@@ -824,7 +831,7 @@ export default function OurWorld() {
   const [locationList, setLocationList] = useState(null); // for multi-entry popup
 
   useEffect(() => {
-    const g = globeRef.current; if (!g) return;
+    const g = globeRef.current; if (!g || !sceneReady) return;
     mkRef.current.forEach(m => [m.dot, m.ring, m.glow].forEach(o => o && g.remove(o)));
     mkRef.current = [];
     rtRef.current.forEach(r => r.line && g.remove(r.line));
@@ -838,7 +845,7 @@ export default function OurWorld() {
       const types = loc.entries.map(e => e.type);
       let color = P.textFaint;
       let icon = "together";
-      if (types.includes("together") || types.includes("special")) { color = P.gold; icon = "together"; }
+      if (types.includes("together") || types.includes("special")) { color = types.includes("special") ? P.special : P.together; icon = "together"; }
       else if (types.includes("home-seth")) { color = P.sky; icon = "home-seth"; }
       else if (types.includes("home-rosie")) { color = P.rose; icon = "home-rosie"; }
       else if (types.includes("seth-solo")) { color = P.skySoft; icon = "seth-solo"; }
@@ -897,7 +904,7 @@ export default function OurWorld() {
         g.add(line); rtRef.current.push({ line });
       }
     }
-  }, [sliderDate, data, getPositions, areTogether, locationGroups, selected]);
+  }, [sliderDate, data, getPositions, areTogether, locationGroups, selected, sceneReady]);
 
   function makeDot(group, lat, lng, color, size, id, faint = false) {
     const p = ll2v(lat, lng, RAD * 1.012);
@@ -1429,9 +1436,27 @@ function FldR({ l, v, set, t = "text", ph = "", req }) {
 
 // ---- EDIT FORM ----
 function EditForm({ entry, types, onChange, onSave, onClose, onDelete, onAddStop }) {
-  const [ns, setNs] = useState({ city: "", lat: "", lng: "", notes: "" });
+  const [ns, setNs] = useState({ city: "", lat: "", lng: "", notes: "", dateStart: "", dateEnd: "" });
+  const [stopSugg, setStopSugg] = useState([]);
+  const [showStopSugg, setShowStopSugg] = useState(false);
+
+  const onStopCity = v => {
+    setNs(p => ({ ...p, city: v }));
+    if (v.length >= 2) {
+      const q = v.toLowerCase();
+      const matches = CITIES.filter(c => c[0].toLowerCase().includes(q)).slice(0, 6);
+      setStopSugg(matches);
+      setShowStopSugg(matches.length > 0);
+    } else { setStopSugg([]); setShowStopSugg(false); }
+  };
+
+  const selectStopCity = c => {
+    setNs(p => ({ ...p, city: c[0], lat: c[2].toString(), lng: c[3].toString() }));
+    setStopSugg([]); setShowStopSugg(false);
+  };
+
   return (
-    <div style={{ position: "absolute", top: "42%", right: 18, transform: "translateY(-50%)", zIndex: 30, background: P.card, backdropFilter: "blur(24px)", borderRadius: 16, padding: 20, maxWidth: 330, minWidth: 260, maxHeight: "65vh", overflowY: "auto", boxShadow: "0 12px 44px rgba(61,53,82,.12)", border: `1px solid ${P.gold}20`, fontFamily: "'Palatino Linotype',Palatino,Georgia,serif" }}>
+    <div style={{ position: "absolute", top: "42%", right: 18, transform: "translateY(-50%)", zIndex: 30, background: P.card, backdropFilter: "blur(24px)", borderRadius: 16, padding: 20, maxWidth: 330, minWidth: 260, maxHeight: "65vh", overflowY: "auto", boxShadow: "0 12px 44px rgba(61,53,82,.12)", border: `1px solid ${P.together}20`, fontFamily: "'Palatino Linotype',Palatino,Georgia,serif" }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}><h3 style={{ margin: 0, fontSize: 14, fontWeight: 400 }}>Edit</h3><button onClick={onClose} style={{ background: "none", border: "none", fontSize: 16, color: P.textFaint, cursor: "pointer" }}>×</button></div>
       <Fld l="City" v={entry.city} set={v => onChange(p => ({ ...p, city: v }))} />
       <Fld l="Country" v={entry.country} set={v => onChange(p => ({ ...p, country: v }))} />
@@ -1447,15 +1472,34 @@ function EditForm({ entry, types, onChange, onSave, onClose, onDelete, onAddStop
 
       <div style={{ margin: "8px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.sage}18,transparent)` }} />
       <Lbl>Trip Stops</Lbl>
-      {(entry.stops || []).map(s => <div key={s.sid} style={{ fontSize: 10, padding: "3px 7px", background: `${P.sage}08`, borderRadius: 5, marginBottom: 3, display: "flex", justifyContent: "space-between" }}><span>{s.city}</span><button onClick={() => onChange(p => ({ ...p, stops: (p.stops || []).filter(st => st.sid !== s.sid) }))} style={{ background: "none", border: "none", color: "#c9777a", cursor: "pointer", fontSize: 11 }}>×</button></div>)}
-      <div style={{ display: "flex", gap: 4, marginTop: 4, marginBottom: 10 }}>
-        <input placeholder="City" value={ns.city} onChange={e => setNs(p => ({ ...p, city: e.target.value }))} style={{ ...inpSt, flex: 1 }} />
-        <input placeholder="Lat" value={ns.lat} onChange={e => setNs(p => ({ ...p, lat: e.target.value }))} style={{ ...inpSt, width: 48 }} />
-        <input placeholder="Lng" value={ns.lng} onChange={e => setNs(p => ({ ...p, lng: e.target.value }))} style={{ ...inpSt, width: 48 }} />
-        <button disabled={!ns.city || !ns.lat} onClick={() => { onAddStop({ sid: `s-${Date.now()}`, city: ns.city, lat: parseFloat(ns.lat) || 0, lng: parseFloat(ns.lng) || 0, notes: ns.notes }); setNs({ city: "", lat: "", lng: "", notes: "" }); }} style={{ padding: "0 7px", background: P.sage, color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 10 }}>+</button>
+      {(entry.stops || []).map(s => <div key={s.sid} style={{ fontSize: 10, padding: "5px 7px", background: `${P.sage}08`, borderRadius: 5, marginBottom: 3, display: "flex", justifyContent: "space-between", alignItems: "center" }}><div><span style={{ fontWeight: 500 }}>{s.city}</span>{s.dateStart && <span style={{ color: P.textFaint, marginLeft: 6 }}>{s.dateStart}{s.dateEnd ? ` → ${s.dateEnd}` : ""}</span>}</div><button onClick={() => onChange(p => ({ ...p, stops: (p.stops || []).filter(st => st.sid !== s.sid) }))} style={{ background: "none", border: "none", color: "#c9777a", cursor: "pointer", fontSize: 11 }}>×</button></div>)}
+
+      <div style={{ position: "relative", marginTop: 4 }}>
+        <div style={{ display: "flex", gap: 4 }}>
+          <input placeholder="Start typing city..." value={ns.city} onChange={e => onStopCity(e.target.value)} onFocus={() => { if (stopSugg.length > 0) setShowStopSugg(true); }} style={{ ...inpSt, flex: 1 }} />
+        </div>
+        {showStopSugg && stopSugg.length > 0 && (
+          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e5e0d8", borderRadius: 6, maxHeight: 120, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
+            {stopSugg.map((c, i) => (
+              <button key={i} onClick={() => selectStopCity(c)} style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", border: "none", borderBottom: "1px solid #f5f2ed", background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }}
+                onMouseEnter={e => e.currentTarget.style.background = P.blush}
+                onMouseLeave={e => e.currentTarget.style.background = "none"}
+              >
+                <span style={{ fontWeight: 500, color: P.text }}>{c[0]}</span> <span style={{ color: P.textFaint }}>{c[1]}</span>
+              </button>
+            ))}
+          </div>
+        )}
+        <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
+          <input placeholder="Lat" value={ns.lat} onChange={e => setNs(p => ({ ...p, lat: e.target.value }))} style={{ ...inpSt, width: 55 }} />
+          <input placeholder="Lng" value={ns.lng} onChange={e => setNs(p => ({ ...p, lng: e.target.value }))} style={{ ...inpSt, width: 55 }} />
+          <input type="date" value={ns.dateStart} onChange={e => setNs(p => ({ ...p, dateStart: e.target.value }))} style={{ ...inpSt, flex: 1, fontSize: 9 }} />
+          <input type="date" value={ns.dateEnd} onChange={e => setNs(p => ({ ...p, dateEnd: e.target.value }))} style={{ ...inpSt, flex: 1, fontSize: 9 }} />
+        </div>
+        <button disabled={!ns.city || !ns.lat} onClick={() => { setShowStopSugg(false); onAddStop({ sid: `s-${Date.now()}`, city: ns.city, lat: parseFloat(ns.lat) || 0, lng: parseFloat(ns.lng) || 0, notes: ns.notes, dateStart: ns.dateStart || null, dateEnd: ns.dateEnd || null }); setNs({ city: "", lat: "", lng: "", notes: "", dateStart: "", dateEnd: "" }); }} style={{ marginTop: 4, width: "100%", padding: "6px", background: P.sage, color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 10, fontFamily: "inherit" }}>+ Add Stop</button>
       </div>
 
-      <div style={{ display: "flex", gap: 7 }}>
+      <div style={{ display: "flex", gap: 7, marginTop: 10 }}>
         <button onClick={onSave} style={{ flex: 1, padding: "8px 0", background: P.sage, color: "#fff", border: "none", borderRadius: 7, cursor: "pointer", fontSize: 10, fontFamily: "inherit" }}>Save</button>
         <button onClick={onClose} style={{ padding: "8px 12px", background: "transparent", border: "1px solid #e5e0d8", borderRadius: 7, cursor: "pointer", fontSize: 10, fontFamily: "inherit", color: P.textMuted }}>Cancel</button>
       </div>
