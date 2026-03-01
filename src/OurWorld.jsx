@@ -15,6 +15,9 @@ const DEFAULT_CONFIG = {
   loveLetter: "",
   youName: "Seth",
   partnerName: "Rosie Posie",
+  chapters: [],          // [{label, startDate, endDate}]
+  dreamDestinations: [], // [{id, city, country, lat, lng, notes}]
+  darkMode: true,
 };
 
 const P = {
@@ -639,13 +642,38 @@ function OurWorldInner() {
   const [photoDeleteMode, setPhotoDeleteMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
+  const [showLoveThread, setShowLoveThread] = useState(false);
+  const [showConstellation, setShowConstellation] = useState(false);
+  const [showDreams, setShowDreams] = useState(false);
+  const [cardTab, setCardTab] = useState("overview"); // overview, memories, places, photos
+  const [quickAddMode, setQuickAddMode] = useState(false);
+  const [undoStack, setUndoStack] = useState([]); // [{type, data, timestamp}]
+  const [showChapters, setShowChapters] = useState(true);
+  const [dragOver, setDragOver] = useState(false);
+  const [monthlyPromptShown, setMonthlyPromptShown] = useState(false);
+  const [polaroidMode, setPolaroidMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
   const nightRef = useRef(null);
   const starsRef = useRef(null);
-  const mouseRef = useRef({ x: 0, y: 0 }); // for parallax
+  const auroraRef = useRef(null);
+  const loveThreadRef = useRef([]);
+  const constellationRef = useRef([]);
+  const mouseRef = useRef({ x: 0, y: 0 });
+  const swipeRef = useRef({ startX: 0, startY: 0, startTime: 0 });
   const playRef = useRef(null);
   const animRef = useRef(null);
 
   const RAD = 1; const MIN_Z = 1.6; const MAX_Z = 6;
+
+  // Dark mode theme overrides
+  const T = useMemo(() => darkMode ? {
+    card: "rgba(30,26,42,0.96)", glass: "rgba(25,22,38,0.92)", text: "#e8e0f0", textMid: "#b8aece",
+    textMuted: "#8878a8", textFaint: "#5e5278", parchment: "rgba(40,35,58,0.6)", blush: "rgba(60,40,70,0.4)",
+    lavMist: "rgba(45,38,65,0.5)", border: "rgba(180,160,220,0.12)", inputBg: "rgba(35,30,52,0.8)", inputBorder: "rgba(100,85,140,0.3)",
+  } : {
+    card: P.card, glass: P.glass, text: P.text, textMid: P.textMid, textMuted: P.textMuted, textFaint: P.textFaint,
+    parchment: P.parchment, blush: P.blush, lavMist: P.lavMist, border: `${P.rose}10`, inputBg: "#fdfcfa", inputBorder: "#e5e0d8",
+  }, [darkMode]);
 
   // ---- DERIVED ----
   const sorted = useMemo(() => [...data.entries].sort((a, b) => (a.dateStart || "").localeCompare(b.dateStart || "")), [data.entries]);
@@ -711,10 +739,16 @@ function OurWorldInner() {
     return idx >= 0 ? idx + 1 : null;
   }, [togetherList]);
 
-  // ---- TOAST SYSTEM ----
-  const showToast = useCallback((message, icon = "✓", duration = 2500) => {
-    setToast({ message, icon, duration, key: Date.now() });
+  // ---- TOAST SYSTEM (with undo support) ----
+  const showToast = useCallback((message, icon = "✓", duration = 2500, undoAction = null) => {
+    setToast({ message, icon, duration, key: Date.now(), undoAction });
   }, []);
+  const handleUndo = useCallback(() => {
+    if (toast?.undoAction) {
+      toast.undoAction();
+      setToast(null);
+    }
+  }, [toast]);
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(null), toast.duration || 2500);
@@ -826,6 +860,78 @@ function OurWorldInner() {
 
   const favorites = useMemo(() => data.entries.filter(e => e.favorite), [data.entries]);
 
+  // ---- REUNION COUNTER & DISTANCE SCOREBOARD ----
+  const reunionStats = useMemo(() => {
+    let reunions = 0, daysApart = 0, daysTogether = 0;
+    let lastState = null; // "together" | "apart"
+    for (let i = 0; i < sorted.length; i++) {
+      const e = sorted[i];
+      const isTog = e.who === "both";
+      if (isTog && lastState === "apart") reunions++;
+      if (isTog) {
+        const d = e.dateEnd ? daysBetween(e.dateStart, e.dateEnd) : 1;
+        daysTogether += Math.max(1, d);
+        lastState = "together";
+      } else {
+        if (i > 0) {
+          const prev = sorted[i - 1];
+          const gap = daysBetween(prev.dateEnd || prev.dateStart, e.dateStart);
+          if (gap > 0 && lastState === "together") daysApart += gap;
+        }
+        lastState = "apart";
+      }
+    }
+    const togetherWinning = daysTogether >= daysApart;
+    return { reunions, daysApart, daysTogether, togetherWinning };
+  }, [sorted]);
+
+  // ---- LOVE THREAD DATA (arcs connecting together entries) ----
+  const loveThreadData = useMemo(() => {
+    if (!showLoveThread) return [];
+    return togetherList.slice(1).map((e, i) => {
+      const prev = togetherList[i];
+      return { from: { lat: prev.lat, lng: prev.lng }, to: { lat: e.lat, lng: e.lng } };
+    });
+  }, [togetherList, showLoveThread]);
+
+  // ---- CONSTELLATION DATA ----
+  const constellationData = useMemo(() => {
+    if (!showConstellation) return [];
+    const all = data.entries;
+    if (all.length < 2) return [];
+    // Connect each entry to its nearest neighbor not yet connected (MST-like)
+    const lines = [];
+    const used = new Set();
+    used.add(0);
+    while (used.size < all.length) {
+      let bestDist = Infinity, bestFrom = -1, bestTo = -1;
+      for (const fi of used) {
+        for (let ti = 0; ti < all.length; ti++) {
+          if (used.has(ti)) continue;
+          const d = haversine(all[fi].lat, all[fi].lng, all[ti].lat, all[ti].lng);
+          if (d < bestDist) { bestDist = d; bestFrom = fi; bestTo = ti; }
+        }
+      }
+      if (bestTo >= 0) { used.add(bestTo); lines.push({ from: all[bestFrom], to: all[bestTo] }); }
+      else break;
+    }
+    return lines;
+  }, [data.entries, showConstellation]);
+
+  // ---- MONTHLY CHECK-IN PROMPT ----
+  useEffect(() => {
+    if (!introComplete || monthlyPromptShown || data.entries.length === 0) return;
+    const lastEntry = sorted[sorted.length - 1];
+    if (!lastEntry) return;
+    const daysSince = daysBetween(lastEntry.dateEnd || lastEntry.dateStart, todayStr());
+    if (daysSince >= 30) {
+      setTimeout(() => {
+        showToast(`It's been ${daysSince} days — any new memories to add?`, "💭", 6000);
+        setMonthlyPromptShown(true);
+      }, 4000);
+    }
+  }, [introComplete, sorted, monthlyPromptShown, data.entries.length, showToast]);
+
   // ---- TIMELINE NAV ----
   const stepDay = useCallback(dir => {
     if (isAnimating) return;
@@ -854,6 +960,9 @@ function OurWorldInner() {
       setSliderDate(addDays(startD, Math.round(eased * totalD * dir)));
       const spinCurve = t < 0.5 ? t * 2 : (1 - t) * 2;
       tSpinSpd.current = 0.001 + spinCurve * 0.12;
+      // Arc zoom: lift camera out during mid-flight, settle at destination
+      const zoomCurve = Math.sin(t * Math.PI);
+      tZm.current = 2.5 + zoomCurve * 1.2; // lifts to ~3.7 mid-flight, settles at 2.5
       if (t < 1) { animRef.current = requestAnimationFrame(anim); }
       else {
         setSliderDate(target.dateStart);
@@ -862,7 +971,7 @@ function OurWorldInner() {
         const p = ll2v(target.lat, target.lng, RAD);
         tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) };
         tZm.current = 2.5;
-        setTimeout(() => { setSelected(target); setPhotoIdx(0); }, 500);
+        setTimeout(() => { setSelected(target); setPhotoIdx(0); setCardTab("overview"); }, 500);
       }
     };
     animRef.current = requestAnimationFrame(anim);
@@ -897,6 +1006,7 @@ function OurWorldInner() {
         tSpinSpd.current = 0.001;
         setSelected(entry);
         setPhotoIdx(0);
+        setCardTab("overview");
 
         playRef.current = setTimeout(() => {
           setSelected(null);
@@ -918,7 +1028,7 @@ function OurWorldInner() {
       if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") return;
       if (e.key === "ArrowLeft") { e.preventDefault(); stepDay(-1); }
       if (e.key === "ArrowRight") { e.preventDefault(); stepDay(1); }
-      if (e.key === "Escape") { setSelected(null); setEditing(null); setShowAdd(false); setShowLetter(false); setShowSettings(false); setShowGallery(false); setCardGallery(false); setShowFilter(false); setShowStats(false); setShowRecap(false); setShowSearch(false); setSearchQuery(""); if (isPlaying) stopPlay(); }
+      if (e.key === "Escape") { setSelected(null); setEditing(null); setShowAdd(false); setShowLetter(false); setShowSettings(false); setShowGallery(false); setCardGallery(false); setShowFilter(false); setShowStats(false); setShowRecap(false); setShowSearch(false); setSearchQuery(""); setConfirmDelete(null); setShowDreams(false); setQuickAddMode(false); if (isPlaying) stopPlay(); }
       if (e.key === "f" && !showAdd && !editing && !showSettings) setShowFilter(v => !v);
       if (e.key === "i" && !showAdd && !editing && !showSettings) setShowStats(v => !v);
       if (e.key === "s" && !showAdd && !editing && !showSettings && !showSearch) { e.preventDefault(); setShowSearch(true); }
@@ -1156,6 +1266,27 @@ function OurWorldInner() {
     scene.add(nightMesh); // added to scene (not globe) so it stays fixed as globe rotates
     nightRef.current = nightMesh;
 
+    // Aurora — subtle color bands drifting across the top of the scene
+    const auroraN = 80;
+    const auroraG = new THREE.BufferGeometry();
+    const auroraP = new Float32Array(auroraN * 3);
+    const auroraC = new Float32Array(auroraN * 3);
+    for (let i = 0; i < auroraN; i++) {
+      auroraP[i * 3] = (Math.random() - 0.5) * 10;
+      auroraP[i * 3 + 1] = 3 + Math.random() * 4;
+      auroraP[i * 3 + 2] = -3 + (Math.random() - 0.5) * 6;
+      const t = i / auroraN;
+      auroraC[i * 3] = 0.6 + t * 0.3;     // R
+      auroraC[i * 3 + 1] = 0.5 + t * 0.2; // G
+      auroraC[i * 3 + 2] = 0.8;            // B
+    }
+    auroraG.setAttribute("position", new THREE.BufferAttribute(auroraP, 3));
+    auroraG.setAttribute("color", new THREE.BufferAttribute(auroraC, 3));
+    const auroraMat = new THREE.PointsMaterial({ size: 0.15, transparent: true, opacity: 0.04, vertexColors: true, sizeAttenuation: true, blending: THREE.AdditiveBlending });
+    const auroraMesh = new THREE.Points(auroraG, auroraMat);
+    scene.add(auroraMesh);
+    auroraRef.current = { mesh: auroraMesh, positions: auroraP, geometry: auroraG };
+
     // Heart mesh
     const hs = new THREE.Shape();
     hs.moveTo(0, -0.025); hs.bezierCurveTo(0, -0.025, -0.005, 0, -0.025, 0);
@@ -1217,6 +1348,20 @@ function OurWorldInner() {
         glow.position.y = my * strength;
       });
 
+      // Aurora drift
+      if (auroraRef.current) {
+        const ap = auroraRef.current.positions;
+        const ag = auroraRef.current.geometry;
+        const at = Date.now() * 0.0003;
+        for (let i = 0; i < ap.length / 3; i++) {
+          ap[i * 3] += Math.sin(at + i * 0.5) * 0.002;
+          ap[i * 3 + 1] += Math.cos(at + i * 0.3) * 0.001;
+          if (ap[i * 3] > 5) ap[i * 3] = -5;
+          if (ap[i * 3] < -5) ap[i * 3] = 5;
+        }
+        ag.attributes.position.needsUpdate = true;
+      }
+
       // Fade geography lines based on zoom (closer = more visible)
       const zoomFactor = clamp((3.5 - zmR.current) / 1.5, 0, 1); // starts showing earlier, fully visible below ~2.0
       geoGroup.forEach(g => {
@@ -1256,7 +1401,23 @@ function OurWorldInner() {
     if (particlesRef.current) particlesRef.current.material.color.set(isAnniversary ? P.heart : s.particle);
     if (isAnniversary && particlesRef.current) particlesRef.current.material.opacity = 0.35;
     else if (particlesRef.current) particlesRef.current.material.opacity = 0.18;
-  }, [season, isAnniversary]);
+    // Aurora seasonal colors
+    if (auroraRef.current) {
+      const ac = auroraRef.current.geometry.attributes.color;
+      const m = new Date(sliderDate + "T12:00:00").getMonth();
+      for (let i = 0; i < ac.count; i++) {
+        const t = i / ac.count;
+        if (m >= 4 && m <= 8) { // summer — warm pink/gold
+          ac.setXYZ(i, 0.9 + t * 0.1, 0.6 + t * 0.2, 0.5);
+        } else if (m >= 9 || m <= 1) { // winter — cool blue/purple
+          ac.setXYZ(i, 0.5 + t * 0.2, 0.4 + t * 0.3, 0.9);
+        } else { // spring/fall — green/teal
+          ac.setXYZ(i, 0.5 + t * 0.3, 0.7 + t * 0.2, 0.6);
+        }
+      }
+      ac.needsUpdate = true;
+    }
+  }, [season, isAnniversary, sliderDate]);
 
   // ---- REBUILD MARKERS ----
   // Group entries by location (within ~0.5 degrees)
@@ -1347,7 +1508,53 @@ function OurWorldInner() {
         g.add(line); rtRef.current.push({ line });
       }
     }
-  }, [sliderDate, data, getPositions, areTogether, locationGroups, selected, sceneReady]);
+
+    // ---- LOVE THREAD — golden arcs connecting all together entries ----
+    loveThreadRef.current.forEach(l => g.remove(l));
+    loveThreadRef.current = [];
+    if (showLoveThread) {
+      loveThreadData.forEach(({ from, to }) => {
+        const f = ll2v(from.lat, from.lng, RAD * 1.006);
+        const t = ll2v(to.lat, to.lng, RAD * 1.006);
+        const mid = f.clone().add(t).multiplyScalar(0.5);
+        mid.normalize().multiplyScalar(RAD + f.distanceTo(t) * 0.15);
+        const curve = new THREE.QuadraticBezierCurve3(f, mid, t);
+        const geom = new THREE.BufferGeometry().setFromPoints(curve.getPoints(40));
+        const mat = new THREE.LineBasicMaterial({ color: P.goldWarm, transparent: true, opacity: 0.3 });
+        const line = new THREE.Line(geom, mat); line.renderOrder = 3;
+        g.add(line);
+        loveThreadRef.current.push(line);
+      });
+    }
+
+    // ---- CONSTELLATION — minimum spanning tree lines ----
+    constellationRef.current.forEach(l => { if (l.parent) l.parent.remove(l); });
+    constellationRef.current = [];
+    if (showConstellation) {
+      constellationData.forEach(({ from, to }) => {
+        const f = ll2v(from.lat, from.lng, RAD * 1.008);
+        const t = ll2v(to.lat, to.lng, RAD * 1.008);
+        const geom = new THREE.BufferGeometry().setFromPoints([f, t]);
+        const mat = new THREE.LineBasicMaterial({ color: "#b8c8f0", transparent: true, opacity: 0.15 });
+        const line = new THREE.Line(geom, mat); line.renderOrder = 1;
+        g.add(line);
+        constellationRef.current.push(line);
+      });
+    }
+
+    // ---- DREAM DESTINATIONS — ghost markers ----
+    (config.dreamDestinations || []).forEach(dream => {
+      const p = ll2v(dream.lat, dream.lng, RAD * 1.012);
+      const dot = new THREE.Mesh(new THREE.CircleGeometry(0.012, 20), new THREE.MeshBasicMaterial({ color: P.goldWarm, transparent: true, opacity: 0.3, side: THREE.DoubleSide }));
+      dot.position.copy(p); dot.lookAt(p.clone().multiplyScalar(2)); dot.userData = { entryId: `dream-${dream.id}` }; dot.renderOrder = 2;
+      g.add(dot);
+      // Dashed ring around dream marker
+      const ring = new THREE.Mesh(new THREE.RingGeometry(0.016, 0.02, 20), new THREE.MeshBasicMaterial({ color: P.goldWarm, transparent: true, opacity: 0.15, side: THREE.DoubleSide }));
+      ring.position.copy(p); ring.lookAt(p.clone().multiplyScalar(2)); ring.renderOrder = 2;
+      g.add(ring);
+      mkRef.current.push({ entryId: `dream-${dream.id}`, dot, ring, glow: null });
+    });
+  }, [sliderDate, data, getPositions, areTogether, locationGroups, selected, sceneReady, showLoveThread, loveThreadData, showConstellation, constellationData, config.dreamDestinations]);
 
   function makeDot(group, lat, lng, color, size, id, faint = false) {
     const p = ll2v(lat, lng, RAD * 1.012);
@@ -1389,7 +1596,7 @@ function OurWorldInner() {
         } else {
           const entry = data.entries.find(en => en.id === id);
           if (entry) {
-            setSelected(entry); setPhotoIdx(0); setLocationList(null);
+            setSelected(entry); setPhotoIdx(0); setLocationList(null); setCardTab("overview");
             setSliderDate(entry.dateStart);
             const p = ll2v(entry.lat, entry.lng, RAD);
             tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) };
@@ -1466,7 +1673,7 @@ function OurWorldInner() {
   if (loading) return <div style={{ width: "100%", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0d0b14", fontFamily: "Georgia,serif", color: P.textFaint, fontSize: 14, letterSpacing: ".2em" }}>Loading your world...</div>;
 
   return (
-    <div style={{ width: "100%", height: "100vh", position: "relative", overflow: "hidden", background: `linear-gradient(155deg,${P.cream} 0%,${P.blush} 40%,${P.lavMist} 100%)`, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", color: P.text, userSelect: "none" }}>
+    <div className={darkMode ? "ow-dark" : ""} style={{ width: "100%", height: "100vh", position: "relative", overflow: "hidden", background: `linear-gradient(155deg,${P.cream} 0%,${P.blush} 40%,${P.lavMist} 100%)`, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", color: P.text, userSelect: "none" }}>
 
       <div ref={mountRef} style={{ width: "100%", height: "100%" }}
         onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onWheel={onWheel}
@@ -1528,12 +1735,17 @@ function OurWorldInner() {
       <div style={{ position: "absolute", top: 22, left: 22, zIndex: 20, display: "flex", flexDirection: "column", gap: 7, opacity: introComplete ? 1 : 0, transition: "opacity .8s ease" }}>
         <TBtn a={editMode} onClick={() => { setEditMode(v => !v); if (editMode) { setEditing(null); setShowAdd(false); } }}>✏️</TBtn>
         {editMode && <TBtn onClick={() => setShowAdd(true)} accent>＋</TBtn>}
+        {editMode && <TBtn onClick={() => setQuickAddMode(true)}>⚡</TBtn>}
         {editMode && <TBtn onClick={() => setShowSettings(true)}>⚙️</TBtn>}
         {allPhotos.length > 0 && <TBtn a={showGallery} onClick={() => setShowGallery(v => !v)}>📷</TBtn>}
         {data.entries.length > 0 && <TBtn a={showStats} onClick={() => setShowStats(v => !v)}>📊</TBtn>}
         {data.entries.length > 0 && <TBtn a={showSearch} onClick={() => setShowSearch(v => !v)}>🔍</TBtn>}
+        {togetherList.length > 1 && <TBtn a={showLoveThread} onClick={() => setShowLoveThread(v => !v)}>🧵</TBtn>}
+        {data.entries.length > 2 && <TBtn a={showConstellation} onClick={() => setShowConstellation(v => !v)}>⭐</TBtn>}
+        {<TBtn a={showDreams} onClick={() => setShowDreams(v => !v)}>✦</TBtn>}
         {togetherList.length > 0 && !isPlaying && <TBtn onClick={playStory}>▶</TBtn>}
         {isPlaying && <TBtn onClick={stopPlay} a>⏹</TBtn>}
+        <TBtn a={darkMode} onClick={() => setDarkMode(v => !v)}>{darkMode ? "☀️" : "🌙"}</TBtn>
       </div>
 
       {/* SEARCH PANEL */}
@@ -1551,7 +1763,7 @@ function OurWorldInner() {
                 const t = TYPES[e.type] || TYPES.together;
                 return (
                   <button key={e.id} onClick={() => {
-                    setSelected(e); setPhotoIdx(0); setShowSearch(false); setSearchQuery("");
+                    setSelected(e); setPhotoIdx(0); setShowSearch(false); setSearchQuery(""); setCardTab("overview");
                     setSliderDate(e.dateStart);
                     const p = ll2v(e.lat, e.lng, RAD);
                     tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) };
@@ -1579,6 +1791,24 @@ function OurWorldInner() {
 
       {/* SLIDER */}
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 105, background: P.glass, backdropFilter: "blur(16px)", borderTop: `1px solid ${P.rose}10`, zIndex: 15, display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 22px" }}>
+        {/* Chapter labels above timeline */}
+        {showChapters && (config.chapters || []).length > 0 && (
+          <div style={{ position: "relative", width: "100%", height: 14, marginBottom: 2 }}>
+            {(config.chapters || []).map((ch, i) => {
+              const startPct = totalDays > 0 ? Math.max(0, (daysBetween(config.startDate, ch.startDate) / totalDays) * 100) : 0;
+              const endPct = totalDays > 0 ? Math.min(100, (daysBetween(config.startDate, ch.endDate || todayStr()) / totalDays) * 100) : 100;
+              if (endPct <= startPct) return null;
+              return (
+                <div key={i} style={{ position: "absolute", left: `${startPct}%`, width: `${endPct - startPct}%`, top: 0, height: 14, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+                  <div style={{ position: "absolute", left: 0, right: 0, top: 6, height: 1, background: `${P.lavender}30` }} />
+                  <div style={{ position: "absolute", left: 0, top: 3, width: 1, height: 8, background: `${P.lavender}40` }} />
+                  <div style={{ position: "absolute", right: 0, top: 3, width: 1, height: 8, background: `${P.lavender}40` }} />
+                  <span style={{ position: "relative", fontSize: 6, color: P.lavender, letterSpacing: ".08em", background: P.glass, padding: "0 4px", whiteSpace: "nowrap", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis" }}>{ch.label}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 6 }}>
           <button onClick={() => jumpNext(-1)} disabled={isAnimating} style={navSt} title="Previous together">💕◂</button>
           <button onClick={() => stepDay(-1)} disabled={isAnimating} style={navSt}>◂</button>
@@ -1631,7 +1861,7 @@ function OurWorldInner() {
               const t = TYPES[e.type] || TYPES.together;
               return (
                 <button key={e.id} onClick={() => {
-                  setSelected(e); setPhotoIdx(0); setLocationList(null); setCardGallery(false);
+                  setSelected(e); setPhotoIdx(0); setLocationList(null); setCardGallery(false); setCardTab("overview");
                   setSliderDate(e.dateStart);
                 }} style={{
                   display: "block", width: "100%", textAlign: "left", padding: "10px 12px",
@@ -1653,16 +1883,47 @@ function OurWorldInner() {
 
       {/* DETAIL CARD */}
       {cur && !editing && (
-        <div style={isMobile
+        <div
+          onTouchStart={e => { if (e.touches.length === 1) { swipeRef.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY, startTime: Date.now() }; } }}
+          onTouchEnd={e => {
+            const sw = swipeRef.current;
+            if (!sw.startTime) return;
+            const dx = e.changedTouches[0].clientX - sw.startX;
+            const dy = e.changedTouches[0].clientY - sw.startY;
+            const dt = Date.now() - sw.startTime;
+            if (Math.abs(dx) > 60 && Math.abs(dy) < 80 && dt < 500) {
+              const curIdx = sorted.findIndex(en => en.id === cur.id);
+              if (curIdx >= 0) {
+                const nextIdx = dx < 0 ? Math.min(curIdx + 1, sorted.length - 1) : Math.max(curIdx - 1, 0);
+                if (nextIdx !== curIdx) {
+                  const next = sorted[nextIdx];
+                  setSelected(next); setPhotoIdx(0); setCardTab("overview"); setSliderDate(next.dateStart);
+                  const p = ll2v(next.lat, next.lng, RAD);
+                  tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) };
+                  tZm.current = 2.5;
+                }
+              }
+            }
+            swipeRef.current = { startX: 0, startY: 0, startTime: 0 };
+          }}
+          style={isMobile
           ? { position: "absolute", bottom: 105, left: 0, right: 0, zIndex: 25, background: P.card, backdropFilter: "blur(24px)", borderRadius: "16px 16px 0 0", maxHeight: "55vh", boxShadow: "0 -8px 32px rgba(61,53,82,.1)", border: `1px solid ${P.rose}10`, animation: "fadeIn .3s ease", overflow: "hidden", display: "flex", flexDirection: "column" }
           : { position: "absolute", top: "42%", right: 18, transform: "translateY(-50%)", zIndex: 25, background: P.card, backdropFilter: "blur(24px)", borderRadius: 16, maxWidth: 340, minWidth: 260, maxHeight: "65vh", boxShadow: "0 12px 44px rgba(61,53,82,.1)", border: `1px solid ${P.rose}10`, animation: "cardIn .5s ease", overflow: "hidden", display: "flex", flexDirection: "column" }
         }>
           {(cur.photos || []).length > 0 && !cardGallery && (
             <div style={{ position: "relative", width: "100%", background: "#f5f0eb", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", minHeight: 120, maxHeight: 220 }}>
-              <img src={cur.photos[photoIdx % cur.photos.length]} alt="" style={{ maxWidth: "100%", maxHeight: 220, objectFit: "contain", display: "block" }} />
+              {polaroidMode ? (
+                <div style={{ padding: "12px 12px 32px", background: "#fff", boxShadow: "0 3px 16px rgba(0,0,0,.15)", transform: `rotate(${(photoIdx % 3 - 1) * 1.5}deg)`, margin: "8px 0", transition: "transform .3s" }}>
+                  <img src={cur.photos[photoIdx % cur.photos.length]} alt="" style={{ maxWidth: 220, maxHeight: 160, objectFit: "contain", display: "block" }} />
+                  <div style={{ position: "absolute", bottom: 8, left: 16, right: 16, textAlign: "center", fontSize: 9, color: "#888", fontStyle: "italic", fontFamily: "'Palatino Linotype',serif" }}>{cur.city} · {fmtDate(cur.dateStart)}</div>
+                </div>
+              ) : (
+                <img src={cur.photos[photoIdx % cur.photos.length]} alt="" style={{ maxWidth: "100%", maxHeight: 220, objectFit: "contain", display: "block" }} />
+              )}
               {cur.photos.length > 1 && (<><button onClick={() => setPhotoIdx(i => (i - 1 + cur.photos.length) % cur.photos.length)} style={imgN("left")}>‹</button><button onClick={() => setPhotoIdx(i => (i + 1) % cur.photos.length)} style={imgN("right")}>›</button>
                 <div style={{ position: "absolute", bottom: 6, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 3 }}>{cur.photos.map((_, i) => <div key={i} style={{ width: 4, height: 4, borderRadius: "50%", background: i === photoIdx % cur.photos.length ? "#fff" : "rgba(255,255,255,.3)" }} />)}</div></>)}
               <button onClick={() => setCardGallery(true)} style={{ position: "absolute", top: 6, right: 6, background: "rgba(255,255,255,.85)", border: "none", borderRadius: 5, padding: "2px 8px", fontSize: 9, cursor: "pointer", fontFamily: "inherit", color: P.textMid }}>📷 {cur.photos.length}</button>
+              <button onClick={() => setPolaroidMode(v => !v)} style={{ position: "absolute", bottom: 6, right: 6, background: polaroidMode ? P.goldWarm : "rgba(255,255,255,.7)", border: "none", borderRadius: 5, padding: "2px 7px", fontSize: 8, cursor: "pointer", fontFamily: "inherit", color: polaroidMode ? "#fff" : P.textFaint }} title="Polaroid mode">📸</button>
               {editMode && <button onClick={() => handlePhotos(cur.id)} style={{ position: "absolute", top: 6, left: 6, background: "rgba(255,255,255,.85)", border: "none", borderRadius: 5, padding: "2px 8px", fontSize: 9, cursor: "pointer", fontFamily: "inherit" }}>+ Photos</button>}
             </div>
           )}
@@ -1688,7 +1949,23 @@ function OurWorldInner() {
               {editMode && <button onClick={() => handlePhotos(cur.id)} style={{ marginTop: 6, width: "100%", padding: "5px", background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: "none", borderRadius: 5, cursor: "pointer", fontSize: 9, color: P.textMuted, fontFamily: "inherit" }}>+ Add More Photos</button>}
             </div>
           )}
-          {(cur.photos || []).length === 0 && editMode && <button onClick={() => handlePhotos(cur.id)} style={{ width: "100%", height: 60, background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4, color: P.textMuted, fontSize: 10, fontFamily: "inherit", flexShrink: 0 }}>📷 Upload Photos</button>}
+          {(cur.photos || []).length === 0 && editMode && <div
+            onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={async e => {
+              e.preventDefault(); setDragOver(false);
+              const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/"));
+              if (files.length === 0) return;
+              setUploading(true);
+              const urls = [];
+              for (const file of files) { const url = await uploadPhoto(file, cur.id); if (url) urls.push(url); }
+              if (urls.length > 0) { dispatch({ type: "ADD_PHOTOS", id: cur.id, urls }); showToast(`${urls.length} photo${urls.length > 1 ? "s" : ""} uploaded`, "📷", 2500); }
+              setUploading(false);
+            }}
+            onClick={() => handlePhotos(cur.id)}
+            style={{ width: "100%", height: 80, background: dragOver ? `linear-gradient(135deg,${P.sky}18,${P.rose}18)` : `linear-gradient(135deg,${P.parchment},${P.blush})`, border: dragOver ? `2px dashed ${P.sky}` : "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4, color: P.textMuted, fontSize: 10, fontFamily: "inherit", flexShrink: 0, transition: "all .2s", borderRadius: 0 }}>
+            {dragOver ? "🎯 Drop photos here" : "📷 Upload or Drag Photos Here"}
+          </div>}
 
           <div style={{ padding: "14px 18px 18px", overflowY: "auto", flex: 1 }}>
             <div style={{ float: "right", display: "flex", gap: 2, marginTop: -4 }}>
@@ -1707,26 +1984,77 @@ function OurWorldInner() {
 
             <h2 style={{ margin: 0, fontSize: 19, fontWeight: 400, lineHeight: 1.2 }}>{cur.city}</h2>
             <p style={{ margin: "1px 0 0", fontSize: 10, color: P.textMuted }}>{cur.country}</p>
-            <div style={{ margin: "9px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}18,transparent)` }} />
-            <div style={{ fontSize: 11, color: P.textMid, marginBottom: 7 }}>📅 {fmtDate(cur.dateStart)}{cur.dateEnd ? ` → ${fmtDate(cur.dateEnd)}` : ""}</div>
-            {cur.notes && <p style={{ fontSize: 12, lineHeight: 1.6, margin: "0 0 8px", opacity: .85 }}>{cur.notes}</p>}
-            {renderList("Memories", cur.memories, "♥", P.rose)}
-            {renderList("Museums & Culture", cur.museums, "🏛", P.sky)}
-            {renderList("Restaurants & Food", cur.restaurants, "🍽", P.sage)}
-            {renderList("Highlights", cur.highlights, "⭐", P.gold)}
-            {(cur.stops || []).length > 0 && (<div style={{ marginTop: 10 }}><div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".16em", textTransform: "uppercase", marginBottom: 4 }}>Trip Route</div>{cur.stops.map(s => <div key={s.sid} style={{ padding: "5px 8px", background: `${P.sage}08`, borderRadius: 6, marginBottom: 4, borderLeft: `2px solid ${P.sage}35` }}><div style={{ fontSize: 11, fontWeight: 500 }}>{s.city}</div>{s.dateStart && <div style={{ fontSize: 9, color: P.textFaint }}>{fmtDate(s.dateStart)}{s.dateEnd ? ` → ${fmtDate(s.dateEnd)}` : ""}</div>}{s.notes && <p style={{ fontSize: 10, color: P.textMid, margin: "2px 0 0" }}>{s.notes}</p>}</div>)}</div>)}
-            {(cur.photos || []).length > 0 && !cardGallery && <button onClick={() => setCardGallery(true)} style={{ marginTop: 8, width: "100%", padding: "6px 0", background: `${P.rose}08`, border: `1px solid ${P.rose}15`, borderRadius: 6, cursor: "pointer", fontSize: 9, color: P.textMid, fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>📷 View All {cur.photos.length} Photos</button>}
-            {cur.musicUrl && <div style={{ marginTop: 8, padding: "6px 8px", background: `${P.lavender}0a`, borderRadius: 6 }}><div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 3 }}>Our Song</div><audio controls src={cur.musicUrl} style={{ width: "100%", height: 26 }} /></div>}
+            <div style={{ fontSize: 11, color: P.textMid, marginTop: 5 }}>📅 {fmtDate(cur.dateStart)}{cur.dateEnd ? ` → ${fmtDate(cur.dateEnd)}` : ""}</div>
+
+            {/* TAB BAR */}
+            <div style={{ display: "flex", gap: 0, marginTop: 10, borderBottom: `1px solid ${P.rose}12` }}>
+              {[
+                { key: "overview", label: "Overview" },
+                { key: "memories", label: "Memories" },
+                { key: "places", label: "Places" },
+                ...(cur.photos?.length > 0 ? [{ key: "photos", label: `📷 ${cur.photos.length}` }] : []),
+              ].map(tab => (
+                <button key={tab.key} onClick={() => setCardTab(tab.key)}
+                  style={{ flex: 1, padding: "6px 4px", border: "none", borderBottom: cardTab === tab.key ? `2px solid ${P.rose}` : "2px solid transparent", background: "none", cursor: "pointer", fontSize: 8, fontFamily: "inherit", color: cardTab === tab.key ? P.text : P.textFaint, letterSpacing: ".06em", transition: "all .2s" }}>
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* TAB CONTENT */}
+            <div style={{ marginTop: 10 }}>
+              {cardTab === "overview" && (<>
+                {cur.notes && <p style={{ fontSize: 12, lineHeight: 1.6, margin: "0 0 8px", opacity: .85 }}>{cur.notes}</p>}
+                {(cur.stops || []).length > 0 && (<div style={{ marginTop: 8 }}><div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".16em", textTransform: "uppercase", marginBottom: 4 }}>Trip Route</div>{cur.stops.map(s => <div key={s.sid} style={{ padding: "5px 8px", background: `${P.sage}08`, borderRadius: 6, marginBottom: 4, borderLeft: `2px solid ${P.sage}35` }}><div style={{ fontSize: 11, fontWeight: 500 }}>{s.city}</div>{s.dateStart && <div style={{ fontSize: 9, color: P.textFaint }}>{fmtDate(s.dateStart)}{s.dateEnd ? ` → ${fmtDate(s.dateEnd)}` : ""}</div>}{s.notes && <p style={{ fontSize: 10, color: P.textMid, margin: "2px 0 0" }}>{s.notes}</p>}</div>)}</div>)}
+                {cur.musicUrl && <div style={{ marginTop: 8, padding: "6px 8px", background: `${P.lavender}0a`, borderRadius: 6 }}><div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 3 }}>Our Song</div><audio controls src={cur.musicUrl} style={{ width: "100%", height: 26 }} /></div>}
+                {/* Love Note */}
+                <div style={{ marginTop: 10, padding: "10px 12px", background: `${P.heart}06`, borderRadius: 8, borderLeft: `2px solid ${P.heart}20` }}>
+                  <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 4 }}>💌 Love Note</div>
+                  {cur.loveNote ? <p style={{ fontSize: 11, lineHeight: 1.6, color: P.textMid, margin: 0, fontStyle: "italic" }}>{cur.loveNote}</p>
+                  : editMode ? <input placeholder="Write a note about this memory..." onBlur={e => { if (e.target.value.trim()) dispatch({ type: "UPDATE", id: cur.id, data: { loveNote: e.target.value.trim() } }); }}
+                      style={{ width: "100%", border: "none", background: "none", fontSize: 10, fontFamily: "inherit", color: P.textMid, fontStyle: "italic", outline: "none", padding: 0 }} />
+                  : <div style={{ fontSize: 9, color: P.textFaint, fontStyle: "italic" }}>No note yet</div>}
+                  {editMode && cur.loveNote && <button onClick={() => dispatch({ type: "UPDATE", id: cur.id, data: { loveNote: "" } })} style={{ marginTop: 4, background: "none", border: "none", fontSize: 8, color: P.textFaint, cursor: "pointer", padding: 0 }}>Clear</button>}
+                </div>
+              </>)}
+
+              {cardTab === "memories" && (<>
+                {renderList("Memories", cur.memories, "♥", P.rose)}
+                {renderList("Highlights", cur.highlights, "⭐", P.gold)}
+                {!(cur.memories?.length) && !(cur.highlights?.length) && <div style={{ fontSize: 10, color: P.textFaint, textAlign: "center", padding: 20 }}>No memories added yet</div>}
+              </>)}
+
+              {cardTab === "places" && (<>
+                {renderList("Museums & Culture", cur.museums, "🏛", P.sky)}
+                {renderList("Restaurants & Food", cur.restaurants, "🍽", P.sage)}
+                {!(cur.museums?.length) && !(cur.restaurants?.length) && <div style={{ fontSize: 10, color: P.textFaint, textAlign: "center", padding: 20 }}>No places added yet</div>}
+              </>)}
+
+              {cardTab === "photos" && (<>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))", gap: 4 }}>
+                  {(cur.photos || []).map((url, i) => (
+                    <button key={i} onClick={() => { setPhotoIdx(i); setCardTab("overview"); }} style={{ padding: 0, border: "2px solid transparent", background: "#ece6dc", cursor: "pointer", borderRadius: 6, overflow: "hidden", aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
+                      <img src={url} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "cover", borderRadius: 4 }} />
+                    </button>
+                  ))}
+                </div>
+                {editMode && <button onClick={() => handlePhotos(cur.id)} style={{ marginTop: 8, width: "100%", padding: "6px", background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: "none", borderRadius: 5, cursor: "pointer", fontSize: 9, color: P.textMuted, fontFamily: "inherit" }}>+ Add Photos</button>}
+              </>)}
+            </div>
+
             {editMode && <button onClick={() => setEditing({ ...cur })} style={{ marginTop: 10, width: "100%", padding: "7px 0", background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: `1px solid ${P.rose}15`, borderRadius: 7, cursor: "pointer", fontSize: 9, color: P.textMuted, fontFamily: "inherit" }}>✏️ Edit</button>}
           </div>
         </div>
       )}
 
       {/* ADD / EDIT / SETTINGS / LETTER overlays */}
-      {showAdd && <AddForm types={TYPES} onAdd={entry => { dispatch({ type: "ADD", entry }); setShowAdd(false); showToast(`${entry.city} added to your world`, "🌍", 2500); const p = ll2v(entry.lat, entry.lng, RAD); tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) }; tZm.current = 2.6; setTimeout(() => { setSelected(entry); setPhotoIdx(0); }, 400); }} onClose={() => setShowAdd(false)} />}
+      {showAdd && <AddForm types={TYPES} onAdd={entry => { dispatch({ type: "ADD", entry }); setShowAdd(false); showToast(`${entry.city} added to your world`, "🌍", 2500); const p = ll2v(entry.lat, entry.lng, RAD); tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) }; tZm.current = 2.6; setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400); }} onClose={() => setShowAdd(false)} />}
+
+      {/* QUICK ADD MODE */}
+      {quickAddMode && <QuickAddForm onAdd={entry => { dispatch({ type: "ADD", entry }); setQuickAddMode(false); showToast(`${entry.city} added quickly ⚡`, "⚡", 2500); const p = ll2v(entry.lat, entry.lng, RAD); tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) }; tZm.current = 2.6; }} onClose={() => setQuickAddMode(false)} />}
 
       {editing && <EditForm entry={editing} types={TYPES} onChange={setEditing}
-        onSave={() => { dispatch({ type: "UPDATE", id: editing.id, data: editing }); setSelected(editing); setEditing(null); showToast("Entry saved", "✓", 2000); }}
+        onSave={() => { dispatch({ type: "UPDATE", id: editing.id, data: editing }); setSelected(editing); setEditing(null); setCardTab("overview"); showToast("Entry saved", "✓", 2000); }}
         onClose={() => setEditing(null)}
         onDelete={() => setConfirmDelete(editing.id)}
         onAddStop={stop => { const updated = { ...editing, stops: [...(editing.stops || []), stop] }; setEditing(updated); dispatch({ type: "UPDATE", id: editing.id, data: { stops: updated.stops } }); }} />}
@@ -1736,7 +2064,17 @@ function OurWorldInner() {
           <div style={{ background: P.card, borderRadius: 14, padding: 28, maxWidth: 320, textAlign: "center", boxShadow: "0 12px 40px rgba(61,53,82,.1)" }}>
             <p style={{ fontSize: 14, margin: "0 0 16px" }}>Delete this memory forever?</p>
             <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-              <button onClick={() => { dispatch({ type: "DELETE", id: confirmDelete }); setConfirmDelete(null); setEditing(null); setSelected(null); showToast("Entry deleted", "🗑", 2000); }} style={{ padding: "8px 20px", background: "#c9777a", color: "#fff", border: "none", borderRadius: 7, cursor: "pointer", fontSize: 12, fontFamily: "inherit" }}>Delete</button>
+              <button onClick={() => {
+                const deletedEntry = data.entries.find(e => e.id === confirmDelete);
+                dispatch({ type: "DELETE", id: confirmDelete });
+                setConfirmDelete(null); setEditing(null); setSelected(null);
+                if (deletedEntry) {
+                  showToast("Entry deleted", "🗑", 5000, () => {
+                    dispatch({ type: "ADD", entry: deletedEntry });
+                    showToast("Entry restored!", "↩️", 2000);
+                  });
+                }
+              }} style={{ padding: "8px 20px", background: "#c9777a", color: "#fff", border: "none", borderRadius: 7, cursor: "pointer", fontSize: 12, fontFamily: "inherit" }}>Delete</button>
               <button onClick={() => setConfirmDelete(null)} style={{ padding: "8px 20px", background: "transparent", border: "1px solid #ddd", borderRadius: 7, cursor: "pointer", fontSize: 12, fontFamily: "inherit", color: P.textMuted }}>Keep</button>
             </div>
           </div>
@@ -1784,7 +2122,7 @@ function OurWorldInner() {
                 <button key={i} onClick={() => {
                   const entry = data.entries.find(e => e.id === ph.id);
                   if (entry) {
-                    setSelected(entry); setPhotoIdx(0); setShowGallery(false);
+                    setSelected(entry); setPhotoIdx(0); setShowGallery(false); setCardTab("overview");
                     const p = ll2v(entry.lat, entry.lng, RAD);
                     tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) };
                     tZm.current = 2.5;
@@ -1821,6 +2159,45 @@ function OurWorldInner() {
         </div>
       )}
 
+      {/* DREAM DESTINATIONS PANEL */}
+      {showDreams && (
+        <div style={{ position: "absolute", inset: 0, zIndex: 45, background: "rgba(13,11,20,.88)", backdropFilter: "blur(20px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .4s ease" }}>
+          <div style={{ width: 420, maxWidth: "92vw", maxHeight: "85vh", overflowY: "auto", padding: 28, background: P.card, borderRadius: 18, boxShadow: "0 24px 64px rgba(0,0,0,.2)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 400, letterSpacing: ".08em" }}>✦ Dream Destinations</h2>
+              <button onClick={() => setShowDreams(false)} style={{ background: "none", border: "none", fontSize: 18, color: P.textFaint, cursor: "pointer" }}>×</button>
+            </div>
+            <p style={{ fontSize: 10, color: P.textFaint, marginBottom: 14, fontStyle: "italic" }}>Places you dream of visiting together. They appear as golden ghost markers on the globe.</p>
+
+            {(config.dreamDestinations || []).map((dream, i) => (
+              <div key={dream.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: `${P.gold}08`, borderRadius: 8, marginBottom: 6, borderLeft: `3px solid ${P.goldWarm}40` }}>
+                <span style={{ fontSize: 16 }}>✦</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, fontWeight: 400 }}>{dream.city}</div>
+                  <div style={{ fontSize: 9, color: P.textFaint }}>{dream.country}{dream.notes ? ` — ${dream.notes}` : ""}</div>
+                </div>
+                {editMode && (<>
+                  <button onClick={() => {
+                    const entry = { id: `e${Date.now()}`, city: dream.city, country: dream.country, lat: dream.lat, lng: dream.lng, dateStart: todayStr(), type: "together", who: "both", notes: dream.notes || "", memories: [], museums: [], restaurants: [], highlights: [], photos: [], stops: [] };
+                    dispatch({ type: "ADD", entry });
+                    setConfig({ dreamDestinations: (config.dreamDestinations || []).filter(d => d.id !== dream.id) });
+                    showToast(`${dream.city} is now real! ✨`, "🎉", 3000);
+                  }} style={{ background: P.sage, color: "#fff", border: "none", borderRadius: 5, padding: "3px 8px", fontSize: 8, cursor: "pointer", fontFamily: "inherit" }}>✓ Visited!</button>
+                  <button onClick={() => setConfig({ dreamDestinations: (config.dreamDestinations || []).filter(d => d.id !== dream.id) })} style={{ background: "none", border: "none", color: P.textFaint, cursor: "pointer", fontSize: 12 }}>×</button>
+                </>)}
+              </div>
+            ))}
+
+            {(config.dreamDestinations || []).length === 0 && <div style={{ textAlign: "center", padding: "24px 0", color: P.textFaint, fontSize: 11 }}>No dream destinations yet</div>}
+
+            {editMode && <DreamAddForm onAdd={dream => {
+              setConfig({ dreamDestinations: [...(config.dreamDestinations || []), { ...dream, id: `d${Date.now()}` }] });
+              showToast(`${dream.city} added to dreams ✦`, "✦", 2000);
+            }} />}
+          </div>
+        </div>
+      )}
+
       {showSettings && (
         <div style={{ position: "absolute", inset: 0, zIndex: 45, background: "rgba(13,11,20,.88)", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ width: 360, padding: 26, background: P.card, borderRadius: 16, boxShadow: "0 14px 48px rgba(61,53,82,.1)" }}>
@@ -1830,6 +2207,19 @@ function OurWorldInner() {
             <Fld l="Subtitle" v={config.subtitle} set={v => setConfig({ subtitle: v })} />
             <Fld l="Your Name" v={config.youName} set={v => setConfig({ youName: v })} />
             <Fld l="Partner Name" v={config.partnerName} set={v => setConfig({ partnerName: v })} />
+
+            <div style={{ margin: "10px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
+            <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 6 }}>Timeline Chapters</div>
+            <p style={{ fontSize: 8, color: P.textFaint, fontStyle: "italic", marginBottom: 8 }}>Name the eras of your relationship</p>
+            {(config.chapters || []).map((ch, i) => (
+              <div key={i} style={{ display: "flex", gap: 4, alignItems: "center", marginBottom: 4 }}>
+                <input value={ch.label} onChange={e => { const chs = [...(config.chapters || [])]; chs[i] = { ...chs[i], label: e.target.value }; setConfig({ chapters: chs }); }} style={{ ...inpSt, flex: 1, fontSize: 10 }} />
+                <input type="date" value={ch.startDate || ""} onChange={e => { const chs = [...(config.chapters || [])]; chs[i] = { ...chs[i], startDate: e.target.value }; setConfig({ chapters: chs }); }} style={{ ...inpSt, width: 100, fontSize: 9 }} />
+                <input type="date" value={ch.endDate || ""} onChange={e => { const chs = [...(config.chapters || [])]; chs[i] = { ...chs[i], endDate: e.target.value }; setConfig({ chapters: chs }); }} style={{ ...inpSt, width: 100, fontSize: 9 }} />
+                <button onClick={() => { const chs = (config.chapters || []).filter((_, j) => j !== i); setConfig({ chapters: chs }); }} style={{ background: "none", border: "none", color: "#c9777a", cursor: "pointer", fontSize: 12, flexShrink: 0 }}>×</button>
+              </div>
+            ))}
+            <button onClick={() => { setConfig({ chapters: [...(config.chapters || []), { label: "New Chapter", startDate: config.startDate, endDate: todayStr() }] }); }} style={{ width: "100%", padding: "5px", background: `${P.lavender}12`, border: `1px dashed ${P.lavender}40`, borderRadius: 5, cursor: "pointer", fontSize: 9, fontFamily: "inherit", color: P.textMid, marginBottom: 8 }}>+ Add Chapter</button>
 
             <div style={{ margin: "10px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
             <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 6 }}>Data</div>
@@ -1868,7 +2258,7 @@ function OurWorldInner() {
                 { label: "Countries", value: stats.countries, icon: "🌍" },
                 { label: "Photos", value: stats.photos, icon: "📷" },
                 { label: "Miles Traveled", value: stats.totalMiles.toLocaleString(), icon: "✈️" },
-                { label: "Total Entries", value: data.entries.length, icon: "📍" },
+                { label: "Reunions", value: reunionStats.reunions, icon: "🫂" },
               ].map((s, i) => (
                 <div key={i} style={{ padding: "12px 14px", background: P.parchment, borderRadius: 10, textAlign: "center" }}>
                   <div style={{ fontSize: 20, marginBottom: 2 }}>{s.icon}</div>
@@ -1876,6 +2266,19 @@ function OurWorldInner() {
                   <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>{s.label}</div>
                 </div>
               ))}
+            </div>
+
+            {/* Distance Scoreboard */}
+            <div style={{ padding: "12px 16px", background: `linear-gradient(135deg,${P.blush},${P.lavMist})`, borderRadius: 10, marginBottom: 14, textAlign: "center" }}>
+              <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 6 }}>The Scoreboard</div>
+              <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 12 }}>
+                <div><span style={{ fontSize: 16, color: P.heart }}>💕</span><div style={{ fontSize: 18, fontWeight: 400 }}>{reunionStats.daysTogether}</div><div style={{ fontSize: 7, color: P.textFaint }}>days together</div></div>
+                <div style={{ fontSize: 11, color: reunionStats.togetherWinning ? P.heart : P.textFaint, fontStyle: "italic" }}>vs</div>
+                <div><span style={{ fontSize: 16 }}>🌍</span><div style={{ fontSize: 18, fontWeight: 400 }}>{reunionStats.daysApart}</div><div style={{ fontSize: 7, color: P.textFaint }}>days apart</div></div>
+              </div>
+              <div style={{ fontSize: 10, color: reunionStats.togetherWinning ? P.heart : P.sky, marginTop: 6, fontStyle: "italic" }}>
+                {reunionStats.togetherWinning ? "Together is winning 💕" : "Distance makes the heart grow fonder 💙"}
+              </div>
             </div>
 
             <div style={{ margin: "14px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}20,transparent)` }} />
@@ -1986,7 +2389,7 @@ function OurWorldInner() {
             })()}
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10 }}>
               <button onClick={() => advanceRecap(-1)} disabled={recapIdx === 0} style={{ ...navSt, opacity: recapIdx === 0 ? 0.3 : 1 }}>◂ Prev</button>
-              <button onClick={() => { setSelected(recapEntries[recapIdx]); setPhotoIdx(0); }} style={{ ...navSt, color: P.heart }}>View Entry</button>
+              <button onClick={() => { setSelected(recapEntries[recapIdx]); setPhotoIdx(0); setCardTab("overview"); }} style={{ ...navSt, color: P.heart }}>View Entry</button>
               <button onClick={() => advanceRecap(1)} style={navSt}>{recapIdx === recapEntries.length - 1 ? "Finish ✨" : "Next ▸"}</button>
             </div>
           </div>
@@ -1995,10 +2398,11 @@ function OurWorldInner() {
 
       {/* TOAST NOTIFICATION */}
       {toast && (
-        <div key={toast.key} style={{ position: "absolute", top: 75, left: "50%", transform: "translateX(-50%)", zIndex: 55, pointerEvents: "none", animation: "fadeIn .3s ease" }}>
+        <div key={toast.key} style={{ position: "absolute", top: 75, left: "50%", transform: "translateX(-50%)", zIndex: 55, pointerEvents: toast.undoAction ? "auto" : "none", animation: "fadeIn .3s ease" }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 18px", background: P.card, backdropFilter: "blur(16px)", borderRadius: 24, boxShadow: "0 4px 20px rgba(0,0,0,.1)", border: `1px solid ${P.rose}15`, fontSize: 12, color: P.text, letterSpacing: ".05em" }}>
             <span>{toast.icon}</span>
             <span>{toast.message}</span>
+            {toast.undoAction && <button onClick={handleUndo} style={{ marginLeft: 6, padding: "2px 8px", background: P.sky, color: "#fff", border: "none", borderRadius: 12, fontSize: 9, cursor: "pointer", fontFamily: "inherit", fontWeight: 500 }}>Undo</button>}
           </div>
         </div>
       )}
@@ -2009,7 +2413,7 @@ function OurWorldInner() {
           const mem = onThisDay[0];
           const entry = data.entries.find(e => e.id === mem.id);
           if (entry) {
-            setSelected(entry); setPhotoIdx(0);
+            setSelected(entry); setPhotoIdx(0); setCardTab("overview");
             setSliderDate(entry.dateStart);
             const p = ll2v(entry.lat, entry.lng, RAD);
             tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) };
@@ -2041,6 +2445,10 @@ function OurWorldInner() {
           h1{font-size:20px!important;letter-spacing:.12em!important}
           h1+p{font-size:9px!important}
         }
+        .ow-dark{background:linear-gradient(155deg,#0d0b14 0%,#1a1030 40%,#12101e 100%)!important;color:#e8e0f0!important}
+        .ow-dark button{color:#c8bede}
+        .ow-dark input,.ow-dark textarea,.ow-dark select{background:rgba(35,30,52,.8)!important;border-color:rgba(100,85,140,.3)!important;color:#e8e0f0!important}
+        .ow-dark input::placeholder,.ow-dark textarea::placeholder{color:rgba(150,130,190,.5)!important}
       `}</style>
     </div>
   );
@@ -2091,6 +2499,23 @@ function AddForm({ types, onAdd, onClose }) {
     <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", zIndex: 40, background: P.card, backdropFilter: "blur(24px)", borderRadius: 18, padding: 24, width: 370, maxHeight: "88vh", overflowY: "auto", boxShadow: "0 18px 56px rgba(61,53,82,.14)", border: `1px solid ${P.sage}22`, fontFamily: "'Palatino Linotype',Palatino,Georgia,serif", color: P.text }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}><h3 style={{ margin: 0, fontSize: 16, fontWeight: 400 }}>Add a New Chapter</h3><button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, color: P.textFaint, cursor: "pointer" }}>×</button></div>
       <p style={{ fontSize: 9, color: P.textMuted, marginBottom: 12, fontStyle: "italic" }}>Another page in your story ✨</p>
+
+      {/* Quick templates */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 10 }}>
+        {[
+          { label: "🌴 Trip", type: "together", notes: "" },
+          { label: "🍽 Date Night", type: "together", notes: "Date night together" },
+          { label: "🏡 Moving Day", type: "home-seth", notes: "Moved to a new home" },
+          { label: "🧭 Solo Adventure", type: "seth-solo", notes: "" },
+          { label: "✨ Special", type: "special", notes: "" },
+        ].map((tmpl, i) => (
+          <button key={i} onClick={() => sf(p => ({ ...p, type: tmpl.type, who: types[tmpl.type]?.who || "both", notes: tmpl.notes || p.notes }))}
+            style={{ padding: "3px 8px", background: `${(TYPES[tmpl.type] || {}).color || P.together}12`, border: `1px solid ${(TYPES[tmpl.type] || {}).color || P.together}30`, borderRadius: 12, fontSize: 8, cursor: "pointer", fontFamily: "inherit", color: P.textMid, transition: "all .2s" }}
+            onMouseEnter={e => e.currentTarget.style.transform = "scale(1.05)"}
+            onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+          >{tmpl.label}</button>
+        ))}
+      </div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
         <div style={{ flex: 1 }}>
@@ -2301,6 +2726,113 @@ function EditForm({ entry, types, onChange, onSave, onClose, onDelete, onAddStop
         <button onClick={onClose} style={{ padding: "8px 12px", background: "transparent", border: "1px solid #e5e0d8", borderRadius: 7, cursor: "pointer", fontSize: 10, fontFamily: "inherit", color: P.textMuted }}>Cancel</button>
       </div>
       <button onClick={onDelete} style={{ marginTop: 7, width: "100%", padding: "6px 0", background: "transparent", color: "#c9777a", border: "1px solid #e5c5c6", borderRadius: 7, cursor: "pointer", fontSize: 9, fontFamily: "inherit" }}>Delete</button>
+    </div>
+  );
+}
+
+// ---- QUICK ADD FORM ----
+function QuickAddForm({ onAdd, onClose }) {
+  const [city, setCity] = useState("");
+  const [country, setCountry] = useState("");
+  const [lat, setLat] = useState("");
+  const [lng, setLng] = useState("");
+  const [dateStart, setDateStart] = useState("");
+  const [dateEnd, setDateEnd] = useState("");
+  const [type, setType] = useState("together");
+  const [note, setNote] = useState("");
+  const [sugg, setSugg] = useState([]);
+  const [showSugg, setShowSugg] = useState(false);
+
+  const onCityInput = v => {
+    setCity(v);
+    if (v.length >= 2) {
+      const q = v.toLowerCase();
+      const matches = CITIES.filter(c => c[0].toLowerCase().includes(q)).slice(0, 6);
+      setSugg(matches); setShowSugg(matches.length > 0);
+    } else { setSugg([]); setShowSugg(false); }
+  };
+  const selectCity = c => { setCity(c[0]); setCountry(c[1]); setLat(c[2].toString()); setLng(c[3].toString()); setSugg([]); setShowSugg(false); };
+  const ok = city.trim() && lat && lng && dateStart;
+
+  return (
+    <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", zIndex: 40, background: P.card, backdropFilter: "blur(24px)", borderRadius: 16, padding: 20, width: 320, boxShadow: "0 18px 56px rgba(61,53,82,.14)", border: `1px solid ${P.gold}22`, fontFamily: "'Palatino Linotype',Palatino,Georgia,serif", color: P.text }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+        <h3 style={{ margin: 0, fontSize: 14, fontWeight: 400 }}>⚡ Quick Add</h3>
+        <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 16, color: P.textFaint, cursor: "pointer" }}>×</button>
+      </div>
+      <div style={{ position: "relative", marginBottom: 6 }}>
+        <input value={city} onChange={e => onCityInput(e.target.value)} onFocus={() => { if (sugg.length > 0) setShowSugg(true); }} placeholder="City..." style={inpSt} autoFocus />
+        {showSugg && sugg.length > 0 && (
+          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e5e0d8", borderRadius: 6, maxHeight: 130, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
+            {sugg.map((c, i) => <button key={i} onClick={() => selectCity(c)} style={{ display: "block", width: "100%", textAlign: "left", padding: "7px 10px", border: "none", borderBottom: "1px solid #f5f2ed", background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }} onMouseEnter={e => e.currentTarget.style.background = P.blush} onMouseLeave={e => e.currentTarget.style.background = "none"}><span style={{ fontWeight: 500, color: P.text }}>{c[0]}</span> <span style={{ color: P.textFaint }}>{c[1]}</span></button>)}
+          </div>
+        )}
+      </div>
+      <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+        <input type="date" value={dateStart} onChange={e => { setDateStart(e.target.value); if (!dateEnd) setDateEnd(e.target.value); }} style={{ ...inpSt, flex: 1 }} />
+        <input type="date" value={dateEnd} onChange={e => setDateEnd(e.target.value)} style={{ ...inpSt, flex: 1 }} />
+        <select value={type} onChange={e => setType(e.target.value)} style={{ ...inpSt, width: 80 }}>
+          {Object.entries(TYPES).map(([k, v]) => <option key={k} value={k}>{v.icon}</option>)}
+        </select>
+      </div>
+      <input value={note} onChange={e => setNote(e.target.value)} placeholder="Quick note..." style={{ ...inpSt, marginBottom: 8 }} />
+      <button disabled={!ok} onClick={() => { onAdd({ id: `e-${Date.now()}`, city, country, lat: parseFloat(lat), lng: parseFloat(lng), dateStart, dateEnd: dateEnd || dateStart, type, who: TYPES[type]?.who || "both", notes: note, memories: [], museums: [], restaurants: [], highlights: [], photos: [], stops: [] }); }}
+        style={{ width: "100%", padding: "9px", background: ok ? P.goldWarm : "#e5e0d8", color: "#fff", border: "none", borderRadius: 8, cursor: ok ? "pointer" : "default", fontSize: 11, fontFamily: "inherit", transition: "all .3s" }}>
+        {ok ? "⚡ Add to World" : "Select a city & date"}
+      </button>
+    </div>
+  );
+}
+
+// ---- DREAM ADD FORM ----
+function DreamAddForm({ onAdd }) {
+  const [city, setCity] = useState("");
+  const [country, setCountry] = useState("");
+  const [lat, setLat] = useState("");
+  const [lng, setLng] = useState("");
+  const [notes, setNotes] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSugg, setShowSugg] = useState(false);
+
+  const onCityInput = v => {
+    setCity(v);
+    if (v.length >= 2) {
+      const q = v.toLowerCase();
+      const matches = CITIES.filter(c => c[0].toLowerCase().includes(q)).slice(0, 6);
+      setSuggestions(matches);
+      setShowSugg(matches.length > 0);
+    } else { setSuggestions([]); setShowSugg(false); }
+  };
+
+  const selectCity = c => {
+    setCity(c[0]); setCountry(c[1]); setLat(c[2].toString()); setLng(c[3].toString());
+    setSuggestions([]); setShowSugg(false);
+  };
+
+  const ok = city.trim() && lat && lng;
+
+  return (
+    <div style={{ marginTop: 14, padding: "14px 16px", background: `${P.gold}06`, borderRadius: 10, border: `1px dashed ${P.goldWarm}30` }}>
+      <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 8 }}>Add a Dream</div>
+      <div style={{ position: "relative", marginBottom: 6 }}>
+        <input value={city} onChange={e => onCityInput(e.target.value)} onFocus={() => { if (suggestions.length > 0) setShowSugg(true); }} placeholder="Start typing city..." style={inpSt} />
+        {showSugg && suggestions.length > 0 && (
+          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e5e0d8", borderRadius: 6, maxHeight: 140, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
+            {suggestions.map((c, i) => (
+              <button key={i} onClick={() => selectCity(c)} style={{ display: "block", width: "100%", textAlign: "left", padding: "7px 10px", border: "none", borderBottom: "1px solid #f5f2ed", background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }}
+                onMouseEnter={e => e.currentTarget.style.background = P.blush}
+                onMouseLeave={e => e.currentTarget.style.background = "none"}
+              >
+                <span style={{ fontWeight: 500, color: P.text }}>{c[0]}</span> <span style={{ color: P.textFaint }}>{c[1]}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Why do you dream of going here?" style={{ ...inpSt, marginBottom: 8 }} />
+      <button disabled={!ok} onClick={() => { onAdd({ city, country, lat: parseFloat(lat), lng: parseFloat(lng), notes }); setCity(""); setCountry(""); setLat(""); setLng(""); setNotes(""); }} style={{ width: "100%", padding: "7px", background: ok ? P.goldWarm : "#e5e0d8", color: "#fff", border: "none", borderRadius: 6, cursor: ok ? "pointer" : "default", fontSize: 10, fontFamily: "inherit", transition: "all .3s" }}>
+        {ok ? "✦ Add Dream Destination" : "Select a city first"}
+      </button>
     </div>
   );
 }
