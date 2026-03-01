@@ -951,16 +951,29 @@ export default function OurWorld() {
   const onTS = useCallback(e => { if (e.touches.length === 1) { dragR.current = true; prevR.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; clickSR.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() }; } else if (e.touches.length === 2) { const dx = e.touches[0].clientX - e.touches[1].clientX, dy = e.touches[0].clientY - e.touches[1].clientY; tDistR.current = Math.sqrt(dx * dx + dy * dy); } }, []);
   const onTM = useCallback(e => { e.preventDefault(); if (e.touches.length === 1 && dragR.current) { tRot.current.y += (e.touches[0].clientX - prevR.current.x) * 0.005; tRot.current.x = clamp(tRot.current.x + (e.touches[0].clientY - prevR.current.y) * 0.005, -1.2, 1.2); prevR.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; } else if (e.touches.length === 2) { const dx = e.touches[0].clientX - e.touches[1].clientX, dy = e.touches[0].clientY - e.touches[1].clientY; const d = Math.sqrt(dx * dx + dy * dy); tZm.current = clamp(tZm.current + (tDistR.current - d) * 0.008, MIN_Z, MAX_Z); tDistR.current = d; } }, []);
 
+  const [uploading, setUploading] = useState(false);
+
   const handlePhotos = useCallback((id) => {
     const input = document.createElement("input"); input.type = "file"; input.accept = "image/*"; input.multiple = true;
     input.onchange = async (e) => {
       const files = Array.from(e.target.files);
+      if (files.length === 0) return;
+      setUploading(true);
+      console.log("Starting upload of", files.length, "files for entry", id);
       const urls = [];
       for (const file of files) {
-        const url = await uploadPhoto(file, id);
-        if (url) urls.push(url);
+        console.log("Uploading:", file.name, file.size, "bytes");
+        try {
+          const url = await uploadPhoto(file, id);
+          console.log("Upload result:", url);
+          if (url) urls.push(url);
+        } catch (err) {
+          console.error("Upload error:", err);
+        }
       }
+      console.log("All uploads done. URLs:", urls);
       if (urls.length > 0) dispatch({ type: "ADD_PHOTOS", id, urls });
+      setUploading(false);
     };
     input.click();
   }, []);
@@ -1197,6 +1210,15 @@ export default function OurWorld() {
               ))}
             </div>
             {allPhotos.length === 0 && <div style={{ textAlign: "center", padding: 20, fontSize: 10, color: P.textFaint }}>No photos yet</div>}
+          </div>
+        </div>
+      )}
+
+      {/* UPLOAD INDICATOR */}
+      {uploading && (
+        <div style={{ position: "absolute", top: 70, left: 0, right: 0, textAlign: "center", zIndex: 50, pointerEvents: "none" }}>
+          <div style={{ display: "inline-block", padding: "6px 18px", background: P.card, backdropFilter: "blur(12px)", borderRadius: 20, fontSize: 11, color: P.textMid, letterSpacing: ".1em", boxShadow: "0 4px 16px rgba(0,0,0,.08)" }}>
+            📷 Uploading photos...
           </div>
         </div>
       )}
