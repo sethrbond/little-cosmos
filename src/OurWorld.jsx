@@ -56,12 +56,42 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
 const regionDots = (a, b, c, d, n) => { const r = []; for (let i = 0; i < n; i++) r.push([a + Math.random() * (b - a), c + Math.random() * (d - c)]); return r; };
 const LAND = [
-  ...regionDots(24, 50, -130, -68, 170), ...regionDots(50, 72, -142, -54, 55),
-  ...regionDots(-56, 13, -83, -33, 115), ...regionDots(35, 62, -12, 44, 115),
-  ...regionDots(60, 72, 4, 44, 32), ...regionDots(-37, 38, -22, 53, 135),
-  ...regionDots(7, 57, 56, 143, 210), ...regionDots(54, 73, 56, 182, 65),
-  ...regionDots(-43, -10, 111, 156, 68), ...regionDots(-3, 13, 93, 143, 48),
-  ...regionDots(27, 47, 123, 147, 38), ...regionDots(60, 83, -75, -12, 30),
+  ...regionDots(24, 50, -130, -68, 250), ...regionDots(50, 72, -142, -54, 80),
+  ...regionDots(-56, 13, -83, -33, 170), ...regionDots(35, 62, -12, 44, 170),
+  ...regionDots(60, 72, 4, 44, 45), ...regionDots(-37, 38, -22, 53, 200),
+  ...regionDots(7, 57, 56, 143, 300), ...regionDots(54, 73, 56, 182, 90),
+  ...regionDots(-43, -10, 111, 156, 100), ...regionDots(-3, 13, 93, 143, 70),
+  ...regionDots(27, 47, 123, 147, 55), ...regionDots(60, 83, -75, -12, 40),
+  ...regionDots(15, 30, -20, 60, 60), // Sahara/Middle East fill
+  ...regionDots(-10, 5, 25, 42, 40), // Central Africa fill
+];
+
+// Simplified world coastlines and borders
+const GEO_LINES = [
+  {n:"north_america",t:"coast",p:[[71,-168],[70,-141],[60,-140],[59,-135],[55,-130],[49,-125],[45,-124],[40,-124],[35,-120],[33,-117],[30,-115],[28,-112],[25,-110],[23,-106],[20,-105],[16,-96],[15,-88],[18,-88],[21,-87],[21,-90],[29,-90],[30,-85],[25,-80],[27,-80],[30,-81],[32,-80],[35,-75],[37,-76],[39,-74],[41,-72],[42,-71],[43,-70],[44,-68],[46,-67],[47,-64],[44,-64],[46,-60],[48,-53],[52,-55],[55,-60],[60,-64],[59,-78],[63,-82],[60,-95],[64,-96],[68,-110],[70,-128],[71,-156],[71,-168]]},
+  {n:"south_america",t:"coast",p:[[12,-72],[10,-76],[8,-77],[4,-77],[0,-80],[-2,-81],[-5,-81],[-6,-77],[-14,-76],[-16,-75],[-18,-71],[-23,-70],[-27,-71],[-33,-72],[-42,-74],[-46,-76],[-52,-75],[-55,-68],[-55,-64],[-52,-69],[-48,-66],[-42,-65],[-38,-57],[-35,-57],[-33,-53],[-28,-49],[-25,-48],[-23,-44],[-22,-41],[-13,-39],[-10,-37],[-6,-35],[-2,-44],[0,-50],[2,-52],[5,-52],[7,-60],[8,-62],[10,-62],[11,-72],[12,-72]]},
+  {n:"europe",t:"coast",p:[[71,28],[70,32],[68,40],[66,34],[64,28],[60,25],[60,22],[56,14],[55,8],[54,6],[53,4],[51,3],[49,-1],[48,-5],[43,-9],[37,-9],[36,-6],[37,-2],[38,0],[41,2],[43,3],[43,6],[44,8],[40,14],[39,16],[37,22],[35,24],[36,28],[38,27],[41,29],[43,28],[45,14],[44,12],[46,7],[47,10],[48,16],[51,14],[54,14],[55,20],[56,18],[58,12],[59,5],[63,5],[68,16],[70,20],[71,28]]},
+  {n:"africa",t:"coast",p:[[37,10],[35,0],[32,-5],[28,-13],[21,-17],[15,-17],[12,-17],[5,-4],[5,2],[6,10],[-1,9],[-6,12],[-12,14],[-17,12],[-23,14],[-28,16],[-33,18],[-35,20],[-34,26],[-30,31],[-26,33],[-15,41],[-11,44],[-2,41],[2,42],[5,44],[10,42],[12,45],[15,42],[20,37],[23,36],[25,34],[30,33],[32,32],[33,35],[37,10]]},
+  {n:"asia",t:"coast",p:[[42,30],[41,40],[37,40],[30,48],[25,55],[20,59],[13,44],[12,45],[8,50],[0,104],[-2,106],[-7,106],[-8,110],[-8,115],[1,104],[2,103],[7,100],[10,99],[14,100],[20,106],[21,108],[22,114],[25,120],[30,122],[32,132],[35,130],[38,120],[40,118],[41,122],[45,133],[47,135],[50,140],[54,137],[55,141],[59,143],[62,150],[66,170],[68,180],[72,180],[72,130],[68,90],[58,70],[55,55],[50,54],[46,50],[42,44],[42,30]]},
+  {n:"australia",t:"coast",p:[[-12,130],[-14,127],[-18,122],[-22,114],[-28,114],[-32,116],[-35,117],[-35,137],[-38,141],[-39,146],[-43,147],[-43,148],[-38,148],[-35,151],[-33,152],[-28,153],[-24,151],[-19,147],[-16,146],[-14,136],[-12,130]]},
+  {n:"nz_north",t:"coast",p:[[-34,173],[-37,175],[-39,178],[-41,175],[-38,174],[-36,174],[-34,173]]},
+  {n:"nz_south",t:"coast",p:[[-41,174],[-42,172],[-44,169],[-46,166],[-47,168],[-46,170],[-44,172],[-42,174],[-41,174]]},
+  {n:"greenland",t:"coast",p:[[76,-18],[78,-20],[80,-22],[82,-30],[83,-40],[82,-50],[80,-62],[78,-70],[76,-72],[72,-56],[68,-50],[66,-44],[64,-42],[62,-44],[60,-44],[60,-48],[64,-52],[68,-54],[72,-56],[76,-68],[80,-65],[84,-45],[84,-30],[82,-20],[80,-15],[77,-18],[76,-18]]},
+  {n:"madagascar",t:"coast",p:[[-12,49],[-16,44],[-22,43],[-25,47],[-22,48],[-17,50],[-12,49]]},
+  {n:"japan",t:"coast",p:[[35,133],[36,136],[37,137],[38,140],[40,140],[41,141],[40,140],[38,139],[37,137],[35,137],[34,132],[33,131],[34,130],[35,133]]},
+  {n:"uk",t:"coast",p:[[50,-5],[51,1],[53,0],[55,-2],[58,-3],[58,-5],[57,-6],[55,-5],[54,-3],[53,-4],[52,-4],[51,-3],[50,-5]]},
+  {n:"iceland",t:"coast",p:[[64,-22],[65,-18],[66,-14],[66,-18],[65,-22],[64,-24],[64,-22]]},
+  {n:"indonesia",t:"coast",p:[[6,95],[2,99],[-1,100],[-3,104],[-5,105],[-6,106],[-3,106],[0,104],[3,99],[6,95]]},
+  {n:"borneo",t:"coast",p:[[7,117],[4,115],[1,110],[-1,109],[-3,111],[-2,117],[1,118],[4,118],[7,117]]},
+  {n:"philippines",t:"coast",p:[[18,121],[15,121],[14,124],[11,125],[8,124],[7,126],[10,126],[13,124],[16,122],[18,121]]},
+  {n:"cuba",t:"coast",p:[[22,-84],[23,-82],[22,-79],[20,-77],[21,-78],[22,-80],[22,-84]]},
+  {n:"sri_lanka",t:"coast",p:[[10,80],[8,80],[7,80],[6,81],[7,82],[10,80]]},
+  {n:"taiwan",t:"coast",p:[[25,121],[23,120],[22,121],[25,122],[25,121]]},
+  {n:"us_canada",t:"border",p:[[49,-123],[49,-95],[47,-85],[46,-82],[43,-79],[44,-76],[45,-72],[47,-67]]},
+  {n:"us_mexico",t:"border",p:[[32,-117],[32,-111],[31,-108],[30,-105],[29,-103],[26,-99],[26,-97]]},
+  {n:"india",t:"border",p:[[35,74],[28,70],[24,69],[23,68],[21,69],[18,73],[8,77],[10,80]]},
+  {n:"china_russia",t:"border",p:[[42,130],[45,133],[49,135],[53,134],[55,130],[58,120],[55,100],[50,87],[46,82],[44,80]]},
+  {n:"europe_internal",t:"border",p:[[42,-2],[43,0],[46,6],[47,7],[47,13],[50,14],[52,14],[54,14],[55,10]]},
 ];
 
 // 328 world cities
@@ -334,6 +364,7 @@ export default function OurWorld() {
   const frameRef = useRef(0);
   const heartRef = useRef(null);
   const glowLayersRef = useRef([]);
+  const geoLinesRef = useRef([]);
   const particlesRef = useRef(null);
 
   const dragR = useRef(false);
@@ -650,24 +681,53 @@ export default function OurWorld() {
       globe.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), gM));
     }
 
-    // Land
-    const ldM = new THREE.MeshBasicMaterial({ color: "#cac3b6", transparent: true, opacity: 0.38, side: THREE.DoubleSide });
+    // Land dots — varied sizes for more organic feel
     LAND.forEach(([lat, lng]) => {
       const p = ll2v(lat, lng, RAD * 1.002);
-      const d = new THREE.Mesh(new THREE.CircleGeometry(0.003, 5), ldM.clone());
+      const sz = 0.002 + Math.random() * 0.0025;
+      const op = 0.2 + Math.random() * 0.25;
+      const d = new THREE.Mesh(new THREE.CircleGeometry(sz, 5), new THREE.MeshBasicMaterial({ color: "#c8bfb0", transparent: true, opacity: op, side: THREE.DoubleSide }));
       d.position.copy(p); d.lookAt(p.clone().multiplyScalar(2)); globe.add(d);
     });
 
-    // Particles
-    const pN = 220;
+    // Geography lines — coastlines and borders, fade in on zoom
+    const geoGroup = [];
+    GEO_LINES.forEach(geo => {
+      const pts = geo.p.map(c => ll2v(c[0], c[1], RAD * 1.003));
+      const geom = new THREE.BufferGeometry().setFromPoints(pts);
+      const isBorder = geo.t === "border";
+      const mat = new THREE.LineBasicMaterial({
+        color: isBorder ? "#c0b8a8" : "#b8a898",
+        transparent: true,
+        opacity: 0, // starts invisible, fades in on zoom
+      });
+      const line = new THREE.Line(geom, mat);
+      line.renderOrder = -1;
+      globe.add(line);
+      geoGroup.push({ line, mat, isBorder });
+    });
+    geoLinesRef.current = geoGroup;
+
+    // Particles — multi-layered, varied colors and sizes
+    const pN = 350;
     const pG = new THREE.BufferGeometry();
     const pP = new Float32Array(pN * 3);
-    for (let i = 0; i < pN; i++) { pP[i * 3] = (Math.random() - 0.5) * 14; pP[i * 3 + 1] = (Math.random() - 0.5) * 14; pP[i * 3 + 2] = (Math.random() - 0.5) * 14; }
+    for (let i = 0; i < pN; i++) { pP[i * 3] = (Math.random() - 0.5) * 16; pP[i * 3 + 1] = (Math.random() - 0.5) * 16; pP[i * 3 + 2] = (Math.random() - 0.5) * 16; }
     pG.setAttribute("position", new THREE.BufferAttribute(pP, 3));
-    const pMat = new THREE.PointsMaterial({ color: P.roseSoft, size: 0.007, transparent: true, opacity: 0.18 });
+    const pMat = new THREE.PointsMaterial({ color: P.roseSoft, size: 0.008, transparent: true, opacity: 0.15 });
     const particles = new THREE.Points(pG, pMat);
     scene.add(particles);
     particlesRef.current = particles;
+
+    // Second particle layer — warmer/gold dust
+    const p2N = 180;
+    const p2G = new THREE.BufferGeometry();
+    const p2P = new Float32Array(p2N * 3);
+    for (let i = 0; i < p2N; i++) { p2P[i * 3] = (Math.random() - 0.5) * 12; p2P[i * 3 + 1] = (Math.random() - 0.5) * 12; p2P[i * 3 + 2] = (Math.random() - 0.5) * 12; }
+    p2G.setAttribute("position", new THREE.BufferAttribute(p2P, 3));
+    const p2Mat = new THREE.PointsMaterial({ color: P.goldWarm, size: 0.005, transparent: true, opacity: 0.1 });
+    const particles2 = new THREE.Points(p2G, p2Mat);
+    scene.add(particles2);
 
     // Heart mesh
     const hs = new THREE.Shape();
@@ -714,6 +774,16 @@ export default function OurWorld() {
         hMesh.quaternion.copy(invGlobe);
       }
       particles.rotation.y += 0.0001;
+      particles2.rotation.y -= 0.00008;
+      particles2.rotation.x += 0.00003;
+
+      // Fade geography lines based on zoom (closer = more visible)
+      const zoomFactor = clamp((3.2 - zmR.current) / 1.6, 0, 1); // fully visible below ~1.6, invisible above ~3.2
+      geoGroup.forEach(g => {
+        const maxOp = g.isBorder ? 0.12 : 0.25;
+        g.mat.opacity = zoomFactor * maxOp;
+      });
+
       rend.render(scene, cam);
     };
     animate();
