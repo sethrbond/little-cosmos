@@ -73,31 +73,55 @@ const LAND = [
 
 // Simplified world coastlines and borders
 const GEO_LINES = [
-  {n:"north_america",t:"coast",p:[[71,-168],[70,-141],[60,-140],[59,-135],[55,-130],[49,-125],[45,-124],[40,-124],[35,-120],[33,-117],[30,-115],[28,-112],[25,-110],[23,-106],[20,-105],[16,-96],[15,-88],[18,-88],[21,-87],[21,-90],[29,-90],[30,-85],[25,-80],[27,-80],[30,-81],[32,-80],[35,-75],[37,-76],[39,-74],[41,-72],[42,-71],[43,-70],[44,-68],[46,-67],[47,-64],[44,-64],[46,-60],[48,-53],[52,-55],[55,-60],[60,-64],[59,-78],[63,-82],[60,-95],[64,-96],[68,-110],[70,-128],[71,-156],[71,-168]]},
-  {n:"south_america",t:"coast",p:[[12,-72],[10,-76],[8,-77],[4,-77],[0,-80],[-2,-81],[-5,-81],[-6,-77],[-14,-76],[-16,-75],[-18,-71],[-23,-70],[-27,-71],[-33,-72],[-42,-74],[-46,-76],[-52,-75],[-55,-68],[-55,-64],[-52,-69],[-48,-66],[-42,-65],[-38,-57],[-35,-57],[-33,-53],[-28,-49],[-25,-48],[-23,-44],[-22,-41],[-13,-39],[-10,-37],[-6,-35],[-2,-44],[0,-50],[2,-52],[5,-52],[7,-60],[8,-62],[10,-62],[11,-72],[12,-72]]},
-  {n:"europe",t:"coast",p:[[71,28],[70,32],[68,40],[66,34],[64,28],[60,25],[60,22],[56,14],[55,8],[54,6],[53,4],[51,3],[49,-1],[48,-5],[43,-9],[37,-9],[36,-6],[37,-2],[38,0],[41,2],[43,3],[43,6],[44,8],[40,14],[39,16],[37,22],[35,24],[36,28],[38,27],[41,29],[43,28],[45,14],[44,12],[46,7],[47,10],[48,16],[51,14],[54,14],[55,20],[56,18],[58,12],[59,5],[63,5],[68,16],[70,20],[71,28]]},
-  {n:"africa",t:"coast",p:[[37,10],[35,0],[32,-5],[28,-13],[21,-17],[15,-17],[12,-17],[5,-4],[5,2],[6,10],[-1,9],[-6,12],[-12,14],[-17,12],[-23,14],[-28,16],[-33,18],[-35,20],[-34,26],[-30,31],[-26,33],[-15,41],[-11,44],[-2,41],[2,42],[5,44],[10,42],[12,45],[15,42],[20,37],[23,36],[25,34],[30,33],[32,32],[33,35],[37,10]]},
-  {n:"asia",t:"coast",p:[[42,30],[41,40],[37,40],[30,48],[25,55],[20,59],[13,44],[12,45],[8,50],[0,104],[-2,106],[-7,106],[-8,110],[-8,115],[1,104],[2,103],[7,100],[10,99],[14,100],[20,106],[21,108],[22,114],[25,120],[30,122],[32,132],[35,130],[38,120],[40,118],[41,122],[45,133],[47,135],[50,140],[54,137],[55,141],[59,143],[62,150],[66,170],[68,180],[72,180],[72,130],[68,90],[58,70],[55,55],[50,54],[46,50],[42,44],[42,30]]},
-  {n:"australia",t:"coast",p:[[-12,130],[-14,127],[-18,122],[-22,114],[-28,114],[-32,116],[-35,117],[-35,137],[-38,141],[-39,146],[-43,147],[-43,148],[-38,148],[-35,151],[-33,152],[-28,153],[-24,151],[-19,147],[-16,146],[-14,136],[-12,130]]},
-  {n:"nz_north",t:"coast",p:[[-34,173],[-37,175],[-39,178],[-41,175],[-38,174],[-36,174],[-34,173]]},
-  {n:"nz_south",t:"coast",p:[[-41,174],[-42,172],[-44,169],[-46,166],[-47,168],[-46,170],[-44,172],[-42,174],[-41,174]]},
-  {n:"greenland",t:"coast",p:[[76,-18],[78,-20],[80,-22],[82,-30],[83,-40],[82,-50],[80,-62],[78,-70],[76,-72],[72,-56],[68,-50],[66,-44],[64,-42],[62,-44],[60,-44],[60,-48],[64,-52],[68,-54],[72,-56],[76,-68],[80,-65],[84,-45],[84,-30],[82,-20],[80,-15],[77,-18],[76,-18]]},
-  {n:"madagascar",t:"coast",p:[[-12,49],[-16,44],[-22,43],[-25,47],[-22,48],[-17,50],[-12,49]]},
-  {n:"japan",t:"coast",p:[[35,133],[36,136],[37,137],[38,140],[40,140],[41,141],[40,140],[38,139],[37,137],[35,137],[34,132],[33,131],[34,130],[35,133]]},
-  {n:"uk",t:"coast",p:[[50,-5],[51,1],[53,0],[55,-2],[58,-3],[58,-5],[57,-6],[55,-5],[54,-3],[53,-4],[52,-4],[51,-3],[50,-5]]},
-  {n:"iceland",t:"coast",p:[[64,-22],[65,-18],[66,-14],[66,-18],[65,-22],[64,-24],[64,-22]]},
-  {n:"indonesia",t:"coast",p:[[6,95],[2,99],[-1,100],[-3,104],[-5,105],[-6,106],[-3,106],[0,104],[3,99],[6,95]]},
-  {n:"borneo",t:"coast",p:[[7,117],[4,115],[1,110],[-1,109],[-3,111],[-2,117],[1,118],[4,118],[7,117]]},
-  {n:"philippines",t:"coast",p:[[18,121],[15,121],[14,124],[11,125],[8,124],[7,126],[10,126],[13,124],[16,122],[18,121]]},
-  {n:"cuba",t:"coast",p:[[22,-84],[23,-82],[22,-79],[20,-77],[21,-78],[22,-80],[22,-84]]},
-  {n:"sri_lanka",t:"coast",p:[[10,80],[8,80],[7,80],[6,81],[7,82],[10,80]]},
-  {n:"taiwan",t:"coast",p:[[25,121],[23,120],[22,121],[25,122],[25,121]]},
-  {n:"central_america",t:"coast",p:[[18,-88],[16,-88],[15,-84],[12,-84],[11,-84],[10,-83],[9,-83],[8,-80],[8,-77],[9,-79],[10,-83],[12,-87],[15,-88],[18,-88]]},
-  {n:"us_canada",t:"border",p:[[49,-123],[49,-95],[47,-85],[46,-82],[43,-79],[44,-76],[45,-72],[47,-67]]},
-  {n:"us_mexico",t:"border",p:[[32,-117],[32,-111],[31,-108],[30,-105],[29,-103],[26,-99],[26,-97]]},
-  {n:"india",t:"border",p:[[35,74],[28,70],[24,69],[23,68],[21,69],[18,73],[8,77],[10,80]]},
-  {n:"china_russia",t:"border",p:[[42,130],[45,133],[49,135],[53,134],[55,130],[58,120],[55,100],[50,87],[46,82],[44,80]]},
-  {n:"europe_internal",t:"border",p:[[42,-2],[43,0],[46,6],[47,7],[47,13],[50,14],[52,14],[54,14],[55,10]]},
+  {n:"na_east",p:[[25.8,-80.1],[26.5,-80.0],[27.5,-80.3],[28.4,-80.6],[29.0,-81.0],[30.3,-81.4],[31.2,-81.2],[32.0,-80.8],[32.8,-79.9],[33.8,-78.5],[34.7,-76.7],[35.2,-75.5],[36.9,-75.9],[37.0,-76.3],[37.8,-76.3],[38.3,-75.1],[38.9,-75.0],[39.5,-74.2],[40.5,-74.0],[40.8,-73.9],[41.0,-72.0],[41.3,-71.8],[41.7,-70.0],[42.0,-70.0],[42.3,-71.0],[42.4,-70.6],[43.1,-70.7],[43.7,-70.2],[44.3,-68.2],[44.7,-67.0],[45.0,-66.9],[45.5,-64.5],[46.0,-60.0],[46.8,-56.0],[47.5,-53.0],[49.0,-53.5],[51.0,-55.5],[52.5,-56.0],[53.5,-55.5],[55.0,-59.0],[56.5,-61.0],[58.0,-62.0],[60.0,-64.5],[62.5,-66.0],[63.5,-68.0]]},
+  {n:"na_gulf",p:[[25.8,-80.1],[25.2,-81.0],[25.8,-81.8],[26.6,-82.2],[27.9,-82.8],[28.5,-82.6],[29.0,-83.0],[29.7,-84.5],[29.8,-85.5],[30.2,-86.5],[30.2,-87.5],[30.3,-88.5],[30.2,-89.1],[29.5,-89.5],[29.0,-89.0],[29.2,-90.0],[29.4,-91.0],[29.5,-92.5],[29.3,-94.0],[29.5,-94.8],[28.5,-96.0],[27.8,-97.2],[26.1,-97.2],[25.9,-97.1]]},
+  {n:"na_west",p:[[32.5,-117.1],[33.0,-117.3],[33.7,-118.3],[34.0,-118.5],[34.4,-119.8],[35.0,-120.6],[35.5,-121.0],[36.3,-121.9],[36.6,-122.0],[37.5,-122.4],[37.8,-122.5],[38.0,-123.0],[38.8,-123.5],[39.5,-123.8],[40.4,-124.4],[41.0,-124.2],[41.8,-124.2],[42.0,-124.3],[43.0,-124.5],[44.0,-124.1],[45.5,-124.0],[46.3,-124.1],[47.5,-124.7],[48.4,-124.7],[48.5,-123.0],[49.0,-123.2]]},
+  {n:"alaska",p:[[54.5,-130.5],[55.0,-131.5],[56.0,-132.5],[57.0,-134.0],[58.0,-134.5],[58.5,-135.0],[59.0,-136.0],[59.5,-139.5],[60.0,-141.0],[60.0,-144.0],[60.5,-146.0],[61.0,-146.5],[61.5,-149.0],[61.2,-150.0],[60.5,-151.5],[59.5,-152.0],[58.5,-153.5],[57.5,-155.0],[56.5,-158.0],[55.5,-160.0],[55.0,-162.0],[55.5,-164.0],[56.0,-166.0],[57.0,-170.0],[58.0,-170.0],[60.0,-166.0],[62.0,-164.0],[64.0,-163.0],[65.5,-168.0],[66.0,-168.5],[68.0,-166.5],[70.0,-162.0],[71.0,-156.5],[71.3,-152.0],[70.5,-149.0],[70.0,-145.0],[69.5,-141.0]]},
+  {n:"canada_north",p:[[63.5,-68.0],[64.5,-72.0],[65.0,-75.0],[63.0,-78.0],[60.0,-78.0],[58.5,-78.0],[56.5,-79.0],[55.0,-82.0],[54.5,-84.0],[55.0,-85.0],[56.0,-86.0],[57.0,-88.0],[58.5,-89.0],[60.0,-89.5],[62.0,-92.0],[63.0,-93.0],[64.0,-96.0],[66.0,-96.5],[68.5,-96.0],[69.5,-95.0],[70.0,-100.0],[70.5,-108.0],[69.5,-115.0],[69.5,-125.0],[69.5,-135.0],[69.5,-141.0]]},
+  {n:"mexico",p:[[32.5,-117.1],[31.5,-116.5],[30.0,-115.5],[28.0,-114.0],[26.0,-112.0],[24.0,-110.0],[23.0,-110.0],[22.5,-109.0],[23.0,-106.5],[23.5,-106.5],[24.0,-107.5],[25.0,-108.5],[27.0,-110.0],[29.0,-112.0],[31.0,-113.5],[32.5,-114.5],[32.5,-117.1]]},
+  {n:"mexico_east",p:[[25.9,-97.1],[23.0,-97.8],[21.0,-97.3],[19.5,-96.5],[18.5,-95.5],[18.0,-94.0],[18.5,-92.5],[18.5,-91.0],[20.0,-90.5],[21.0,-90.3],[21.5,-88.0],[21.3,-87.5],[20.5,-87.5],[19.5,-87.5],[18.5,-88.0],[17.5,-88.2],[16.0,-88.5]]},
+  {n:"central_am",p:[[16.0,-88.5],[15.5,-88.0],[14.5,-87.5],[13.5,-87.0],[12.5,-86.5],[11.5,-85.5],[10.5,-84.0],[9.5,-84.0],[9.0,-83.5],[8.5,-83.0],[8.0,-82.0],[8.0,-80.0],[8.5,-79.0],[9.0,-79.5],[9.5,-79.5],[9.5,-78.5],[8.5,-77.5],[7.5,-77.0]]},
+  {n:"cuba",p:[[21.5,-84.0],[22.0,-83.0],[22.5,-81.5],[23.0,-80.0],[23.2,-79.5],[22.5,-78.0],[21.5,-77.5],[20.5,-77.0],[19.8,-77.5],[20.0,-78.5],[21.0,-80.0],[21.5,-82.0],[21.5,-84.0]]},
+  {n:"sa",p:[[7.5,-77.0],[6.0,-75.5],[4.0,-77.0],[2.0,-79.0],[0.0,-80.0],[-2.0,-80.5],[-4.0,-81.0],[-5.5,-81.0],[-6.5,-80.0],[-8.0,-79.5],[-10.0,-78.5],[-12.0,-77.0],[-14.0,-76.5],[-16.0,-75.0],[-18.0,-71.5],[-20.0,-70.5],[-22.0,-70.0],[-24.0,-70.5],[-27.0,-70.5],[-29.0,-71.0],[-30.0,-71.5],[-33.0,-71.5],[-35.0,-71.5],[-37.0,-73.5],[-39.5,-73.5],[-41.0,-73.0],[-43.0,-73.5],[-45.0,-74.0],[-47.5,-74.0],[-49.5,-75.5],[-51.0,-75.0],[-52.0,-72.0],[-53.0,-70.5],[-54.5,-68.5],[-54.8,-64.5],[-52.0,-65.0],[-51.0,-68.5],[-50.0,-68.0],[-47.0,-65.5],[-45.0,-65.5],[-42.0,-64.0],[-40.0,-62.0],[-38.5,-58.0],[-36.0,-56.5],[-34.5,-56.5],[-34.0,-54.0],[-33.0,-52.5],[-30.0,-50.5],[-28.0,-48.5],[-26.0,-48.5],[-24.0,-46.5],[-23.0,-43.0],[-20.0,-40.0],[-18.0,-39.0],[-15.0,-39.0],[-13.0,-38.5],[-10.5,-36.5],[-8.0,-35.0],[-5.5,-35.0],[-3.0,-38.0],[-1.5,-44.0],[-1.0,-48.5],[0.0,-50.0],[2.0,-50.0],[4.0,-51.0],[5.0,-53.0],[6.0,-57.0],[7.0,-60.0],[8.5,-60.0],[10.0,-62.0],[10.5,-65.0],[11.0,-68.0],[12.0,-72.0],[11.0,-74.5],[9.0,-76.0],[7.5,-77.0]]},
+  {n:"iberia",p:[[36.0,-5.5],[36.7,-6.5],[37.0,-8.5],[38.5,-9.0],[39.5,-9.5],[40.5,-8.8],[42.0,-8.8],[43.0,-9.3],[43.5,-8.0],[43.5,-5.5],[43.5,-3.5],[43.3,-2.0],[42.5,-0.5],[42.0,0.5],[41.5,1.0],[41.0,2.0],[40.5,0.5],[39.5,0.0],[38.5,-0.5],[37.5,-1.5],[36.5,-2.5],[36.0,-5.5]]},
+  {n:"france",p:[[43.3,-2.0],[44.0,-1.5],[45.5,-1.0],[46.0,-1.5],[47.0,-2.5],[47.5,-3.0],[48.5,-4.5],[48.7,-3.5],[48.8,-2.0],[49.0,-1.5],[49.5,-1.0],[50.0,1.5],[51.0,2.5],[51.5,3.5],[52.0,4.0],[52.5,4.5],[53.0,5.0],[53.5,6.0],[53.5,7.0],[54.5,8.5],[55.0,8.5]]},
+  {n:"med_north",p:[[41.0,2.0],[42.5,3.0],[43.0,4.0],[43.3,5.0],[43.5,7.0],[44.0,8.0],[44.3,9.0],[43.0,10.0],[42.5,11.0],[41.5,12.5],[41.0,13.5],[40.5,14.0],[40.0,15.0],[39.5,16.0],[38.0,16.0],[37.5,15.5],[38.0,13.0],[37.0,12.5],[37.0,15.0],[39.0,17.0],[40.0,18.5],[41.0,17.0],[42.0,16.5],[43.0,16.0],[44.5,14.5],[45.5,13.5]]},
+  {n:"scandinavia",p:[[55.0,8.5],[56.0,8.5],[57.0,8.0],[58.0,6.0],[59.0,5.5],[60.5,5.0],[62.0,5.5],[63.5,7.0],[65.0,11.0],[67.0,14.0],[68.5,16.0],[70.0,20.0],[71.0,25.0],[70.5,28.0],[69.5,30.0],[68.5,28.0],[67.0,26.0],[65.5,24.0],[64.0,22.0],[63.0,21.0],[61.0,18.0],[59.0,18.0],[58.0,16.5],[56.0,16.0],[55.5,13.0],[55.0,12.5],[56.0,11.0],[58.0,11.5],[59.0,10.5],[59.0,10.0]]},
+  {n:"britain",p:[[50.0,-5.5],[50.5,-4.0],[51.0,-3.0],[51.5,-3.5],[51.5,-5.0],[52.0,-5.5],[52.5,-4.5],[53.0,-4.5],[53.5,-3.0],[54.0,-3.5],[54.5,-3.5],[55.0,-3.0],[55.5,-2.0],[56.0,-2.5],[56.5,-3.5],[57.0,-5.0],[57.5,-5.5],[58.0,-5.0],[58.5,-3.0],[57.5,-2.0],[56.5,-1.5],[55.0,-1.5],[53.5,0.0],[52.0,1.5],[51.5,1.0],[51.0,0.5],[50.5,-1.0],[50.0,-5.5]]},
+  {n:"ireland",p:[[51.5,-10.0],[52.0,-10.5],[52.5,-10.0],[53.0,-10.5],[53.5,-10.0],[54.0,-10.5],[54.5,-8.5],[55.5,-7.5],[55.0,-6.0],[54.0,-6.0],[53.5,-6.0],[53.0,-6.0],[52.0,-7.0],[51.5,-10.0]]},
+  {n:"baltic",p:[[54.5,10.0],[54.5,13.0],[54.0,14.5],[54.5,16.5],[55.0,17.5],[55.5,18.5],[56.5,21.0],[57.5,22.0],[58.0,22.5],[59.0,23.5],[59.5,24.5],[60.0,25.0],[60.5,27.0],[61.0,28.0],[62.0,29.0],[63.0,28.0],[64.5,25.5],[65.5,24.0]]},
+  {n:"africa",p:[[35.5,-6.0],[35.8,-5.5],[36.0,-2.0],[37.0,1.0],[37.0,3.0],[36.5,5.0],[37.0,8.0],[37.5,10.0],[37.0,11.0],[35.0,11.0],[33.0,12.0],[32.5,15.0],[32.0,24.0],[31.5,25.5],[31.0,27.0],[30.5,29.0],[31.0,32.0],[31.5,33.5],[30.0,33.0],[28.0,33.5],[25.0,35.0],[22.0,36.5],[20.0,37.5],[18.0,38.0],[15.5,42.0],[12.5,43.5],[11.5,43.0],[10.0,45.0],[8.0,47.0],[5.0,48.5],[2.0,49.5],[0.0,49.0],[-2.0,45.0],[-4.0,43.0],[-6.0,41.5],[-8.0,40.0],[-10.0,40.5],[-12.0,40.5],[-15.0,40.5],[-18.0,38.0],[-20.0,35.5],[-22.0,35.5],[-25.0,35.0],[-26.5,33.0],[-28.0,32.5],[-30.0,31.0],[-32.0,29.0],[-33.5,27.0],[-34.0,25.5],[-34.5,22.0],[-34.0,18.5],[-33.0,17.5],[-31.0,17.0],[-29.0,16.5],[-26.0,14.5],[-23.0,14.5],[-20.0,13.0],[-17.5,12.0],[-15.5,12.0],[-12.5,14.5],[-10.0,13.5],[-7.5,13.5],[-5.0,12.0],[-2.5,10.0],[0.0,9.5],[2.0,9.5],[4.0,7.5],[5.0,5.0],[6.0,2.5],[5.5,1.0],[6.0,1.0],[4.5,-1.0],[5.0,-4.0],[5.5,-5.5],[4.5,-7.5],[6.5,-11.5],[7.0,-12.5],[8.0,-13.5],[10.0,-15.0],[11.0,-15.5],[12.5,-16.0],[13.0,-16.5],[14.5,-17.0],[16.0,-16.5],[18.0,-16.0],[20.5,-17.0],[21.0,-17.0],[24.0,-14.5],[25.0,-14.5],[27.0,-13.5],[30.0,-10.0],[32.0,-9.0],[33.5,-8.0],[35.5,-6.0]]},
+  {n:"madagascar",p:[[-12.0,49.0],[-14.0,48.0],[-16.0,47.0],[-18.0,44.5],[-20.0,44.5],[-22.0,43.5],[-24.0,44.5],[-25.5,45.0],[-25.0,47.0],[-23.0,47.5],[-20.0,49.0],[-17.5,49.5],[-15.0,50.0],[-12.0,49.0]]},
+  {n:"arabian",p:[[30.0,33.0],[29.5,34.5],[28.0,34.5],[26.0,36.5],[24.0,38.0],[22.0,39.0],[20.0,40.0],[16.0,43.0],[13.0,45.0],[12.5,44.0],[12.5,43.5]]},
+  {n:"persian_gulf",p:[[30.0,48.5],[29.5,50.0],[27.5,51.5],[26.0,52.0],[25.0,54.5],[24.0,56.5],[23.5,58.5],[22.5,59.5],[21.0,59.0],[18.0,56.5],[15.0,52.0],[13.0,48.5],[12.5,45.0]]},
+  {n:"india",p:[[24.0,68.5],[23.0,68.5],[22.5,69.0],[21.5,68.5],[20.0,72.5],[19.0,73.0],[17.0,73.5],[15.0,74.0],[12.5,74.5],[10.5,76.0],[8.5,77.0],[7.5,79.5],[8.0,80.5],[9.5,79.5],[10.0,80.0],[11.0,80.0],[13.0,80.5],[15.0,80.0],[16.5,82.0],[18.0,83.5],[19.5,85.5],[20.5,87.0],[21.5,87.5],[22.0,88.5],[22.5,89.0],[23.5,91.0],[22.0,92.5]]},
+  {n:"se_asia",p:[[22.0,92.5],[20.0,92.5],[16.0,94.5],[15.0,97.5],[13.5,99.0],[11.0,99.5],[8.0,98.5],[7.0,100.0],[5.0,100.5],[2.5,102.0],[1.5,103.5],[1.5,104.0],[2.0,104.5],[3.0,104.0],[4.0,103.5],[5.0,104.0],[6.5,103.0],[8.0,103.5],[10.0,104.0],[11.0,106.5],[12.0,109.0],[15.0,109.0],[16.5,107.5],[18.0,106.5],[20.0,106.0],[21.0,107.5],[21.5,108.0]]},
+  {n:"borneo",p:[[7.0,117.0],[6.5,116.0],[5.5,115.5],[4.5,115.0],[3.0,111.0],[1.5,109.5],[1.0,110.0],[2.0,111.0],[2.5,112.0],[2.0,113.0],[1.0,114.5],[2.0,116.0],[4.0,117.5],[5.5,118.5],[7.0,117.0]]},
+  {n:"sumatra",p:[[5.5,95.5],[3.5,98.5],[2.0,99.0],[0.5,101.0],[-1.0,103.5],[-2.5,105.0],[-3.5,106.0],[-5.5,105.5],[-5.0,104.0],[-3.5,103.0],[-2.0,101.0],[-0.5,99.0],[1.0,97.5],[3.0,96.0],[5.5,95.5]]},
+  {n:"java",p:[[-6.0,105.5],[-6.5,106.5],[-7.0,107.5],[-7.5,109.0],[-7.8,110.5],[-8.0,112.0],[-8.5,114.0],[-8.0,114.5],[-7.5,112.5],[-7.0,111.0],[-6.5,109.0],[-6.0,107.5],[-6.0,105.5]]},
+  {n:"china",p:[[21.5,108.0],[22.5,108.5],[23.5,111.0],[24.5,113.0],[25.0,117.0],[26.0,119.5],[27.5,121.0],[28.5,121.5],[30.0,122.0],[31.0,121.5],[32.0,122.0],[33.5,121.0],[34.5,119.5],[35.5,120.0],[36.5,120.5],[37.5,122.0],[38.0,121.0],[39.0,118.5],[39.5,119.5],[40.5,120.0],[40.0,121.5],[41.0,122.0],[42.0,124.5],[43.0,129.0],[43.5,130.5],[44.0,132.0],[45.0,133.5],[47.0,135.0],[48.5,135.0],[49.0,140.0],[51.0,141.0]]},
+  {n:"korea",p:[[38.5,125.0],[37.5,126.0],[36.5,126.0],[35.0,126.5],[34.5,127.5],[35.0,129.0],[35.5,129.5],[36.5,129.5],[37.5,129.0],[38.5,128.5],[39.0,127.5],[40.0,128.5],[41.0,129.0],[42.0,129.5]]},
+  {n:"japan_honshu",p:[[35.0,132.5],[34.0,131.0],[33.5,131.5],[33.0,132.5],[32.5,131.0],[33.0,130.0],[33.5,129.5],[34.0,130.5],[34.5,131.0],[35.0,132.0],[35.5,133.5],[36.0,136.0],[35.5,137.0],[35.0,138.0],[35.5,139.5],[36.0,140.0],[37.0,141.0],[38.0,141.0],[39.0,140.0],[39.5,140.0],[40.0,140.0],[40.5,140.0],[41.0,140.5],[41.5,140.5]]},
+  {n:"japan_hokkaido",p:[[42.0,141.0],[42.5,141.5],[43.0,144.5],[43.5,145.5],[44.5,145.0],[45.0,142.0],[44.0,141.0],[43.0,140.5],[42.0,141.0]]},
+  {n:"russia_arctic",p:[[51.0,141.0],[53.0,142.0],[55.0,142.5],[57.0,140.0],[59.0,143.0],[61.0,153.0],[62.0,160.0],[64.0,170.0],[65.5,176.0],[66.0,180.0]]},
+  {n:"russia_west",p:[[69.5,30.0],[70.0,32.0],[69.5,35.0],[68.5,40.0],[67.0,41.5],[66.0,44.0],[68.0,50.0],[69.0,53.0],[68.5,57.0],[69.0,60.0],[68.0,65.0],[67.5,69.0],[68.0,73.0],[71.0,73.0],[72.5,71.0],[73.5,74.0],[74.0,80.0],[73.0,86.0],[72.0,90.0],[72.5,95.0],[74.0,100.0],[76.0,100.0],[77.0,105.0],[76.0,113.0],[74.5,113.0],[73.5,120.0],[72.0,128.0],[71.5,136.0],[71.0,140.0],[70.0,150.0],[70.5,160.0],[70.0,170.0],[69.5,175.0],[68.5,180.0]]},
+  {n:"australia",p:[[-12.5,130.5],[-12.0,132.0],[-12.5,136.0],[-14.0,136.5],[-14.5,135.5],[-16.0,136.0],[-16.5,139.0],[-17.5,140.5],[-19.0,146.5],[-20.0,148.5],[-21.5,149.5],[-23.0,150.5],[-24.0,152.0],[-25.5,153.0],[-27.5,153.5],[-28.5,153.5],[-30.0,153.0],[-32.0,152.5],[-33.5,151.5],[-35.0,150.5],[-37.0,150.0],[-38.0,148.0],[-38.5,146.0],[-38.5,144.0],[-38.0,141.0],[-36.5,140.0],[-35.0,137.0],[-34.5,136.0],[-35.5,137.5],[-35.5,138.5],[-34.5,138.5],[-34.0,137.5],[-33.0,134.0],[-32.0,132.0],[-32.0,127.0],[-33.5,123.5],[-34.0,121.0],[-33.5,118.5],[-32.0,115.5],[-30.5,115.0],[-28.5,114.0],[-26.5,113.5],[-24.5,113.5],[-22.5,114.0],[-21.5,115.0],[-20.0,119.0],[-18.0,122.0],[-16.0,123.5],[-14.5,125.5],[-14.0,126.5],[-13.5,128.0],[-12.5,130.0],[-12.5,130.5]]},
+  {n:"tasmania",p:[[-40.5,144.5],[-41.0,145.5],[-42.0,145.5],[-43.0,146.0],[-43.5,147.0],[-43.0,148.0],[-42.0,148.0],[-41.0,147.0],[-40.5,146.5],[-40.5,144.5]]},
+  {n:"nz_north",p:[[-34.5,173.0],[-35.5,174.5],[-36.5,175.5],[-37.5,176.0],[-38.0,177.0],[-39.0,177.5],[-40.0,176.5],[-41.0,175.0],[-41.5,174.0],[-40.5,173.0],[-39.0,174.0],[-38.0,174.5],[-37.0,174.5],[-36.5,174.0],[-35.0,173.5],[-34.5,173.0]]},
+  {n:"nz_south",p:[[-41.0,174.0],[-42.0,174.0],[-43.0,173.5],[-44.0,172.0],[-44.5,168.5],[-45.5,167.0],[-46.0,166.5],[-46.5,168.0],[-46.0,170.0],[-45.5,170.5],[-44.5,171.0],[-43.5,172.5],[-42.5,173.0],[-41.5,174.5],[-41.0,174.0]]},
+  {n:"greenland",p:[[60.0,-43.0],[61.0,-48.0],[64.0,-52.0],[66.0,-54.0],[68.0,-53.5],[70.0,-52.0],[72.0,-55.5],[73.0,-57.0],[76.0,-60.0],[77.0,-62.0],[78.0,-68.0],[79.0,-66.0],[80.0,-62.0],[82.0,-50.0],[83.0,-40.0],[82.0,-30.0],[80.0,-22.0],[78.0,-19.0],[76.0,-18.5],[74.0,-20.0],[72.0,-22.0],[70.0,-25.0],[68.0,-28.0],[66.0,-35.0],[64.0,-40.0],[62.0,-42.0],[60.0,-43.0]]},
+  {n:"iceland",p:[[64.0,-22.0],[64.5,-24.0],[65.0,-24.0],[65.5,-23.0],[66.0,-22.0],[66.5,-18.0],[66.0,-15.5],[65.5,-14.0],[65.0,-14.0],[64.5,-15.0],[64.0,-16.0],[63.5,-18.0],[64.0,-22.0]]},
+  {n:"philippines",p:[[18.5,121.0],[17.0,121.5],[15.0,121.0],[14.0,121.5],[13.0,124.0],[11.5,124.5],[10.0,124.0],[9.0,126.0],[7.0,126.0],[6.0,125.5],[7.0,124.0],[8.0,123.5],[9.5,123.5],[10.5,122.0],[11.0,120.0],[12.5,120.0],[14.0,120.0],[15.5,120.0],[17.0,120.5],[18.5,121.0]]},
+  {n:"sri_lanka",p:[[9.5,80.0],[8.5,81.5],[7.0,81.5],[6.0,80.5],[6.0,80.0],[7.0,79.5],[8.0,79.5],[9.5,80.0]]},
+  {n:"png",p:[[-2.5,141.0],[-3.0,142.0],[-4.0,143.5],[-5.0,145.5],[-5.5,147.0],[-6.0,148.0],[-6.5,150.0],[-6.0,152.5],[-5.0,152.5],[-4.0,152.0],[-3.0,150.0],[-2.5,147.0],[-1.5,145.5],[-1.0,143.0],[-2.5,141.0]]},
+  {n:"sicily",p:[[38.0,13.0],[37.5,13.5],[37.0,15.0],[37.5,15.5],[38.0,15.5],[38.3,14.0],[38.0,13.0]]},
+  {n:"sardinia",p:[[39.0,8.5],[38.5,8.5],[38.8,9.5],[39.5,9.5],[40.5,9.5],[41.0,9.5],[41.0,8.5],[40.0,8.0],[39.0,8.5]]},
+  {n:"corsica",p:[[41.5,9.0],[42.0,9.5],[42.5,9.5],[43.0,9.5],[42.5,8.5],[42.0,8.5],[41.5,9.0]]},
+  {n:"black_sea",p:[[41.0,28.5],[42.0,28.5],[43.0,28.5],[44.0,29.5],[45.5,30.0],[46.5,32.0],[46.0,34.0],[45.0,35.0],[45.0,37.0],[44.5,38.0],[43.5,40.0],[42.5,41.5],[42.0,41.0],[41.5,40.0],[41.0,39.5],[41.5,37.0],[41.0,36.0],[41.0,33.0],[41.0,29.5],[41.0,28.5]]},
+  {n:"turkey",p:[[36.5,36.0],[36.0,35.0],[36.5,32.0],[37.0,29.0],[36.5,28.0],[37.0,27.0],[38.5,26.5],[39.5,26.5],[40.0,26.0],[41.0,28.5]]},
+  {n:"greece",p:[[39.5,20.0],[38.5,20.5],[38.0,21.5],[37.5,21.5],[37.0,22.0],[36.5,22.5],[36.5,23.0],[37.5,24.0],[38.0,24.5],[38.5,26.0],[39.0,23.5],[39.5,22.5],[40.0,22.5],[40.5,23.0],[40.5,24.0],[40.0,25.0],[39.5,26.5]]},
+  {n:"crete",p:[[35.0,24.0],[35.5,24.5],[35.5,26.0],[35.0,26.0],[35.0,24.0]]},
+  {n:"taiwan",p:[[25.3,121.0],[23.5,120.3],[22.0,120.7],[22.5,121.5],[25.3,121.0]]},
 ];
 
 // 1067 world cities
@@ -653,7 +677,6 @@ function OurWorldInner() {
   const [monthlyPromptShown, setMonthlyPromptShown] = useState(false);
   const [polaroidMode, setPolaroidMode] = useState(false);
   const [darkMode, setDarkMode] = useState(() => DEFAULT_CONFIG.darkMode);
-  const nightRef = useRef(null);
   const starsRef = useRef(null);
   const auroraRef = useRef(null);
   const loveThreadRef = useRef([]);
@@ -1121,8 +1144,8 @@ function OurWorldInner() {
     const w = el.clientWidth, h = el.clientHeight;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color("#0d0b14"); // deep space
-    scene.fog = new THREE.FogExp2("#0d0b14", 0.02); // subtle depth fog
+    scene.background = new THREE.Color("#161028"); // warm deep plum
+    scene.fog = new THREE.FogExp2("#161028", 0.018); // soft warm depth fog
     scnRef.current = scene;
 
     const cam = new THREE.PerspectiveCamera(45, w / h, 0.1, 100);
@@ -1168,43 +1191,33 @@ function OurWorldInner() {
     });
     glowLayersRef.current = glows;
 
-    // Graticule — very subtle, almost invisible
-    const gM = new THREE.LineBasicMaterial({ color: "#e8e2da", transparent: true, opacity: 0.03 });
-    for (let lat = -60; lat <= 60; lat += 30) {
-      const pts = []; for (let lng = -180; lng <= 180; lng += 4) pts.push(ll2v(lat, lng, RAD * 1.001));
-      globe.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), gM));
-    }
-    for (let lng = -180; lng < 180; lng += 30) {
-      const pts = []; for (let lat = -90; lat <= 90; lat += 4) pts.push(ll2v(lat, lng, RAD * 1.001));
-      globe.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), gM));
-    }
+    // (graticule removed — clean glowing orb)
 
-    // Land dots — varied sizes for more organic feel
+    // Land dots — varied sizes for organic texture (primary visual at default zoom)
     LAND.forEach(([lat, lng]) => {
       const p = ll2v(lat, lng, RAD * 1.002);
-      const sz = 0.002 + Math.random() * 0.0025;
-      const op = 0.2 + Math.random() * 0.25;
-      const d = new THREE.Mesh(new THREE.CircleGeometry(sz, 5), new THREE.MeshBasicMaterial({ color: "#c8bfb0", transparent: true, opacity: op, side: THREE.DoubleSide }));
+      const sz = 0.0025 + Math.random() * 0.003;
+      const op = 0.25 + Math.random() * 0.3;
+      const d = new THREE.Mesh(new THREE.CircleGeometry(sz, 5), new THREE.MeshBasicMaterial({ color: "#c0b5a5", transparent: true, opacity: op, side: THREE.DoubleSide }));
       d.position.copy(p); d.lookAt(p.clone().multiplyScalar(2)); globe.add(d);
     });
 
-    // Geography lines — coastlines and borders, fade in on zoom
+    // Coastlines — smooth fade on zoom
     const geoGroup = [];
     GEO_LINES.forEach(geo => {
       const pts = geo.p.map(c => ll2v(c[0], c[1], RAD * 1.003));
       const geom = new THREE.BufferGeometry().setFromPoints(pts);
-      const isBorder = geo.t === "border";
       const mat = new THREE.LineBasicMaterial({
-        color: isBorder ? "#c0b8a8" : "#b8a898",
+        color: "#b8a898",
         transparent: true,
         opacity: 0, // starts invisible, fades in on zoom
       });
       const line = new THREE.Line(geom, mat);
       line.renderOrder = -1;
       globe.add(line);
-      geoGroup.push({ line, mat, isBorder });
+      geoGroup.push({ line, mat });
     });
-    // geoGroup managed via closure in animation loop
+    // geoGroup managed via closure in animation loop (coastlines only)
 
     // Particles — multi-layered, varied colors and sizes
     const pN = 350;
@@ -1227,34 +1240,57 @@ function OurWorldInner() {
     const particles2 = new THREE.Points(p2G, p2Mat);
     scene.add(particles2);
 
-    // Stars — distant background field
-    const starN = 600;
+    // Stars — warm celestial field with varied colors and sizes
+    const starN = 900;
     const starG = new THREE.BufferGeometry();
     const starP = new Float32Array(starN * 3);
     const starS = new Float32Array(starN);
+    const starColors = new Float32Array(starN * 3);
+    const warmStarPalette = [
+      [1.0, 0.96, 0.90],   // warm white
+      [1.0, 0.92, 0.82],   // cream
+      [0.98, 0.88, 0.95],  // soft pink-white
+      [1.0, 0.95, 0.85],   // golden white
+      [0.92, 0.88, 1.0],   // lavender hint (some cool ones for contrast)
+      [1.0, 0.90, 0.78],   // amber tint
+    ];
     for (let i = 0; i < starN; i++) {
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
-      const r = 18 + Math.random() * 20;
+      const r = 16 + Math.random() * 22;
       starP[i * 3] = r * Math.sin(phi) * Math.cos(theta);
       starP[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
       starP[i * 3 + 2] = r * Math.cos(phi);
-      starS[i] = 0.3 + Math.random() * 1.2;
+      starS[i] = 0.3 + Math.random() * 1.5;
+      const c = warmStarPalette[Math.floor(Math.random() * warmStarPalette.length)];
+      starColors[i * 3] = c[0]; starColors[i * 3 + 1] = c[1]; starColors[i * 3 + 2] = c[2];
     }
     starG.setAttribute("position", new THREE.BufferAttribute(starP, 3));
     starG.setAttribute("size", new THREE.BufferAttribute(starS, 1));
-    const starMat = new THREE.PointsMaterial({ color: "#f0e8ff", size: 0.04, transparent: true, opacity: 0.5, sizeAttenuation: true });
+    starG.setAttribute("color", new THREE.BufferAttribute(starColors, 3));
+    const starMat = new THREE.PointsMaterial({ size: 0.045, transparent: true, opacity: 0.6, sizeAttenuation: true, vertexColors: true });
     const stars = new THREE.Points(starG, starMat);
     scene.add(stars);
     starsRef.current = stars;
 
-    // Night shadow — subtle dark hemisphere overlay on globe
-    const nightGeo = new THREE.SphereGeometry(RAD * 1.001, 48, 48, 0, Math.PI);
-    const nightMat = new THREE.MeshBasicMaterial({ color: "#1a1030", transparent: true, opacity: 0.12, side: THREE.FrontSide, depthWrite: false });
-    const nightMesh = new THREE.Mesh(nightGeo, nightMat);
-    nightMesh.renderOrder = 5;
-    scene.add(nightMesh); // added to scene (not globe) so it stays fixed as globe rotates
-    nightRef.current = nightMesh;
+    // Warm accent stars — larger, fewer, golden glow dots scattered through sky
+    const warmN = 120;
+    const warmG = new THREE.BufferGeometry();
+    const warmP = new Float32Array(warmN * 3);
+    for (let i = 0; i < warmN; i++) {
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      const r = 14 + Math.random() * 18;
+      warmP[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+      warmP[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+      warmP[i * 3 + 2] = r * Math.cos(phi);
+    }
+    warmG.setAttribute("position", new THREE.BufferAttribute(warmP, 3));
+    const warmStarMat = new THREE.PointsMaterial({ color: "#f0d8b0", size: 0.07, transparent: true, opacity: 0.25, sizeAttenuation: true });
+    const warmStars = new THREE.Points(warmG, warmStarMat);
+    scene.add(warmStars);
+
+    // (night shadow removed — uniform glowing orb)
 
     // Aurora — subtle color bands drifting across the top of the scene
     const auroraN = 80;
@@ -1325,10 +1361,11 @@ function OurWorldInner() {
       particles2.rotation.y -= 0.00008;
       particles2.rotation.x += 0.00003;
       stars.rotation.y += 0.00002; // very slow star drift
-      // Night shadow — positioned opposite the sun direction, fixed in world space
-      if (nightRef.current) {
-        nightRef.current.rotation.y = Date.now() * 0.00005; // very slow day/night cycle
-      }
+      warmStars.rotation.y -= 0.00003; // warm stars counter-drift
+      // Star twinkling — subtle opacity pulse
+      const twinkleT = Date.now() * 0.001;
+      starMat.opacity = 0.55 + Math.sin(twinkleT * 0.4) * 0.08;
+      warmStarMat.opacity = 0.2 + Math.sin(twinkleT * 0.25 + 1.5) * 0.08;
 
       // Parallax — glow layers shift subtly opposite to mouse
       const mx = mouseRef.current.x, my = mouseRef.current.y;
@@ -1352,11 +1389,10 @@ function OurWorldInner() {
         ag.attributes.position.needsUpdate = true;
       }
 
-      // Fade geography lines based on zoom (closer = more visible)
-      const zoomFactor = clamp((3.5 - zmR.current) / 1.5, 0, 1); // starts showing earlier, fully visible below ~2.0
+      // Fade coastlines based on zoom — only visible when close
+      const zoomFactor = clamp((2.8 - zmR.current) / 1.0, 0, 1); // invisible above ~2.8, fully visible below ~1.8
       geoGroup.forEach(g => {
-        const maxOp = g.isBorder ? 0.18 : 0.4;
-        g.mat.opacity = zoomFactor * maxOp;
+        g.mat.opacity = zoomFactor * 0.35;
       });
 
       rend.render(scene, cam);
@@ -1655,7 +1691,7 @@ function OurWorldInner() {
   const totalDays = Math.max(1, daysBetween(config.startDate, todayStr()));
   const sliderVal = daysBetween(config.startDate, sliderDate);
 
-  if (loading) return <div style={{ width: "100%", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0d0b14", fontFamily: "Georgia,serif", color: P.textFaint, fontSize: 14, letterSpacing: ".2em" }}>Loading your world...</div>;
+  if (loading) return <div style={{ width: "100%", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#161028", fontFamily: "Georgia,serif", color: P.textFaint, fontSize: 14, letterSpacing: ".2em" }}>Loading your world...</div>;
 
   return (
     <div className={darkMode ? "ow-dark" : ""} style={{ width: "100%", height: "100vh", position: "relative", overflow: "hidden", background: `linear-gradient(155deg,${P.cream} 0%,${P.blush} 40%,${P.lavMist} 100%)`, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", color: P.text, userSelect: "none" }}>
@@ -1694,14 +1730,18 @@ function OurWorldInner() {
               {markerFilter === "all" ? "🌍 All Entries" : markerFilter === "favorites" ? "♥ Favorites" : `${(TYPES[markerFilter] || {}).icon || "✨"} ${(TYPES[markerFilter] || {}).label || markerFilter}`}
               <span style={{ fontSize: 6, opacity: 0.5 }}>{showFilter ? "▲" : "▼"}</span>
             </button>
-            {showFilter && (
-              <div style={{ position: "absolute", top: "100%", right: 0, marginTop: 4, background: P.card, backdropFilter: "blur(16px)", borderRadius: 10, boxShadow: "0 8px 28px rgba(61,53,82,.12)", border: `1px solid ${P.rose}10`, overflow: "hidden", minWidth: 150, zIndex: 20 }}>
-                {[{ key: "all", icon: "🌍", label: "All Entries", count: data.entries.length },
-                  { key: "favorites", icon: "♥", label: "Favorites", count: favorites.length },
-                  ...Object.entries(TYPES).map(([k, v]) => ({ key: k, icon: v.icon, label: v.label, count: data.entries.filter(e => e.type === k).length }))
-                ].filter(f => f.count > 0 || f.key === "favorites").map(f => (
-                  <button key={f.key} onClick={() => { setMarkerFilter(f.key); setShowFilter(false); }}
-                    style={{ display: "flex", width: "100%", alignItems: "center", gap: 8, padding: "7px 12px", border: "none", borderBottom: `1px solid ${P.parchment}`, background: markerFilter === f.key ? P.blush : "transparent", cursor: "pointer", fontFamily: "inherit", fontSize: 9, color: markerFilter === f.key ? P.text : P.textMid, textAlign: "left" }}
+            {showFilter && (() => {
+              const filterOpts = [{ key: "all", icon: "🌍", label: "All Entries", count: data.entries.length },
+                { key: "favorites", icon: "♥", label: "Favorites", count: favorites.length },
+                ...Object.entries(TYPES).map(([k, v]) => ({ key: k, icon: v.icon, label: v.label, count: data.entries.filter(e => e.type === k).length }))
+              ].filter(f => f.count > 0 || f.key === "favorites");
+              const filteredEntries = markerFilter === "all" ? data.entries : markerFilter === "favorites" ? data.entries.filter(e => e.favorite) : data.entries.filter(e => e.type === markerFilter);
+              const sortedEntries = [...filteredEntries].sort((a, b) => a.dateStart > b.dateStart ? -1 : 1);
+              return (
+              <div style={{ position: "absolute", top: "100%", right: 0, marginTop: 4, background: P.card, backdropFilter: "blur(16px)", borderRadius: 10, boxShadow: "0 8px 28px rgba(61,53,82,.12)", border: `1px solid ${P.rose}10`, overflow: "hidden", minWidth: 180, maxWidth: 220, zIndex: 20 }}>
+                {filterOpts.map(f => (
+                  <button key={f.key} onClick={() => { setMarkerFilter(f.key); }}
+                    style={{ display: "flex", width: "100%", alignItems: "center", gap: 8, padding: "6px 12px", border: "none", borderBottom: `1px solid ${P.parchment}`, background: markerFilter === f.key ? P.blush : "transparent", cursor: "pointer", fontFamily: "inherit", fontSize: 9, color: markerFilter === f.key ? P.text : P.textMid, textAlign: "left" }}
                     onMouseEnter={e => { if (markerFilter !== f.key) e.currentTarget.style.background = P.lavMist; }}
                     onMouseLeave={e => { if (markerFilter !== f.key) e.currentTarget.style.background = "transparent"; }}
                   >
@@ -1710,8 +1750,33 @@ function OurWorldInner() {
                     <span style={{ fontSize: 7, color: P.textFaint, background: `${P.parchment}`, borderRadius: 10, padding: "1px 5px" }}>{f.count}</span>
                   </button>
                 ))}
+                {/* Scrollable entry list */}
+                {sortedEntries.length > 0 && (
+                  <div style={{ maxHeight: 220, overflowY: "auto", borderTop: `1px solid ${P.parchment}` }}>
+                    {sortedEntries.map(e => (
+                      <button key={e.id} onClick={() => {
+                        const p = ll2v(e.lat, e.lng, RAD);
+                        tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) };
+                        tZm.current = 2.5;
+                        setSelected(e); setPhotoIdx(0); setCardTab("overview"); setSliderDate(e.dateStart); setShowFilter(false);
+                      }}
+                        style={{ display: "flex", width: "100%", alignItems: "center", gap: 6, padding: "5px 12px", border: "none", borderBottom: `1px solid ${P.parchment}40`, background: selected?.id === e.id ? `${P.blush}` : "transparent", cursor: "pointer", fontFamily: "inherit", fontSize: 8, color: P.textMid, textAlign: "left" }}
+                        onMouseEnter={e2 => e2.currentTarget.style.background = P.lavMist}
+                        onMouseLeave={e2 => e2.currentTarget.style.background = selected?.id === e.id ? P.blush : "transparent"}
+                      >
+                        <span style={{ fontSize: 10 }}>{(TYPES[e.type] || {}).icon || "📍"}</span>
+                        <div style={{ flex: 1, overflow: "hidden" }}>
+                          <div style={{ fontWeight: 500, color: P.text, fontSize: 8, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.city}</div>
+                          <div style={{ fontSize: 7, color: P.textFaint }}>{e.dateStart}</div>
+                        </div>
+                        {e.favorite && <span style={{ fontSize: 8, color: P.heart }}>♥</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
+              );
+            })()}
           </div>
         )}
       </div>
@@ -2430,7 +2495,7 @@ function OurWorldInner() {
           h1{font-size:20px!important;letter-spacing:.12em!important}
           h1+p{font-size:9px!important}
         }
-        .ow-dark{background:linear-gradient(155deg,#0d0b14 0%,#1a1030 40%,#12101e 100%)!important;color:#e8e0f0!important}
+        .ow-dark{background:linear-gradient(155deg,#161028 0%,#1e1438 40%,#14101e 100%)!important;color:#e8e0f0!important}
         .ow-dark button{color:#c8bede}
         .ow-dark input,.ow-dark textarea,.ow-dark select{background:rgba(35,30,52,.8)!important;border-color:rgba(100,85,140,.3)!important;color:#e8e0f0!important}
         .ow-dark input::placeholder,.ow-dark textarea::placeholder{color:rgba(150,130,190,.5)!important}
