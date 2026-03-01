@@ -41,6 +41,20 @@ export async function uploadPhoto(file, entryId) {
   }
 }
 
+// ---- Retry helper ----
+async function withRetry(fn, retries = 2) {
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const result = await fn();
+      return result;
+    } catch (err) {
+      if (i === retries) { console.error('All retries failed:', err); return false; }
+      console.warn(`Retry ${i + 1}/${retries}...`);
+      await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+    }
+  }
+}
+
 // ---- Database operations ----
 
 export async function loadEntries() {
@@ -68,6 +82,7 @@ export async function loadEntries() {
     photos: row.photos || [],
     stops: row.stops || [],
     musicUrl: row.music_url || null,
+    favorite: row.favorite || false,
   }))
 }
 
@@ -91,10 +106,13 @@ export async function saveEntry(entry) {
     photos: entry.photos || [],
     stops: entry.stops || [],
     music_url: entry.musicUrl || null,
+    favorite: entry.favorite || false,
   }
-  const { error } = await supabase.from('entries').upsert(row, { onConflict: 'id' })
-  if (error) console.error('Save entry error:', error)
-  return !error
+  return withRetry(async () => {
+    const { error } = await supabase.from('entries').upsert(row, { onConflict: 'id' })
+    if (error) { console.error('Save entry error:', error); throw error; }
+    return true;
+  });
 }
 
 export async function deleteEntry(id) {
