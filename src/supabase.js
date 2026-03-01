@@ -8,14 +8,37 @@ export const supabase = createClient(supabaseUrl, supabaseKey)
 // ---- Photo upload to Supabase Storage ----
 
 export async function uploadPhoto(file, entryId) {
-  const ext = file.name.split('.').pop() || 'jpg'
-  const path = `${entryId}/${Date.now()}.${ext}`
-  const { error } = await supabase.storage
-    .from('photos')
-    .upload(path, file, { cacheControl: '31536000', upsert: false })
-  if (error) { console.error('Photo upload error:', error); return null; }
-  const { data: urlData } = supabase.storage.from('photos').getPublicUrl(path)
-  return urlData?.publicUrl || null
+  console.log('[uploadPhoto] called with:', { fileName: file.name, fileSize: file.size, fileType: file.type, entryId })
+  
+  try {
+    const ext = file.name.split('.').pop() || 'jpg'
+    const safeName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+    const path = `${entryId}/${safeName}`
+    console.log('[uploadPhoto] uploading to path:', path)
+    
+    const { data: uploadData, error } = await supabase.storage
+      .from('photos')
+      .upload(path, file, {
+        cacheControl: '31536000',
+        upsert: false,
+        contentType: file.type || 'image/jpeg'
+      })
+    
+    if (error) {
+      console.error('[uploadPhoto] UPLOAD FAILED:', error.message, error)
+      return null
+    }
+    
+    console.log('[uploadPhoto] upload success:', uploadData)
+    
+    const { data: urlData } = supabase.storage.from('photos').getPublicUrl(path)
+    console.log('[uploadPhoto] public URL:', urlData?.publicUrl)
+    
+    return urlData?.publicUrl || null
+  } catch (err) {
+    console.error('[uploadPhoto] EXCEPTION:', err)
+    return null
+  }
 }
 
 // ---- Database operations ----
