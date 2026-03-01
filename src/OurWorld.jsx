@@ -615,6 +615,14 @@ export default function OurWorld() {
       new THREE.MeshPhongMaterial({ color: "#ece6dc", emissive: "#3d2050", emissiveIntensity: 0.05, shininess: 25, transparent: true, opacity: 0.97 })
     ));
 
+    // Depth-only occluder — invisible but blocks markers behind the globe
+    const occluder = new THREE.Mesh(
+      new THREE.SphereGeometry(RAD * 1.005, 64, 64),
+      new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: true })
+    );
+    occluder.renderOrder = -1;
+    globe.add(occluder);
+
     // Glow layers — enhanced, dreamy, airy
     const glows = [
       { r: 1.02, color: "#d8b0e0", op: 0.16 },
@@ -669,7 +677,7 @@ export default function OurWorld() {
     hs.bezierCurveTo(0.035, -0.077, 0.055, -0.055, 0.055, -0.035);
     hs.bezierCurveTo(0.055, -0.035, 0.055, 0, 0.025, 0);
     hs.bezierCurveTo(0.005, 0, 0, -0.025, 0, -0.025);
-    const hMat = new THREE.MeshBasicMaterial({ color: P.heart, transparent: true, opacity: 0, side: THREE.DoubleSide, depthTest: false });
+    const hMat = new THREE.MeshBasicMaterial({ color: P.heart, transparent: true, opacity: 0, side: THREE.DoubleSide, depthTest: true });
     const hMesh = new THREE.Mesh(new THREE.ShapeGeometry(hs), hMat);
     hMesh.renderOrder = 10; hMesh.visible = false;
     globe.add(hMesh);
@@ -830,12 +838,12 @@ export default function OurWorld() {
   }, [sliderDate, data, getPositions, areTogether, locationGroups, selected]);
 
   function makeDot(group, lat, lng, color, size, id, faint = false) {
-    const p = ll2v(lat, lng, RAD * 1.008);
-    const dot = new THREE.Mesh(new THREE.CircleGeometry(size, 20), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: faint ? 0.28 : 0.92, side: THREE.DoubleSide, depthTest: false }));
+    const p = ll2v(lat, lng, RAD * 1.012);
+    const dot = new THREE.Mesh(new THREE.CircleGeometry(size, 20), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: faint ? 0.28 : 0.92, side: THREE.DoubleSide, depthTest: true }));
     dot.position.copy(p); dot.lookAt(p.clone().multiplyScalar(2)); dot.userData = { entryId: id }; dot.renderOrder = 2; group.add(dot);
-    const ring = new THREE.Mesh(new THREE.RingGeometry(size * 1.4, size * 2.2, 32), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: faint ? 0.06 : 0.2, side: THREE.DoubleSide, depthTest: false }));
+    const ring = new THREE.Mesh(new THREE.RingGeometry(size * 1.4, size * 2.2, 32), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: faint ? 0.06 : 0.2, side: THREE.DoubleSide, depthTest: true }));
     ring.position.copy(p); ring.lookAt(p.clone().multiplyScalar(2)); ring.renderOrder = 1; group.add(ring);
-    const glow = new THREE.Mesh(new THREE.CircleGeometry(size * (faint ? 2 : 4.5), 20), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: faint ? 0.02 : 0.09, side: THREE.DoubleSide, depthTest: false }));
+    const glow = new THREE.Mesh(new THREE.CircleGeometry(size * (faint ? 2 : 4.5), 20), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: faint ? 0.02 : 0.09, side: THREE.DoubleSide, depthTest: true }));
     glow.position.copy(p); glow.lookAt(p.clone().multiplyScalar(2)); glow.renderOrder = 0; group.add(glow);
     return { entryId: id, dot, ring, glow };
   }
