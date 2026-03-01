@@ -908,11 +908,11 @@ export default function OurWorld() {
 
   function makeDot(group, lat, lng, color, size, id, faint = false) {
     const p = ll2v(lat, lng, RAD * 1.012);
-    const dot = new THREE.Mesh(new THREE.CircleGeometry(size, 20), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: faint ? 0.28 : 0.92, side: THREE.DoubleSide, depthTest: true }));
+    const dot = new THREE.Mesh(new THREE.CircleGeometry(size, 20), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: faint ? 0.28 : 0.85, side: THREE.DoubleSide, depthTest: true }));
     dot.position.copy(p); dot.lookAt(p.clone().multiplyScalar(2)); dot.userData = { entryId: id }; dot.renderOrder = 2; group.add(dot);
-    const ring = new THREE.Mesh(new THREE.RingGeometry(size * 1.4, size * 2.2, 32), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: faint ? 0.06 : 0.2, side: THREE.DoubleSide, depthTest: true }));
+    const ring = new THREE.Mesh(new THREE.RingGeometry(size * 1.2, size * 1.5, 32), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: faint ? 0.04 : 0.1, side: THREE.DoubleSide, depthTest: true }));
     ring.position.copy(p); ring.lookAt(p.clone().multiplyScalar(2)); ring.renderOrder = 1; group.add(ring);
-    const glow = new THREE.Mesh(new THREE.CircleGeometry(size * (faint ? 2 : 4.5), 20), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: faint ? 0.02 : 0.09, side: THREE.DoubleSide, depthTest: true }));
+    const glow = new THREE.Mesh(new THREE.CircleGeometry(size * (faint ? 1.8 : 3), 20), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: faint ? 0.02 : 0.06, side: THREE.DoubleSide, depthTest: true }));
     glow.position.copy(p); glow.lookAt(p.clone().multiplyScalar(2)); glow.renderOrder = 0; group.add(glow);
     return { entryId: id, dot, ring, glow };
   }
@@ -958,18 +958,29 @@ export default function OurWorld() {
   const onTS = useCallback(e => { if (e.touches.length === 1) { dragR.current = true; prevR.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; clickSR.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() }; } else if (e.touches.length === 2) { const dx = e.touches[0].clientX - e.touches[1].clientX, dy = e.touches[0].clientY - e.touches[1].clientY; tDistR.current = Math.sqrt(dx * dx + dy * dy); } }, []);
   const onTM = useCallback(e => { e.preventDefault(); if (e.touches.length === 1 && dragR.current) { tRot.current.y += (e.touches[0].clientX - prevR.current.x) * 0.005; tRot.current.x = clamp(tRot.current.x + (e.touches[0].clientY - prevR.current.y) * 0.005, -1.2, 1.2); prevR.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; } else if (e.touches.length === 2) { const dx = e.touches[0].clientX - e.touches[1].clientX, dy = e.touches[0].clientY - e.touches[1].clientY; const d = Math.sqrt(dx * dx + dy * dy); tZm.current = clamp(tZm.current + (tDistR.current - d) * 0.008, MIN_Z, MAX_Z); tDistR.current = d; } }, []);
 
-  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
+  const photoEntryIdRef = useRef(null);
 
-  const handlePhotos = useCallback((id) => {
-    const input = document.createElement("input"); input.type = "file"; input.accept = "image/*"; input.multiple = true;
-    input.onchange = async (e) => {
-      const files = Array.from(e.target.files);
-      if (files.length === 0) return;
+  // Safari-safe photo upload — input must be in DOM
+  useEffect(() => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.multiple = true;
+    input.style.display = "none";
+    document.body.appendChild(input);
+    fileInputRef.current = input;
+
+    const handler = async () => {
+      const files = Array.from(input.files);
+      const id = photoEntryIdRef.current;
+      console.log("File input changed. Files:", files.length, "Entry ID:", id);
+      if (files.length === 0 || !id) return;
       setUploading(true);
       console.log("Starting upload of", files.length, "files for entry", id);
       const urls = [];
       for (const file of files) {
-        console.log("Uploading:", file.name, file.size, "bytes");
+        console.log("Uploading:", file.name, file.size, "bytes, type:", file.type);
         try {
           const url = await uploadPhoto(file, id);
           console.log("Upload result:", url);
@@ -981,8 +992,23 @@ export default function OurWorld() {
       console.log("All uploads done. URLs:", urls);
       if (urls.length > 0) dispatch({ type: "ADD_PHOTOS", id, urls });
       setUploading(false);
+      input.value = ""; // reset for next use
     };
-    input.click();
+
+    input.addEventListener("change", handler);
+    return () => {
+      input.removeEventListener("change", handler);
+      document.body.removeChild(input);
+    };
+  }, []);
+
+  const handlePhotos = useCallback((id) => {
+    console.log("handlePhotos called for entry:", id);
+    photoEntryIdRef.current = id;
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""; // reset
+      fileInputRef.current.click();
+    }
   }, []);
 
   const cur = selected ? data.entries.find(e => e.id === selected.id) : null;
