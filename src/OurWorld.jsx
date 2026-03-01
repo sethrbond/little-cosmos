@@ -640,19 +640,11 @@ export default function OurWorld() {
     scene.add(globe);
     globeRef.current = globe;
 
-    // Main sphere
+    // Main sphere — opaque, writes to depth buffer to occlude far-side markers
     globe.add(new THREE.Mesh(
       new THREE.SphereGeometry(RAD, 96, 96),
-      new THREE.MeshPhongMaterial({ color: "#ece6dc", emissive: "#3d2050", emissiveIntensity: 0.05, shininess: 25, transparent: true, opacity: 0.97 })
+      new THREE.MeshPhongMaterial({ color: "#ece6dc", emissive: "#3d2050", emissiveIntensity: 0.05, shininess: 25, transparent: false })
     ));
-
-    // Depth-only occluder — invisible but blocks markers behind the globe
-    const occluder = new THREE.Mesh(
-      new THREE.SphereGeometry(RAD * 1.005, 64, 64),
-      new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: true })
-    );
-    occluder.renderOrder = -1;
-    globe.add(occluder);
 
     // Glow layers — enhanced, dreamy, airy
     const glows = [
