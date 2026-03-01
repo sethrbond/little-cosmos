@@ -83,6 +83,7 @@ export async function loadEntries() {
     stops: row.stops || [],
     musicUrl: row.music_url || null,
     favorite: row.favorite || false,
+    loveNote: row.love_note || '',
   }))
 }
 
@@ -107,6 +108,7 @@ export async function saveEntry(entry) {
     stops: entry.stops || [],
     music_url: entry.musicUrl || null,
     favorite: entry.favorite || false,
+    love_note: entry.loveNote || '',
   }
   return withRetry(async () => {
     const { error } = await supabase.from('entries').upsert(row, { onConflict: 'id' })
