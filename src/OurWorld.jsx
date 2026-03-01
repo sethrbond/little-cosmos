@@ -400,6 +400,7 @@ export default function OurWorld() {
   const [isAnimating, setIsAnimating] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [showGallery, setShowGallery] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const playRef = useRef(null);
   const animRef = useRef(null);
