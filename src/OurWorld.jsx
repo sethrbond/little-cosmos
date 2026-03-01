@@ -100,7 +100,6 @@ const GEO_LINES = [
   {n:"europe_internal",t:"border",p:[[42,-2],[43,0],[46,6],[47,7],[47,13],[50,14],[52,14],[54,14],[55,10]]},
 ];
 
-// 887 world cities
 // 1067 world cities
 const CITIES = [
   ["New York City","USA",40.7128,-74.006],["Los Angeles","USA",34.0522,-118.2437],["Chicago","USA",41.8781,-87.6298],
@@ -461,9 +460,6 @@ const CITIES = [
   ["Esperance","Australia",-33.861,121.892],["Exmouth","Australia",-21.940,114.124]
 ];
 
-
-
-
 // ---- REDUCER (with Supabase persistence) ----
 function reducer(st, a) {
   let next = st;
@@ -561,7 +557,11 @@ function OurWorldInner() {
       try {
         const [entries, cfg] = await Promise.all([loadEntries(), loadCfg()]);
         dispatch({ type: "LOAD", entries: entries || [] });
-        if (cfg) setConfigState({ ...DEFAULT_CONFIG, ...cfg });
+        if (cfg) {
+          const merged = { ...DEFAULT_CONFIG, ...cfg };
+          setConfigState(merged);
+          if (merged.darkMode !== undefined) setDarkMode(merged.darkMode);
+        }
       } catch (err) {
         console.error("Failed to load from Supabase:", err);
       }
@@ -652,7 +652,7 @@ function OurWorldInner() {
   const [dragOver, setDragOver] = useState(false);
   const [monthlyPromptShown, setMonthlyPromptShown] = useState(false);
   const [polaroidMode, setPolaroidMode] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => DEFAULT_CONFIG.darkMode);
   const nightRef = useRef(null);
   const starsRef = useRef(null);
   const auroraRef = useRef(null);
@@ -664,16 +664,6 @@ function OurWorldInner() {
   const animRef = useRef(null);
 
   const RAD = 1; const MIN_Z = 1.6; const MAX_Z = 6;
-
-  // Dark mode theme overrides
-  const T = useMemo(() => darkMode ? {
-    card: "rgba(30,26,42,0.96)", glass: "rgba(25,22,38,0.92)", text: "#e8e0f0", textMid: "#b8aece",
-    textMuted: "#8878a8", textFaint: "#5e5278", parchment: "rgba(40,35,58,0.6)", blush: "rgba(60,40,70,0.4)",
-    lavMist: "rgba(45,38,65,0.5)", border: "rgba(180,160,220,0.12)", inputBg: "rgba(35,30,52,0.8)", inputBorder: "rgba(100,85,140,0.3)",
-  } : {
-    card: P.card, glass: P.glass, text: P.text, textMid: P.textMid, textMuted: P.textMuted, textFaint: P.textFaint,
-    parchment: P.parchment, blush: P.blush, lavMist: P.lavMist, border: `${P.rose}10`, inputBg: "#fdfcfa", inputBorder: "#e5e0d8",
-  }, [darkMode]);
 
   // ---- DERIVED ----
   const sorted = useMemo(() => [...data.entries].sort((a, b) => (a.dateStart || "").localeCompare(b.dateStart || "")), [data.entries]);
@@ -1398,9 +1388,10 @@ function OurWorldInner() {
     glowLayersRef.current.forEach((mesh, i) => {
       mesh.material.color.set(i < 2 ? s.glow : P.cream);
     });
-    if (particlesRef.current) particlesRef.current.material.color.set(isAnniversary ? P.heart : s.particle);
-    if (isAnniversary && particlesRef.current) particlesRef.current.material.opacity = 0.35;
-    else if (particlesRef.current) particlesRef.current.material.opacity = 0.18;
+    if (particlesRef.current) {
+      particlesRef.current.material.color.set(isAnniversary ? P.heart : s.particle);
+      particlesRef.current.material.opacity = isAnniversary ? 0.35 : 0.18;
+    }
     // Aurora seasonal colors
     if (auroraRef.current) {
       const ac = auroraRef.current.geometry.attributes.color;
@@ -1626,22 +1617,17 @@ function OurWorldInner() {
     const handler = async () => {
       const files = Array.from(input.files);
       const id = photoEntryIdRef.current;
-      console.log("File input changed. Files:", files.length, "Entry ID:", id);
       if (files.length === 0 || !id) return;
       setUploading(true);
-      console.log("Starting upload of", files.length, "files for entry", id);
       const urls = [];
       for (const file of files) {
-        console.log("Uploading:", file.name, file.size, "bytes, type:", file.type);
         try {
           const url = await uploadPhoto(file, id);
-          console.log("Upload result:", url);
           if (url) urls.push(url);
         } catch (err) {
           console.error("Upload error:", err);
         }
       }
-      console.log("All uploads done. URLs:", urls);
       if (urls.length > 0) {
         dispatch({ type: "ADD_PHOTOS", id, urls });
         setToast({ message: `${urls.length} photo${urls.length > 1 ? "s" : ""} uploaded`, icon: "📷", duration: 2500, key: Date.now() });
@@ -1658,7 +1644,6 @@ function OurWorldInner() {
   }, []);
 
   const handlePhotos = useCallback((id) => {
-    console.log("handlePhotos called for entry:", id);
     photoEntryIdRef.current = id;
     if (fileInputRef.current) {
       fileInputRef.current.value = ""; // reset
@@ -1742,10 +1727,10 @@ function OurWorldInner() {
         {data.entries.length > 0 && <TBtn a={showSearch} onClick={() => setShowSearch(v => !v)}>🔍</TBtn>}
         {togetherList.length > 1 && <TBtn a={showLoveThread} onClick={() => setShowLoveThread(v => !v)}>🧵</TBtn>}
         {data.entries.length > 2 && <TBtn a={showConstellation} onClick={() => setShowConstellation(v => !v)}>⭐</TBtn>}
-        {<TBtn a={showDreams} onClick={() => setShowDreams(v => !v)}>✦</TBtn>}
+        <TBtn a={showDreams} onClick={() => setShowDreams(v => !v)}>✦</TBtn>
         {togetherList.length > 0 && !isPlaying && <TBtn onClick={playStory}>▶</TBtn>}
         {isPlaying && <TBtn onClick={stopPlay} a>⏹</TBtn>}
-        <TBtn a={darkMode} onClick={() => setDarkMode(v => !v)}>{darkMode ? "☀️" : "🌙"}</TBtn>
+        <TBtn a={darkMode} onClick={() => { setDarkMode(v => { const next = !v; setConfig({ darkMode: next }); return next; }); }}>{darkMode ? "☀️" : "🌙"}</TBtn>
       </div>
 
       {/* SEARCH PANEL */}
