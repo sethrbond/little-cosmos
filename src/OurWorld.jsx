@@ -65,6 +65,7 @@ const LAND = [
 ];
 
 // 328 world cities
+// 495 world cities
 const CITIES = [
   ["New York City","USA",40.7128,-74.006],["Los Angeles","USA",34.0522,-118.2437],["Chicago","USA",41.8781,-87.6298],
   ["Houston","USA",29.7604,-95.3698],["Phoenix","USA",33.4484,-112.074],["Philadelphia","USA",39.9526,-75.1652],
@@ -86,97 +87,153 @@ const CITIES = [
   ["Orlando","USA",28.5383,-81.3792],["Detroit","USA",42.3314,-83.0458],["Richmond","USA",37.5407,-77.436],
   ["Savannah","USA",32.0809,-81.0912],["Charleston","USA",32.7765,-79.9311],["Salt Lake City","USA",40.7608,-111.891],
   ["Boise","USA",43.615,-116.2023],["Anchorage","USA",61.2181,-149.9003],["Honolulu","USA",21.3069,-157.8583],
-  ["Maui","USA",20.7984,-156.3319],["Kauai","USA",22.0964,-159.5261],["Santa Fe","USA",35.687,-105.9378],
-  ["Aspen","USA",39.1911,-106.8175],["Key West","USA",24.5551,-81.78],["Napa Valley","USA",38.2975,-122.2869],
-  ["Palm Springs","USA",33.8303,-116.5453],["Jackson Hole","USA",43.4799,-110.7624],["Lake Tahoe","USA",39.0968,-120.0324],
-  ["Santa Barbara","USA",34.4208,-119.6982],["Sedona","USA",34.8697,-111.761],["Park City","USA",40.6461,-111.498],
-  ["Fort Lauderdale","USA",26.1224,-80.1373],["Monterey","USA",36.6002,-121.8947],["Scottsdale","USA",33.4942,-111.9261],
-  ["Burlington","USA",44.4759,-73.2121],["Asheville","USA",35.5951,-82.5515],["Madison","USA",43.0731,-89.4012],
-  ["Ann Arbor","USA",42.2808,-83.743],["Boulder","USA",40.015,-105.2705],["Providence","USA",41.824,-71.4128],
-  ["Spokane","USA",47.6588,-117.426],["San Juan","Puerto Rico",18.4655,-66.1057],["Toronto","Canada",43.6532,-79.3832],
-  ["Vancouver","Canada",49.2827,-123.1207],["Montréal","Canada",45.5017,-73.5673],["Calgary","Canada",51.0447,-114.0719],
-  ["Ottawa","Canada",45.4215,-75.6972],["Edmonton","Canada",53.5461,-113.4938],["Winnipeg","Canada",49.8951,-97.1384],
-  ["Québec City","Canada",46.8139,-71.208],["Halifax","Canada",44.6488,-63.5752],["Victoria","Canada",48.4284,-123.3656],
-  ["Whistler","Canada",50.1163,-122.9574],["Banff","Canada",51.1784,-115.5708],["Mexico City","Mexico",19.4326,-99.1332],
-  ["Cancún","Mexico",21.1619,-86.8515],["Guadalajara","Mexico",20.6597,-103.3496],["Monterrey","Mexico",25.6866,-100.3161],
-  ["Playa del Carmen","Mexico",20.6296,-87.0739],["Tulum","Mexico",20.2115,-87.4653],["Puerto Vallarta","Mexico",20.6534,-105.2253],
-  ["Oaxaca","Mexico",17.0732,-96.7266],["San Miguel de Allende","Mexico",20.9144,-100.7452],["Cabo San Lucas","Mexico",22.8905,-109.9167],
-  ["Guatemala City","Guatemala",14.6349,-90.5069],["San José","Costa Rica",9.9281,-84.0907],["Panama City","Panama",8.9824,-79.5199],
-  ["Belize City","Belize",17.5046,-88.1962],["Havana","Cuba",23.1136,-82.3666],["Kingston","Jamaica",18.0179,-76.8099],
-  ["Nassau","Bahamas",25.0343,-77.3963],["Santo Domingo","Dominican Republic",18.4861,-69.9312],["Punta Cana","Dominican Republic",18.582,-68.4055],
-  ["Aruba","Aruba",12.5093,-69.9688],["Barbados","Barbados",13.1939,-59.5432],["St. Lucia","St. Lucia",13.9094,-60.9789],
+  ["Maui","USA",20.7984,-156.3319],["Kauai","USA",22.0964,-159.5261],["Big Island Hawaii","USA",19.707,-155.085],
+  ["Santa Fe","USA",35.687,-105.9378],["Aspen","USA",39.1911,-106.8175],["Key West","USA",24.5551,-81.78],
+  ["Napa Valley","USA",38.2975,-122.2869],["Palm Springs","USA",33.8303,-116.5453],["Jackson Hole","USA",43.4799,-110.7624],
+  ["Lake Tahoe","USA",39.0968,-120.0324],["Santa Barbara","USA",34.4208,-119.6982],["Sedona","USA",34.8697,-111.761],
+  ["Park City","USA",40.6461,-111.498],["Fort Lauderdale","USA",26.1224,-80.1373],["Monterey","USA",36.6002,-121.8947],
+  ["Scottsdale","USA",33.4942,-111.9261],["Burlington","USA",44.4759,-73.2121],["Asheville","USA",35.5951,-82.5515],
+  ["Madison","USA",43.0731,-89.4012],["Ann Arbor","USA",42.2808,-83.743],["Boulder","USA",40.015,-105.2705],
+  ["Providence","USA",41.824,-71.4128],["Spokane","USA",47.6588,-117.426],["San Juan","Puerto Rico",18.4655,-66.1057],
+  ["Bend","USA",44.0582,-121.3153],["Reno","USA",39.5296,-119.8138],["Sarasota","USA",27.3364,-82.5307],
+  ["St. Petersburg FL","USA",27.7676,-82.6403],["Knoxville","USA",35.9606,-83.9207],["Chattanooga","USA",35.0456,-85.3097],
+  ["Birmingham","USA",33.5207,-86.8025],["Tulsa","USA",36.154,-95.9928],["Norfolk","USA",36.8508,-76.2859],
+  ["Lexington","USA",38.0406,-84.5037],["Greenville","USA",34.8526,-82.394],["Columbia SC","USA",34.0007,-81.0348],
+  ["Wilmington NC","USA",34.2257,-77.9447],["Santa Cruz","USA",36.9741,-122.0308],["Eugene","USA",44.0521,-123.0868],
+  ["Tacoma","USA",47.2529,-122.4443],["Santa Monica","USA",34.0195,-118.4912],["Venice Beach","USA",33.985,-118.469],
+  ["Malibu","USA",34.0259,-118.7798],["La Jolla","USA",32.8328,-117.2713],["Carmel","USA",36.5553,-121.9233],
+  ["Nantucket","USA",41.2835,-70.0995],["Martha's Vineyard","USA",41.3805,-70.6455],["Cape Cod","USA",41.6688,-70.2962],
+  ["Bar Harbor","USA",44.3876,-68.2039],["Hilton Head","USA",32.2163,-80.7526],["Outer Banks","USA",35.9582,-75.6241],
+  ["Moab","USA",38.5733,-109.5498],["Yellowstone","USA",44.428,-110.5885],["Grand Canyon","USA",36.1069,-112.1129],
+  ["Yosemite","USA",37.8651,-119.5383],["Glacier National Park","USA",48.7596,-113.787],["Zion","USA",37.2982,-113.0263],
+  ["Joshua Tree","USA",33.8734,-115.901],["Toronto","Canada",43.6532,-79.3832],["Vancouver","Canada",49.2827,-123.1207],
+  ["Montréal","Canada",45.5017,-73.5673],["Calgary","Canada",51.0447,-114.0719],["Ottawa","Canada",45.4215,-75.6972],
+  ["Edmonton","Canada",53.5461,-113.4938],["Winnipeg","Canada",49.8951,-97.1384],["Québec City","Canada",46.8139,-71.208],
+  ["Halifax","Canada",44.6488,-63.5752],["Victoria","Canada",48.4284,-123.3656],["Whistler","Canada",50.1163,-122.9574],
+  ["Banff","Canada",51.1784,-115.5708],["Jasper","Canada",52.8737,-117.0814],["Kelowna","Canada",49.888,-119.4961],
+  ["Tofino","Canada",49.1529,-125.9066],["St. John's","Canada",47.5615,-52.7126],["Niagara Falls","Canada",43.0896,-79.0849],
+  ["Prince Edward Island","Canada",46.2382,-63.1311],["Mexico City","Mexico",19.4326,-99.1332],["Cancún","Mexico",21.1619,-86.8515],
+  ["Guadalajara","Mexico",20.6597,-103.3496],["Monterrey","Mexico",25.6866,-100.3161],["Playa del Carmen","Mexico",20.6296,-87.0739],
+  ["Tulum","Mexico",20.2115,-87.4653],["Puerto Vallarta","Mexico",20.6534,-105.2253],["Oaxaca","Mexico",17.0732,-96.7266],
+  ["San Miguel de Allende","Mexico",20.9144,-100.7452],["Cabo San Lucas","Mexico",22.8905,-109.9167],["Mérida","Mexico",20.9674,-89.6243],
+  ["Puebla","Mexico",19.0414,-98.2063],["Sayulita","Mexico",20.8691,-105.4421],["Guanajuato","Mexico",21.019,-101.2574],
+  ["Guatemala City","Guatemala",14.6349,-90.5069],["Antigua Guatemala","Guatemala",14.5586,-90.7295],["San José","Costa Rica",9.9281,-84.0907],
+  ["Monteverde","Costa Rica",10.3153,-84.8257],["Manuel Antonio","Costa Rica",9.3927,-84.1367],["Tamarindo","Costa Rica",10.2996,-85.8373],
+  ["Panama City","Panama",8.9824,-79.5199],["Bocas del Toro","Panama",9.3405,-82.2418],["Belize City","Belize",17.5046,-88.1962],
+  ["San Pedro Belize","Belize",17.9211,-87.9601],["Roatán","Honduras",16.3306,-86.534],["Havana","Cuba",23.1136,-82.3666],
+  ["Kingston","Jamaica",18.0179,-76.8099],["Montego Bay","Jamaica",18.4762,-77.8939],["Nassau","Bahamas",25.0343,-77.3963],
+  ["Santo Domingo","Dominican Republic",18.4861,-69.9312],["Punta Cana","Dominican Republic",18.582,-68.4055],["Aruba","Aruba",12.5093,-69.9688],
+  ["Barbados","Barbados",13.1939,-59.5432],["St. Lucia","St. Lucia",13.9094,-60.9789],["Curaçao","Curaçao",12.1696,-68.99],
+  ["Turks and Caicos","Turks and Caicos",21.694,-71.7979],["St. Kitts","St. Kitts",17.346,-62.7559],["Bermuda","Bermuda",32.3078,-64.7505],
   ["São Paulo","Brazil",-23.5505,-46.6333],["Rio de Janeiro","Brazil",-22.9068,-43.1729],["Buenos Aires","Argentina",-34.6037,-58.3816],
   ["Lima","Peru",-12.0464,-77.0428],["Bogotá","Colombia",4.711,-74.0721],["Santiago","Chile",-33.4489,-70.6693],
   ["Medellín","Colombia",6.2442,-75.5812],["Cartagena","Colombia",10.391,-75.5144],["Cusco","Peru",-13.532,-71.9675],
   ["Machu Picchu","Peru",-13.1631,-72.545],["Quito","Ecuador",-0.1807,-78.4678],["Montevideo","Uruguay",-34.9011,-56.1645],
   ["La Paz","Bolivia",-16.5,-68.15],["Galápagos Islands","Ecuador",-0.9538,-90.9656],["Patagonia","Argentina",-41.8101,-68.9063],
   ["Salvador","Brazil",-12.9714,-38.5124],["Florianópolis","Brazil",-27.5954,-48.548],["Bariloche","Argentina",-41.1335,-71.3103],
-  ["London","UK",51.5074,-0.1278],["Paris","France",48.8566,2.3522],["Barcelona","Spain",41.3874,2.1686],
-  ["Amsterdam","Netherlands",52.3676,4.9041],["Rome","Italy",41.9028,12.4964],["Berlin","Germany",52.52,13.405],
-  ["Madrid","Spain",40.4168,-3.7038],["Lisbon","Portugal",38.7223,-9.1393],["Dublin","Ireland",53.3498,-6.2603],
-  ["Edinburgh","UK",55.9533,-3.1883],["Munich","Germany",48.1351,11.582],["Vienna","Austria",48.2082,16.3738],
-  ["Prague","Czech Republic",50.0755,14.4378],["Brussels","Belgium",50.8503,4.3517],["Zürich","Switzerland",47.3769,8.5417],
-  ["Geneva","Switzerland",46.2044,6.1432],["Copenhagen","Denmark",55.6761,12.5683],["Stockholm","Sweden",59.3293,18.0686],
-  ["Oslo","Norway",59.9139,10.7522],["Helsinki","Finland",60.1699,24.9384],["Milan","Italy",45.4642,9.19],
-  ["Florence","Italy",43.7696,11.2558],["Venice","Italy",45.4408,12.3155],["Naples","Italy",40.8518,14.2681],
-  ["Nice","France",43.7102,7.262],["Lyon","France",45.764,4.8357],["Marseille","France",43.2965,5.3698],
-  ["Bordeaux","France",44.8378,-0.5792],["Provence","France",43.9493,6.0679],["Seville","Spain",37.3891,-5.9845],
-  ["Granada","Spain",37.1773,-3.5986],["Valencia","Spain",39.4699,-0.3763],["Málaga","Spain",36.7213,-4.4214],
-  ["Ibiza","Spain",38.9067,1.4206],["Mallorca","Spain",39.6953,3.0176],["Porto","Portugal",41.1579,-8.6291],
-  ["Algarve","Portugal",37.0179,-7.9304],["Hamburg","Germany",53.5511,9.9937],["Frankfurt","Germany",50.1109,8.6821],
-  ["Cologne","Germany",50.9375,6.9603],["Bologna","Italy",44.4949,11.3426],["Amalfi","Italy",40.634,14.6027],
-  ["Cinque Terre","Italy",44.1461,9.6439],["Lake Como","Italy",45.9983,9.2572],["Tuscany","Italy",43.7711,11.2486],
-  ["Bruges","Belgium",51.2093,3.2247],["Interlaken","Switzerland",46.6863,7.8632],["Lucerne","Switzerland",47.0502,8.3093],
-  ["Monaco","Monaco",43.7384,7.4246],["Luxembourg","Luxembourg",49.6117,6.13],["Reykjavik","Iceland",64.1466,-21.9426],
-  ["Bath","UK",51.3811,-2.359],["Oxford","UK",51.752,-1.2577],["Cambridge","UK",52.2053,0.1218],
-  ["Manchester","UK",53.4808,-2.2426],["Liverpool","UK",53.4084,-2.9916],["Glasgow","UK",55.8642,-4.2518],
-  ["Belfast","UK",54.5973,-5.9301],["Galway","Ireland",53.2707,-9.0568],["Cork","Ireland",51.8985,-8.4756],
-  ["Budapest","Hungary",47.4979,19.0402],["Warsaw","Poland",52.2297,21.0122],["Kraków","Poland",50.0647,19.945],
+  ["Valparaíso","Chile",-33.0472,-71.6127],["Iguazu Falls","Argentina",-25.6953,-54.4367],["Uyuni","Bolivia",-20.4606,-66.8261],
+  ["Torres del Paine","Chile",-51.2533,-72.3483],["Cali","Colombia",3.4516,-76.532],["Santa Marta","Colombia",11.2408,-74.199],
+  ["Manaus","Brazil",-3.119,-60.0217],["Atacama","Chile",-23.6509,-68.1591],["London","UK",51.5074,-0.1278],
+  ["Edinburgh","UK",55.9533,-3.1883],["Manchester","UK",53.4808,-2.2426],["Liverpool","UK",53.4084,-2.9916],
+  ["Glasgow","UK",55.8642,-4.2518],["Belfast","UK",54.5973,-5.9301],["Dublin","Ireland",53.3498,-6.2603],
+  ["Galway","Ireland",53.2707,-9.0568],["Cork","Ireland",51.8985,-8.4756],["Bath","UK",51.3811,-2.359],
+  ["Oxford","UK",51.752,-1.2577],["Cambridge","UK",52.2053,0.1218],["Brighton","UK",50.8225,-0.1372],
+  ["Bristol","UK",51.4545,-2.5879],["York","UK",53.9591,-1.0815],["Inverness","UK",57.4778,-4.2247],
+  ["Isle of Skye","UK",57.2736,-6.2153],["Cotswolds","UK",51.8286,-1.6926],["Killarney","Ireland",52.0599,-9.5044],
+  ["Dingle","Ireland",52.1409,-10.2686],["Paris","France",48.8566,2.3522],["Nice","France",43.7102,7.262],
+  ["Lyon","France",45.764,4.8357],["Marseille","France",43.2965,5.3698],["Bordeaux","France",44.8378,-0.5792],
+  ["Provence","France",43.9493,6.0679],["Strasbourg","France",48.5734,7.7521],["Toulouse","France",43.6047,1.4442],
+  ["Cannes","France",43.5528,7.0174],["Mont Saint-Michel","France",48.636,-1.5115],["Chamonix","France",45.9237,6.8694],
+  ["Annecy","France",45.8992,6.1294],["Avignon","France",43.9493,4.8055],["Colmar","France",48.0794,7.3586],
+  ["Rome","Italy",41.9028,12.4964],["Milan","Italy",45.4642,9.19],["Florence","Italy",43.7696,11.2558],
+  ["Venice","Italy",45.4408,12.3155],["Naples","Italy",40.8518,14.2681],["Bologna","Italy",44.4949,11.3426],
+  ["Amalfi","Italy",40.634,14.6027],["Cinque Terre","Italy",44.1461,9.6439],["Lake Como","Italy",45.9983,9.2572],
+  ["Tuscany","Italy",43.7711,11.2486],["Positano","Italy",40.6281,14.485],["Ravello","Italy",40.6492,14.6114],
+  ["Capri","Italy",40.5532,14.2222],["Siena","Italy",43.3188,11.3308],["Verona","Italy",45.4384,10.9916],
+  ["Turin","Italy",45.0703,7.6869],["Palermo","Italy",38.1157,13.3615],["Sardinia","Italy",40.1209,9.0129],
+  ["Lake Garda","Italy",45.6494,10.6352],["Sorrento","Italy",40.6263,14.3758],["Barcelona","Spain",41.3874,2.1686],
+  ["Madrid","Spain",40.4168,-3.7038],["Seville","Spain",37.3891,-5.9845],["Granada","Spain",37.1773,-3.5986],
+  ["Valencia","Spain",39.4699,-0.3763],["Málaga","Spain",36.7213,-4.4214],["Ibiza","Spain",38.9067,1.4206],
+  ["Mallorca","Spain",39.6953,3.0176],["San Sebastián","Spain",43.3183,-1.9812],["Bilbao","Spain",43.263,-2.935],
+  ["Tenerife","Spain",28.2916,-16.6291],["Marbella","Spain",36.5099,-4.8866],["Salamanca","Spain",40.9701,-5.6635],
+  ["Toledo","Spain",39.8628,-4.0273],["Lisbon","Portugal",38.7223,-9.1393],["Porto","Portugal",41.1579,-8.6291],
+  ["Algarve","Portugal",37.0179,-7.9304],["Madeira","Portugal",32.6669,-16.9241],["Azores","Portugal",37.7833,-25.5],
+  ["Sintra","Portugal",38.7981,-9.3882],["Berlin","Germany",52.52,13.405],["Munich","Germany",48.1351,11.582],
+  ["Hamburg","Germany",53.5511,9.9937],["Frankfurt","Germany",50.1109,8.6821],["Cologne","Germany",50.9375,6.9603],
+  ["Dresden","Germany",51.0504,13.7373],["Heidelberg","Germany",49.3988,8.6724],["Rothenburg","Germany",49.3769,10.1789],
+  ["Baden-Baden","Germany",48.7651,8.2401],["Nuremberg","Germany",49.4521,11.0767],["Amsterdam","Netherlands",52.3676,4.9041],
+  ["Brussels","Belgium",50.8503,4.3517],["Bruges","Belgium",51.2093,3.2247],["Ghent","Belgium",51.0543,3.7174],
+  ["Zürich","Switzerland",47.3769,8.5417],["Geneva","Switzerland",46.2044,6.1432],["Interlaken","Switzerland",46.6863,7.8632],
+  ["Lucerne","Switzerland",47.0502,8.3093],["Zermatt","Switzerland",46.0207,7.7491],["Luxembourg","Luxembourg",49.6117,6.13],
+  ["Rotterdam","Netherlands",51.9225,4.4792],["The Hague","Netherlands",52.0705,4.3007],["Utrecht","Netherlands",52.0907,5.1214],
+  ["Bern","Switzerland",46.948,7.4474],["Copenhagen","Denmark",55.6761,12.5683],["Stockholm","Sweden",59.3293,18.0686],
+  ["Oslo","Norway",59.9139,10.7522],["Helsinki","Finland",60.1699,24.9384],["Bergen","Norway",60.3913,5.3221],
+  ["Tromsø","Norway",69.6492,18.9553],["Lofoten","Norway",68.2094,14.1534],["Gothenburg","Sweden",57.7089,11.9746],
+  ["Malmö","Sweden",55.604,13.004],["Rovaniemi","Finland",66.5039,25.7294],["Reykjavik","Iceland",64.1466,-21.9426],
+  ["Blue Lagoon Iceland","Iceland",63.8804,-22.4495],["Prague","Czech Republic",50.0755,14.4378],["Budapest","Hungary",47.4979,19.0402],
+  ["Warsaw","Poland",52.2297,21.0122],["Kraków","Poland",50.0647,19.945],["Vienna","Austria",48.2082,16.3738],
+  ["Salzburg","Austria",47.8095,13.055],["Hallstatt","Austria",47.5622,13.6493],["Innsbruck","Austria",47.2692,11.4041],
   ["Athens","Greece",37.9838,23.7275],["Santorini","Greece",36.3932,25.4615],["Mykonos","Greece",37.4467,25.3289],
-  ["Crete","Greece",35.2401,24.4709],["Istanbul","Turkey",41.0082,28.9784],["Dubrovnik","Croatia",42.6507,18.0944],
-  ["Split","Croatia",43.5081,16.4402],["Belgrade","Serbia",44.7866,20.4489],["Bucharest","Romania",44.4268,26.1025],
-  ["Sofia","Bulgaria",42.6977,23.3219],["Tallinn","Estonia",59.437,24.7536],["Riga","Latvia",56.9496,24.1052],
-  ["Vilnius","Lithuania",54.6872,25.2797],["Ljubljana","Slovenia",46.0569,14.5058],["Bratislava","Slovakia",48.1486,17.1077],
-  ["Malta","Malta",35.8989,14.5146],["Cyprus","Cyprus",35.1264,33.4299],["Tenerife","Spain",28.2916,-16.6291],
-  ["Cappadocia","Turkey",38.6431,34.8289],["Antalya","Turkey",36.8969,30.7133],["Bodrum","Turkey",37.0344,27.4305],
-  ["Moscow","Russia",55.7558,37.6173],["St. Petersburg","Russia",59.9343,30.3351],["Cape Town","South Africa",-33.9249,18.4241],
-  ["Johannesburg","South Africa",-26.2041,28.0473],["Cairo","Egypt",30.0444,31.2357],["Marrakech","Morocco",31.6295,-7.9811],
-  ["Casablanca","Morocco",33.5731,-7.5898],["Nairobi","Kenya",-1.2921,36.8219],["Lagos","Nigeria",6.5244,3.3792],
-  ["Accra","Ghana",5.6037,-0.187],["Addis Ababa","Ethiopia",9.02,38.7469],["Zanzibar","Tanzania",-6.1659,39.199],
-  ["Dar es Salaam","Tanzania",-6.7924,39.2083],["Victoria Falls","Zimbabwe",-17.9243,25.8572],["Serengeti","Tanzania",-2.3333,34.8333],
-  ["Luxor","Egypt",25.6872,32.6396],["Fez","Morocco",34.0181,-5.0078],["Tunis","Tunisia",36.8065,10.1815],
-  ["Dakar","Senegal",14.7167,-17.4677],["Windhoek","Namibia",-22.5609,17.0658],["Kruger Park","South Africa",-23.9884,31.5547],
-  ["Mauritius","Mauritius",-20.3484,57.5522],["Seychelles","Seychelles",-4.6796,55.492],["Kigali","Rwanda",-1.9403,29.8739],
-  ["Dubai","UAE",25.2048,55.2708],["Abu Dhabi","UAE",24.4539,54.3773],["Doha","Qatar",25.2854,51.531],
-  ["Tel Aviv","Israel",32.0853,34.7818],["Jerusalem","Israel",31.7683,35.2137],["Amman","Jordan",31.9454,35.9284],
-  ["Petra","Jordan",30.3285,35.4444],["Muscat","Oman",23.588,58.3829],["Beirut","Lebanon",33.8938,35.5018],
-  ["Riyadh","Saudi Arabia",24.7136,46.6753],["Tokyo","Japan",35.6762,139.6503],["Osaka","Japan",34.6937,135.5023],
+  ["Crete","Greece",35.2401,24.4709],["Corfu","Greece",39.6243,19.9217],["Rhodes","Greece",36.4349,28.2176],
+  ["Istanbul","Turkey",41.0082,28.9784],["Cappadocia","Turkey",38.6431,34.8289],["Antalya","Turkey",36.8969,30.7133],
+  ["Bodrum","Turkey",37.0344,27.4305],["Dubrovnik","Croatia",42.6507,18.0944],["Split","Croatia",43.5081,16.4402],
+  ["Hvar","Croatia",43.1729,16.4411],["Plitvice Lakes","Croatia",44.8654,15.582],["Kotor","Montenegro",42.4247,18.7712],
+  ["Belgrade","Serbia",44.7866,20.4489],["Bucharest","Romania",44.4268,26.1025],["Sofia","Bulgaria",42.6977,23.3219],
+  ["Tallinn","Estonia",59.437,24.7536],["Riga","Latvia",56.9496,24.1052],["Vilnius","Lithuania",54.6872,25.2797],
+  ["Ljubljana","Slovenia",46.0569,14.5058],["Lake Bled","Slovenia",46.3639,14.094],["Bratislava","Slovakia",48.1486,17.1077],
+  ["Malta","Malta",35.8989,14.5146],["Cyprus","Cyprus",35.1264,33.4299],["Mostar","Bosnia",43.3438,17.8078],
+  ["Tirana","Albania",41.3275,19.8187],["Monaco","Monaco",43.7384,7.4246],["Moscow","Russia",55.7558,37.6173],
+  ["St. Petersburg","Russia",59.9343,30.3351],["Cape Town","South Africa",-33.9249,18.4241],["Johannesburg","South Africa",-26.2041,28.0473],
+  ["Cairo","Egypt",30.0444,31.2357],["Marrakech","Morocco",31.6295,-7.9811],["Casablanca","Morocco",33.5731,-7.5898],
+  ["Nairobi","Kenya",-1.2921,36.8219],["Lagos","Nigeria",6.5244,3.3792],["Accra","Ghana",5.6037,-0.187],
+  ["Addis Ababa","Ethiopia",9.02,38.7469],["Zanzibar","Tanzania",-6.1659,39.199],["Dar es Salaam","Tanzania",-6.7924,39.2083],
+  ["Victoria Falls","Zimbabwe",-17.9243,25.8572],["Serengeti","Tanzania",-2.3333,34.8333],["Luxor","Egypt",25.6872,32.6396],
+  ["Fez","Morocco",34.0181,-5.0078],["Tunis","Tunisia",36.8065,10.1815],["Dakar","Senegal",14.7167,-17.4677],
+  ["Windhoek","Namibia",-22.5609,17.0658],["Kruger Park","South Africa",-23.9884,31.5547],["Mauritius","Mauritius",-20.3484,57.5522],
+  ["Seychelles","Seychelles",-4.6796,55.492],["Kigali","Rwanda",-1.9403,29.8739],["Essaouira","Morocco",31.5085,-9.7595],
+  ["Chefchaouen","Morocco",35.1688,-5.2636],["Kilimanjaro","Tanzania",-3.0674,37.3556],["Masai Mara","Kenya",-1.4061,35.0],
+  ["Stone Town","Tanzania",-6.1622,39.187],["Sossusvlei","Namibia",-24.7275,15.3394],["Garden Route","South Africa",-33.9614,22.4614],
+  ["Stellenbosch","South Africa",-33.9321,18.8602],["Dubai","UAE",25.2048,55.2708],["Abu Dhabi","UAE",24.4539,54.3773],
+  ["Doha","Qatar",25.2854,51.531],["Tel Aviv","Israel",32.0853,34.7818],["Jerusalem","Israel",31.7683,35.2137],
+  ["Amman","Jordan",31.9454,35.9284],["Petra","Jordan",30.3285,35.4444],["Muscat","Oman",23.588,58.3829],
+  ["Beirut","Lebanon",33.8938,35.5018],["Riyadh","Saudi Arabia",24.7136,46.6753],["Dead Sea","Jordan",31.5,35.5],
+  ["Wadi Rum","Jordan",29.5321,35.4132],["Tokyo","Japan",35.6762,139.6503],["Osaka","Japan",34.6937,135.5023],
   ["Kyoto","Japan",35.0116,135.7681],["Seoul","South Korea",37.5665,126.978],["Beijing","China",39.9042,116.4074],
   ["Shanghai","China",31.2304,121.4737],["Hong Kong","China",22.3193,114.1694],["Taipei","Taiwan",25.033,121.5654],
   ["Busan","South Korea",35.1796,129.0756],["Hiroshima","Japan",34.3853,132.4553],["Nara","Japan",34.6851,135.8048],
   ["Okinawa","Japan",26.3344,127.8056],["Hakone","Japan",35.2326,139.107],["Sapporo","Japan",43.0618,141.3545],
   ["Fukuoka","Japan",33.5904,130.4017],["Guangzhou","China",23.1291,113.2644],["Shenzhen","China",22.5431,114.058],
   ["Chengdu","China",30.5728,104.0668],["Xi'an","China",34.3416,108.9398],["Guilin","China",25.2742,110.29],
-  ["Macau","China",22.1987,113.5439],["Kaohsiung","Taiwan",22.6273,120.3014],["Bangkok","Thailand",13.7563,100.5018],
-  ["Singapore","Singapore",1.3521,103.8198],["Bali","Indonesia",-8.3405,115.092],["Hanoi","Vietnam",21.0278,105.8342],
-  ["Ho Chi Minh City","Vietnam",10.8231,106.6297],["Kuala Lumpur","Malaysia",3.139,101.6869],["Jakarta","Indonesia",-6.2088,106.8456],
-  ["Manila","Philippines",14.5995,120.9842],["Phnom Penh","Cambodia",11.5564,104.9282],["Siem Reap","Cambodia",13.3671,103.8448],
-  ["Chiang Mai","Thailand",18.7883,98.9853],["Phuket","Thailand",7.8804,98.3923],["Koh Samui","Thailand",9.5121,100.0134],
-  ["Luang Prabang","Laos",19.8856,102.1347],["Yangon","Myanmar",16.8661,96.1951],["Ubud","Indonesia",-8.5069,115.2625],
-  ["Yogyakarta","Indonesia",-7.7956,110.3695],["Da Nang","Vietnam",16.0544,108.2022],["Hoi An","Vietnam",15.8801,108.338],
-  ["Penang","Malaysia",5.4164,100.3327],["Langkawi","Malaysia",6.35,99.8],["Boracay","Philippines",11.9674,121.9248],
-  ["Palawan","Philippines",9.8349,118.7384],["Delhi","India",28.7041,77.1025],["Mumbai","India",19.076,72.8777],
+  ["Macau","China",22.1987,113.5439],["Kaohsiung","Taiwan",22.6273,120.3014],["Jeju Island","South Korea",33.4996,126.5312],
+  ["Takayama","Japan",36.146,137.2522],["Kamakura","Japan",35.3192,139.5467],["Nikko","Japan",36.7198,139.6982],
+  ["Kanazawa","Japan",36.5613,136.6562],["Bangkok","Thailand",13.7563,100.5018],["Singapore","Singapore",1.3521,103.8198],
+  ["Bali","Indonesia",-8.3405,115.092],["Hanoi","Vietnam",21.0278,105.8342],["Ho Chi Minh City","Vietnam",10.8231,106.6297],
+  ["Kuala Lumpur","Malaysia",3.139,101.6869],["Jakarta","Indonesia",-6.2088,106.8456],["Manila","Philippines",14.5995,120.9842],
+  ["Phnom Penh","Cambodia",11.5564,104.9282],["Siem Reap","Cambodia",13.3671,103.8448],["Chiang Mai","Thailand",18.7883,98.9853],
+  ["Phuket","Thailand",7.8804,98.3923],["Koh Samui","Thailand",9.5121,100.0134],["Luang Prabang","Laos",19.8856,102.1347],
+  ["Yangon","Myanmar",16.8661,96.1951],["Ubud","Indonesia",-8.5069,115.2625],["Yogyakarta","Indonesia",-7.7956,110.3695],
+  ["Da Nang","Vietnam",16.0544,108.2022],["Hoi An","Vietnam",15.8801,108.338],["Penang","Malaysia",5.4164,100.3327],
+  ["Langkawi","Malaysia",6.35,99.8],["Boracay","Philippines",11.9674,121.9248],["Palawan","Philippines",9.8349,118.7384],
+  ["Koh Phi Phi","Thailand",7.7407,98.7784],["Koh Lanta","Thailand",7.6501,99.0299],["Pai","Thailand",19.3593,98.4421],
+  ["Krabi","Thailand",8.0863,98.9063],["Vientiane","Laos",17.9757,102.6331],["Ha Long Bay","Vietnam",20.9101,107.1839],
+  ["Nha Trang","Vietnam",12.2388,109.1967],["Lombok","Indonesia",-8.6505,116.3249],["Komodo","Indonesia",-8.5463,119.4884],
+  ["El Nido","Philippines",11.1789,119.3929],["Delhi","India",28.7041,77.1025],["Mumbai","India",19.076,72.8777],
   ["Bangalore","India",12.9716,77.5946],["Jaipur","India",26.9124,75.7873],["Goa","India",15.2993,74.124],
   ["Agra","India",27.1767,78.0081],["Varanasi","India",25.3176,83.0064],["Kerala","India",10.8505,76.2711],
   ["Colombo","Sri Lanka",6.9271,79.8612],["Kathmandu","Nepal",27.7172,85.324],["Dhaka","Bangladesh",23.8103,90.4125],
-  ["Maldives","Maldives",3.2028,73.2207],["Lhasa","Tibet",29.65,91.1],["Sydney","Australia",-33.8688,151.2093],
+  ["Maldives","Maldives",3.2028,73.2207],["Lhasa","Tibet",29.65,91.1],["Udaipur","India",24.5854,73.7125],
+  ["Rishikesh","India",30.0869,78.2676],["Darjeeling","India",27.041,88.2663],["Ella","Sri Lanka",6.8667,81.0466],
+  ["Kandy","Sri Lanka",7.2906,80.6337],["Pokhara","Nepal",28.2096,83.9856],["Sydney","Australia",-33.8688,151.2093],
   ["Melbourne","Australia",-37.8136,144.9631],["Brisbane","Australia",-27.4698,153.0251],["Perth","Australia",-31.9505,115.8605],
   ["Adelaide","Australia",-34.9285,138.6007],["Auckland","New Zealand",-36.8485,174.7633],["Queenstown","New Zealand",-45.0312,168.6626],
   ["Christchurch","New Zealand",-43.532,172.6306],["Wellington","New Zealand",-41.2865,174.7762],["Gold Coast","Australia",-28.0167,153.4],
   ["Cairns","Australia",-16.9186,145.7781],["Great Barrier Reef","Australia",-18.2871,147.6992],["Fiji","Fiji",-17.7134,178.065],
   ["Tahiti","French Polynesia",-17.6509,-149.426],["Bora Bora","French Polynesia",-16.5004,-151.7415],["Tasmania","Australia",-42.0409,146.8087],
-  ["Darwin","Australia",-12.4634,130.8456]
+  ["Darwin","Australia",-12.4634,130.8456],["Uluru","Australia",-25.3444,131.0369],["Byron Bay","Australia",-28.6474,153.612],
+  ["Noosa","Australia",-26.3889,153.0914],["Rotorua","New Zealand",-38.1368,176.2497],["Milford Sound","New Zealand",-44.6141,167.8984],
+  ["Hobbiton","New Zealand",-37.8721,175.6827],["Samoa","Samoa",-13.759,-172.1046],["Rarotonga","Cook Islands",-21.2367,-159.7777]
 ];
+
 
 
 // ---- REDUCER (with Supabase persistence) ----
@@ -558,12 +615,14 @@ export default function OurWorld() {
       new THREE.MeshPhongMaterial({ color: "#ece6dc", emissive: "#3d2050", emissiveIntensity: 0.05, shininess: 25, transparent: true, opacity: 0.97 })
     ));
 
-    // Glow layers (will be tinted by season)
+    // Glow layers — enhanced, dreamy, airy
     const glows = [
-      { r: 1.025, color: "#e0c8e8", op: 0.10 },
-      { r: 1.06, color: "#f5d0e0", op: 0.07 },
-      { r: 1.10, color: "#fce4ec", op: 0.04 },
-      { r: 1.18, color: "#f8ece0", op: 0.025 },
+      { r: 1.02, color: "#d8b0e0", op: 0.16 },
+      { r: 1.05, color: "#f0b8d0", op: 0.12 },
+      { r: 1.09, color: "#fce0ec", op: 0.08 },
+      { r: 1.14, color: "#f8d8e8", op: 0.06 },
+      { r: 1.22, color: "#f5e8f0", op: 0.035 },
+      { r: 1.32, color: "#faf0f4", op: 0.02 },
     ].map(({ r, color, op }) => {
       const m = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: op, side: THREE.BackSide });
       const mesh = new THREE.Mesh(new THREE.SphereGeometry(RAD * r, 48, 48), m);
@@ -572,8 +631,8 @@ export default function OurWorld() {
     });
     glowLayersRef.current = glows;
 
-    // Graticule
-    const gM = new THREE.LineBasicMaterial({ color: "#d8d2c8", transparent: true, opacity: 0.08 });
+    // Graticule — very subtle, almost invisible
+    const gM = new THREE.LineBasicMaterial({ color: "#e8e2da", transparent: true, opacity: 0.03 });
     for (let lat = -60; lat <= 60; lat += 30) {
       const pts = []; for (let lng = -180; lng <= 180; lng += 4) pts.push(ll2v(lat, lng, RAD * 1.001));
       globe.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), gM));
@@ -604,12 +663,12 @@ export default function OurWorld() {
 
     // Heart mesh
     const hs = new THREE.Shape();
-    hs.moveTo(0, 0.025); hs.bezierCurveTo(0, 0.025, -0.005, 0, -0.025, 0);
-    hs.bezierCurveTo(-0.055, 0, -0.055, 0.035, -0.055, 0.035);
-    hs.bezierCurveTo(-0.055, 0.055, -0.035, 0.077, 0, 0.1);
-    hs.bezierCurveTo(0.035, 0.077, 0.055, 0.055, 0.055, 0.035);
-    hs.bezierCurveTo(0.055, 0.035, 0.055, 0, 0.025, 0);
-    hs.bezierCurveTo(0.005, 0, 0, 0.025, 0, 0.025);
+    hs.moveTo(0, -0.025); hs.bezierCurveTo(0, -0.025, -0.005, 0, -0.025, 0);
+    hs.bezierCurveTo(-0.055, 0, -0.055, -0.035, -0.055, -0.035);
+    hs.bezierCurveTo(-0.055, -0.055, -0.035, -0.077, 0, -0.1);
+    hs.bezierCurveTo(0.035, -0.077, 0.055, -0.055, 0.055, -0.035);
+    hs.bezierCurveTo(0.055, -0.035, 0.055, 0, 0.025, 0);
+    hs.bezierCurveTo(0.005, 0, 0, -0.025, 0, -0.025);
     const hMat = new THREE.MeshBasicMaterial({ color: P.heart, transparent: true, opacity: 0, side: THREE.DoubleSide, depthTest: false });
     const hMesh = new THREE.Mesh(new THREE.ShapeGeometry(hs), hMat);
     hMesh.renderOrder = 10; hMesh.visible = false;
@@ -681,6 +740,19 @@ export default function OurWorld() {
   }, [season, isAnniversary]);
 
   // ---- REBUILD MARKERS ----
+  // Group entries by location (within ~0.5 degrees)
+  const locationGroups = useMemo(() => {
+    const groups = [];
+    data.entries.forEach(e => {
+      const existing = groups.find(g => Math.abs(g.lat - e.lat) < 0.5 && Math.abs(g.lng - e.lng) < 0.5);
+      if (existing) { existing.entries.push(e); }
+      else { groups.push({ lat: e.lat, lng: e.lng, city: e.city, entries: [e] }); }
+    });
+    return groups;
+  }, [data.entries]);
+
+  const [locationList, setLocationList] = useState(null); // for multi-entry popup
+
   useEffect(() => {
     const g = globeRef.current; if (!g) return;
     mkRef.current.forEach(m => [m.dot, m.ring, m.glow].forEach(o => o && g.remove(o)));
@@ -690,25 +762,44 @@ export default function OurWorld() {
 
     const positions = getPositions(sliderDate);
 
-    // Seth dot
+    // ---- ALL ENTRIES always visible as colored markers ----
+    locationGroups.forEach(loc => {
+      // Use the "most significant" entry type for the dot color
+      const types = loc.entries.map(e => e.type);
+      let color = P.textFaint;
+      let icon = "together";
+      if (types.includes("together") || types.includes("special")) { color = P.gold; icon = "together"; }
+      else if (types.includes("home-seth")) { color = P.sky; icon = "home-seth"; }
+      else if (types.includes("home-rosie")) { color = P.rose; icon = "home-rosie"; }
+      else if (types.includes("seth-solo")) { color = P.skySoft; icon = "seth-solo"; }
+      else if (types.includes("rosie-solo")) { color = P.roseSoft; icon = "rosie-solo"; }
+
+      const isMulti = loc.entries.length > 1;
+      const size = isMulti ? 0.02 : 0.014;
+      const entryId = isMulti ? `group-${loc.city}` : loc.entries[0].id;
+
+      mkRef.current.push(makeDot(g, loc.lat, loc.lng, color, size, entryId, false));
+    });
+
+    // ---- Seth position dot (from slider) ----
     if (positions.seth && !areTogether) {
-      mkRef.current.push(makeDot(g, positions.seth.lat, positions.seth.lng, P.sky, 0.018, "seth-pos"));
+      mkRef.current.push(makeDot(g, positions.seth.lat, positions.seth.lng, P.sky, 0.022, "seth-pos", false));
     }
-    // Rosie dot
+    // ---- Rosie position dot (from slider) ----
     if (positions.rosie && !areTogether) {
-      mkRef.current.push(makeDot(g, positions.rosie.lat, positions.rosie.lng, P.rose, 0.018, "rosie-pos"));
+      mkRef.current.push(makeDot(g, positions.rosie.lat, positions.rosie.lng, P.rose, 0.022, "rosie-pos", false));
     }
-    // Together
+
+    // ---- Heart on together location ----
     if (areTogether && positions.together) {
-      mkRef.current.push(makeDot(g, positions.together.lat, positions.together.lng, P.gold, 0.028, positions.together.id));
       if (heartRef.current) {
-        const hp = ll2v(positions.together.lat, positions.together.lng, RAD * 1.045);
+        const hp = ll2v(positions.together.lat, positions.together.lng, RAD * 1.05);
         heartRef.current.position.copy(hp);
         heartRef.current.visible = true;
       }
     } else if (heartRef.current) { heartRef.current.visible = false; }
 
-    // Distance line when apart
+    // ---- Distance line when apart ----
     if (positions.seth && positions.rosie && !areTogether) {
       const from = ll2v(positions.seth.lat, positions.seth.lng, RAD * 1.005);
       const to = ll2v(positions.rosie.lat, positions.rosie.lng, RAD * 1.005);
@@ -721,16 +812,10 @@ export default function OurWorld() {
       g.add(line); rtRef.current.push({ line });
     }
 
-    // Background dots for all together entries
-    togetherList.forEach(e => {
-      if (e.id === positions.together?.id) return;
-      mkRef.current.push(makeDot(g, e.lat, e.lng, P.gold, 0.007, e.id, true));
-    });
-
-    // Active together stops + routes
-    if (areTogether && positions.together?.stops?.length > 0) {
-      const allPts = [{ lat: positions.together.lat, lng: positions.together.lng }, ...positions.together.stops];
-      positions.together.stops.forEach(s => mkRef.current.push(makeDot(g, s.lat, s.lng, P.sage, 0.01, `${positions.together.id}-${s.sid}`)));
+    // ---- Trip route for selected entry ----
+    if (selected && (selected.stops || []).length > 0) {
+      const allPts = [{ lat: selected.lat, lng: selected.lng }, ...selected.stops];
+      selected.stops.forEach(s => mkRef.current.push(makeDot(g, s.lat, s.lng, P.sage, 0.01, `${selected.id}-${s.sid}`)));
       for (let i = 0; i < allPts.length - 1; i++) {
         const from = ll2v(allPts[i].lat, allPts[i].lng, RAD * 1.005);
         const to = ll2v(allPts[i + 1].lat, allPts[i + 1].lng, RAD * 1.005);
@@ -742,7 +827,7 @@ export default function OurWorld() {
         g.add(line); rtRef.current.push({ line });
       }
     }
-  }, [sliderDate, data, getPositions, areTogether, togetherList]);
+  }, [sliderDate, data, getPositions, areTogether, locationGroups, selected]);
 
   function makeDot(group, lat, lng, color, size, id, faint = false) {
     const p = ll2v(lat, lng, RAD * 1.008);
@@ -768,11 +853,30 @@ export default function OurWorld() {
       const hits = rayRef.current.intersectObjects(mkRef.current.map(m => m.dot));
       if (hits.length > 0) {
         const id = hits[0].object.userData.entryId;
-        const entry = data.entries.find(en => en.id === id);
-        if (entry) { setSelected(entry); setPhotoIdx(0); const p = ll2v(entry.lat, entry.lng, RAD); tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) }; tZm.current = 2.5; }
-      } else setSelected(null);
+        // Check if this is a location group
+        if (id.startsWith("group-")) {
+          const groupCity = id.replace("group-", "");
+          const group = locationGroups.find(g => g.city === groupCity);
+          if (group) {
+            setLocationList(group);
+            setSelected(null);
+            const p = ll2v(group.lat, group.lng, RAD);
+            tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) };
+            tZm.current = 2.3;
+          }
+        } else {
+          const entry = data.entries.find(en => en.id === id);
+          if (entry) {
+            setSelected(entry); setPhotoIdx(0); setLocationList(null);
+            setSliderDate(entry.dateStart);
+            const p = ll2v(entry.lat, entry.lng, RAD);
+            tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) };
+            tZm.current = 2.5;
+          }
+        }
+      } else { setSelected(null); setLocationList(null); }
     }
-  }, [data.entries]);
+  }, [data.entries, locationGroups]);
   const onWheel = useCallback(e => { e.preventDefault(); tZm.current = clamp(tZm.current + e.deltaY * 0.001, MIN_Z, MAX_Z); }, []);
   const onTS = useCallback(e => { if (e.touches.length === 1) { dragR.current = true; prevR.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; clickSR.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() }; } else if (e.touches.length === 2) { const dx = e.touches[0].clientX - e.touches[1].clientX, dy = e.touches[0].clientY - e.touches[1].clientY; tDistR.current = Math.sqrt(dx * dx + dy * dy); } }, []);
   const onTM = useCallback(e => { e.preventDefault(); if (e.touches.length === 1 && dragR.current) { tRot.current.y += (e.touches[0].clientX - prevR.current.x) * 0.005; tRot.current.x = clamp(tRot.current.x + (e.touches[0].clientY - prevR.current.y) * 0.005, -1.2, 1.2); prevR.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; } else if (e.touches.length === 2) { const dx = e.touches[0].clientX - e.touches[1].clientX, dy = e.touches[0].clientY - e.touches[1].clientY; const d = Math.sqrt(dx * dx + dy * dy); tZm.current = clamp(tZm.current + (tDistR.current - d) * 0.008, MIN_Z, MAX_Z); tDistR.current = d; } }, []);
@@ -873,6 +977,39 @@ export default function OurWorld() {
           <span>today</span>
         </div>
       </div>
+
+      {/* LOCATION LIST — multiple chapters at same place */}
+      {locationList && !selected && (
+        <div style={{ position: "absolute", top: "42%", right: 18, transform: "translateY(-50%)", zIndex: 25, background: P.card, backdropFilter: "blur(24px)", borderRadius: 16, maxWidth: 300, minWidth: 220, boxShadow: "0 12px 44px rgba(61,53,82,.1)", border: `1px solid ${P.rose}10`, animation: "cardIn .5s ease", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+          <div style={{ padding: "14px 18px 10px" }}>
+            <button onClick={() => setLocationList(null)} style={{ position: "absolute", top: 10, right: 10, background: "none", border: "none", fontSize: 16, color: P.textFaint, cursor: "pointer", zIndex: 5 }}>×</button>
+            <h2 style={{ margin: 0, fontSize: 17, fontWeight: 400 }}>{locationList.city}</h2>
+            <p style={{ fontSize: 9, color: P.textFaint, marginTop: 2, letterSpacing: ".1em" }}>{locationList.entries.length} chapters here</p>
+          </div>
+          <div style={{ padding: "0 14px 14px", maxHeight: 280, overflowY: "auto" }}>
+            {locationList.entries.sort((a, b) => a.dateStart.localeCompare(b.dateStart)).map(e => {
+              const t = TYPES[e.type] || TYPES.together;
+              return (
+                <button key={e.id} onClick={() => {
+                  setSelected(e); setPhotoIdx(0); setLocationList(null);
+                  setSliderDate(e.dateStart);
+                }} style={{
+                  display: "block", width: "100%", textAlign: "left", padding: "10px 12px",
+                  background: "none", border: "none", borderBottom: `1px solid ${P.rose}08`,
+                  cursor: "pointer", fontFamily: "inherit", transition: "background .15s", borderRadius: 6,
+                }}
+                  onMouseEnter={ev => ev.currentTarget.style.background = P.blush}
+                  onMouseLeave={ev => ev.currentTarget.style.background = "none"}
+                >
+                  <div style={{ fontSize: 11, color: P.text, marginBottom: 2 }}>{t.icon} {e.city}</div>
+                  <div style={{ fontSize: 9, color: P.textMuted }}>{fmtDate(e.dateStart)}{e.dateEnd ? ` → ${fmtDate(e.dateEnd)}` : ""}</div>
+                  {e.notes && <div style={{ fontSize: 9, color: P.textFaint, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.notes.slice(0, 60)}{e.notes.length > 60 ? "…" : ""}</div>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* DETAIL CARD */}
       {cur && !editing && (
@@ -1060,11 +1197,12 @@ function Fld({ l, v, set, t = "text", ph = "" }) { return <div style={{ marginBo
 
 // ---- ADD FORM ----
 function AddForm({ types, onAdd, onClose }) {
-  const [f, sf] = useState({ city: "", country: "", lat: "", lng: "", dateStart: "", dateEnd: "", type: "together", who: "both", zoomLevel: 1, notes: "", memories: "", museums: "", restaurants: "", highlights: "" });
+  const [f, sf] = useState({ city: "", country: "", lat: "", lng: "", dateStart: "", dateEnd: "", type: "together", who: "both", zoomLevel: 1, notes: "", memories: "", museums: "", restaurants: "", highlights: "", musicUrl: "", stops: [] });
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [ns, setNs] = useState({ city: "", lat: "", lng: "", notes: "" });
 
-  const ok = f.city && f.lat && f.lng && f.dateStart && f.notes;
+  const ok = f.city && f.lat && f.lng && f.dateStart && f.dateEnd && f.notes;
 
   const onCityInput = v => {
     sf(p => ({ ...p, city: v }));
@@ -1147,29 +1285,39 @@ function AddForm({ types, onAdd, onClose }) {
       </div>
       <div style={{ display: "flex", gap: 8 }}>
         <div style={{ flex: 1 }}><FldR l="Start Date" v={f.dateStart} t="date" set={v => sf(p => ({ ...p, dateStart: v }))} req /></div>
-        <div style={{ flex: 1 }}><Fld l="End Date" v={f.dateEnd} t="date" set={v => sf(p => ({ ...p, dateEnd: v }))} /></div>
+        <div style={{ flex: 1 }}><FldR l="End Date" v={f.dateEnd} t="date" set={v => sf(p => ({ ...p, dateEnd: v }))} req /></div>
       </div>
 
       <div style={{ margin: "10px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
-      <p style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".12em", marginBottom: 8 }}>OPTIONAL — add more detail now or later</p>
 
       <div style={{ marginBottom: 8 }}><RLbl req>Notes</RLbl><textarea value={f.notes} onChange={e => sf(p => ({ ...p, notes: e.target.value }))} rows={2} placeholder="What made this place special?" style={{ ...inpSt, resize: "vertical" }} /></div>
       <div style={{ marginBottom: 8 }}><Lbl>Memories (one per line)</Lbl><textarea value={f.memories} onChange={e => sf(p => ({ ...p, memories: e.target.value }))} rows={2} placeholder={"The sunset was perfect\nDancing until midnight"} style={{ ...inpSt, resize: "vertical" }} /></div>
       <div style={{ marginBottom: 8 }}><Lbl>Museums & Culture</Lbl><textarea value={f.museums} onChange={e => sf(p => ({ ...p, museums: e.target.value }))} rows={1} style={{ ...inpSt, resize: "vertical" }} /></div>
       <div style={{ marginBottom: 8 }}><Lbl>Restaurants & Food</Lbl><textarea value={f.restaurants} onChange={e => sf(p => ({ ...p, restaurants: e.target.value }))} rows={1} style={{ ...inpSt, resize: "vertical" }} /></div>
-      <div style={{ marginBottom: 12 }}><Lbl>Highlights</Lbl><textarea value={f.highlights} onChange={e => sf(p => ({ ...p, highlights: e.target.value }))} rows={1} style={{ ...inpSt, resize: "vertical" }} /></div>
+      <div style={{ marginBottom: 8 }}><Lbl>Highlights</Lbl><textarea value={f.highlights} onChange={e => sf(p => ({ ...p, highlights: e.target.value }))} rows={1} style={{ ...inpSt, resize: "vertical" }} /></div>
+      <div style={{ marginBottom: 8 }}><Lbl>Music URL</Lbl><input value={f.musicUrl} onChange={e => sf(p => ({ ...p, musicUrl: e.target.value }))} placeholder="Paste audio URL (optional)" style={inpSt} /></div>
+
+      <div style={{ margin: "6px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.sage}18,transparent)` }} />
+      <Lbl>Trip Stops</Lbl>
+      {f.stops.map(s => <div key={s.sid} style={{ fontSize: 10, padding: "3px 7px", background: `${P.sage}08`, borderRadius: 5, marginBottom: 3, display: "flex", justifyContent: "space-between" }}><span>{s.city}</span><button onClick={() => sf(p => ({ ...p, stops: p.stops.filter(st => st.sid !== s.sid) }))} style={{ background: "none", border: "none", color: "#c9777a", cursor: "pointer", fontSize: 11 }}>×</button></div>)}
+      <div style={{ display: "flex", gap: 4, marginTop: 4, marginBottom: 12 }}>
+        <input placeholder="City" value={ns.city} onChange={e => setNs(p => ({ ...p, city: e.target.value }))} style={{ ...inpSt, flex: 1 }} />
+        <input placeholder="Lat" value={ns.lat} onChange={e => setNs(p => ({ ...p, lat: e.target.value }))} style={{ ...inpSt, width: 48 }} />
+        <input placeholder="Lng" value={ns.lng} onChange={e => setNs(p => ({ ...p, lng: e.target.value }))} style={{ ...inpSt, width: 48 }} />
+        <button disabled={!ns.city || !ns.lat} onClick={() => { sf(p => ({ ...p, stops: [...p.stops, { sid: `s-${Date.now()}`, city: ns.city, lat: parseFloat(ns.lat) || 0, lng: parseFloat(ns.lng) || 0, notes: ns.notes }] })); setNs({ city: "", lat: "", lng: "", notes: "" }); }} style={{ padding: "0 7px", background: P.sage, color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 10 }}>+</button>
+      </div>
 
       <button disabled={!ok} onClick={() => { setShowSuggestions(false); onAdd({
         id: `e-${Date.now()}`, city: f.city, country: f.country, lat: parseFloat(f.lat), lng: parseFloat(f.lng),
         dateStart: f.dateStart, dateEnd: f.dateEnd || null, type: f.type, who: f.who, zoomLevel: f.zoomLevel,
         notes: f.notes, memories: f.memories.split("\n").filter(Boolean), museums: f.museums.split("\n").filter(Boolean),
         restaurants: f.restaurants.split("\n").filter(Boolean), highlights: f.highlights.split("\n").filter(Boolean),
-        photos: [], stops: [], musicUrl: null,
+        photos: [], stops: f.stops, musicUrl: f.musicUrl || null,
       }); }} style={{ width: "100%", padding: "10px 0", background: ok ? P.rose : "#e5e0d8", color: "#fff", border: "none", borderRadius: 9, cursor: ok ? "pointer" : "default", fontSize: 12, letterSpacing: ".1em", fontFamily: "inherit", transition: "all .3s" }}>
         {ok ? "Add to Our World 💕" : "Fill required fields to continue"}
       </button>
       {!ok && <p style={{ fontSize: 8, color: P.textFaint, textAlign: "center", marginTop: 5, letterSpacing: ".08em" }}>
-        Need: city, coordinates, start date, and notes
+        Need: city, coordinates, dates, and notes
       </p>}
     </div>
   );
