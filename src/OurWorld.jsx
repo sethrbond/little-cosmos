@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo, useReducer } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, useReducer, Component } from "react";
 import * as THREE from "three";
 import { loadEntries, saveEntry, deleteEntry, loadConfig as loadCfg, saveConfig as saveCfg, uploadPhoto } from "./supabase.js";
 
@@ -482,6 +482,10 @@ function reducer(st, a) {
       next = { ...st, entries: st.entries.map(e => e.id === a.id ? { ...e, photos: [...(e.photos || []), ...a.urls] } : e) };
       { const updated = next.entries.find(e => e.id === a.id); if (updated) saveEntry(updated); }
       break;
+    case "REMOVE_PHOTO":
+      next = { ...st, entries: st.entries.map(e => e.id === a.id ? { ...e, photos: (e.photos || []).filter((_, i) => i !== a.photoIndex) } : e) };
+      { const updated = next.entries.find(e => e.id === a.id); if (updated) saveEntry(updated); }
+      break;
     default: return st;
   }
   return next;
@@ -517,10 +521,33 @@ function getFirstBadges(entries) {
   return badges;
 }
 
+// ---- ERROR BOUNDARY ----
+class OurWorldErrorBoundary extends Component {
+  constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+  static getDerivedStateFromError(error) { return { hasError: true, error }; }
+  componentDidCatch(err, info) { console.error("OurWorld error:", err, info); }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ width: "100%", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#faf8f4", fontFamily: "Georgia,serif", textAlign: "center", padding: 40 }}>
+          <div>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>🌍</div>
+            <h2 style={{ fontSize: 18, fontWeight: 400, color: "#3d3552", marginBottom: 8 }}>Something went wrong</h2>
+            <p style={{ fontSize: 12, color: "#958ba8", marginBottom: 16 }}>Your data is safe — try refreshing the page.</p>
+            <button onClick={() => window.location.reload()} style={{ padding: "8px 24px", background: "#d4a0b9", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 12, fontFamily: "inherit" }}>Refresh</button>
+            <p style={{ fontSize: 9, color: "#c4bbd4", marginTop: 12 }}>{String(this.state.error)}</p>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 // ================================================================
 // MAIN
 // ================================================================
-export default function OurWorld() {
+function OurWorldInner() {
   const [data, dispatch] = useReducer(reducer, { entries: [] });
   const [config, setConfigState] = useState(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(true);
@@ -537,6 +564,14 @@ export default function OurWorld() {
       }
       setLoading(false);
     })();
+  }, []);
+
+  // Mobile detection
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 600);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 600);
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
   }, []);
 
   const setConfig = useCallback(partial => {
@@ -596,6 +631,17 @@ export default function OurWorld() {
   const [markerFilter, setMarkerFilter] = useState("all"); // "all", "together", "special", "home-seth", "home-rosie", "seth-solo", "rosie-solo"
   const [showFilter, setShowFilter] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [toast, setToast] = useState(null);
+  const [showStats, setShowStats] = useState(false);
+  const [showRecap, setShowRecap] = useState(false);
+  const [recapYear, setRecapYear] = useState(null);
+  const [recapIdx, setRecapIdx] = useState(0);
+  const [photoDeleteMode, setPhotoDeleteMode] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showSearch, setShowSearch] = useState(false);
+  const nightRef = useRef(null);
+  const starsRef = useRef(null);
+  const mouseRef = useRef({ x: 0, y: 0 }); // for parallax
   const playRef = useRef(null);
   const animRef = useRef(null);
 
@@ -665,6 +711,121 @@ export default function OurWorld() {
     return idx >= 0 ? idx + 1 : null;
   }, [togetherList]);
 
+  // ---- TOAST SYSTEM ----
+  const showToast = useCallback((message, icon = "✓", duration = 2500) => {
+    setToast({ message, icon, duration, key: Date.now() });
+  }, []);
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), toast.duration || 2500);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  // ---- "ON THIS DAY" MEMORIES ----
+  const onThisDay = useMemo(() => {
+    const today = todayStr();
+    const md = today.slice(5); // "MM-DD"
+    return data.entries.filter(e => {
+      if (!e.dateStart) return false;
+      const eMd = e.dateStart.slice(5);
+      const eYear = parseInt(e.dateStart.slice(0, 4));
+      const thisYear = parseInt(today.slice(0, 4));
+      return eMd === md && eYear < thisYear;
+    }).map(e => ({
+      ...e,
+      yearsAgo: parseInt(today.slice(0, 4)) - parseInt(e.dateStart.slice(0, 4))
+    }));
+  }, [data.entries]);
+
+  // Show "On This Day" toast on load
+  useEffect(() => {
+    if (onThisDay.length > 0 && introComplete) {
+      const mem = onThisDay[0];
+      const label = mem.yearsAgo === 1 ? "1 year ago today" : `${mem.yearsAgo} years ago today`;
+      showToast(`${label}: ${mem.city} ${(TYPES[mem.type] || TYPES.together).icon}`, "💫", 5000);
+    }
+  }, [onThisDay, introComplete, showToast]);
+
+  // ---- MILESTONES on timeline ----
+  const milestones = useMemo(() => {
+    const ms = [
+      { days: 100, label: "100 Days" }, { days: 182, label: "6 Months" },
+      { days: 365, label: "1 Year" }, { days: 500, label: "500 Days" },
+      { days: 730, label: "2 Years" }, { days: 1000, label: "1000 Days" },
+      { days: 1095, label: "3 Years" }, { days: 1461, label: "4 Years" },
+      { days: 1826, label: "5 Years" }, { days: 2557, label: "7 Years" },
+      { days: 3652, label: "10 Years" },
+    ];
+    const total = daysBetween(config.startDate, todayStr());
+    return ms.filter(m => m.days <= total).map(m => ({
+      ...m, date: addDays(config.startDate, m.days), pct: (m.days / Math.max(1, total)) * 100
+    }));
+  }, [config.startDate]);
+
+  // ---- EXPANDED STATS for dashboard ----
+  const expandedStats = useMemo(() => {
+    const longestTrip = togetherList.reduce((best, e) => {
+      const d = e.dateEnd ? daysBetween(e.dateStart, e.dateEnd) : 1;
+      return d > best.days ? { days: d, entry: e } : best;
+    }, { days: 0, entry: null });
+
+    const farthestApart = { dist: 0, seth: null, rosie: null };
+    const sethEntries = sorted.filter(e => e.who === "seth" || e.who === "both");
+    const rosieEntries = sorted.filter(e => e.who === "rosie" || e.who === "both");
+    for (const s of sethEntries) {
+      for (const r of rosieEntries) {
+        if (s.who === "both" && r.who === "both" && s.id === r.id) continue;
+        const d = haversine(s.lat, s.lng, r.lat, r.lng);
+        if (d > farthestApart.dist) { farthestApart.dist = d; farthestApart.seth = s; farthestApart.rosie = r; }
+      }
+    }
+
+    const cityVisits = {};
+    togetherList.forEach(e => { cityVisits[e.city] = (cityVisits[e.city] || 0) + 1; });
+    const topCity = Object.entries(cityVisits).sort((a, b) => b[1] - a[1])[0];
+
+    const countryList = new Set();
+    data.entries.forEach(e => { if (e.country) countryList.add(e.country); (e.stops || []).forEach(s => { if (s.country) countryList.add(s.country); }); });
+
+    let longestApart = 0;
+    for (let i = 1; i < togetherList.length; i++) {
+      const gap = daysBetween(togetherList[i - 1].dateEnd || togetherList[i - 1].dateStart, togetherList[i].dateStart);
+      if (gap > longestApart) longestApart = gap;
+    }
+
+    const avgTripLength = togetherList.length > 0
+      ? Math.round(togetherList.reduce((s, e) => s + Math.max(1, e.dateEnd ? daysBetween(e.dateStart, e.dateEnd) : 1), 0) / togetherList.length)
+      : 0;
+
+    // Available years for recap
+    const years = [...new Set(data.entries.map(e => parseInt(e.dateStart?.slice(0, 4))).filter(Boolean))].sort();
+
+    return { longestTrip, farthestApart, topCity, countryList: [...countryList], longestApart, avgTripLength, years };
+  }, [data.entries, togetherList, sorted]);
+
+  // ---- SEARCH ----
+  const searchResults = useMemo(() => {
+    if (!searchQuery || searchQuery.length < 2) return [];
+    const q = searchQuery.toLowerCase();
+    return data.entries.filter(e =>
+      (e.city || "").toLowerCase().includes(q) ||
+      (e.country || "").toLowerCase().includes(q) ||
+      (e.notes || "").toLowerCase().includes(q) ||
+      (e.memories || []).some(m => m.toLowerCase().includes(q)) ||
+      (e.highlights || []).some(h => h.toLowerCase().includes(q)) ||
+      (e.restaurants || []).some(r => r.toLowerCase().includes(q)) ||
+      (e.museums || []).some(m => m.toLowerCase().includes(q)) ||
+      (e.stops || []).some(s => (s.city || "").toLowerCase().includes(q))
+    );
+  }, [searchQuery, data.entries]);
+
+  // ---- FAVORITES ----
+  const toggleFavorite = useCallback((id) => {
+    dispatch({ type: "UPDATE", id, data: { favorite: !(data.entries.find(e => e.id === id)?.favorite) } });
+  }, [data.entries]);
+
+  const favorites = useMemo(() => data.entries.filter(e => e.favorite), [data.entries]);
+
   // ---- TIMELINE NAV ----
   const stepDay = useCallback(dir => {
     if (isAnimating) return;
@@ -713,12 +874,17 @@ export default function OurWorld() {
       if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") return;
       if (e.key === "ArrowLeft") { e.preventDefault(); stepDay(-1); }
       if (e.key === "ArrowRight") { e.preventDefault(); stepDay(1); }
-      if (e.key === "Escape") { setSelected(null); setEditing(null); setShowAdd(false); setShowLetter(false); setShowSettings(false); setShowGallery(false); setCardGallery(false); setShowFilter(false); if (isPlaying) stopPlay(); }
+      if (e.key === "Escape") { setSelected(null); setEditing(null); setShowAdd(false); setShowLetter(false); setShowSettings(false); setShowGallery(false); setCardGallery(false); setShowFilter(false); setShowStats(false); setShowRecap(false); setShowSearch(false); setSearchQuery(""); if (isPlaying) stopPlay(); }
       if (e.key === "f" && !showAdd && !editing && !showSettings) setShowFilter(v => !v);
+      if (e.key === "i" && !showAdd && !editing && !showSettings) setShowStats(v => !v);
+      if (e.key === "s" && !showAdd && !editing && !showSettings && !showSearch) { e.preventDefault(); setShowSearch(true); }
+      if (e.key === "g" && !showAdd && !editing && !showSettings) setShowGallery(v => !v);
+      if (e.key === "t" && !showAdd && !editing && !showSettings) setSliderDate(todayStr());
+      if (e.key === " " && !showAdd && !editing && !showSettings && !showSearch) { e.preventDefault(); if (isPlaying) stopPlay(); else if (togetherList.length > 0) playStory(); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [stepDay, isPlaying]);
+  }, [stepDay, isPlaying, showAdd, editing, showSettings, showSearch, stopPlay, playStory, togetherList]);
 
   // ---- PLAY OUR STORY ----
   const stopPlay = useCallback(() => {
@@ -764,6 +930,44 @@ export default function OurWorld() {
     step();
   }, [togetherList, isPlaying, stopPlay]);
 
+  // ---- YEAR-IN-REVIEW RECAP ----
+  const startRecap = useCallback((year) => {
+    const yearEntries = sorted.filter(e => e.dateStart?.startsWith(String(year)));
+    if (yearEntries.length === 0) return;
+    setShowRecap(true);
+    setRecapYear(year);
+    setRecapIdx(0);
+    setShowStats(false);
+    setSelected(null);
+
+    // Fly to first entry
+    const first = yearEntries[0];
+    setSliderDate(first.dateStart);
+    const p = ll2v(first.lat, first.lng, RAD);
+    tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) };
+    tZm.current = 2.6;
+  }, [sorted]);
+
+  const recapEntries = useMemo(() => {
+    if (!recapYear) return [];
+    return sorted.filter(e => e.dateStart?.startsWith(String(recapYear)));
+  }, [recapYear, sorted]);
+
+  const advanceRecap = useCallback((dir) => {
+    const next = recapIdx + dir;
+    if (next < 0 || next >= recapEntries.length) {
+      setShowRecap(false); setRecapYear(null);
+      showToast("Recap complete ✨", "🎬", 3000);
+      return;
+    }
+    setRecapIdx(next);
+    const entry = recapEntries[next];
+    setSliderDate(entry.dateStart);
+    const p = ll2v(entry.lat, entry.lng, RAD);
+    tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) };
+    tZm.current = 2.4;
+  }, [recapIdx, recapEntries, showToast]);
+
   // ---- GALLERY DATA ----
   const allPhotos = useMemo(() => {
     const out = [];
@@ -777,7 +981,8 @@ export default function OurWorld() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a"); a.href = url; a.download = "our-world-backup.json"; a.click();
     URL.revokeObjectURL(url);
-  }, [data, config]);
+    showToast("Backup exported", "📥", 2000);
+  }, [data, config, showToast]);
 
   const importData = useCallback(() => {
     const input = document.createElement("input"); input.type = "file"; input.accept = ".json";
@@ -816,7 +1021,8 @@ export default function OurWorld() {
     const w = el.clientWidth, h = el.clientHeight;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(P.cream);
+    scene.background = new THREE.Color("#0d0b14"); // deep space
+    scene.fog = new THREE.FogExp2("#0d0b14", 0.02); // subtle depth fog
     scnRef.current = scene;
 
     const cam = new THREE.PerspectiveCamera(45, w / h, 0.1, 100);
@@ -828,12 +1034,12 @@ export default function OurWorld() {
     el.appendChild(rend.domElement);
     rendRef.current = rend;
 
-    scene.add(new THREE.AmbientLight("#fff8f0", 0.7));
-    const sun = new THREE.DirectionalLight("#fffaf0", 0.95);
+    scene.add(new THREE.AmbientLight("#fff8f0", 0.85));
+    const sun = new THREE.DirectionalLight("#fffaf0", 1.1);
     sun.position.set(4, 3, 5); scene.add(sun);
-    const fill = new THREE.DirectionalLight("#f0e0f5", 0.3);
+    const fill = new THREE.DirectionalLight("#f0e0f5", 0.4);
     fill.position.set(-4, -2, -4); scene.add(fill);
-    const rim = new THREE.PointLight("#fce4ec", 0.4, 10);
+    const rim = new THREE.PointLight("#fce4ec", 0.5, 10);
     rim.position.set(0, 4, 2); scene.add(rim);
 
     const globe = new THREE.Group();
@@ -906,7 +1112,7 @@ export default function OurWorld() {
     const pP = new Float32Array(pN * 3);
     for (let i = 0; i < pN; i++) { pP[i * 3] = (Math.random() - 0.5) * 16; pP[i * 3 + 1] = (Math.random() - 0.5) * 16; pP[i * 3 + 2] = (Math.random() - 0.5) * 16; }
     pG.setAttribute("position", new THREE.BufferAttribute(pP, 3));
-    const pMat = new THREE.PointsMaterial({ color: P.roseSoft, size: 0.008, transparent: true, opacity: 0.15 });
+    const pMat = new THREE.PointsMaterial({ color: P.roseSoft, size: 0.008, transparent: true, opacity: 0.25 });
     const particles = new THREE.Points(pG, pMat);
     scene.add(particles);
     particlesRef.current = particles;
@@ -920,6 +1126,35 @@ export default function OurWorld() {
     const p2Mat = new THREE.PointsMaterial({ color: P.goldWarm, size: 0.005, transparent: true, opacity: 0.1 });
     const particles2 = new THREE.Points(p2G, p2Mat);
     scene.add(particles2);
+
+    // Stars — distant background field
+    const starN = 600;
+    const starG = new THREE.BufferGeometry();
+    const starP = new Float32Array(starN * 3);
+    const starS = new Float32Array(starN);
+    for (let i = 0; i < starN; i++) {
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      const r = 18 + Math.random() * 20;
+      starP[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+      starP[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+      starP[i * 3 + 2] = r * Math.cos(phi);
+      starS[i] = 0.3 + Math.random() * 1.2;
+    }
+    starG.setAttribute("position", new THREE.BufferAttribute(starP, 3));
+    starG.setAttribute("size", new THREE.BufferAttribute(starS, 1));
+    const starMat = new THREE.PointsMaterial({ color: "#f0e8ff", size: 0.04, transparent: true, opacity: 0.5, sizeAttenuation: true });
+    const stars = new THREE.Points(starG, starMat);
+    scene.add(stars);
+    starsRef.current = stars;
+
+    // Night shadow — subtle dark hemisphere overlay on globe
+    const nightGeo = new THREE.SphereGeometry(RAD * 1.001, 48, 48, 0, Math.PI);
+    const nightMat = new THREE.MeshBasicMaterial({ color: "#1a1030", transparent: true, opacity: 0.12, side: THREE.FrontSide, depthWrite: false });
+    const nightMesh = new THREE.Mesh(nightGeo, nightMat);
+    nightMesh.renderOrder = 5;
+    scene.add(nightMesh); // added to scene (not globe) so it stays fixed as globe rotates
+    nightRef.current = nightMesh;
 
     // Heart mesh
     const hs = new THREE.Shape();
@@ -968,6 +1203,19 @@ export default function OurWorld() {
       particles.rotation.y += 0.0001;
       particles2.rotation.y -= 0.00008;
       particles2.rotation.x += 0.00003;
+      stars.rotation.y += 0.00002; // very slow star drift
+      // Night shadow — positioned opposite the sun direction, fixed in world space
+      if (nightRef.current) {
+        nightRef.current.rotation.y = Date.now() * 0.00005; // very slow day/night cycle
+      }
+
+      // Parallax — glow layers shift subtly opposite to mouse
+      const mx = mouseRef.current.x, my = mouseRef.current.y;
+      glows.forEach((glow, i) => {
+        const strength = (i + 1) * 0.003;
+        glow.position.x = -mx * strength;
+        glow.position.y = my * strength;
+      });
 
       // Fade geography lines based on zoom (closer = more visible)
       const zoomFactor = clamp((3.5 - zmR.current) / 1.5, 0, 1); // starts showing earlier, fully visible below ~2.0
@@ -1013,7 +1261,7 @@ export default function OurWorld() {
   // ---- REBUILD MARKERS ----
   // Group entries by location (within ~0.5 degrees)
   const locationGroups = useMemo(() => {
-    const filtered = markerFilter === "all" ? data.entries : data.entries.filter(e => e.type === markerFilter);
+    const filtered = markerFilter === "all" ? data.entries : markerFilter === "favorites" ? data.entries.filter(e => e.favorite) : data.entries.filter(e => e.type === markerFilter);
     const groups = [];
     filtered.forEach(e => {
       const existing = groups.find(g => Math.abs(g.lat - e.lat) < 0.5 && Math.abs(g.lng - e.lng) < 0.5);
@@ -1112,7 +1360,11 @@ export default function OurWorld() {
 
   // ---- POINTER ----
   const onDown = useCallback(e => { dragR.current = true; prevR.current = { x: e.clientX, y: e.clientY }; clickSR.current = { x: e.clientX, y: e.clientY, t: Date.now() }; }, []);
-  const onMove = useCallback(e => { if (!dragR.current) return; tRot.current.y += (e.clientX - prevR.current.x) * 0.005; tRot.current.x = clamp(tRot.current.x + (e.clientY - prevR.current.y) * 0.005, -1.2, 1.2); prevR.current = { x: e.clientX, y: e.clientY }; }, []);
+  const onMove = useCallback(e => {
+    mouseRef.current = { x: (e.clientX / window.innerWidth - 0.5) * 2, y: (e.clientY / window.innerHeight - 0.5) * 2 };
+    if (!dragR.current) return;
+    tRot.current.y += (e.clientX - prevR.current.x) * 0.005; tRot.current.x = clamp(tRot.current.x + (e.clientY - prevR.current.y) * 0.005, -1.2, 1.2); prevR.current = { x: e.clientX, y: e.clientY };
+  }, []);
   const onUp = useCallback(e => {
     dragR.current = false;
     if (Math.abs(e.clientX - clickSR.current.x) < 6 && Math.abs(e.clientY - clickSR.current.y) < 6 && Date.now() - clickSR.current.t < 350) {
@@ -1183,7 +1435,10 @@ export default function OurWorld() {
         }
       }
       console.log("All uploads done. URLs:", urls);
-      if (urls.length > 0) dispatch({ type: "ADD_PHOTOS", id, urls });
+      if (urls.length > 0) {
+        dispatch({ type: "ADD_PHOTOS", id, urls });
+        setToast({ message: `${urls.length} photo${urls.length > 1 ? "s" : ""} uploaded`, icon: "📷", duration: 2500, key: Date.now() });
+      }
       setUploading(false);
       input.value = ""; // reset for next use
     };
@@ -1208,7 +1463,7 @@ export default function OurWorld() {
   const totalDays = Math.max(1, daysBetween(config.startDate, todayStr()));
   const sliderVal = daysBetween(config.startDate, sliderDate);
 
-  if (loading) return <div style={{ width: "100%", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: P.cream, fontFamily: "Georgia,serif", color: P.textMuted, fontSize: 14, letterSpacing: ".2em" }}>Loading your world...</div>;
+  if (loading) return <div style={{ width: "100%", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0d0b14", fontFamily: "Georgia,serif", color: P.textFaint, fontSize: 14, letterSpacing: ".2em" }}>Loading your world...</div>;
 
   return (
     <div style={{ width: "100%", height: "100vh", position: "relative", overflow: "hidden", background: `linear-gradient(155deg,${P.cream} 0%,${P.blush} 40%,${P.lavMist} 100%)`, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", color: P.text, userSelect: "none" }}>
@@ -1225,7 +1480,7 @@ export default function OurWorld() {
       </div>
 
       {/* RIGHT PANEL — distance + stats */}
-      <div style={{ position: "absolute", top: 22, right: 22, zIndex: 10, textAlign: "right", opacity: introComplete ? .8 : 0, transition: "opacity 1s ease", maxWidth: 180 }}>
+      <div style={{ position: "absolute", top: isMobile ? 14 : 22, right: isMobile ? 12 : 22, zIndex: 10, textAlign: "right", opacity: introComplete ? .8 : 0, transition: "opacity 1s ease", maxWidth: isMobile ? 130 : 180 }}>
         {dist !== null && (
           <div style={{ marginBottom: 4 }}>
             {areTogether ? <div style={{ fontSize: 16, color: P.heart, animation: "heartPulse 1.5s ease infinite" }}>💕 Together</div>
@@ -1237,21 +1492,22 @@ export default function OurWorld() {
             {daysBetween(todayStr(), nextTogether.dateStart)} days until together 💛
           </div>
         )}
-        <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".08em", lineHeight: 1.6 }}>
+        {!isMobile && <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".08em", lineHeight: 1.6 }}>
           {stats.daysTog} days together<br />{stats.trips} adventures · {stats.countries} countries<br />{stats.totalMiles.toLocaleString()} miles traveled
-        </div>
+        </div>}
         {/* Entry type filter */}
         {data.entries.length > 0 && (
           <div style={{ marginTop: 10, position: "relative" }}>
             <button onClick={() => setShowFilter(v => !v)} style={{ background: showFilter ? P.blush : "rgba(255,255,255,.6)", border: `1px solid ${P.rose}20`, borderRadius: 8, padding: "4px 10px", fontSize: 8, cursor: "pointer", fontFamily: "inherit", color: P.textMid, letterSpacing: ".06em", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", gap: 4, marginLeft: "auto" }}>
-              {markerFilter === "all" ? "🌍 All Entries" : `${(TYPES[markerFilter] || {}).icon || "✨"} ${(TYPES[markerFilter] || {}).label || markerFilter}`}
+              {markerFilter === "all" ? "🌍 All Entries" : markerFilter === "favorites" ? "♥ Favorites" : `${(TYPES[markerFilter] || {}).icon || "✨"} ${(TYPES[markerFilter] || {}).label || markerFilter}`}
               <span style={{ fontSize: 6, opacity: 0.5 }}>{showFilter ? "▲" : "▼"}</span>
             </button>
             {showFilter && (
               <div style={{ position: "absolute", top: "100%", right: 0, marginTop: 4, background: P.card, backdropFilter: "blur(16px)", borderRadius: 10, boxShadow: "0 8px 28px rgba(61,53,82,.12)", border: `1px solid ${P.rose}10`, overflow: "hidden", minWidth: 150, zIndex: 20 }}>
                 {[{ key: "all", icon: "🌍", label: "All Entries", count: data.entries.length },
+                  { key: "favorites", icon: "♥", label: "Favorites", count: favorites.length },
                   ...Object.entries(TYPES).map(([k, v]) => ({ key: k, icon: v.icon, label: v.label, count: data.entries.filter(e => e.type === k).length }))
-                ].filter(f => f.count > 0).map(f => (
+                ].filter(f => f.count > 0 || f.key === "favorites").map(f => (
                   <button key={f.key} onClick={() => { setMarkerFilter(f.key); setShowFilter(false); }}
                     style={{ display: "flex", width: "100%", alignItems: "center", gap: 8, padding: "7px 12px", border: "none", borderBottom: `1px solid ${P.parchment}`, background: markerFilter === f.key ? P.blush : "transparent", cursor: "pointer", fontFamily: "inherit", fontSize: 9, color: markerFilter === f.key ? P.text : P.textMid, textAlign: "left" }}
                     onMouseEnter={e => { if (markerFilter !== f.key) e.currentTarget.style.background = P.lavMist; }}
@@ -1274,9 +1530,48 @@ export default function OurWorld() {
         {editMode && <TBtn onClick={() => setShowAdd(true)} accent>＋</TBtn>}
         {editMode && <TBtn onClick={() => setShowSettings(true)}>⚙️</TBtn>}
         {allPhotos.length > 0 && <TBtn a={showGallery} onClick={() => setShowGallery(v => !v)}>📷</TBtn>}
+        {data.entries.length > 0 && <TBtn a={showStats} onClick={() => setShowStats(v => !v)}>📊</TBtn>}
+        {data.entries.length > 0 && <TBtn a={showSearch} onClick={() => setShowSearch(v => !v)}>🔍</TBtn>}
         {togetherList.length > 0 && !isPlaying && <TBtn onClick={playStory}>▶</TBtn>}
         {isPlaying && <TBtn onClick={stopPlay} a>⏹</TBtn>}
       </div>
+
+      {/* SEARCH PANEL */}
+      {showSearch && (
+        <div style={{ position: "absolute", top: 22, left: 66, zIndex: 22, width: isMobile ? "calc(100% - 80px)" : 280, animation: "fadeIn .2s ease" }}>
+          <input autoFocus value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search cities, notes, memories..."
+            style={{ width: "100%", padding: "9px 12px", border: `1px solid ${P.rose}25`, borderRadius: 10, fontSize: 11, fontFamily: "inherit", color: P.text, background: P.card, backdropFilter: "blur(16px)", boxShadow: "0 4px 16px rgba(0,0,0,.08)", outline: "none", boxSizing: "border-box" }}
+          />
+          {searchQuery.length >= 2 && (
+            <div style={{ marginTop: 4, background: P.card, backdropFilter: "blur(16px)", borderRadius: 10, maxHeight: 300, overflowY: "auto", boxShadow: "0 8px 28px rgba(61,53,82,.12)", border: `1px solid ${P.rose}10` }}>
+              {searchResults.length === 0 && (
+                <div style={{ padding: "14px 16px", fontSize: 10, color: P.textFaint, textAlign: "center" }}>No entries found</div>
+              )}
+              {searchResults.map(e => {
+                const t = TYPES[e.type] || TYPES.together;
+                return (
+                  <button key={e.id} onClick={() => {
+                    setSelected(e); setPhotoIdx(0); setShowSearch(false); setSearchQuery("");
+                    setSliderDate(e.dateStart);
+                    const p = ll2v(e.lat, e.lng, RAD);
+                    tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) };
+                    tZm.current = 2.5;
+                  }} style={{ display: "flex", width: "100%", alignItems: "center", gap: 8, padding: "9px 14px", border: "none", borderBottom: `1px solid ${P.parchment}`, background: "transparent", cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}
+                    onMouseEnter={ev => ev.currentTarget.style.background = P.blush}
+                    onMouseLeave={ev => ev.currentTarget.style.background = "transparent"}
+                  >
+                    <span style={{ fontSize: 14 }}>{t.icon}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 11, color: P.text }}>{e.city}{e.favorite ? " ♥" : ""}</div>
+                      <div style={{ fontSize: 8, color: P.textFaint }}>{fmtDate(e.dateStart)} · {e.country}</div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* LOVE LETTER TRIGGER */}
       {config.loveLetter && <button onClick={() => setShowLetter(true)} style={{ position: "absolute", bottom: 118, right: 22, zIndex: 12, background: "none", border: "none", cursor: "pointer", fontSize: 15, opacity: 0.2, transition: "opacity .5s", padding: 4 }} onMouseEnter={e => e.currentTarget.style.opacity = 0.55} onMouseLeave={e => e.currentTarget.style.opacity = 0.2}>❀</button>}
@@ -1300,12 +1595,19 @@ export default function OurWorld() {
           <input type="range" min={0} max={totalDays} value={clamp(sliderVal, 0, totalDays)}
             onChange={e => { if (!isAnimating) setSliderDate(addDays(config.startDate, parseInt(e.target.value))); }}
             style={{ width: "100%", height: 3, appearance: "none", WebkitAppearance: "none", background: `linear-gradient(90deg,${P.sky},${P.rose})`, borderRadius: 2, outline: "none", cursor: "pointer", opacity: 0.5 }} />
-          {togetherList.map(e => {
+          {sorted.map(e => {
             const d = daysBetween(config.startDate, e.dateStart);
             const pct = totalDays > 0 ? (d / totalDays) * 100 : 0;
             if (pct < 0 || pct > 100) return null;
-            return <div key={e.id} style={{ position: "absolute", left: `${pct}%`, top: 5, width: 5, height: 5, borderRadius: "50%", background: P.gold, transform: "translateX(-50%)", pointerEvents: "none", boxShadow: `0 0 5px ${P.gold}50` }} />;
+            const typeColor = (TYPES[e.type] || TYPES.together).color;
+            return <div key={e.id} style={{ position: "absolute", left: `${pct}%`, top: 5, width: e.who === "both" ? 5 : 3, height: e.who === "both" ? 5 : 3, borderRadius: "50%", background: typeColor, transform: "translateX(-50%)", pointerEvents: "none", boxShadow: `0 0 4px ${typeColor}40`, opacity: e.who === "both" ? 1 : 0.6 }} />;
           })}
+          {milestones.map(m => (
+            <div key={m.days} style={{ position: "absolute", left: `${m.pct}%`, top: 2, transform: "translateX(-50%)", pointerEvents: "none", display: "flex", flexDirection: "column", alignItems: "center" }}>
+              <div style={{ width: 6, height: 6, background: P.gold, transform: "rotate(45deg)", boxShadow: `0 0 6px ${P.gold}60` }} />
+              <div style={{ fontSize: 6, color: P.goldWarm, marginTop: 2, whiteSpace: "nowrap", letterSpacing: ".05em" }}>{m.label}</div>
+            </div>
+          ))}
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 7, color: P.textFaint, letterSpacing: ".1em", marginTop: 1 }}>
           <span>{fmtDate(config.startDate)}</span>
@@ -1315,7 +1617,10 @@ export default function OurWorld() {
 
       {/* LOCATION LIST — multiple chapters at same place */}
       {locationList && !selected && (
-        <div style={{ position: "absolute", top: "42%", right: 18, transform: "translateY(-50%)", zIndex: 25, background: P.card, backdropFilter: "blur(24px)", borderRadius: 16, maxWidth: 300, minWidth: 220, boxShadow: "0 12px 44px rgba(61,53,82,.1)", border: `1px solid ${P.rose}10`, animation: "cardIn .5s ease", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+        <div style={isMobile
+          ? { position: "absolute", bottom: 105, left: 0, right: 0, zIndex: 25, background: P.card, backdropFilter: "blur(24px)", borderRadius: "16px 16px 0 0", maxHeight: "45vh", boxShadow: "0 -8px 32px rgba(61,53,82,.1)", border: `1px solid ${P.rose}10`, animation: "fadeIn .3s ease", overflow: "hidden", display: "flex", flexDirection: "column" }
+          : { position: "absolute", top: "42%", right: 18, transform: "translateY(-50%)", zIndex: 25, background: P.card, backdropFilter: "blur(24px)", borderRadius: 16, maxWidth: 300, minWidth: 220, boxShadow: "0 12px 44px rgba(61,53,82,.1)", border: `1px solid ${P.rose}10`, animation: "cardIn .5s ease", overflow: "hidden", display: "flex", flexDirection: "column" }
+        }>
           <div style={{ padding: "14px 18px 10px" }}>
             <button onClick={() => setLocationList(null)} style={{ position: "absolute", top: 10, right: 10, background: "none", border: "none", fontSize: 16, color: P.textFaint, cursor: "pointer", zIndex: 5 }}>×</button>
             <h2 style={{ margin: 0, fontSize: 17, fontWeight: 400 }}>{locationList.city}</h2>
@@ -1348,7 +1653,10 @@ export default function OurWorld() {
 
       {/* DETAIL CARD */}
       {cur && !editing && (
-        <div style={{ position: "absolute", top: "42%", right: 18, transform: "translateY(-50%)", zIndex: 25, background: P.card, backdropFilter: "blur(24px)", borderRadius: 16, maxWidth: 340, minWidth: 260, maxHeight: "65vh", boxShadow: "0 12px 44px rgba(61,53,82,.1)", border: `1px solid ${P.rose}10`, animation: "cardIn .5s ease", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+        <div style={isMobile
+          ? { position: "absolute", bottom: 105, left: 0, right: 0, zIndex: 25, background: P.card, backdropFilter: "blur(24px)", borderRadius: "16px 16px 0 0", maxHeight: "55vh", boxShadow: "0 -8px 32px rgba(61,53,82,.1)", border: `1px solid ${P.rose}10`, animation: "fadeIn .3s ease", overflow: "hidden", display: "flex", flexDirection: "column" }
+          : { position: "absolute", top: "42%", right: 18, transform: "translateY(-50%)", zIndex: 25, background: P.card, backdropFilter: "blur(24px)", borderRadius: 16, maxWidth: 340, minWidth: 260, maxHeight: "65vh", boxShadow: "0 12px 44px rgba(61,53,82,.1)", border: `1px solid ${P.rose}10`, animation: "cardIn .5s ease", overflow: "hidden", display: "flex", flexDirection: "column" }
+        }>
           {(cur.photos || []).length > 0 && !cardGallery && (
             <div style={{ position: "relative", width: "100%", background: "#f5f0eb", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", minHeight: 120, maxHeight: 220 }}>
               <img src={cur.photos[photoIdx % cur.photos.length]} alt="" style={{ maxWidth: "100%", maxHeight: 220, objectFit: "contain", display: "block" }} />
@@ -1362,13 +1670,19 @@ export default function OurWorld() {
             <div style={{ flexShrink: 0, maxHeight: 280, overflowY: "auto", background: "#f5f0eb", padding: 6 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, padding: "0 4px" }}>
                 <span style={{ fontSize: 9, color: P.textMid, letterSpacing: ".1em" }}>📷 {cur.photos.length} photos</span>
-                <button onClick={() => setCardGallery(false)} style={{ background: "none", border: "none", fontSize: 12, color: P.textFaint, cursor: "pointer" }}>×</button>
+                <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                  {editMode && <button onClick={() => setPhotoDeleteMode(v => !v)} style={{ background: photoDeleteMode ? "#c9777a" : "none", border: `1px solid ${photoDeleteMode ? "#c9777a" : P.textFaint}40`, borderRadius: 4, padding: "1px 6px", fontSize: 8, cursor: "pointer", color: photoDeleteMode ? "#fff" : P.textFaint, fontFamily: "inherit" }}>{photoDeleteMode ? "Done" : "🗑"}</button>}
+                  <button onClick={() => { setCardGallery(false); setPhotoDeleteMode(false); }} style={{ background: "none", border: "none", fontSize: 12, color: P.textFaint, cursor: "pointer" }}>×</button>
+                </div>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(90px, 1fr))", gap: 4 }}>
                 {cur.photos.map((url, i) => (
-                  <button key={i} onClick={() => { setPhotoIdx(i); setCardGallery(false); }} style={{ padding: 0, border: photoIdx === i ? `2px solid ${P.rose}` : "2px solid transparent", background: "#ece6dc", cursor: "pointer", borderRadius: 6, overflow: "hidden", aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <img src={url} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", borderRadius: 4 }} />
-                  </button>
+                  <div key={i} style={{ position: "relative" }}>
+                    <button onClick={() => { if (photoDeleteMode) { dispatch({ type: "REMOVE_PHOTO", id: cur.id, photoIndex: i }); setPhotoIdx(pi => pi >= i && pi > 0 ? pi - 1 : pi); showToast("Photo removed", "🗑", 2000); } else { setPhotoIdx(i); setCardGallery(false); setPhotoDeleteMode(false); } }} style={{ padding: 0, border: photoIdx === i ? `2px solid ${P.rose}` : "2px solid transparent", background: "#ece6dc", cursor: "pointer", borderRadius: 6, overflow: "hidden", aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center", width: "100%", opacity: photoDeleteMode ? 0.7 : 1 }}>
+                      <img src={url} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", borderRadius: 4 }} />
+                    </button>
+                    {photoDeleteMode && <div style={{ position: "absolute", top: 2, right: 2, width: 16, height: 16, borderRadius: "50%", background: "#c9777a", color: "#fff", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>×</div>}
+                  </div>
                 ))}
               </div>
               {editMode && <button onClick={() => handlePhotos(cur.id)} style={{ marginTop: 6, width: "100%", padding: "5px", background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: "none", borderRadius: 5, cursor: "pointer", fontSize: 9, color: P.textMuted, fontFamily: "inherit" }}>+ Add More Photos</button>}
@@ -1377,7 +1691,12 @@ export default function OurWorld() {
           {(cur.photos || []).length === 0 && editMode && <button onClick={() => handlePhotos(cur.id)} style={{ width: "100%", height: 60, background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4, color: P.textMuted, fontSize: 10, fontFamily: "inherit", flexShrink: 0 }}>📷 Upload Photos</button>}
 
           <div style={{ padding: "14px 18px 18px", overflowY: "auto", flex: 1 }}>
-            <button onClick={() => setSelected(null)} style={{ float: "right", background: "none", border: "none", fontSize: 16, color: P.textFaint, cursor: "pointer", marginLeft: 4, marginTop: -4 }}>×</button>
+            <div style={{ float: "right", display: "flex", gap: 2, marginTop: -4 }}>
+              <button onClick={() => toggleFavorite(cur.id)} style={{ background: "none", border: "none", fontSize: 14, cursor: "pointer", color: cur.favorite ? P.heart : P.textFaint, transition: "color .2s" }} title={cur.favorite ? "Unfavorite" : "Favorite"}>
+                {cur.favorite ? "♥" : "♡"}
+              </button>
+              <button onClick={() => setSelected(null)} style={{ background: "none", border: "none", fontSize: 16, color: P.textFaint, cursor: "pointer", marginLeft: 2 }}>×</button>
+            </div>
 
             {firstBadges[cur.id] && <div style={{ fontSize: 8, color: P.gold, letterSpacing: ".12em", marginBottom: 4 }}>🏅 {firstBadges[cur.id]}</div>}
             {togetherIndex(cur.id) && <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".1em", marginBottom: 4 }}>Trip #{togetherIndex(cur.id)}</div>}
@@ -1404,20 +1723,20 @@ export default function OurWorld() {
       )}
 
       {/* ADD / EDIT / SETTINGS / LETTER overlays */}
-      {showAdd && <AddForm types={TYPES} onAdd={entry => { dispatch({ type: "ADD", entry }); setShowAdd(false); const p = ll2v(entry.lat, entry.lng, RAD); tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) }; tZm.current = 2.6; setTimeout(() => { setSelected(entry); setPhotoIdx(0); }, 400); }} onClose={() => setShowAdd(false)} />}
+      {showAdd && <AddForm types={TYPES} onAdd={entry => { dispatch({ type: "ADD", entry }); setShowAdd(false); showToast(`${entry.city} added to your world`, "🌍", 2500); const p = ll2v(entry.lat, entry.lng, RAD); tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) }; tZm.current = 2.6; setTimeout(() => { setSelected(entry); setPhotoIdx(0); }, 400); }} onClose={() => setShowAdd(false)} />}
 
       {editing && <EditForm entry={editing} types={TYPES} onChange={setEditing}
-        onSave={() => { dispatch({ type: "UPDATE", id: editing.id, data: editing }); setSelected(editing); setEditing(null); }}
+        onSave={() => { dispatch({ type: "UPDATE", id: editing.id, data: editing }); setSelected(editing); setEditing(null); showToast("Entry saved", "✓", 2000); }}
         onClose={() => setEditing(null)}
         onDelete={() => setConfirmDelete(editing.id)}
         onAddStop={stop => { const updated = { ...editing, stops: [...(editing.stops || []), stop] }; setEditing(updated); dispatch({ type: "UPDATE", id: editing.id, data: { stops: updated.stops } }); }} />}
 
       {confirmDelete && (
-        <div style={{ position: "absolute", inset: 0, zIndex: 60, background: "rgba(253,251,247,.9)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ position: "absolute", inset: 0, zIndex: 60, background: "rgba(13,11,20,.85)", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ background: P.card, borderRadius: 14, padding: 28, maxWidth: 320, textAlign: "center", boxShadow: "0 12px 40px rgba(61,53,82,.1)" }}>
             <p style={{ fontSize: 14, margin: "0 0 16px" }}>Delete this memory forever?</p>
             <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-              <button onClick={() => { dispatch({ type: "DELETE", id: confirmDelete }); setConfirmDelete(null); setEditing(null); setSelected(null); }} style={{ padding: "8px 20px", background: "#c9777a", color: "#fff", border: "none", borderRadius: 7, cursor: "pointer", fontSize: 12, fontFamily: "inherit" }}>Delete</button>
+              <button onClick={() => { dispatch({ type: "DELETE", id: confirmDelete }); setConfirmDelete(null); setEditing(null); setSelected(null); showToast("Entry deleted", "🗑", 2000); }} style={{ padding: "8px 20px", background: "#c9777a", color: "#fff", border: "none", borderRadius: 7, cursor: "pointer", fontSize: 12, fontFamily: "inherit" }}>Delete</button>
               <button onClick={() => setConfirmDelete(null)} style={{ padding: "8px 20px", background: "transparent", border: "1px solid #ddd", borderRadius: 7, cursor: "pointer", fontSize: 12, fontFamily: "inherit", color: P.textMuted }}>Keep</button>
             </div>
           </div>
@@ -1425,7 +1744,7 @@ export default function OurWorld() {
       )}
 
       {showLetter && (
-        <div onClick={() => setShowLetter(false)} style={{ position: "absolute", inset: 0, zIndex: 50, background: "rgba(253,251,247,.93)", backdropFilter: "blur(30px)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", animation: "fadeIn .8s ease" }}>
+        <div onClick={() => setShowLetter(false)} style={{ position: "absolute", inset: 0, zIndex: 50, background: "rgba(13,11,20,.88)", backdropFilter: "blur(30px)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", animation: "fadeIn .8s ease" }}>
           <div style={{ maxWidth: 460, padding: 36, textAlign: "center" }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 30, marginBottom: 14 }}>💌</div>
             <p style={{ fontSize: 14, lineHeight: 2, color: P.text, whiteSpace: "pre-wrap", fontStyle: "italic" }}>{config.loveLetter}</p>
@@ -1451,7 +1770,7 @@ export default function OurWorld() {
 
       {/* GALLERY PANEL — slides out from left, not a full overlay */}
       {showGallery && (
-        <div style={{ position: "absolute", top: 72, left: 22, zIndex: 22, background: P.card, backdropFilter: "blur(24px)", borderRadius: 14, width: 280, maxHeight: "calc(100vh - 200px)", boxShadow: "0 10px 40px rgba(61,53,82,.12)", border: `1px solid ${P.rose}10`, animation: "cardIn .4s ease", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+        <div style={{ position: "absolute", top: 72, left: 22, zIndex: 22, background: P.card, backdropFilter: "blur(24px)", borderRadius: 14, width: 280, maxHeight: "calc(100vh - 200px)", boxShadow: "0 10px 40px rgba(61,53,82,.12)", border: `1px solid ${P.rose}10`, animation: "fadeIn .4s ease", overflow: "hidden", display: "flex", flexDirection: "column" }}>
           <div style={{ padding: "12px 14px 8px", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0, borderBottom: `1px solid ${P.rose}08` }}>
             <div>
               <div style={{ fontSize: 12, fontWeight: 400 }}>📷 Gallery</div>
@@ -1503,7 +1822,7 @@ export default function OurWorld() {
       )}
 
       {showSettings && (
-        <div style={{ position: "absolute", inset: 0, zIndex: 45, background: "rgba(253,251,247,.93)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ position: "absolute", inset: 0, zIndex: 45, background: "rgba(13,11,20,.88)", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ width: 360, padding: 26, background: P.card, borderRadius: 16, boxShadow: "0 14px 48px rgba(61,53,82,.1)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 14 }}><h3 style={{ margin: 0, fontSize: 15, fontWeight: 400 }}>Settings</h3><button onClick={() => setShowSettings(false)} style={{ background: "none", border: "none", fontSize: 17, color: P.textFaint, cursor: "pointer" }}>×</button></div>
             <Fld l="Date You Met" v={config.startDate} t="date" set={v => setConfig({ startDate: v })} />
@@ -1533,8 +1852,183 @@ export default function OurWorld() {
         </div>
       )}
 
+      {/* STATS DASHBOARD */}
+      {showStats && (
+        <div style={{ position: "absolute", inset: 0, zIndex: 45, background: "rgba(13,11,20,.88)", backdropFilter: "blur(20px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .4s ease" }}>
+          <div style={{ width: 420, maxWidth: "92vw", maxHeight: "85vh", overflowY: "auto", padding: 28, background: P.card, borderRadius: 18, boxShadow: "0 24px 64px rgba(0,0,0,.2)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 400, letterSpacing: ".08em" }}>📊 Our Story in Numbers</h2>
+              <button onClick={() => setShowStats(false)} style={{ background: "none", border: "none", fontSize: 18, color: P.textFaint, cursor: "pointer" }}>×</button>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
+              {[
+                { label: "Days Together", value: stats.daysTog, icon: "💕" },
+                { label: "Adventures", value: stats.trips, icon: "🗺" },
+                { label: "Countries", value: stats.countries, icon: "🌍" },
+                { label: "Photos", value: stats.photos, icon: "📷" },
+                { label: "Miles Traveled", value: stats.totalMiles.toLocaleString(), icon: "✈️" },
+                { label: "Total Entries", value: data.entries.length, icon: "📍" },
+              ].map((s, i) => (
+                <div key={i} style={{ padding: "12px 14px", background: P.parchment, borderRadius: 10, textAlign: "center" }}>
+                  <div style={{ fontSize: 20, marginBottom: 2 }}>{s.icon}</div>
+                  <div style={{ fontSize: 22, fontWeight: 400, color: P.text }}>{s.value}</div>
+                  <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ margin: "14px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}20,transparent)` }} />
+
+            <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 8 }}>Highlights</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {expandedStats.longestTrip.entry && (
+                <div style={{ padding: "10px 12px", background: `${P.together}08`, borderRadius: 8, borderLeft: `3px solid ${P.together}` }}>
+                  <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>Longest Trip Together</div>
+                  <div style={{ fontSize: 13, marginTop: 2 }}>{expandedStats.longestTrip.entry.city} — {expandedStats.longestTrip.days} days</div>
+                </div>
+              )}
+              {expandedStats.farthestApart.dist > 0 && (
+                <div style={{ padding: "10px 12px", background: `${P.sky}08`, borderRadius: 8, borderLeft: `3px solid ${P.sky}` }}>
+                  <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>Farthest Apart</div>
+                  <div style={{ fontSize: 13, marginTop: 2 }}>{expandedStats.farthestApart.dist.toLocaleString()} miles</div>
+                </div>
+              )}
+              {expandedStats.topCity && (
+                <div style={{ padding: "10px 12px", background: `${P.rose}08`, borderRadius: 8, borderLeft: `3px solid ${P.rose}` }}>
+                  <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>Most Visited Together</div>
+                  <div style={{ fontSize: 13, marginTop: 2 }}>{expandedStats.topCity[0]} — {expandedStats.topCity[1]} times</div>
+                </div>
+              )}
+              {expandedStats.longestApart > 0 && (
+                <div style={{ padding: "10px 12px", background: `${P.lavender}08`, borderRadius: 8, borderLeft: `3px solid ${P.lavender}` }}>
+                  <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>Longest Apart</div>
+                  <div style={{ fontSize: 13, marginTop: 2 }}>{expandedStats.longestApart} days</div>
+                </div>
+              )}
+              {expandedStats.avgTripLength > 0 && (
+                <div style={{ padding: "10px 12px", background: `${P.sage}08`, borderRadius: 8, borderLeft: `3px solid ${P.sage}` }}>
+                  <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>Average Trip Length</div>
+                  <div style={{ fontSize: 13, marginTop: 2 }}>{expandedStats.avgTripLength} days</div>
+                </div>
+              )}
+            </div>
+
+            {expandedStats.countryList.length > 0 && (
+              <div style={{ marginTop: 14 }}>
+                <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 6 }}>Countries Visited</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                  {expandedStats.countryList.sort().map(c => (
+                    <span key={c} style={{ padding: "3px 8px", background: P.parchment, borderRadius: 12, fontSize: 9, color: P.textMid }}>{c}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {expandedStats.years.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 6 }}>Year in Review</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {expandedStats.years.map(y => (
+                    <button key={y} onClick={() => startRecap(y)} style={{ padding: "6px 14px", background: `linear-gradient(135deg,${P.blush},${P.lavMist})`, border: `1px solid ${P.rose}18`, borderRadius: 8, cursor: "pointer", fontSize: 10, fontFamily: "inherit", color: P.textMid, transition: "all .2s" }}
+                      onMouseEnter={e => e.currentTarget.style.transform = "scale(1.05)"}
+                      onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+                    >🎬 {y}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {milestones.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 6 }}>Milestones Reached</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                  {milestones.map(m => (
+                    <span key={m.days} style={{ padding: "3px 8px", background: `${P.gold}15`, borderRadius: 12, fontSize: 9, color: P.goldWarm }}>◆ {m.label} — {fmtDate(m.date)}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* YEAR-IN-REVIEW RECAP */}
+      {showRecap && recapEntries.length > 0 && (
+        <div style={{ position: "absolute", bottom: 115, left: 0, right: 0, zIndex: 30, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
+          <div style={{ pointerEvents: "auto", background: P.card, backdropFilter: "blur(16px)", borderRadius: 14, padding: "14px 20px", boxShadow: "0 8px 32px rgba(0,0,0,.12)", maxWidth: 380, width: "90vw", animation: "slideUp .4s ease" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <span style={{ fontSize: 8, color: P.goldWarm, letterSpacing: ".14em", textTransform: "uppercase" }}>🎬 {recapYear} Recap — {recapIdx + 1} of {recapEntries.length}</span>
+              <button onClick={() => { setShowRecap(false); setRecapYear(null); }} style={{ background: "none", border: "none", fontSize: 13, color: P.textFaint, cursor: "pointer" }}>×</button>
+            </div>
+            {(() => {
+              const e = recapEntries[recapIdx];
+              const t = TYPES[e.type] || TYPES.together;
+              return (
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                    <span style={{ fontSize: 20 }}>{t.icon}</span>
+                    <div>
+                      <div style={{ fontSize: 15, fontWeight: 400 }}>{e.city}</div>
+                      <div style={{ fontSize: 9, color: P.textMuted }}>{fmtDate(e.dateStart)}{e.dateEnd ? ` → ${fmtDate(e.dateEnd)}` : ""}</div>
+                    </div>
+                  </div>
+                  {e.notes && <p style={{ fontSize: 11, color: P.textMid, margin: "4px 0", lineHeight: 1.5, maxHeight: 60, overflow: "hidden" }}>{e.notes}</p>}
+                  {(e.photos || []).length > 0 && (
+                    <div style={{ display: "flex", gap: 4, marginTop: 6, overflowX: "auto" }}>
+                      {e.photos.slice(0, 4).map((url, i) => (
+                        <img key={i} src={url} alt="" style={{ width: 60, height: 60, objectFit: "cover", borderRadius: 6 }} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10 }}>
+              <button onClick={() => advanceRecap(-1)} disabled={recapIdx === 0} style={{ ...navSt, opacity: recapIdx === 0 ? 0.3 : 1 }}>◂ Prev</button>
+              <button onClick={() => { setSelected(recapEntries[recapIdx]); setPhotoIdx(0); }} style={{ ...navSt, color: P.heart }}>View Entry</button>
+              <button onClick={() => advanceRecap(1)} style={navSt}>{recapIdx === recapEntries.length - 1 ? "Finish ✨" : "Next ▸"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TOAST NOTIFICATION */}
+      {toast && (
+        <div key={toast.key} style={{ position: "absolute", top: 75, left: "50%", transform: "translateX(-50%)", zIndex: 55, pointerEvents: "none", animation: "fadeIn .3s ease" }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 18px", background: P.card, backdropFilter: "blur(16px)", borderRadius: 24, boxShadow: "0 4px 20px rgba(0,0,0,.1)", border: `1px solid ${P.rose}15`, fontSize: 12, color: P.text, letterSpacing: ".05em" }}>
+            <span>{toast.icon}</span>
+            <span>{toast.message}</span>
+          </div>
+        </div>
+      )}
+
+      {/* ON THIS DAY (clickable if memories exist) */}
+      {onThisDay.length > 0 && introComplete && !showStats && !showRecap && !toast && (
+        <button onClick={() => {
+          const mem = onThisDay[0];
+          const entry = data.entries.find(e => e.id === mem.id);
+          if (entry) {
+            setSelected(entry); setPhotoIdx(0);
+            setSliderDate(entry.dateStart);
+            const p = ll2v(entry.lat, entry.lng, RAD);
+            tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) };
+            tZm.current = 2.5;
+          }
+        }} style={{ position: "absolute", top: 75, left: "50%", transform: "translateX(-50%)", zIndex: 12, background: P.card, backdropFilter: "blur(12px)", border: `1px solid ${P.gold}25`, borderRadius: 20, padding: "5px 14px", cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6, boxShadow: "0 2px 12px rgba(0,0,0,.06)", opacity: 0.7, transition: "opacity .3s" }}
+          onMouseEnter={e => e.currentTarget.style.opacity = 1}
+          onMouseLeave={e => e.currentTarget.style.opacity = 0.7}
+        >
+          <span style={{ fontSize: 12 }}>💫</span>
+          <span style={{ fontSize: 9, color: P.textMid, letterSpacing: ".06em" }}>
+            {onThisDay[0].yearsAgo === 1 ? "1 year ago" : `${onThisDay[0].yearsAgo} years ago`}: {onThisDay[0].city}
+          </span>
+        </button>
+      )}
+
       <style>{`
         @keyframes cardIn{from{opacity:0;transform:translateY(-50%) translateX(18px)}to{opacity:1;transform:translateY(-50%) translateX(0)}}
+        @keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
         @keyframes fadeIn{from{opacity:0}to{opacity:1}}
         @keyframes heartPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
         *{box-sizing:border-box}
@@ -1543,6 +2037,10 @@ export default function OurWorld() {
         input[type=range]{-webkit-appearance:none;appearance:none}
         input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:${P.rose};cursor:pointer;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.12)}
         input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:${P.rose};cursor:pointer;border:2px solid #fff}
+        @media(max-width:600px){
+          h1{font-size:20px!important;letter-spacing:.12em!important}
+          h1+p{font-size:9px!important}
+        }
       `}</style>
     </div>
   );
@@ -1564,7 +2062,11 @@ function AddForm({ types, onAdd, onClose }) {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [ns, setNs] = useState({ city: "", lat: "", lng: "", notes: "" });
 
-  const ok = f.city && f.lat && f.lng && f.dateStart && f.dateEnd && f.notes;
+  const lat = parseFloat(f.lat), lng = parseFloat(f.lng);
+  const validCoords = !isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+  const validDates = f.dateStart && f.dateEnd && f.dateEnd >= f.dateStart;
+  const ok = f.city?.trim() && validCoords && validDates && f.notes?.trim();
+  const validationMsg = !f.city?.trim() ? "Enter a city name" : !validCoords ? "Lat must be -90 to 90, Lng -180 to 180" : !f.dateStart ? "Set a start date" : !f.dateEnd ? "Set an end date" : f.dateEnd < f.dateStart ? "End date must be after start" : !f.notes?.trim() ? "Add some notes" : "";
 
   const onCityInput = v => {
     sf(p => ({ ...p, city: v }));
@@ -1678,8 +2180,8 @@ function AddForm({ types, onAdd, onClose }) {
       }); }} style={{ width: "100%", padding: "10px 0", background: ok ? P.rose : "#e5e0d8", color: "#fff", border: "none", borderRadius: 9, cursor: ok ? "pointer" : "default", fontSize: 12, letterSpacing: ".1em", fontFamily: "inherit", transition: "all .3s" }}>
         {ok ? "Add to Our World 💕" : "Fill required fields to continue"}
       </button>
-      {!ok && <p style={{ fontSize: 8, color: P.textFaint, textAlign: "center", marginTop: 5, letterSpacing: ".08em" }}>
-        Need: city, coordinates, dates, and notes
+      {!ok && <p style={{ fontSize: 8, color: validationMsg.includes("must be") ? "#c9777a" : P.textFaint, textAlign: "center", marginTop: 5, letterSpacing: ".08em" }}>
+        {validationMsg || "Fill required fields to continue"}
       </p>}
     </div>
   );
@@ -1702,6 +2204,23 @@ function EditForm({ entry, types, onChange, onSave, onClose, onDelete, onAddStop
   const [ns, setNs] = useState({ city: "", lat: "", lng: "", notes: "", dateStart: "", dateEnd: "" });
   const [stopSugg, setStopSugg] = useState([]);
   const [showStopSugg, setShowStopSugg] = useState(false);
+  const [citySugg, setCitySugg] = useState([]);
+  const [showCitySugg, setShowCitySugg] = useState(false);
+
+  const onEditCity = v => {
+    onChange(p => ({ ...p, city: v }));
+    if (v.length >= 2) {
+      const q = v.toLowerCase();
+      const matches = CITIES.filter(c => c[0].toLowerCase().includes(q)).slice(0, 6);
+      setCitySugg(matches);
+      setShowCitySugg(matches.length > 0);
+    } else { setCitySugg([]); setShowCitySugg(false); }
+  };
+
+  const selectEditCity = c => {
+    onChange(p => ({ ...p, city: c[0], country: c[1], lat: c[2], lng: c[3] }));
+    setCitySugg([]); setShowCitySugg(false);
+  };
 
   const onStopCity = v => {
     setNs(p => ({ ...p, city: v }));
@@ -1721,7 +2240,22 @@ function EditForm({ entry, types, onChange, onSave, onClose, onDelete, onAddStop
   return (
     <div style={{ position: "absolute", top: "42%", right: 18, transform: "translateY(-50%)", zIndex: 30, background: P.card, backdropFilter: "blur(24px)", borderRadius: 16, padding: 20, maxWidth: 330, minWidth: 260, maxHeight: "65vh", overflowY: "auto", boxShadow: "0 12px 44px rgba(61,53,82,.12)", border: `1px solid ${P.together}20`, fontFamily: "'Palatino Linotype',Palatino,Georgia,serif" }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}><h3 style={{ margin: 0, fontSize: 14, fontWeight: 400 }}>Edit</h3><button onClick={onClose} style={{ background: "none", border: "none", fontSize: 16, color: P.textFaint, cursor: "pointer" }}>×</button></div>
-      <Fld l="City" v={entry.city} set={v => onChange(p => ({ ...p, city: v }))} />
+      <div style={{ marginBottom: 9, position: "relative" }}>
+        <Lbl>City</Lbl>
+        <input value={entry.city || ""} onChange={e => onEditCity(e.target.value)} onFocus={() => { if (citySugg.length > 0) setShowCitySugg(true); }} style={inpSt} />
+        {showCitySugg && citySugg.length > 0 && (
+          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e5e0d8", borderRadius: 6, maxHeight: 120, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
+            {citySugg.map((c, i) => (
+              <button key={i} onClick={() => selectEditCity(c)} style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", border: "none", borderBottom: "1px solid #f5f2ed", background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }}
+                onMouseEnter={e => e.currentTarget.style.background = P.blush}
+                onMouseLeave={e => e.currentTarget.style.background = "none"}
+              >
+                <span style={{ fontWeight: 500, color: P.text }}>{c[0]}</span> <span style={{ color: P.textFaint }}>{c[1]}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
       <Fld l="Country" v={entry.country} set={v => onChange(p => ({ ...p, country: v }))} />
       <div style={{ display: "flex", gap: 6 }}><div style={{ flex: 1 }}><Fld l="Lat" v={entry.lat} t="number" set={v => onChange(p => ({ ...p, lat: parseFloat(v) || 0 }))} /></div><div style={{ flex: 1 }}><Fld l="Lng" v={entry.lng} t="number" set={v => onChange(p => ({ ...p, lng: parseFloat(v) || 0 }))} /></div></div>
       <div style={{ display: "flex", gap: 6 }}><div style={{ flex: 1 }}><Fld l="Start" v={entry.dateStart} t="date" set={v => onChange(p => ({ ...p, dateStart: v }))} /></div><div style={{ flex: 1 }}><Fld l="End" v={entry.dateEnd || ""} t="date" set={v => onChange(p => ({ ...p, dateEnd: v || null }))} /></div></div>
@@ -1769,4 +2303,9 @@ function EditForm({ entry, types, onChange, onSave, onClose, onDelete, onAddStop
       <button onClick={onDelete} style={{ marginTop: 7, width: "100%", padding: "6px 0", background: "transparent", color: "#c9777a", border: "1px solid #e5c5c6", borderRadius: 7, cursor: "pointer", fontSize: 9, fontFamily: "inherit" }}>Delete</button>
     </div>
   );
+}
+
+// ---- WRAPPED EXPORT WITH ERROR BOUNDARY ----
+export default function OurWorld() {
+  return <OurWorldErrorBoundary><OurWorldInner /></OurWorldErrorBoundary>;
 }
