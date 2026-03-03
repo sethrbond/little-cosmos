@@ -6,7 +6,7 @@ import { geocodeSearch } from "./geocode.js";
 /* =================================================================
    🌍 OUR WORLD — Seth & Rosie Posie
    "every moment, every adventure"
-   v8.1 — dark mode persistence, all Prompt 1-2 fixes complete
+   v8.1 — flyTo shortest-path fix, dark mode persistence, all pre-beta fixes
    ================================================================= */
 
 const DEFAULT_CONFIG = {
@@ -725,10 +725,14 @@ function OurWorldInner() {
   // Math: globe.rotation = Ry(β) * Rx(α), camera at (0,0,z)
   //   α = atan2(p.y, p.z)  — pitch to bring point into xz-plane
   //   β = atan2(-p.x, √(p.y²+p.z²)) — yaw to bring point to z-axis
+  //   Shortest-path: normalize target.y to within π of current rotation
   const flyTo = useCallback((lat, lng, zoom) => {
     const p = ll2v(lat, lng, RAD);
     const alpha = Math.atan2(p.y, p.z);
-    const beta = Math.atan2(-p.x, Math.sqrt(p.y * p.y + p.z * p.z));
+    let beta = Math.atan2(-p.x, Math.sqrt(p.y * p.y + p.z * p.z));
+    // Normalize beta to be within π of current actual rotation (shortest path)
+    const dy = beta - rot.current.y;
+    beta -= Math.round(dy / (2 * Math.PI)) * 2 * Math.PI;
     tRot.current = { x: alpha, y: beta };
     tSpinSpd.current = 0;
     spinSpd.current = 0;
