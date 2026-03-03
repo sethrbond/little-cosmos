@@ -6,7 +6,7 @@ import { geocodeSearch } from "./geocode.js";
 /* =================================================================
    🌍 OUR WORLD — Seth & Rosie Posie
    "every moment, every adventure"
-   v7.9.8-minimal — pre-beta final: cardTab fix, dead code cleanup, SQL schema alignment
+   v7.9.8 — pre-beta final: cardTab fix, dead code cleanup, SQL schema alignment
    ================================================================= */
 
 const DEFAULT_CONFIG = {
@@ -1485,10 +1485,8 @@ function OurWorldInner() {
 
       // Gentle breathing pulse on markers
       mkRef.current.forEach((m, i) => {
-        const t = Date.now() * 0.002 + i * 0.5;
-        const breath = 1 + Math.sin(t) * 0.08;
-        if (m.dot) { m.dot.scale.set(breath, breath, breath); }
-        if (m.glow) m.glow.material.opacity = 0.04 + Math.sin(t * 0.4) * 0.02;
+        const t = Date.now() * 0.001 + i * 0.7;
+        if (m.glow) m.glow.material.opacity = 0.08 + Math.sin(t) * 0.04;
       });
 
       if (hMesh.visible) {
@@ -1525,7 +1523,7 @@ function OurWorldInner() {
       // Parallax — glow layers shift subtly opposite to mouse
       const mx = mouseRef.current.x, my = mouseRef.current.y;
       glows.forEach((glow, i) => {
-        const strength = (i + 1) * 0.003;
+        const strength = (i + 1) * 0.008;
         glow.position.x = -mx * strength;
         glow.position.y = my * strength;
       });
@@ -1724,11 +1722,11 @@ function OurWorldInner() {
     (config.loveLetters || []).forEach(letter => {
       const p = ll2v(letter.lat, letter.lng, RAD * 1.014);
       // Lavender flower marker — sized to be discoverable but not overwhelming
-      const dot = new THREE.Mesh(new THREE.CircleGeometry(0.025, 16), new THREE.MeshBasicMaterial({ color: "#c8a0d8", transparent: true, opacity: 0.55, side: THREE.DoubleSide }));
+      const dot = new THREE.Mesh(new THREE.CircleGeometry(0.025, 16), new THREE.MeshBasicMaterial({ color: "#e8a878", transparent: true, opacity: 0.65, side: THREE.DoubleSide }));
       dot.position.copy(p); dot.lookAt(p.clone().multiplyScalar(2)); dot.userData = { entryId: `love-${letter.id}` }; dot.renderOrder = 3;
       g.add(dot);
       // Outer glow ring — pulses in animation loop
-      const glow = new THREE.Mesh(new THREE.RingGeometry(0.030, 0.045, 20), new THREE.MeshBasicMaterial({ color: "#d8b0e8", transparent: true, opacity: 0.20, side: THREE.DoubleSide }));
+      const glow = new THREE.Mesh(new THREE.RingGeometry(0.030, 0.045, 20), new THREE.MeshBasicMaterial({ color: "#f0c098", transparent: true, opacity: 0.25, side: THREE.DoubleSide }));
       glow.position.copy(p); glow.lookAt(p.clone().multiplyScalar(2)); glow.renderOrder = 2;
       g.add(glow);
       mkRef.current.push({ entryId: `love-${letter.id}`, dot, ring: glow, glow });
@@ -1739,7 +1737,7 @@ function OurWorldInner() {
     const p = ll2v(lat, lng, RAD * 1.012);
     const dot = new THREE.Mesh(new THREE.CircleGeometry(size, 20), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: faint ? 0.28 : 0.85, side: THREE.DoubleSide, depthTest: true }));
     dot.position.copy(p); dot.lookAt(p.clone().multiplyScalar(2)); dot.userData = { entryId: id }; dot.renderOrder = 2; group.add(dot);
-    const glow = new THREE.Mesh(new THREE.CircleGeometry(size * (faint ? 1.8 : 2.8), 20), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: faint ? 0.02 : 0.06, side: THREE.DoubleSide, depthTest: true }));
+    const glow = new THREE.Mesh(new THREE.CircleGeometry(size * (faint ? 2.2 : 3.5), 24), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: faint ? 0.04 : 0.10, side: THREE.DoubleSide, depthTest: false }));
     glow.position.copy(p); glow.lookAt(p.clone().multiplyScalar(2)); glow.renderOrder = 0; group.add(glow);
     return { entryId: id, dot, ring: null, glow };
   }
@@ -1868,7 +1866,7 @@ function OurWorldInner() {
   if (loading) return <div style={{ width: "100%", height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#161028", fontFamily: "Georgia,serif", color: P.textFaint }}>
     <div style={{ fontSize: 48, animation: "heartPulse 2s ease infinite", marginBottom: 16 }}>🌍</div>
     <div style={{ fontSize: 14, letterSpacing: ".2em", opacity: 0.7 }}>Loading your world<span style={{ animation: "ellipsis 1.5s infinite" }}>...</span></div>
-    <div style={{ fontSize: 9, opacity: 0.3, marginTop: 12, letterSpacing: ".15em" }}>v7.9.8-minimal</div>
+    <div style={{ fontSize: 10, opacity: 0.6, marginTop: 12, letterSpacing: ".15em" }}>v7.9.8</div>
     <style>{`@keyframes heartPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}} @keyframes ellipsis{0%{opacity:0}50%{opacity:1}100%{opacity:0}}`}</style>
   </div>;
 
@@ -1970,9 +1968,9 @@ function OurWorldInner() {
       {/* TOOLBAR */}
       <div style={{ position: "absolute", top: 22, left: 22, zIndex: 20, display: "flex", flexDirection: "column", gap: 7, opacity: introComplete ? 1 : 0, transition: "opacity .8s ease" }}>
         <TBtn a={editMode} onClick={() => { setEditMode(v => !v); if (editMode) { setEditing(null); setShowAdd(false); } }} tip="Edit Mode">✏️</TBtn>
-        {editMode && <TBtn onClick={() => setShowAdd(true)} accent tip="Add Entry">＋</TBtn>}
-        {editMode && <TBtn onClick={() => setQuickAddMode(true)} tip="Quick Add">⚡</TBtn>}
-        {editMode && <TBtn onClick={() => setShowSettings(true)} tip="Settings">⚙️</TBtn>}
+        {<TBtn onClick={() => setShowAdd(true)} accent tip="Add Entry">＋</TBtn>}
+        {<TBtn onClick={() => setQuickAddMode(true)} tip="Quick Add">⚡</TBtn>}
+        {<TBtn onClick={() => setShowSettings(true)} tip="Settings">⚙️</TBtn>}
         <TBtn a={darkMode} onClick={() => setDarkMode(v => !v)} tip="Toggle Theme">{darkMode ? "☀️" : "🌙"}</TBtn>
         {allPhotos.length > 0 && <TBtn a={showGallery} onClick={() => setShowGallery(v => !v)} tip="Photo Gallery">📷</TBtn>}
         {data.entries.length > 0 && <TBtn a={showStats} onClick={() => setShowStats(v => !v)} tip="Stats & Insights">📊</TBtn>}
@@ -2072,8 +2070,8 @@ function OurWorldInner() {
             const pctStart = totalDays > 0 ? (cStart / totalDays) * 100 : 0;
             const pctEnd = totalDays > 0 ? (cEnd / totalDays) * 100 : 100;
             if (pctStart > 100 || pctEnd < 0) return null;
-            return <div key={i} style={{ position: "absolute", left: `${clamp(pctStart, 0, 100)}%`, width: `${clamp(pctEnd - pctStart, 0, 100 - pctStart)}%`, top: -10, height: 8, background: `${[P.rose, P.sky, P.sage, P.gold, P.lavender][i % 5]}12`, borderRadius: 3, pointerEvents: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <span style={{ fontSize: 5, color: P.textFaint, letterSpacing: ".06em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%", padding: "0 2px" }}>{ch.label}</span>
+            return <div key={i} style={{ position: "absolute", left: `${clamp(pctStart, 0, 100)}%`, width: `${clamp(pctEnd - pctStart, 0, 100 - pctStart)}%`, top: -14, height: 12, background: `${[P.rose, P.sky, P.sage, P.gold, P.lavender][i % 5]}30`, borderRadius: 3, pointerEvents: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <span style={{ fontSize: 7, color: P.textMuted, letterSpacing: ".06em", fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%", padding: "0 2px" }}>{ch.label}</span>
             </div>;
           })}
         </div>
