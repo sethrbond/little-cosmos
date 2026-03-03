@@ -217,7 +217,7 @@ export async function saveConfig(config) {
       loveLetters: config.loveLetters || [],
       dreamDestinations: config.dreamDestinations || [],
       chapters: config.chapters || [],
-      darkMode: config.darkMode ?? true,
+      darkMode: config.darkMode ?? false,
     },
   }
 
