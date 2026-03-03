@@ -5,7 +5,7 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 
 export const supabase = createClient(supabaseUrl, supabaseKey)
 
-/* supabase.js v7.9.4 — resilient saves + love_note persistence */
+/* supabase.js v7.9.5 — resilient saves + love_note persistence */
 
 // ---- Retry helper ----
 async function withRetry(fn, retries = 2) {
