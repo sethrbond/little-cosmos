@@ -5,7 +5,7 @@ import { loadEntries, saveEntry, deleteEntry, loadConfig as loadCfg, saveConfig 
 /* =================================================================
    🌍 OUR WORLD — Seth & Rosie Posie
    "every moment, every adventure"
-   v7.7 — earthy aesthetic, love letters, dream input, scrollable lists
+   v7.8 — code review, config persistence fix, palette polish
    ================================================================= */
 
 const DEFAULT_CONFIG = {
@@ -1171,13 +1171,13 @@ class OurWorldErrorBoundary extends Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ width: "100%", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#faf8f4", fontFamily: "Georgia,serif", textAlign: "center", padding: 40 }}>
+        <div style={{ width: "100%", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f8f6f0", fontFamily: "Georgia,serif", textAlign: "center", padding: 40 }}>
           <div>
             <div style={{ fontSize: 48, marginBottom: 16 }}>🌍</div>
-            <h2 style={{ fontSize: 18, fontWeight: 400, color: "#3d3552", marginBottom: 8 }}>Something went wrong</h2>
-            <p style={{ fontSize: 12, color: "#958ba8", marginBottom: 16 }}>Your data is safe — try refreshing the page.</p>
-            <button onClick={() => window.location.reload()} style={{ padding: "8px 24px", background: "#d4a0b9", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 12, fontFamily: "inherit" }}>Refresh</button>
-            <p style={{ fontSize: 9, color: "#c4bbd4", marginTop: 12 }}>{String(this.state.error)}</p>
+            <h2 style={{ fontSize: 18, fontWeight: 400, color: "#3d4a35", marginBottom: 8 }}>Something went wrong</h2>
+            <p style={{ fontSize: 12, color: "#8a9e7c", marginBottom: 16 }}>Your data is safe — try refreshing the page.</p>
+            <button onClick={() => window.location.reload()} style={{ padding: "8px 24px", background: "#7a9e5a", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 12, fontFamily: "inherit" }}>Refresh</button>
+            <p style={{ fontSize: 9, color: "#b5c4a8", marginTop: 12 }}>{String(this.state.error)}</p>
           </div>
         </div>
       );
@@ -2246,15 +2246,15 @@ function OurWorldInner() {
     // ---- LOVE LETTERS — easter egg ❀ markers scattered on globe ----
     (config.loveLetters || []).forEach(letter => {
       const p = ll2v(letter.lat, letter.lng, RAD * 1.014);
-      // Soft pulsing flower marker
-      const dot = new THREE.Mesh(new THREE.CircleGeometry(0.018, 16), new THREE.MeshBasicMaterial({ color: "#c8a0d8", transparent: true, opacity: 0.45, side: THREE.DoubleSide }));
+      // Lavender flower marker — sized to be discoverable but not overwhelming
+      const dot = new THREE.Mesh(new THREE.CircleGeometry(0.025, 16), new THREE.MeshBasicMaterial({ color: "#c8a0d8", transparent: true, opacity: 0.55, side: THREE.DoubleSide }));
       dot.position.copy(p); dot.lookAt(p.clone().multiplyScalar(2)); dot.userData = { entryId: `love-${letter.id}` }; dot.renderOrder = 3;
       g.add(dot);
-      // Outer glow ring
-      const glow = new THREE.Mesh(new THREE.RingGeometry(0.022, 0.032, 16), new THREE.MeshBasicMaterial({ color: "#d8b0e8", transparent: true, opacity: 0.18, side: THREE.DoubleSide }));
+      // Outer glow ring — pulses in animation loop
+      const glow = new THREE.Mesh(new THREE.RingGeometry(0.030, 0.045, 20), new THREE.MeshBasicMaterial({ color: "#d8b0e8", transparent: true, opacity: 0.20, side: THREE.DoubleSide }));
       glow.position.copy(p); glow.lookAt(p.clone().multiplyScalar(2)); glow.renderOrder = 2;
       g.add(glow);
-      mkRef.current.push({ entryId: `love-${letter.id}`, dot, ring: glow, glow: null });
+      mkRef.current.push({ entryId: `love-${letter.id}`, dot, ring: glow, glow });
     });
   }, [sliderDate, data, getPositions, areTogether, locationGroups, selected, sceneReady, showLoveThread, loveThreadData, showConstellation, constellationData, config.dreamDestinations, config.loveLetters]);
 
@@ -3195,7 +3195,7 @@ function OurWorldInner() {
 }
 
 // ---- SHARED UI ----
-const inpSt = { width: "100%", padding: "7px 9px", border: "1px solid #d8e0d4", borderRadius: 5, fontSize: 12, fontFamily: "'Palatino Linotype',Palatino,Georgia,serif", color: P.text, background: "#fdfcfa", boxSizing: "border-box" };
+const inpSt = { width: "100%", padding: "7px 9px", border: "1px solid #d8e0d4", borderRadius: 5, fontSize: 12, fontFamily: "'Palatino Linotype',Palatino,Georgia,serif", color: P.text, background: "#faf8f2", boxSizing: "border-box" };
 const navSt = { background: "none", border: `1px solid ${P.textFaint}35`, borderRadius: 5, padding: "3px 9px", cursor: "pointer", fontSize: 10, color: P.textMid, fontFamily: "inherit", transition: "all .2s" };
 function imgN(s) { return { position: "absolute", [s]: 5, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,.65)", border: "none", borderRadius: "50%", width: 24, height: 24, cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center" }; }
 function renderList(t, items, icon, color) { if (!items?.length) return null; return <div style={{ marginTop: 7 }}><div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 3 }}>{t}</div>{items.map((it, i) => <div key={i} style={{ display: "flex", gap: 4, marginBottom: 2 }}><span style={{ color, fontSize: 6, marginTop: 4 }}>{icon}</span><span style={{ fontSize: 11, opacity: .8, lineHeight: 1.5 }}>{it}</span></div>)}</div>; }
@@ -3542,7 +3542,7 @@ function EditForm({ entry, types, onChange, onSave, onClose, onDelete, onAddStop
         <button onClick={onSave} style={{ flex: 1, padding: "8px 0", background: P.sage, color: "#fff", border: "none", borderRadius: 7, cursor: "pointer", fontSize: 10, fontFamily: "inherit" }}>Save</button>
         <button onClick={onClose} style={{ padding: "8px 12px", background: "transparent", border: "1px solid #d8e0d4", borderRadius: 7, cursor: "pointer", fontSize: 10, fontFamily: "inherit", color: P.textMuted }}>Cancel</button>
       </div>
-      <button onClick={onDelete} style={{ marginTop: 7, width: "100%", padding: "6px 0", background: "transparent", color: "#c9777a", border: "1px solid #e5c5c6", borderRadius: 7, cursor: "pointer", fontSize: 9, fontFamily: "inherit" }}>Delete</button>
+      <button onClick={onDelete} style={{ marginTop: 7, width: "100%", padding: "6px 0", background: "transparent", color: "#c9777a", border: "1px solid #d8c5c0", borderRadius: 7, cursor: "pointer", fontSize: 9, fontFamily: "inherit" }}>Delete</button>
     </div>
   );
 }
