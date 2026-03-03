@@ -6,7 +6,7 @@ import { geocodeSearch } from "./geocode.js";
 /* =================================================================
    🌍 OUR WORLD — Seth & Rosie Posie
    "every moment, every adventure"
-   v7.9.3 — rose/lavender globe, Nominatim geocoding, resilient saves, cardTab fix
+   v7.9.4 — pre-beta: quick add, dark mode, polaroid, drag-drop, chapters, resilient saves
    ================================================================= */
 
 const DEFAULT_CONFIG = {
@@ -19,7 +19,7 @@ const DEFAULT_CONFIG = {
   partnerName: "Rosie Posie",
   chapters: [],              // [{label, startDate, endDate}]
   dreamDestinations: [],     // [{id, city, country, lat, lng, notes}]
-  darkMode: true,
+  darkMode: false,
 };
 
 const P = {
@@ -762,12 +762,27 @@ function OurWorldInner() {
   const [showChapters, setShowChapters] = useState(true);
   const [showZoomHint, setShowZoomHint] = useState(true);
   const [monthlyPromptShown, setMonthlyPromptShown] = useState(false);
+  const [quickAddMode, setQuickAddMode] = useState(false);
+  const [polaroidMode, setPolaroidMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
   const nightRef = useRef(null);
   const starsRef = useRef(null);
   const auroraRef = useRef(null);
   const loveThreadRef = useRef([]);
   const constellationRef = useRef([]);
   const mouseRef = useRef({ x: 0, y: 0 });
+
+  // Dark mode theme overrides
+  const T = useMemo(() => darkMode ? {
+    bg: "#0c0a14", card: "rgba(22,18,36,0.96)", glass: "rgba(18,14,30,0.92)",
+    text: "#e8e0f0", textMid: "#b8a8d0", textMuted: "#8878a0", textFaint: "#584878",
+    parchment: "#1a1428", blush: "#1e1430", border: `${P.rose}18`,
+  } : {
+    bg: null, card: P.card, glass: P.glass,
+    text: P.text, textMid: P.textMid, textMuted: P.textMuted, textFaint: P.textFaint,
+    parchment: P.parchment, blush: P.blush, border: `${P.rose}18`,
+  }, [darkMode]);
   const swipeRef = useRef({ startX: 0, startY: 0, startTime: 0 });
   const lastTapRef = useRef(0); // for double-tap to zoom
   const playRef = useRef(null);
@@ -1149,7 +1164,7 @@ function OurWorldInner() {
       if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") return;
       if (e.key === "ArrowLeft") { e.preventDefault(); stepDay(-1); }
       if (e.key === "ArrowRight") { e.preventDefault(); stepDay(1); }
-      if (e.key === "Escape") { setSelected(null); setEditing(null); setShowAdd(false); setShowLetter(false); setShowSettings(false); setShowGallery(false); setCardGallery(false); setShowFilter(false); setShowStats(false); setShowRecap(false); setShowSearch(false); setSearchQuery(""); if (isPlaying) stopPlay(); }
+      if (e.key === "Escape") { setSelected(null); setEditing(null); setShowAdd(false); setQuickAddMode(false); setShowLetter(false); setShowSettings(false); setShowGallery(false); setCardGallery(false); setShowFilter(false); setShowStats(false); setShowRecap(false); setShowSearch(false); setSearchQuery(""); if (isPlaying) stopPlay(); }
       if (e.key === "f" && !showAdd && !editing && !showSettings) setShowFilter(v => !v);
       if (e.key === "i" && !showAdd && !editing && !showSettings) setShowStats(v => !v);
       if (e.key === "s" && !showAdd && !editing && !showSettings && !showSearch) { e.preventDefault(); setShowSearch(true); }
@@ -1850,12 +1865,12 @@ function OurWorldInner() {
   if (loading) return <div style={{ width: "100%", height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#161028", fontFamily: "Georgia,serif", color: P.textFaint }}>
     <div style={{ fontSize: 48, animation: "heartPulse 2s ease infinite", marginBottom: 16 }}>🌍</div>
     <div style={{ fontSize: 14, letterSpacing: ".2em", opacity: 0.7 }}>Loading your world<span style={{ animation: "ellipsis 1.5s infinite" }}>...</span></div>
-    <div style={{ fontSize: 9, opacity: 0.3, marginTop: 12, letterSpacing: ".15em" }}>v7.9.3</div>
+    <div style={{ fontSize: 9, opacity: 0.3, marginTop: 12, letterSpacing: ".15em" }}>v7.9.4</div>
     <style>{`@keyframes heartPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}} @keyframes ellipsis{0%{opacity:0}50%{opacity:1}100%{opacity:0}}`}</style>
   </div>;
 
   return (
-    <div style={{ width: "100%", height: "100vh", position: "relative", overflow: "hidden", background: `linear-gradient(155deg,${P.cream} 0%,${P.blush} 40%,${P.lavMist} 100%)`, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", color: P.text, userSelect: "none" }}>
+    <div style={{ width: "100%", height: "100vh", position: "relative", overflow: "hidden", background: darkMode ? T.bg : `linear-gradient(155deg,${P.cream} 0%,${P.blush} 40%,${P.lavMist} 100%)`, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", color: T.text, userSelect: "none", transition: "background .6s ease, color .4s ease" }}>
 
       <div ref={mountRef} style={{ width: "100%", height: "100%" }}
         onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onWheel={onWheel}
@@ -1953,7 +1968,9 @@ function OurWorldInner() {
       <div style={{ position: "absolute", top: 22, left: 22, zIndex: 20, display: "flex", flexDirection: "column", gap: 7, opacity: introComplete ? 1 : 0, transition: "opacity .8s ease" }}>
         <TBtn a={editMode} onClick={() => { setEditMode(v => !v); if (editMode) { setEditing(null); setShowAdd(false); } }} tip="Edit Mode">✏️</TBtn>
         {editMode && <TBtn onClick={() => setShowAdd(true)} accent tip="Add Entry">＋</TBtn>}
+        {editMode && <TBtn onClick={() => setQuickAddMode(true)} tip="Quick Add">⚡</TBtn>}
         {editMode && <TBtn onClick={() => setShowSettings(true)} tip="Settings">⚙️</TBtn>}
+        <TBtn a={darkMode} onClick={() => setDarkMode(v => !v)} tip="Toggle Theme">{darkMode ? "☀️" : "🌙"}</TBtn>
         {allPhotos.length > 0 && <TBtn a={showGallery} onClick={() => setShowGallery(v => !v)} tip="Photo Gallery">📷</TBtn>}
         {data.entries.length > 0 && <TBtn a={showStats} onClick={() => setShowStats(v => !v)} tip="Stats & Insights">📊</TBtn>}
         {data.entries.length > 0 && <TBtn a={showSearch} onClick={() => setShowSearch(v => !v)} tip="Search Entries">🔍</TBtn>}
@@ -2046,6 +2063,16 @@ function OurWorldInner() {
               <div style={{ fontSize: 6, color: P.goldWarm, marginTop: 2, whiteSpace: "nowrap", letterSpacing: ".05em" }}>{m.label}</div>
             </div>
           ))}
+          {(config.chapters || []).map((ch, i) => {
+            const cStart = daysBetween(config.startDate, ch.startDate || config.startDate);
+            const cEnd = daysBetween(config.startDate, ch.endDate || todayStr());
+            const pctStart = totalDays > 0 ? (cStart / totalDays) * 100 : 0;
+            const pctEnd = totalDays > 0 ? (cEnd / totalDays) * 100 : 100;
+            if (pctStart > 100 || pctEnd < 0) return null;
+            return <div key={i} style={{ position: "absolute", left: `${clamp(pctStart, 0, 100)}%`, width: `${clamp(pctEnd - pctStart, 0, 100 - pctStart)}%`, top: -10, height: 8, background: `${[P.rose, P.sky, P.sage, P.gold, P.lavender][i % 5]}12`, borderRadius: 3, pointerEvents: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <span style={{ fontSize: 5, color: P.textFaint, letterSpacing: ".06em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%", padding: "0 2px" }}>{ch.label}</span>
+            </div>;
+          })}
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 7, color: P.textFaint, letterSpacing: ".1em", marginTop: 1 }}>
           <span>{fmtDate(config.startDate)}</span>
@@ -2097,10 +2124,11 @@ function OurWorldInner() {
         }>
           {(cur.photos || []).length > 0 && !cardGallery && (
             <div style={{ position: "relative", width: "100%", background: "#f5f0eb", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", minHeight: 120, maxHeight: 220 }}>
-              <img loading="lazy" src={cur.photos[photoIdx % cur.photos.length]} alt="" style={{ maxWidth: "100%", maxHeight: 220, objectFit: "contain", display: "block" }} />
+              <img loading="lazy" src={cur.photos[photoIdx % cur.photos.length]} alt="" style={{ maxWidth: "100%", maxHeight: 220, objectFit: "contain", display: "block", transition: "all .3s", ...(polaroidMode ? { border: "6px solid #fff", borderBottom: "28px solid #fff", boxShadow: "0 4px 16px rgba(0,0,0,.15)", borderRadius: 1, transform: `rotate(${(photoIdx % 3 - 1) * 1.5}deg)` } : {}) }} />
               {cur.photos.length > 1 && (<><button onClick={() => setPhotoIdx(i => (i - 1 + cur.photos.length) % cur.photos.length)} style={imgN("left")}>‹</button><button onClick={() => setPhotoIdx(i => (i + 1) % cur.photos.length)} style={imgN("right")}>›</button>
                 <div style={{ position: "absolute", bottom: 6, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 3 }}>{cur.photos.map((_, i) => <div key={i} style={{ width: 4, height: 4, borderRadius: "50%", background: i === photoIdx % cur.photos.length ? "#fff" : "rgba(255,255,255,.3)" }} />)}</div></>)}
               <button onClick={() => setCardGallery(true)} style={{ position: "absolute", top: 6, right: 6, background: "rgba(255,255,255,.85)", border: "none", borderRadius: 5, padding: "2px 8px", fontSize: 9, cursor: "pointer", fontFamily: "inherit", color: P.textMid }}>📷 {cur.photos.length}</button>
+              <button onClick={() => setPolaroidMode(v => !v)} style={{ position: "absolute", bottom: 6, right: 6, background: polaroidMode ? P.goldWarm : "rgba(255,255,255,.7)", border: "none", borderRadius: 5, padding: "2px 7px", fontSize: 8, cursor: "pointer", fontFamily: "inherit", color: polaroidMode ? "#fff" : P.textFaint }} title="Polaroid mode">📸</button>
               {editMode && <button onClick={() => handlePhotos(cur.id)} style={{ position: "absolute", top: 6, left: 6, background: "rgba(255,255,255,.85)", border: "none", borderRadius: 5, padding: "2px 8px", fontSize: 9, cursor: "pointer", fontFamily: "inherit" }}>+ Photos</button>}
             </div>
           )}
@@ -2126,7 +2154,23 @@ function OurWorldInner() {
               {editMode && <button onClick={() => handlePhotos(cur.id)} style={{ marginTop: 6, width: "100%", padding: "5px", background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: "none", borderRadius: 5, cursor: "pointer", fontSize: 9, color: P.textMuted, fontFamily: "inherit" }}>+ Add More Photos</button>}
             </div>
           )}
-          {(cur.photos || []).length === 0 && editMode && <button onClick={() => handlePhotos(cur.id)} style={{ width: "100%", height: 60, background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4, color: P.textMuted, fontSize: 10, fontFamily: "inherit", flexShrink: 0 }}>📷 Upload Photos</button>}
+          {(cur.photos || []).length === 0 && editMode && <div
+            onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={async e => {
+              e.preventDefault(); setDragOver(false);
+              const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/"));
+              if (files.length === 0) return;
+              setUploading(true);
+              const urls = [];
+              for (const file of files) { const url = await uploadPhoto(file, cur.id); if (url) urls.push(url); }
+              if (urls.length > 0) { dispatch({ type: "ADD_PHOTOS", id: cur.id, urls }); showToast(`${urls.length} photo${urls.length > 1 ? "s" : ""} uploaded`, "📷", 2500); }
+              setUploading(false);
+            }}
+            onClick={() => handlePhotos(cur.id)}
+            style={{ width: "100%", height: 70, background: dragOver ? `linear-gradient(135deg,${P.sky}18,${P.rose}18)` : `linear-gradient(135deg,${P.parchment},${P.blush})`, border: dragOver ? `2px dashed ${P.sky}` : "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4, color: P.textMuted, fontSize: 10, fontFamily: "inherit", flexShrink: 0, transition: "all .2s" }}>
+            {dragOver ? "🎯 Drop photos here" : "📷 Upload or Drag Photos Here"}
+          </div>}
 
           <div style={{ padding: "14px 18px 18px", overflowY: "auto", flex: 1 }}>
             <div style={{ float: "right", display: "flex", gap: 2, marginTop: -4 }}>
@@ -2230,6 +2274,7 @@ function OurWorldInner() {
 
       {/* ADD / EDIT / SETTINGS / LETTER overlays */}
       {showAdd && <AddForm types={TYPES} onAdd={entry => { dispatch({ type: "ADD", entry }); setShowAdd(false); showToast(`${entry.city} added to your world`, "🌍", 2500); const p = ll2v(entry.lat, entry.lng, RAD); tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) }; tZm.current = 2.6; setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400); }} onClose={() => setShowAdd(false)} />}
+      {quickAddMode && <QuickAddForm types={TYPES} onAdd={entry => { dispatch({ type: "ADD", entry }); setQuickAddMode(false); showToast(`${entry.city} added ⚡`, "⚡", 2500); const p = ll2v(entry.lat, entry.lng, RAD); tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) }; tZm.current = 2.6; setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400); }} onClose={() => setQuickAddMode(false)} />}
 
       {editing && <EditForm entry={editing} types={TYPES} onChange={setEditing}
         onSave={() => { dispatch({ type: "UPDATE", id: editing.id, data: editing }); setSelected(editing); setEditing(null); showToast("Entry saved", "✓", 2000); }}
@@ -2424,6 +2469,19 @@ function OurWorldInner() {
             <Fld l="Subtitle" v={config.subtitle} set={v => setConfig({ subtitle: v })} />
             <Fld l="Your Name" v={config.youName} set={v => setConfig({ youName: v })} />
             <Fld l="Partner Name" v={config.partnerName} set={v => setConfig({ partnerName: v })} />
+
+            <div style={{ margin: "10px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
+            <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 6 }}>Timeline Chapters</div>
+            <p style={{ fontSize: 8, color: P.textFaint, fontStyle: "italic", marginBottom: 8 }}>Name the eras of your relationship</p>
+            {(config.chapters || []).map((ch, i) => (
+              <div key={i} style={{ display: "flex", gap: 4, alignItems: "center", marginBottom: 4 }}>
+                <input value={ch.label} onChange={e => { const chs = [...(config.chapters || [])]; chs[i] = { ...chs[i], label: e.target.value }; setConfig({ chapters: chs }); }} style={{ ...inpSt, flex: 1, fontSize: 10 }} placeholder="Chapter name" />
+                <input type="date" value={ch.startDate || ""} onChange={e => { const chs = [...(config.chapters || [])]; chs[i] = { ...chs[i], startDate: e.target.value }; setConfig({ chapters: chs }); }} style={{ ...inpSt, width: 95, fontSize: 9 }} />
+                <input type="date" value={ch.endDate || ""} onChange={e => { const chs = [...(config.chapters || [])]; chs[i] = { ...chs[i], endDate: e.target.value }; setConfig({ chapters: chs }); }} style={{ ...inpSt, width: 95, fontSize: 9 }} />
+                <button onClick={() => { const chs = (config.chapters || []).filter((_, j) => j !== i); setConfig({ chapters: chs }); }} style={{ background: "none", border: "none", color: "#c9777a", cursor: "pointer", fontSize: 12, flexShrink: 0 }}>×</button>
+              </div>
+            ))}
+            <button onClick={() => { setConfig({ chapters: [...(config.chapters || []), { label: "New Chapter", startDate: config.startDate, endDate: todayStr() }] }); }} style={{ width: "100%", padding: "5px", background: `${P.lavender}12`, border: `1px dashed ${P.lavender}40`, borderRadius: 5, cursor: "pointer", fontSize: 9, fontFamily: "inherit", color: P.textMid, marginBottom: 8 }}>+ Add Chapter</button>
 
             <div style={{ margin: "10px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
             <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 6 }}>Data</div>
@@ -2677,6 +2735,58 @@ function Lbl({ children }) { return <label style={{ fontSize: 7, color: P.textFa
 function Fld({ l, v, set, t = "text", ph = "" }) { return <div style={{ marginBottom: 9 }}><Lbl>{l}</Lbl><input type={t} value={v || ""} placeholder={ph} onChange={e => set(e.target.value)} style={inpSt} /></div>; }
 
 // ---- DREAM ADD FORM ----
+// ---- QUICK ADD FORM ----
+function QuickAddForm({ types, onAdd, onClose }) {
+  const [city, setCity] = useState("");
+  const [country, setCountry] = useState("");
+  const [lat, setLat] = useState("");
+  const [lng, setLng] = useState("");
+  const [dateStart, setDateStart] = useState("");
+  const [dateEnd, setDateEnd] = useState("");
+  const [type, setType] = useState("together");
+  const [note, setNote] = useState("");
+  const [sugg, setSugg] = useState([]);
+  const [showSugg, setShowSugg] = useState(false);
+
+  const onCityInput = v => {
+    setCity(v);
+    if (v.length >= 2) {
+      geocodeSearch(v, m => { setSugg(m); setShowSugg(m.length > 0); });
+    } else { setSugg([]); setShowSugg(false); }
+  };
+  const selectCity = c => { setCity(c[0]); setCountry(c[1]); setLat(c[2].toString()); setLng(c[3].toString()); setSugg([]); setShowSugg(false); };
+  const ok = city.trim() && lat && lng && dateStart;
+
+  return (
+    <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", zIndex: 40, background: P.card, backdropFilter: "blur(24px)", borderRadius: 16, padding: 20, width: 320, boxShadow: "0 18px 56px rgba(61,53,82,.14)", border: `1px solid ${P.gold}22`, fontFamily: "'Palatino Linotype',Palatino,Georgia,serif", color: P.text }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+        <h3 style={{ margin: 0, fontSize: 14, fontWeight: 400 }}>⚡ Quick Add</h3>
+        <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 16, color: P.textFaint, cursor: "pointer" }}>×</button>
+      </div>
+      <div style={{ position: "relative", marginBottom: 6 }}>
+        <input value={city} onChange={e => onCityInput(e.target.value)} onFocus={() => { if (sugg.length > 0) setShowSugg(true); }} placeholder="City..." style={inpSt} autoFocus />
+        {showSugg && sugg.length > 0 && (
+          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e8d8e4", borderRadius: 6, maxHeight: 130, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
+            {sugg.map((c, i) => <button key={i} onClick={() => selectCity(c)} style={{ display: "block", width: "100%", textAlign: "left", padding: "7px 10px", border: "none", borderBottom: "1px solid #f5f0f4", background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }} onMouseEnter={e => e.currentTarget.style.background = P.blush} onMouseLeave={e => e.currentTarget.style.background = "none"}><span style={{ fontWeight: 500, color: P.text }}>{c[0]}</span> <span style={{ color: P.textFaint }}>{c[1]}</span></button>)}
+          </div>
+        )}
+      </div>
+      <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+        <input type="date" value={dateStart} onChange={e => { setDateStart(e.target.value); if (!dateEnd) setDateEnd(e.target.value); }} style={{ ...inpSt, flex: 1 }} />
+        <input type="date" value={dateEnd} onChange={e => setDateEnd(e.target.value)} style={{ ...inpSt, flex: 1 }} />
+        <select value={type} onChange={e => setType(e.target.value)} style={{ ...inpSt, width: 80 }}>
+          {Object.entries(types).map(([k, v]) => <option key={k} value={k}>{v.icon}</option>)}
+        </select>
+      </div>
+      <input value={note} onChange={e => setNote(e.target.value)} placeholder="Quick note..." style={{ ...inpSt, marginBottom: 8 }} />
+      <button disabled={!ok} onClick={() => { onAdd({ id: `e-${Date.now()}`, city, country, lat: parseFloat(lat), lng: parseFloat(lng), dateStart, dateEnd: dateEnd || dateStart, type, who: types[type]?.who || "both", notes: note, memories: [], museums: [], restaurants: [], highlights: [], photos: [], stops: [], zoomLevel: 1 }); }}
+        style={{ width: "100%", padding: "9px", background: ok ? P.goldWarm : "#e8d8e4", color: "#fff", border: "none", borderRadius: 8, cursor: ok ? "pointer" : "default", fontSize: 11, fontFamily: "inherit", transition: "all .3s" }}>
+        {ok ? "⚡ Add to World" : "Select a city & date"}
+      </button>
+    </div>
+  );
+}
+
 function DreamAddForm({ onAdd }) {
   const [f, sf] = useState({ city: "", country: "", lat: "", lng: "", notes: "" });
   const [sugg, setSugg] = useState([]);
