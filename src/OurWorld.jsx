@@ -6,7 +6,7 @@ import { geocodeSearch } from "./geocode.js";
 /* =================================================================
    🌍 OUR WORLD — Seth & Rosie Posie
    "every moment, every adventure"
-   v7.9.9 — pre-beta final: cardTab fix, dead code cleanup, SQL schema alignment
+   v8.1 — dark mode persistence, all Prompt 1-2 fixes complete
    ================================================================= */
 
 const DEFAULT_CONFIG = {
@@ -672,6 +672,7 @@ function OurWorldInner() {
             merged.loveLetter = "";
           }
           setConfigState(merged);
+          if (merged.darkMode) setDarkMode(true);
         }
       } catch (err) {
         console.error("Failed to load from Supabase:", err);
@@ -720,10 +721,15 @@ function OurWorldInner() {
   const spinSpd = useRef(0.001);
   const tSpinSpd = useRef(0.001);
 
-  // ---- flyTo helper — correct rotation math + stops spin ----
+  // ---- flyTo helper — Euler XYZ rotation to center (lat,lng) on camera ----
+  // Math: globe.rotation = Ry(β) * Rx(α), camera at (0,0,z)
+  //   α = atan2(p.y, p.z)  — pitch to bring point into xz-plane
+  //   β = atan2(-p.x, √(p.y²+p.z²)) — yaw to bring point to z-axis
   const flyTo = useCallback((lat, lng, zoom) => {
     const p = ll2v(lat, lng, RAD);
-    tRot.current = { x: -Math.asin(p.y / RAD), y: Math.atan2(-p.x, p.z) };
+    const alpha = Math.atan2(p.y, p.z);
+    const beta = Math.atan2(-p.x, Math.sqrt(p.y * p.y + p.z * p.z));
+    tRot.current = { x: alpha, y: beta };
     tSpinSpd.current = 0;
     spinSpd.current = 0;
     if (zoom !== undefined) tZm.current = zoom;
@@ -1173,7 +1179,7 @@ function OurWorldInner() {
       if (inInput && e.key !== "Escape") return;
       if (e.key === "ArrowLeft") { e.preventDefault(); stepDay(-1); }
       if (e.key === "ArrowRight") { e.preventDefault(); stepDay(1); }
-      if (e.key === "Escape") { setSelected(null); setEditing(null); setShowAdd(false); setQuickAddMode(false); setShowLetter(false); setShowSettings(false); setShowGallery(false); setCardGallery(false); setShowFilter(false); setMarkerFilter("all"); setLocationList(null); setShowStats(false); setShowRecap(false); setShowSearch(false); setSearchQuery(""); setShowDreams(false); if (isPlaying) stopPlay(); }
+      if (e.key === "Escape") { setSelected(null); setEditing(null); setShowAdd(false); setQuickAddMode(false); setShowLetter(false); setShowSettings(false); setShowGallery(false); setCardGallery(false); setShowFilter(false); setMarkerFilter("all"); setLocationList(null); setShowStats(false); setShowRecap(false); setShowSearch(false); setSearchQuery(""); setShowDreams(false); setConfirmDelete(null); tSpinSpd.current = 0.002; if (isPlaying) stopPlay(); }
       if (e.key === "f" && !showAdd && !editing && !showSettings) { setShowFilter(v => { if (v) { setMarkerFilter("all"); setLocationList(null); } return !v; }); }
       if (e.key === "i" && !showAdd && !editing && !showSettings) setShowStats(v => !v);
       if (e.key === "s" && !showAdd && !editing && !showSettings && !showSearch) { e.preventDefault(); setShowSearch(true); }
@@ -1485,11 +1491,9 @@ function OurWorldInner() {
       zmR.current = lerp(zmR.current, tZm.current, 0.03);
       cam.position.z = zmR.current;
 
-      // Gentle breathing pulse on markers + zoom-based scaling
+      // Zoom-based marker scaling (no pulsing — clean static glow)
       const mkScale = Math.min(1.2, Math.max(0.35, zmR.current / 3.5));
-      mkRef.current.forEach((m, i) => {
-        const t = Date.now() * 0.001 + i * 0.7;
-        if (m.glow) m.glow.material.opacity = 0.08 + Math.sin(t) * 0.04;
+      mkRef.current.forEach((m) => {
         if (m.dot) m.dot.scale.setScalar(mkScale);
         if (m.glow) m.glow.scale.setScalar(mkScale);
       });
@@ -1713,11 +1717,11 @@ function OurWorldInner() {
     // ---- DREAM DESTINATIONS — ghost markers ----
     (config.dreamDestinations || []).forEach(dream => {
       const p = ll2v(dream.lat, dream.lng, RAD * 1.012);
-      const dot = new THREE.Mesh(new THREE.CircleGeometry(0.012, 20), new THREE.MeshBasicMaterial({ color: P.goldWarm, transparent: true, opacity: 0.3, side: THREE.DoubleSide }));
+      const dot = new THREE.Mesh(new THREE.CircleGeometry(0.012, 20), new THREE.MeshBasicMaterial({ color: P.goldWarm, transparent: true, opacity: 0.3, side: THREE.DoubleSide, depthTest: true }));
       dot.position.copy(p); dot.lookAt(p.clone().multiplyScalar(2)); dot.userData = { entryId: `dream-${dream.id}` }; dot.renderOrder = 2;
       g.add(dot);
       // Dashed ring around dream marker
-      const ring = new THREE.Mesh(new THREE.RingGeometry(0.016, 0.02, 20), new THREE.MeshBasicMaterial({ color: P.goldWarm, transparent: true, opacity: 0.15, side: THREE.DoubleSide }));
+      const ring = new THREE.Mesh(new THREE.RingGeometry(0.016, 0.02, 20), new THREE.MeshBasicMaterial({ color: P.goldWarm, transparent: true, opacity: 0.15, side: THREE.DoubleSide, depthTest: true }));
       ring.position.copy(p); ring.lookAt(p.clone().multiplyScalar(2)); ring.renderOrder = 2;
       g.add(ring);
       mkRef.current.push({ entryId: `dream-${dream.id}`, dot, ring, glow: null });
@@ -1727,11 +1731,11 @@ function OurWorldInner() {
     (config.loveLetters || []).forEach(letter => {
       const p = ll2v(letter.lat, letter.lng, RAD * 1.014);
       // Lavender flower marker — sized to be discoverable but not overwhelming
-      const dot = new THREE.Mesh(new THREE.CircleGeometry(0.025, 16), new THREE.MeshBasicMaterial({ color: "#e8a878", transparent: true, opacity: 0.65, side: THREE.DoubleSide }));
+      const dot = new THREE.Mesh(new THREE.CircleGeometry(0.025, 16), new THREE.MeshBasicMaterial({ color: "#e8a878", transparent: true, opacity: 0.65, side: THREE.DoubleSide, depthTest: true }));
       dot.position.copy(p); dot.lookAt(p.clone().multiplyScalar(2)); dot.userData = { entryId: `love-${letter.id}` }; dot.renderOrder = 3;
       g.add(dot);
-      // Outer glow ring — pulses in animation loop
-      const glow = new THREE.Mesh(new THREE.RingGeometry(0.030, 0.045, 20), new THREE.MeshBasicMaterial({ color: "#f0c098", transparent: true, opacity: 0.25, side: THREE.DoubleSide }));
+      // Outer glow ring — static soft halo
+      const glow = new THREE.Mesh(new THREE.RingGeometry(0.030, 0.045, 20), new THREE.MeshBasicMaterial({ color: "#f0c098", transparent: true, opacity: 0.25, side: THREE.DoubleSide, depthTest: true }));
       glow.position.copy(p); glow.lookAt(p.clone().multiplyScalar(2)); glow.renderOrder = 2;
       g.add(glow);
       mkRef.current.push({ entryId: `love-${letter.id}`, dot, ring: glow, glow });
@@ -1785,7 +1789,7 @@ function OurWorldInner() {
             setShowLetter(letterId);
           }
         }
-      } else { setSelected(null); setLocationList(null); }
+      } else { setSelected(null); setLocationList(null); tSpinSpd.current = 0.002; }
     }
   }, [data.entries, locationGroups]);
   const onWheel = useCallback(e => { e.preventDefault(); tZm.current = clamp(tZm.current + e.deltaY * 0.001, MIN_Z, MAX_Z); setShowZoomHint(false); }, []);
@@ -1867,7 +1871,7 @@ function OurWorldInner() {
   if (loading) return <div style={{ width: "100%", height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#161028", fontFamily: "Georgia,serif", color: P.textFaint }}>
     <div style={{ fontSize: 48, animation: "heartPulse 2s ease infinite", marginBottom: 16 }}>🌍</div>
     <div style={{ fontSize: 14, letterSpacing: ".2em", opacity: 0.7 }}>Loading your world<span style={{ animation: "ellipsis 1.5s infinite" }}>...</span></div>
-    <div style={{ fontSize: 10, opacity: 0.6, marginTop: 12, letterSpacing: ".15em" }}>v7.9.9</div>
+    <div style={{ fontSize: 10, opacity: 0.6, marginTop: 12, letterSpacing: ".15em" }}>v8.1</div>
     <style>{`@keyframes heartPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}} @keyframes ellipsis{0%{opacity:0}50%{opacity:1}100%{opacity:0}}`}</style>
   </div>;
 
@@ -1970,7 +1974,7 @@ function OurWorldInner() {
         {<TBtn onClick={() => setShowAdd(true)} accent tip="Add Entry">＋</TBtn>}
         {<TBtn onClick={() => setQuickAddMode(true)} tip="Quick Add">⚡</TBtn>}
         {<TBtn onClick={() => setShowSettings(true)} tip="Settings">⚙️</TBtn>}
-        <TBtn a={darkMode} onClick={() => setDarkMode(v => !v)} tip="Toggle Theme">{darkMode ? "☀️" : "🌙"}</TBtn>
+        <TBtn a={darkMode} onClick={() => { setDarkMode(v => { const next = !v; setConfig({ darkMode: next }); return next; }); }} tip="Toggle Theme">{darkMode ? "☀️" : "🌙"}</TBtn>
         {allPhotos.length > 0 && <TBtn a={showGallery} onClick={() => setShowGallery(v => !v)} tip="Photo Gallery">📷</TBtn>}
         {data.entries.length > 0 && <TBtn a={showStats} onClick={() => setShowStats(v => !v)} tip="Stats & Insights">📊</TBtn>}
         {data.entries.length > 0 && <TBtn a={showSearch} onClick={() => setShowSearch(v => !v)} tip="Search Entries">🔍</TBtn>}
@@ -2087,7 +2091,7 @@ function OurWorldInner() {
           <div style={{ padding: "14px 18px 10px" }}>
             <button onClick={() => setLocationList(null)} style={{ position: "absolute", top: 10, right: 10, background: "none", border: "none", fontSize: 16, color: P.textFaint, cursor: "pointer", zIndex: 5 }}>×</button>
             <h2 style={{ margin: 0, fontSize: 17, fontWeight: 400 }}>{locationList.city}</h2>
-            <p style={{ fontSize: 9, color: P.textFaint, marginTop: 2, letterSpacing: ".1em" }}>{locationList.entries.length} chapters here</p>
+            <p style={{ fontSize: 9, color: P.textFaint, marginTop: 2, letterSpacing: ".1em" }}>{locationList.entries.length} entries here</p>
           </div>
           <div style={{ padding: "0 14px 14px", maxHeight: 280, overflowY: "auto" }}>
             {locationList.entries.sort((a, b) => a.dateStart.localeCompare(b.dateStart)).map(e => {
@@ -2175,7 +2179,7 @@ function OurWorldInner() {
               <button onClick={() => toggleFavorite(cur.id)} style={{ background: "none", border: "none", fontSize: 14, cursor: "pointer", color: cur.favorite ? P.heart : P.textFaint, transition: "color .2s" }} title={cur.favorite ? "Unfavorite" : "Favorite"}>
                 {cur.favorite ? "♥" : "♡"}
               </button>
-              <button onClick={() => setSelected(null)} style={{ background: "none", border: "none", fontSize: 16, color: P.textFaint, cursor: "pointer", marginLeft: 2 }}>×</button>
+              <button onClick={() => { setSelected(null); tSpinSpd.current = 0.002; }} style={{ background: "none", border: "none", fontSize: 16, color: P.textFaint, cursor: "pointer", marginLeft: 2 }}>×</button>
             </div>
 
             {firstBadges[cur.id] && <div style={{ fontSize: 8, color: P.gold, letterSpacing: ".12em", marginBottom: 4 }}>🏅 {firstBadges[cur.id]}</div>}
@@ -2288,7 +2292,7 @@ function OurWorldInner() {
               <button onClick={() => {
                 const deletedEntry = data.entries.find(e => e.id === confirmDelete);
                 dispatch({ type: "DELETE", id: confirmDelete });
-                setConfirmDelete(null); setEditing(null); setSelected(null);
+                setConfirmDelete(null); setEditing(null); setSelected(null); tSpinSpd.current = 0.002;
                 if (deletedEntry) {
                   showToast("Entry deleted", "🗑", 5000, () => {
                     dispatch({ type: "ADD", entry: deletedEntry });
@@ -2440,6 +2444,9 @@ function OurWorldInner() {
                     dispatch({ type: "ADD", entry });
                     setConfig({ dreamDestinations: (config.dreamDestinations || []).filter(d => d.id !== dream.id) });
                     showToast(`${dream.city} is now real! ✨`, "🎉", 3000);
+                    setShowDreams(false);
+                    flyTo(dream.lat, dream.lng, 2.5);
+                    setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400);
                   }} style={{ background: P.rose, color: "#fff", border: "none", borderRadius: 5, padding: "3px 8px", fontSize: 8, cursor: "pointer", fontFamily: "inherit" }}>✓ Visited!</button>
                   <button onClick={() => setConfig({ dreamDestinations: (config.dreamDestinations || []).filter(d => d.id !== dream.id) })} style={{ background: "none", border: "none", color: P.textFaint, cursor: "pointer", fontSize: 12 }}>×</button>
                 </>)}
