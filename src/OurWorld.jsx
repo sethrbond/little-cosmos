@@ -6,7 +6,7 @@ import { geocodeSearch } from "./geocode.js";
 /* =================================================================
    🌍 OUR WORLD — Seth & Rosie Posie
    "every moment, every adventure"
-   v7.9.8 — pre-beta final: cardTab fix, dead code cleanup, SQL schema alignment
+   v7.9.9 — pre-beta final: cardTab fix, dead code cleanup, SQL schema alignment
    ================================================================= */
 
 const DEFAULT_CONFIG = {
@@ -719,6 +719,16 @@ function OurWorldInner() {
   const tZm = useRef(3.6);
   const spinSpd = useRef(0.001);
   const tSpinSpd = useRef(0.001);
+
+  // ---- flyTo helper — correct rotation math + stops spin ----
+  const flyTo = useCallback((lat, lng, zoom) => {
+    const p = ll2v(lat, lng, RAD);
+    tRot.current = { x: -Math.asin(p.y / RAD), y: Math.atan2(-p.x, p.z) };
+    tSpinSpd.current = 0;
+    spinSpd.current = 0;
+    if (zoom !== undefined) tZm.current = zoom;
+  }, []);
+
   const clickSR = useRef({ x: 0, y: 0, t: 0 });
   const tDistR = useRef(0);
 
@@ -728,7 +738,7 @@ function OurWorldInner() {
   // zoom tracked via zmR ref (used in animation loop directly)
   const [ready, setReady] = useState(false);
   const [introComplete, setIntroComplete] = useState(false);
-  const [editMode, setEditMode] = useState(false);
+  // editMode removed — all features always active
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState(null);
   const [photoIdx, setPhotoIdx] = useState(0);
@@ -1106,9 +1116,7 @@ function OurWorldInner() {
         setSliderDate(target.dateStart);
         tSpinSpd.current = 0.001;
         setIsAnimating(false);
-        const p = ll2v(target.lat, target.lng, RAD);
-        tRot.current = { x: -Math.asin(p.y / RAD) * 0.92, y: Math.atan2(-p.x, p.z) };
-        tZm.current = 2.5;
+        flyTo(target.lat, target.lng, 2.5);
         setTimeout(() => { setSelected(target); setPhotoIdx(0); setCardTab("overview"); }, 500);
       }
     };
@@ -1135,10 +1143,8 @@ function OurWorldInner() {
       setSliderDate(entry.dateStart);
 
       // Fly to
-      const p = ll2v(entry.lat, entry.lng, RAD);
-      tRot.current = { x: -Math.asin(p.y / RAD) * 0.92, y: Math.atan2(-p.x, p.z) };
-      tZm.current = 2.4;
-      tSpinSpd.current = 0; // stop spin during fly-in so target stays centered
+      flyTo(entry.lat, entry.lng, 2.4);
+      // spin stopped by flyTo
 
       playRef.current = setTimeout(() => {
         tSpinSpd.current = 0;
@@ -1192,9 +1198,7 @@ function OurWorldInner() {
     // Fly to first entry
     const first = yearEntries[0];
     setSliderDate(first.dateStart);
-    const p = ll2v(first.lat, first.lng, RAD);
-    tRot.current = { x: -Math.asin(p.y / RAD) * 0.92, y: Math.atan2(-p.x, p.z) };
-    tZm.current = 2.6;
+    flyTo(first.lat, first.lng, 2.6);
   }, [sorted]);
 
   const recapEntries = useMemo(() => {
@@ -1212,9 +1216,7 @@ function OurWorldInner() {
     setRecapIdx(next);
     const entry = recapEntries[next];
     setSliderDate(entry.dateStart);
-    const p = ll2v(entry.lat, entry.lng, RAD);
-    tRot.current = { x: -Math.asin(p.y / RAD) * 0.92, y: Math.atan2(-p.x, p.z) };
-    tZm.current = 2.4;
+    flyTo(entry.lat, entry.lng, 2.4);
   }, [recapIdx, recapEntries, showToast]);
 
   // ---- GALLERY DATA ----
@@ -1483,10 +1485,13 @@ function OurWorldInner() {
       zmR.current = lerp(zmR.current, tZm.current, 0.03);
       cam.position.z = zmR.current;
 
-      // Gentle breathing pulse on markers
+      // Gentle breathing pulse on markers + zoom-based scaling
+      const mkScale = Math.min(1.2, Math.max(0.35, zmR.current / 3.5));
       mkRef.current.forEach((m, i) => {
         const t = Date.now() * 0.001 + i * 0.7;
         if (m.glow) m.glow.material.opacity = 0.08 + Math.sin(t) * 0.04;
+        if (m.dot) m.dot.scale.setScalar(mkScale);
+        if (m.glow) m.glow.scale.setScalar(mkScale);
       });
 
       if (hMesh.visible) {
@@ -1523,7 +1528,7 @@ function OurWorldInner() {
       // Parallax — glow layers shift subtly opposite to mouse
       const mx = mouseRef.current.x, my = mouseRef.current.y;
       glows.forEach((glow, i) => {
-        const strength = (i + 1) * 0.008;
+        const strength = (i + 1) * 0.02;
         glow.position.x = -mx * strength;
         glow.position.y = my * strength;
       });
@@ -1645,13 +1650,13 @@ function OurWorldInner() {
 
     // ---- Distance line when apart ----
     if (positions.seth && positions.rosie && !areTogether) {
-      const from = ll2v(positions.seth.lat, positions.seth.lng, RAD * 1.03);
-      const to = ll2v(positions.rosie.lat, positions.rosie.lng, RAD * 1.03);
+      const from = ll2v(positions.seth.lat, positions.seth.lng, RAD * 1.08);
+      const to = ll2v(positions.rosie.lat, positions.rosie.lng, RAD * 1.08);
       const mid = from.clone().add(to).multiplyScalar(0.5);
-      mid.normalize().multiplyScalar(RAD * 1.03 + from.distanceTo(to) * 0.3);
+      mid.normalize().multiplyScalar(RAD * 1.12 + from.distanceTo(to) * 0.4);
       const curve = new THREE.QuadraticBezierCurve3(from, mid, to);
       const lG = new THREE.BufferGeometry().setFromPoints(curve.getPoints(50));
-      const lM = new THREE.LineDashedMaterial({ color: P.rose, transparent: true, opacity: 0.5, dashSize: 0.018, gapSize: 0.012, linewidth: 1 });
+      const lM = new THREE.LineDashedMaterial({ color: P.rose, transparent: true, opacity: 0.8, dashSize: 0.025, gapSize: 0.015, linewidth: 2, depthTest: false });
       const line = new THREE.Line(lG, lM); line.computeLineDistances(); line.renderOrder = 3;
       g.add(line); rtRef.current.push({ line });
     }
@@ -1683,7 +1688,7 @@ function OurWorldInner() {
         mid.normalize().multiplyScalar(RAD * 1.04 + f.distanceTo(t) * 0.2);
         const curve = new THREE.QuadraticBezierCurve3(f, mid, t);
         const geom = new THREE.BufferGeometry().setFromPoints(curve.getPoints(40));
-        const mat = new THREE.LineBasicMaterial({ color: P.goldWarm, transparent: true, opacity: 0.65 });
+        const mat = new THREE.LineBasicMaterial({ color: P.goldWarm, transparent: true, opacity: 0.85, depthTest: false });
         const line = new THREE.Line(geom, mat); line.renderOrder = 3;
         g.add(line);
         loveThreadRef.current.push(line);
@@ -1698,7 +1703,7 @@ function OurWorldInner() {
         const f = ll2v(from.lat, from.lng, RAD * 1.035);
         const t = ll2v(to.lat, to.lng, RAD * 1.035);
         const geom = new THREE.BufferGeometry().setFromPoints([f, t]);
-        const mat = new THREE.LineBasicMaterial({ color: "#b8c8f0", transparent: true, opacity: 0.45 });
+        const mat = new THREE.LineBasicMaterial({ color: "#b8c8f0", transparent: true, opacity: 0.70, depthTest: false });
         const line = new THREE.Line(geom, mat); line.renderOrder = 1;
         g.add(line);
         constellationRef.current.push(line);
@@ -1737,7 +1742,7 @@ function OurWorldInner() {
     const p = ll2v(lat, lng, RAD * 1.012);
     const dot = new THREE.Mesh(new THREE.CircleGeometry(size, 20), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: faint ? 0.28 : 0.85, side: THREE.DoubleSide, depthTest: true }));
     dot.position.copy(p); dot.lookAt(p.clone().multiplyScalar(2)); dot.userData = { entryId: id }; dot.renderOrder = 2; group.add(dot);
-    const glow = new THREE.Mesh(new THREE.CircleGeometry(size * (faint ? 2.2 : 3.5), 24), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: faint ? 0.04 : 0.10, side: THREE.DoubleSide, depthTest: false }));
+    const glow = new THREE.Mesh(new THREE.CircleGeometry(size * (faint ? 1.4 : 2.0), 24), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: faint ? 0.04 : 0.10, side: THREE.DoubleSide, depthTest: true }));
     glow.position.copy(p); glow.lookAt(p.clone().multiplyScalar(2)); glow.renderOrder = 0; group.add(glow);
     return { entryId: id, dot, ring: null, glow };
   }
@@ -1766,18 +1771,14 @@ function OurWorldInner() {
           if (group) {
             setLocationList(group);
             setSelected(null);
-            const p = ll2v(group.lat, group.lng, RAD);
-            tRot.current = { x: -Math.asin(p.y / RAD) * 0.92, y: Math.atan2(-p.x, p.z) };
-            tZm.current = 2.3;
+            flyTo(group.lat, group.lng, 2.3);
           }
         } else {
           const entry = data.entries.find(en => en.id === id);
           if (entry) {
             setSelected(entry); setPhotoIdx(0); setCardTab("overview"); setLocationList(null);
             setSliderDate(entry.dateStart);
-            const p = ll2v(entry.lat, entry.lng, RAD);
-            tRot.current = { x: -Math.asin(p.y / RAD) * 0.92, y: Math.atan2(-p.x, p.z) };
-            tZm.current = 2.5;
+            flyTo(entry.lat, entry.lng, 2.5);
           } else if (id.startsWith("love-")) {
             // Love letter easter egg clicked!
             const letterId = id.replace("love-", "");
@@ -1866,7 +1867,7 @@ function OurWorldInner() {
   if (loading) return <div style={{ width: "100%", height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#161028", fontFamily: "Georgia,serif", color: P.textFaint }}>
     <div style={{ fontSize: 48, animation: "heartPulse 2s ease infinite", marginBottom: 16 }}>🌍</div>
     <div style={{ fontSize: 14, letterSpacing: ".2em", opacity: 0.7 }}>Loading your world<span style={{ animation: "ellipsis 1.5s infinite" }}>...</span></div>
-    <div style={{ fontSize: 10, opacity: 0.6, marginTop: 12, letterSpacing: ".15em" }}>v7.9.8</div>
+    <div style={{ fontSize: 10, opacity: 0.6, marginTop: 12, letterSpacing: ".15em" }}>v7.9.9</div>
     <style>{`@keyframes heartPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}} @keyframes ellipsis{0%{opacity:0}50%{opacity:1}100%{opacity:0}}`}</style>
   </div>;
 
@@ -1943,9 +1944,7 @@ function OurWorldInner() {
                 {filteredList.map(e => (
                   <button key={e.id} onClick={() => {
                     setSelected(e); setPhotoIdx(0); setCardTab("overview"); setLocationList(null); setSliderDate(e.dateStart);
-                    const p = ll2v(e.lat, e.lng, RAD);
-                    tRot.current = { x: -Math.asin(p.y / RAD) * 0.92, y: Math.atan2(-p.x, p.z) };
-                    tZm.current = 2.5;
+                    flyTo(e.lat, e.lng, 2.5);
                   }}
                     style={{ display: "flex", width: "100%", alignItems: "center", gap: 8, padding: "6px 10px", border: "none", borderBottom: `1px solid ${P.parchment}60`, background: selected?.id === e.id ? P.blush : "transparent", cursor: "pointer", fontFamily: "inherit", textAlign: "left", transition: "background .15s" }}
                     onMouseEnter={ev => { if (selected?.id !== e.id) ev.currentTarget.style.background = P.lavMist; }}
@@ -1967,7 +1966,7 @@ function OurWorldInner() {
 
       {/* TOOLBAR */}
       <div style={{ position: "absolute", top: 22, left: 22, zIndex: 20, display: "flex", flexDirection: "column", gap: 7, opacity: introComplete ? 1 : 0, transition: "opacity .8s ease" }}>
-        <TBtn a={editMode} onClick={() => { setEditMode(v => !v); if (editMode) { setEditing(null); setShowAdd(false); } }} tip="Edit Mode">✏️</TBtn>
+        
         {<TBtn onClick={() => setShowAdd(true)} accent tip="Add Entry">＋</TBtn>}
         {<TBtn onClick={() => setQuickAddMode(true)} tip="Quick Add">⚡</TBtn>}
         {<TBtn onClick={() => setShowSettings(true)} tip="Settings">⚙️</TBtn>}
@@ -1999,9 +1998,7 @@ function OurWorldInner() {
                   <button key={e.id} onClick={() => {
                     setSelected(e); setPhotoIdx(0); setCardTab("overview"); setShowSearch(false); setSearchQuery("");
                     setSliderDate(e.dateStart);
-                    const p = ll2v(e.lat, e.lng, RAD);
-                    tRot.current = { x: -Math.asin(p.y / RAD) * 0.92, y: Math.atan2(-p.x, p.z) };
-                    tZm.current = 2.5;
+                    flyTo(e.lat, e.lng, 2.5);
                   }} style={{ display: "flex", width: "100%", alignItems: "center", gap: 8, padding: "9px 14px", border: "none", borderBottom: `1px solid ${P.parchment}`, background: "transparent", cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}
                     onMouseEnter={ev => ev.currentTarget.style.background = P.blush}
                     onMouseLeave={ev => ev.currentTarget.style.background = "transparent"}
@@ -2020,7 +2017,7 @@ function OurWorldInner() {
       )}
 
       {/* LOVE LETTER TRIGGERS — small ❀ markers in bottom-right */}
-      {(config.loveLetters || []).length > 0 && !editMode && (
+      {(config.loveLetters || []).length > 0 && (
         <div style={{ position: "absolute", bottom: 118, right: 22, zIndex: 12, display: "flex", flexDirection: "column", gap: 4 }}>
           {(config.loveLetters || []).map((lt, i) => (
             <button key={lt.id} onClick={() => setShowLetter(lt.id)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, opacity: 0.22, transition: "opacity .5s", padding: 2 }}
@@ -2029,7 +2026,7 @@ function OurWorldInner() {
           ))}
         </div>
       )}
-      {editMode && (
+      {(
         <button onClick={() => { setEditLetter(true); setLetterDraft(""); setLetterEditId(null); setLetterCity(""); setLetterLat(""); setLetterLng(""); }} style={{ position: "absolute", bottom: 118, right: 22, zIndex: 12, background: P.glass, border: `1px dashed ${P.rose}40`, borderRadius: 7, cursor: "pointer", fontSize: 9, color: P.textMuted, padding: "3px 9px", fontFamily: "inherit" }}>+ Love Letter</button>
       )}
 
@@ -2130,7 +2127,7 @@ function OurWorldInner() {
                 <div style={{ position: "absolute", bottom: 6, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 3 }}>{cur.photos.map((_, i) => <div key={i} style={{ width: 4, height: 4, borderRadius: "50%", background: i === photoIdx % cur.photos.length ? "#fff" : "rgba(255,255,255,.3)" }} />)}</div></>)}
               <button onClick={() => setCardGallery(true)} style={{ position: "absolute", top: 6, right: 6, background: "rgba(255,255,255,.85)", border: "none", borderRadius: 5, padding: "2px 8px", fontSize: 9, cursor: "pointer", fontFamily: "inherit", color: P.textMid }}>📷 {cur.photos.length}</button>
               <button onClick={() => setPolaroidMode(v => !v)} style={{ position: "absolute", bottom: 6, right: 6, background: polaroidMode ? P.goldWarm : "rgba(255,255,255,.7)", border: "none", borderRadius: 5, padding: "2px 7px", fontSize: 8, cursor: "pointer", fontFamily: "inherit", color: polaroidMode ? "#fff" : P.textFaint }} title="Polaroid mode">📸</button>
-              {editMode && <button onClick={() => handlePhotos(cur.id)} style={{ position: "absolute", top: 6, left: 6, background: "rgba(255,255,255,.85)", border: "none", borderRadius: 5, padding: "2px 8px", fontSize: 9, cursor: "pointer", fontFamily: "inherit" }}>+ Photos</button>}
+              {<button onClick={() => handlePhotos(cur.id)} style={{ position: "absolute", top: 6, left: 6, background: "rgba(255,255,255,.85)", border: "none", borderRadius: 5, padding: "2px 8px", fontSize: 9, cursor: "pointer", fontFamily: "inherit" }}>+ Photos</button>}
             </div>
           )}
           {(cur.photos || []).length > 0 && cardGallery && (
@@ -2138,7 +2135,7 @@ function OurWorldInner() {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, padding: "0 4px" }}>
                 <span style={{ fontSize: 9, color: P.textMid, letterSpacing: ".1em" }}>📷 {cur.photos.length} photos</span>
                 <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                  {editMode && <button onClick={() => setPhotoDeleteMode(v => !v)} style={{ background: photoDeleteMode ? "#c9777a" : "none", border: `1px solid ${photoDeleteMode ? "#c9777a" : P.textFaint}40`, borderRadius: 4, padding: "1px 6px", fontSize: 8, cursor: "pointer", color: photoDeleteMode ? "#fff" : P.textFaint, fontFamily: "inherit" }}>{photoDeleteMode ? "Done" : "🗑"}</button>}
+                  {<button onClick={() => setPhotoDeleteMode(v => !v)} style={{ background: photoDeleteMode ? "#c9777a" : "none", border: `1px solid ${photoDeleteMode ? "#c9777a" : P.textFaint}40`, borderRadius: 4, padding: "1px 6px", fontSize: 8, cursor: "pointer", color: photoDeleteMode ? "#fff" : P.textFaint, fontFamily: "inherit" }}>{photoDeleteMode ? "Done" : "🗑"}</button>}
                   <button onClick={() => { setCardGallery(false); setPhotoDeleteMode(false); }} style={{ background: "none", border: "none", fontSize: 12, color: P.textFaint, cursor: "pointer" }}>×</button>
                 </div>
               </div>
@@ -2152,7 +2149,7 @@ function OurWorldInner() {
                   </div>
                 ))}
               </div>
-              {editMode && <button onClick={() => handlePhotos(cur.id)} style={{ marginTop: 6, width: "100%", padding: "5px", background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: "none", borderRadius: 5, cursor: "pointer", fontSize: 9, color: P.textMuted, fontFamily: "inherit" }}>+ Add More Photos</button>}
+              {<button onClick={() => handlePhotos(cur.id)} style={{ marginTop: 6, width: "100%", padding: "5px", background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: "none", borderRadius: 5, cursor: "pointer", fontSize: 9, color: P.textMuted, fontFamily: "inherit" }}>+ Add More Photos</button>}
             </div>
           )}
           {(cur.photos || []).length === 0 && <div
@@ -2217,10 +2214,10 @@ function OurWorldInner() {
                 <div style={{ marginTop: 10, padding: "10px 12px", background: `${P.heart}06`, borderRadius: 8, borderLeft: `2px solid ${P.heart}20` }}>
                   <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 4 }}>💌 Love Note</div>
                   {cur.loveNote ? <p style={{ fontSize: 11, lineHeight: 1.6, color: P.textMid, margin: 0, fontStyle: "italic" }}>{cur.loveNote}</p>
-                  : editMode ? <input placeholder="Write a note about this memory..." onBlur={e => { if (e.target.value.trim()) dispatch({ type: "UPDATE", id: cur.id, data: { loveNote: e.target.value.trim() } }); }}
+                  : true ? <input placeholder="Write a note about this memory..." onBlur={e => { if (e.target.value.trim()) dispatch({ type: "UPDATE", id: cur.id, data: { loveNote: e.target.value.trim() } }); }}
                       style={{ width: "100%", border: "none", background: "none", fontSize: 10, fontFamily: "inherit", color: P.textMid, fontStyle: "italic", outline: "none", padding: 0 }} />
                   : <div style={{ fontSize: 9, color: P.textFaint, fontStyle: "italic" }}>No note yet</div>}
-                  {editMode && cur.loveNote && <button onClick={() => dispatch({ type: "UPDATE", id: cur.id, data: { loveNote: "" } })} style={{ marginTop: 4, background: "none", border: "none", fontSize: 8, color: P.textFaint, cursor: "pointer", padding: 0 }}>Clear</button>}
+                  {cur.loveNote && <button onClick={() => dispatch({ type: "UPDATE", id: cur.id, data: { loveNote: "" } })} style={{ marginTop: 4, background: "none", border: "none", fontSize: 8, color: P.textFaint, cursor: "pointer", padding: 0 }}>Clear</button>}
                 </div>
               </>)}
 
@@ -2244,11 +2241,11 @@ function OurWorldInner() {
                     </button>
                   ))}
                 </div>
-                {editMode && <button onClick={() => handlePhotos(cur.id)} style={{ marginTop: 8, width: "100%", padding: "6px", background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: "none", borderRadius: 5, cursor: "pointer", fontSize: 9, color: P.textMuted, fontFamily: "inherit" }}>+ Add Photos</button>}
+                {<button onClick={() => handlePhotos(cur.id)} style={{ marginTop: 8, width: "100%", padding: "6px", background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: "none", borderRadius: 5, cursor: "pointer", fontSize: 9, color: P.textMuted, fontFamily: "inherit" }}>+ Add Photos</button>}
               </>)}
             </div>
 
-            {editMode && <button onClick={() => setEditing({ ...cur })} style={{ marginTop: 10, width: "100%", padding: "7px 0", background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: `1px solid ${P.rose}15`, borderRadius: 7, cursor: "pointer", fontSize: 9, color: P.textMuted, fontFamily: "inherit" }}>✏️ Edit</button>}
+            {<button onClick={() => setEditing({ ...cur })} style={{ marginTop: 10, width: "100%", padding: "7px 0", background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: `1px solid ${P.rose}15`, borderRadius: 7, cursor: "pointer", fontSize: 9, color: P.textMuted, fontFamily: "inherit" }}>✏️ Edit</button>}
 
             {/* Entry navigation — prev/next chronologically */}
             {sorted.length > 1 && (() => {
@@ -2257,12 +2254,12 @@ function OurWorldInner() {
               const next = idx < sorted.length - 1 ? sorted[idx + 1] : null;
               return (
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10, paddingTop: 8, borderTop: `1px solid ${P.rose}10` }}>
-                  <button disabled={!prev} onClick={() => { if (prev) { setSelected(prev); setPhotoIdx(0); setCardTab("overview"); setSliderDate(prev.dateStart); const p = ll2v(prev.lat, prev.lng, RAD); tRot.current = { x: -Math.asin(p.y / RAD) * 0.92, y: Math.atan2(-p.x, p.z) }; } }}
+                  <button disabled={!prev} onClick={() => { if (prev) { setSelected(prev); setPhotoIdx(0); setCardTab("overview"); setSliderDate(prev.dateStart); flyTo(prev.lat, prev.lng); } }}
                     style={{ background: "none", border: "none", fontSize: 9, color: prev ? P.textMid : P.textFaint, cursor: prev ? "pointer" : "default", fontFamily: "inherit", opacity: prev ? 1 : 0.3, padding: "2px 6px" }}>
                     ◂ {prev ? prev.city : ""}
                   </button>
                   <span style={{ fontSize: 7, color: P.textFaint }}>{idx + 1} / {sorted.length}</span>
-                  <button disabled={!next} onClick={() => { if (next) { setSelected(next); setPhotoIdx(0); setCardTab("overview"); setSliderDate(next.dateStart); const p = ll2v(next.lat, next.lng, RAD); tRot.current = { x: -Math.asin(p.y / RAD) * 0.92, y: Math.atan2(-p.x, p.z) }; } }}
+                  <button disabled={!next} onClick={() => { if (next) { setSelected(next); setPhotoIdx(0); setCardTab("overview"); setSliderDate(next.dateStart); flyTo(next.lat, next.lng); } }}
                     style={{ background: "none", border: "none", fontSize: 9, color: next ? P.textMid : P.textFaint, cursor: next ? "pointer" : "default", fontFamily: "inherit", opacity: next ? 1 : 0.3, padding: "2px 6px" }}>
                     {next ? next.city : ""} ▸
                   </button>
@@ -2274,8 +2271,8 @@ function OurWorldInner() {
       )}
 
       {/* ADD / EDIT / SETTINGS / LETTER overlays */}
-      {showAdd && <AddForm types={TYPES} onAdd={entry => { dispatch({ type: "ADD", entry }); setShowAdd(false); showToast(`${entry.city} added to your world`, "🌍", 2500); const p = ll2v(entry.lat, entry.lng, RAD); tRot.current = { x: -Math.asin(p.y / RAD) * 0.92, y: Math.atan2(-p.x, p.z) }; tZm.current = 2.6; setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400); }} onClose={() => setShowAdd(false)} />}
-      {quickAddMode && <QuickAddForm types={TYPES} onAdd={entry => { dispatch({ type: "ADD", entry }); setQuickAddMode(false); showToast(`${entry.city} added to your world ⚡`, "⚡", 2500); const p = ll2v(entry.lat, entry.lng, RAD); tRot.current = { x: -Math.asin(p.y / RAD) * 0.92, y: Math.atan2(-p.x, p.z) }; tZm.current = 2.6; setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400); }} onClose={() => setQuickAddMode(false)} />}
+      {showAdd && <AddForm types={TYPES} onAdd={entry => { dispatch({ type: "ADD", entry }); setShowAdd(false); showToast(`${entry.city} added to your world`, "🌍", 2500); flyTo(entry.lat, entry.lng, 2.6); setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400); }} onClose={() => setShowAdd(false)} />}
+      {quickAddMode && <QuickAddForm types={TYPES} onAdd={entry => { dispatch({ type: "ADD", entry }); setQuickAddMode(false); showToast(`${entry.city} added to your world ⚡`, "⚡", 2500); flyTo(entry.lat, entry.lng, 2.6); setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400); }} onClose={() => setQuickAddMode(false)} />}
 
       {editing && <EditForm entry={editing} types={TYPES} onChange={setEditing}
         onSave={() => { dispatch({ type: "UPDATE", id: editing.id, data: editing }); setSelected(editing); setCardTab("overview"); setEditing(null); showToast("Entry saved", "✓", 2000); }}
@@ -2315,7 +2312,7 @@ function OurWorldInner() {
             {letter.city && <div style={{ fontSize: 9, color: P.textFaint, letterSpacing: ".12em", marginBottom: 8 }}>found near {letter.city}</div>}
             <p style={{ fontSize: 14, lineHeight: 2, color: P.text, whiteSpace: "pre-wrap", fontStyle: "italic" }}>{letter.text}</p>
             <p style={{ fontSize: 10, color: P.textFaint, marginTop: 20, letterSpacing: ".15em" }}>— {config.youName}</p>
-            {editMode && <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 14 }}>
+            {<div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 14 }}>
               <button onClick={() => { setLetterEditId(letter.id); setLetterDraft(letter.text); setLetterCity(letter.city || ""); setLetterLat(letter.lat?.toString() || ""); setLetterLng(letter.lng?.toString() || ""); setEditLetter(true); setShowLetter(null); }} style={{ background: "none", border: `1px solid ${P.rose}28`, borderRadius: 5, padding: "4px 12px", fontSize: 9, color: P.textMuted, cursor: "pointer", fontFamily: "inherit" }}>Edit</button>
               <button onClick={() => { setConfig({ loveLetters: (config.loveLetters || []).filter(l => l.id !== letter.id) }); setShowLetter(null); }} style={{ background: "none", border: `1px solid #c97a7a28`, borderRadius: 5, padding: "4px 12px", fontSize: 9, color: "#c97a7a", cursor: "pointer", fontFamily: "inherit" }}>Remove</button>
             </div>}
@@ -2386,9 +2383,7 @@ function OurWorldInner() {
                   const entry = data.entries.find(e => e.id === ph.id);
                   if (entry) {
                     setSelected(entry); setPhotoIdx(0); setCardTab("overview"); setShowGallery(false);
-                    const p = ll2v(entry.lat, entry.lng, RAD);
-                    tRot.current = { x: -Math.asin(p.y / RAD) * 0.92, y: Math.atan2(-p.x, p.z) };
-                    tZm.current = 2.5;
+                    flyTo(entry.lat, entry.lng, 2.5);
                     setSliderDate(entry.dateStart);
                   }
                 }} style={{ padding: 0, border: "none", background: "none", cursor: "pointer", borderRadius: 4, overflow: "hidden", aspectRatio: "1", position: "relative" }}>
@@ -2439,7 +2434,7 @@ function OurWorldInner() {
                   <div style={{ fontSize: 12, fontWeight: 400 }}>{dream.city}</div>
                   <div style={{ fontSize: 9, color: P.textFaint }}>{dream.country}{dream.notes ? ` — ${dream.notes}` : ""}</div>
                 </div>
-                {editMode && (<>
+                {(<>
                   <button onClick={() => {
                     const entry = { id: `e${Date.now()}`, city: dream.city, country: dream.country, lat: dream.lat, lng: dream.lng, dateStart: todayStr(), type: "together", who: "both", notes: dream.notes || "", memories: [], museums: [], restaurants: [], highlights: [], photos: [], stops: [] };
                     dispatch({ type: "ADD", entry });
@@ -2453,7 +2448,7 @@ function OurWorldInner() {
 
             {(config.dreamDestinations || []).length === 0 && <div style={{ textAlign: "center", padding: "24px 0", color: P.textFaint, fontSize: 11 }}>No dream destinations yet</div>}
 
-            {editMode && <DreamAddForm onAdd={dream => {
+            {<DreamAddForm onAdd={dream => {
               setConfig({ dreamDestinations: [...(config.dreamDestinations || []), { ...dream, id: `d${Date.now()}` }] });
               showToast(`${dream.city} added to dreams ✦`, "✦", 2000);
             }} />}
@@ -2678,9 +2673,7 @@ function OurWorldInner() {
           if (entry) {
             setSelected(entry); setPhotoIdx(0); setCardTab("overview");
             setSliderDate(entry.dateStart);
-            const p = ll2v(entry.lat, entry.lng, RAD);
-            tRot.current = { x: -Math.asin(p.y / RAD) * 0.92, y: Math.atan2(-p.x, p.z) };
-            tZm.current = 2.5;
+            flyTo(entry.lat, entry.lng, 2.5);
           }
         }} style={{ position: "absolute", top: 75, left: "50%", transform: "translateX(-50%)", zIndex: 12, background: P.card, backdropFilter: "blur(12px)", border: `1px solid ${P.gold}25`, borderRadius: 20, padding: "5px 14px", cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6, boxShadow: "0 2px 12px rgba(0,0,0,.06)", opacity: 0.7, transition: "opacity .3s" }}
           onMouseEnter={e => e.currentTarget.style.opacity = 1}
