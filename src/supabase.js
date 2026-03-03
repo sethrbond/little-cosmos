@@ -5,27 +5,50 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 
 export const supabase = createClient(supabaseUrl, supabaseKey)
 
-// ---- Photo upload to Supabase Storage ----
+/*
+ * MIGRATION REQUIRED — run this SQL in your Supabase SQL editor if not already done:
+ *
+ *   ALTER TABLE config ADD COLUMN IF NOT EXISTS metadata jsonb DEFAULT '{}'::jsonb;
+ *
+ * This column stores loveLetters, dreamDestinations, chapters, and darkMode.
+ * Without it, those features will only persist via JSON export/import.
+ */
+
+// ---- Retry helper ----
+async function withRetry(fn, retries = 2) {
+  for (let i = 0; i <= retries; i++) {
+    try {
+      return await fn()
+    } catch (err) {
+      if (i === retries) { console.error('All retries failed:', err); return null }
+      await new Promise(r => setTimeout(r, 1000 * (i + 1)))
+    }
+  }
+}
+
+// ============================================================
+//  PHOTO STORAGE
+// ============================================================
 
 export async function uploadPhoto(file, entryId) {
   try {
     const ext = file.name.split('.').pop() || 'jpg'
     const safeName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
     const path = `${entryId}/${safeName}`
-    
-    const { data: uploadData, error } = await supabase.storage
+
+    const { error } = await supabase.storage
       .from('photos')
       .upload(path, file, {
         cacheControl: '31536000',
         upsert: false,
         contentType: file.type || 'image/jpeg'
       })
-    
+
     if (error) {
       console.error('[uploadPhoto] UPLOAD FAILED:', error.message)
       return null
     }
-    
+
     const { data: urlData } = supabase.storage.from('photos').getPublicUrl(path)
     return urlData?.publicUrl || null
   } catch (err) {
@@ -34,85 +57,57 @@ export async function uploadPhoto(file, entryId) {
   }
 }
 
-// ---- Photo deletion from Supabase Storage ----
-
-// Delete a single photo from storage by its public URL
 export async function deletePhoto(publicUrl) {
   try {
-    // Extract the storage path from the public URL
-    // URL format: https://xxx.supabase.co/storage/v1/object/public/photos/entryId/filename.jpg
     const match = publicUrl.match(/\/photos\/(.+)$/)
     if (!match) return false
-    const path = match[1]
-    
+
     const { error } = await supabase.storage
       .from('photos')
-      .remove([path])
-    
-    if (error) {
-      console.error('Delete photo error:', error)
-      return false
-    }
+      .remove([match[1]])
+
+    if (error) { console.error('[deletePhoto] error:', error); return false }
     return true
   } catch (err) {
-    console.error('deletePhoto exception:', err)
+    console.error('[deletePhoto] exception:', err)
     return false
   }
 }
 
-// Delete ALL photos in storage for a given entry (used when deleting an entry)
 export async function deleteEntryPhotos(entryId) {
   try {
-    // List all files in the entry's folder
     const { data: files, error: listError } = await supabase.storage
       .from('photos')
       .list(entryId)
-    
-    if (listError) {
-      console.error('List photos error:', listError)
-      return false
-    }
-    
+
+    if (listError) { console.error('[deleteEntryPhotos] list error:', listError); return false }
     if (!files || files.length === 0) return true
-    
-    // Build full paths and batch delete
+
     const paths = files.map(f => `${entryId}/${f.name}`)
-    const { error: deleteError } = await supabase.storage
+    const { error } = await supabase.storage
       .from('photos')
       .remove(paths)
-    
-    if (deleteError) {
-      console.error('Delete photos error:', deleteError)
-      return false
-    }
+
+    if (error) { console.error('[deleteEntryPhotos] remove error:', error); return false }
     return true
   } catch (err) {
-    console.error('deleteEntryPhotos exception:', err)
+    console.error('[deleteEntryPhotos] exception:', err)
     return false
   }
 }
 
-// ---- Retry helper ----
-async function withRetry(fn, retries = 2) {
-  for (let i = 0; i <= retries; i++) {
-    try {
-      const result = await fn();
-      return result;
-    } catch (err) {
-      if (i === retries) { console.error('All retries failed:', err); return false; }
-      await new Promise(r => setTimeout(r, 1000 * (i + 1)));
-    }
-  }
-}
-
-// ---- Database operations ----
+// ============================================================
+//  ENTRIES (travels / locations)
+// ============================================================
 
 export async function loadEntries() {
   const { data, error } = await supabase
     .from('entries')
     .select('*')
     .order('date_start', { ascending: true })
-  if (error) { console.error('Load entries error:', error); return []; }
+
+  if (error) { console.error('[loadEntries] error:', error); return [] }
+
   return (data || []).map(row => ({
     id: row.id,
     city: row.city,
@@ -160,19 +155,25 @@ export async function saveEntry(entry) {
   }
   return withRetry(async () => {
     const { error } = await supabase.from('entries').upsert(row, { onConflict: 'id' })
-    if (error) { console.error('Save entry error:', error); throw error; }
-    return true;
-  });
+    if (error) throw error
+    return true
+  })
 }
 
 export async function deleteEntry(id) {
-  // First, delete all photos from storage for this entry
   await deleteEntryPhotos(id)
-  // Then delete the database row
   const { error } = await supabase.from('entries').delete().eq('id', id)
-  if (error) console.error('Delete entry error:', error)
+  if (error) console.error('[deleteEntry] error:', error)
   return !error
 }
+
+// ============================================================
+//  CONFIG — persists ALL settings including complex arrays
+// ============================================================
+//
+// Basic fields → individual columns (backward compatible)
+// Complex fields → single "metadata" JSONB column:
+//   loveLetters, dreamDestinations, chapters, darkMode
 
 export async function loadConfig() {
   const { data, error } = await supabase
@@ -180,8 +181,11 @@ export async function loadConfig() {
     .select('*')
     .eq('id', 'main')
     .single()
+
   if (error || !data) return null
-  return {
+
+  // Base config from named columns
+  const cfg = {
     startDate: data.start_date || '2021-06-01',
     title: data.title || 'Our World',
     subtitle: data.subtitle || 'every moment, every adventure',
@@ -189,9 +193,20 @@ export async function loadConfig() {
     youName: data.you_name || 'Seth',
     partnerName: data.partner_name || 'Rosie Posie',
   }
+
+  // Merge in complex fields from metadata JSONB column
+  if (data.metadata && typeof data.metadata === 'object') {
+    if (Array.isArray(data.metadata.loveLetters))       cfg.loveLetters = data.metadata.loveLetters
+    if (Array.isArray(data.metadata.dreamDestinations))  cfg.dreamDestinations = data.metadata.dreamDestinations
+    if (Array.isArray(data.metadata.chapters))           cfg.chapters = data.metadata.chapters
+    if (typeof data.metadata.darkMode === 'boolean')     cfg.darkMode = data.metadata.darkMode
+  }
+
+  return cfg
 }
 
 export async function saveConfig(config) {
+  // Basic fields in named columns
   const row = {
     id: 'main',
     start_date: config.startDate,
@@ -200,7 +215,25 @@ export async function saveConfig(config) {
     love_letter: config.loveLetter || '',
     you_name: config.youName,
     partner_name: config.partnerName,
+    // Complex fields packed into metadata JSONB
+    metadata: {
+      loveLetters: config.loveLetters || [],
+      dreamDestinations: config.dreamDestinations || [],
+      chapters: config.chapters || [],
+      darkMode: config.darkMode ?? true,
+    },
   }
+
   const { error } = await supabase.from('config').upsert(row, { onConflict: 'id' })
-  if (error) console.error('Save config error:', error)
+  if (error) {
+    // If metadata column doesn't exist yet, retry without it
+    if (error.message?.includes('metadata') || error.code === '42703') {
+      console.warn('[saveConfig] metadata column missing — saving basic fields only. Run migration SQL.')
+      const { metadata, ...basic } = row
+      const { error: e2 } = await supabase.from('config').upsert(basic, { onConflict: 'id' })
+      if (e2) console.error('[saveConfig] fallback error:', e2)
+    } else {
+      console.error('[saveConfig] error:', error)
+    }
+  }
 }
