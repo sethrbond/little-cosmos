@@ -8,13 +8,10 @@ export const supabase = createClient(supabaseUrl, supabaseKey)
 // ---- Photo upload to Supabase Storage ----
 
 export async function uploadPhoto(file, entryId) {
-  console.log('[uploadPhoto] called with:', { fileName: file.name, fileSize: file.size, fileType: file.type, entryId })
-  
   try {
     const ext = file.name.split('.').pop() || 'jpg'
     const safeName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
     const path = `${entryId}/${safeName}`
-    console.log('[uploadPhoto] uploading to path:', path)
     
     const { data: uploadData, error } = await supabase.storage
       .from('photos')
@@ -25,19 +22,73 @@ export async function uploadPhoto(file, entryId) {
       })
     
     if (error) {
-      console.error('[uploadPhoto] UPLOAD FAILED:', error.message, error)
+      console.error('[uploadPhoto] UPLOAD FAILED:', error.message)
       return null
     }
     
-    console.log('[uploadPhoto] upload success:', uploadData)
-    
     const { data: urlData } = supabase.storage.from('photos').getPublicUrl(path)
-    console.log('[uploadPhoto] public URL:', urlData?.publicUrl)
-    
     return urlData?.publicUrl || null
   } catch (err) {
     console.error('[uploadPhoto] EXCEPTION:', err)
     return null
+  }
+}
+
+// ---- Photo deletion from Supabase Storage ----
+
+// Delete a single photo from storage by its public URL
+export async function deletePhoto(publicUrl) {
+  try {
+    // Extract the storage path from the public URL
+    // URL format: https://xxx.supabase.co/storage/v1/object/public/photos/entryId/filename.jpg
+    const match = publicUrl.match(/\/photos\/(.+)$/)
+    if (!match) return false
+    const path = match[1]
+    
+    const { error } = await supabase.storage
+      .from('photos')
+      .remove([path])
+    
+    if (error) {
+      console.error('Delete photo error:', error)
+      return false
+    }
+    return true
+  } catch (err) {
+    console.error('deletePhoto exception:', err)
+    return false
+  }
+}
+
+// Delete ALL photos in storage for a given entry (used when deleting an entry)
+export async function deleteEntryPhotos(entryId) {
+  try {
+    // List all files in the entry's folder
+    const { data: files, error: listError } = await supabase.storage
+      .from('photos')
+      .list(entryId)
+    
+    if (listError) {
+      console.error('List photos error:', listError)
+      return false
+    }
+    
+    if (!files || files.length === 0) return true
+    
+    // Build full paths and batch delete
+    const paths = files.map(f => `${entryId}/${f.name}`)
+    const { error: deleteError } = await supabase.storage
+      .from('photos')
+      .remove(paths)
+    
+    if (deleteError) {
+      console.error('Delete photos error:', deleteError)
+      return false
+    }
+    return true
+  } catch (err) {
+    console.error('deleteEntryPhotos exception:', err)
+    return false
   }
 }
 
@@ -49,7 +100,6 @@ async function withRetry(fn, retries = 2) {
       return result;
     } catch (err) {
       if (i === retries) { console.error('All retries failed:', err); return false; }
-      console.warn(`Retry ${i + 1}/${retries}...`);
       await new Promise(r => setTimeout(r, 1000 * (i + 1)));
     }
   }
@@ -116,6 +166,9 @@ export async function saveEntry(entry) {
 }
 
 export async function deleteEntry(id) {
+  // First, delete all photos from storage for this entry
+  await deleteEntryPhotos(id)
+  // Then delete the database row
   const { error } = await supabase.from('entries').delete().eq('id', id)
   if (error) console.error('Delete entry error:', error)
   return !error
