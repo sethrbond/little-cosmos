@@ -6,7 +6,7 @@ import { geocodeSearch } from "./geocode.js";
 /* =================================================================
    🌍 OUR WORLD — Seth & Rosie Posie
    "every moment, every adventure"
-   v8.1 — flyTo shortest-path fix, dark mode persistence, all pre-beta fixes
+   v8.1 — correct Three.js XYZ Euler flyTo, shortest-path, all pre-beta fixes
    ================================================================= */
 
 const DEFAULT_CONFIG = {
@@ -722,18 +722,19 @@ function OurWorldInner() {
   const tSpinSpd = useRef(0.001);
 
   // ---- flyTo helper — Euler XYZ rotation to center (lat,lng) on camera ----
-  // Math: globe.rotation = Ry(β) * Rx(α), camera at (0,0,z)
-  //   α = atan2(p.y, p.z)  — pitch to bring point into xz-plane
-  //   β = atan2(-p.x, √(p.y²+p.z²)) — yaw to bring point to z-axis
-  //   Shortest-path: normalize target.y to within π of current rotation
+  // Three.js Euler 'XYZ' applies as Rz·Ry·Rx (but z=0), matrix is:
+  //   | cy      0    sy   |      To send point P → (0,0,r):
+  //   | sx·sy   cx  -sx·cy|        rx = atan2(py, √(px²+pz²))
+  //   |-cx·sy   sx   cx·cy|        ry = atan2(-px, pz)
+  // Shortest-path: normalize ry to within π of current rotation
   const flyTo = useCallback((lat, lng, zoom) => {
     const p = ll2v(lat, lng, RAD);
-    const alpha = Math.atan2(p.y, p.z);
-    let beta = Math.atan2(-p.x, Math.sqrt(p.y * p.y + p.z * p.z));
-    // Normalize beta to be within π of current actual rotation (shortest path)
-    const dy = beta - rot.current.y;
-    beta -= Math.round(dy / (2 * Math.PI)) * 2 * Math.PI;
-    tRot.current = { x: alpha, y: beta };
+    const rx = Math.atan2(p.y, Math.sqrt(p.x * p.x + p.z * p.z));
+    let ry = Math.atan2(-p.x, p.z);
+    // Normalize ry to be within π of current actual rotation (shortest path)
+    const dy = ry - rot.current.y;
+    ry -= Math.round(dy / (2 * Math.PI)) * 2 * Math.PI;
+    tRot.current = { x: rx, y: ry };
     tSpinSpd.current = 0;
     spinSpd.current = 0;
     if (zoom !== undefined) tZm.current = zoom;
