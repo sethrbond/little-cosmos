@@ -9,7 +9,7 @@ const NOMINATIM = 'https://nominatim.openstreetmap.org/search'
 let debounceTimer = null
 let lastFetch = 0
 const DEBOUNCE_MS = 300
-const MIN_INTERVAL = 400 // Nominatim asks for ≤1 req/sec
+const MIN_INTERVAL = 400 // Nominatim asks for max 1 req/sec
 
 /**
  * Debounced geocode search. Call freely from onChange handlers.
@@ -49,7 +49,7 @@ export function geocodeSearch(query, callback) {
 
       const results = data.map(item => {
         const addr = item.address || {}
-        // Pick best "place name" — city > town > village > county > state > raw name
+        // Pick best place name — city > town > village > county > state > raw name
         const name = addr.city || addr.town || addr.village || addr.hamlet
           || addr.county || addr.state || addr.municipality || item.name || query
         const country = addr.country || ''
