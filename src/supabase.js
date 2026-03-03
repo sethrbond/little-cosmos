@@ -5,7 +5,7 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 
 export const supabase = createClient(supabaseUrl, supabaseKey)
 
-/* supabase.js v7.9.2 — love_note persistence fix included */
+/* supabase.js v7.9.3 — resilient saves + love_note persistence */
 
 // ---- Retry helper ----
 async function withRetry(fn, retries = 2) {
@@ -150,7 +150,17 @@ export async function saveEntry(entry) {
   }
   return withRetry(async () => {
     const { error } = await supabase.from('entries').upsert(row, { onConflict: 'id' })
-    if (error) throw error
+    if (error) {
+      // If a column doesn't exist yet, retry without the newer columns
+      if (error.message?.includes('love_note') || error.message?.includes('favorite') || error.code === '42703') {
+        console.warn('[saveEntry] column missing — retrying without love_note/favorite. Run the SQL migration.')
+        const { love_note, favorite, ...safeRow } = row
+        const { error: e2 } = await supabase.from('entries').upsert(safeRow, { onConflict: 'id' })
+        if (e2) throw e2
+        return true
+      }
+      throw error
+    }
     return true
   })
 }
