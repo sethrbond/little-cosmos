@@ -6,7 +6,7 @@ import { geocodeSearch } from "./geocode.js";
 /* =================================================================
    🌍 OUR WORLD — Seth & Rosie Posie
    "every moment, every adventure"
-   v7.9.4 — pre-beta: quick add, dark mode, polaroid, drag-drop, chapters, resilient saves
+   v7.9.5 — pre-beta final: cardTab fix, dead code cleanup, SQL schema alignment
    ================================================================= */
 
 const DEFAULT_CONFIG = {
@@ -759,7 +759,6 @@ function OurWorldInner() {
   const [showConstellation, setShowConstellation] = useState(false);
   const [showDreams, setShowDreams] = useState(false);
   const [cardTab, setCardTab] = useState("overview"); // overview, memories, places, photos
-  const [showChapters, setShowChapters] = useState(true);
   const [showZoomHint, setShowZoomHint] = useState(true);
   const [monthlyPromptShown, setMonthlyPromptShown] = useState(false);
   const [quickAddMode, setQuickAddMode] = useState(false);
@@ -1772,7 +1771,7 @@ function OurWorldInner() {
         } else {
           const entry = data.entries.find(en => en.id === id);
           if (entry) {
-            setSelected(entry); setPhotoIdx(0); setLocationList(null);
+            setSelected(entry); setPhotoIdx(0); setCardTab("overview"); setLocationList(null);
             setSliderDate(entry.dateStart);
             const p = ll2v(entry.lat, entry.lng, RAD);
             tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) };
@@ -1865,7 +1864,7 @@ function OurWorldInner() {
   if (loading) return <div style={{ width: "100%", height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#161028", fontFamily: "Georgia,serif", color: P.textFaint }}>
     <div style={{ fontSize: 48, animation: "heartPulse 2s ease infinite", marginBottom: 16 }}>🌍</div>
     <div style={{ fontSize: 14, letterSpacing: ".2em", opacity: 0.7 }}>Loading your world<span style={{ animation: "ellipsis 1.5s infinite" }}>...</span></div>
-    <div style={{ fontSize: 9, opacity: 0.3, marginTop: 12, letterSpacing: ".15em" }}>v7.9.4</div>
+    <div style={{ fontSize: 9, opacity: 0.3, marginTop: 12, letterSpacing: ".15em" }}>v7.9.5</div>
     <style>{`@keyframes heartPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}} @keyframes ellipsis{0%{opacity:0}50%{opacity:1}100%{opacity:0}}`}</style>
   </div>;
 
@@ -1941,7 +1940,7 @@ function OurWorldInner() {
                 </div>
                 {filteredList.map(e => (
                   <button key={e.id} onClick={() => {
-                    setSelected(e); setPhotoIdx(0); setLocationList(null); setSliderDate(e.dateStart);
+                    setSelected(e); setPhotoIdx(0); setCardTab("overview"); setLocationList(null); setSliderDate(e.dateStart);
                     const p = ll2v(e.lat, e.lng, RAD);
                     tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) };
                     tZm.current = 2.5;
@@ -2096,7 +2095,7 @@ function OurWorldInner() {
               const t = TYPES[e.type] || TYPES.together;
               return (
                 <button key={e.id} onClick={() => {
-                  setSelected(e); setPhotoIdx(0); setLocationList(null); setCardGallery(false);
+                  setSelected(e); setPhotoIdx(0); setCardTab("overview"); setLocationList(null); setCardGallery(false);
                   setSliderDate(e.dateStart);
                 }} style={{
                   display: "block", width: "100%", textAlign: "left", padding: "10px 12px",
@@ -2277,7 +2276,7 @@ function OurWorldInner() {
       {quickAddMode && <QuickAddForm types={TYPES} onAdd={entry => { dispatch({ type: "ADD", entry }); setQuickAddMode(false); showToast(`${entry.city} added ⚡`, "⚡", 2500); const p = ll2v(entry.lat, entry.lng, RAD); tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) }; tZm.current = 2.6; setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400); }} onClose={() => setQuickAddMode(false)} />}
 
       {editing && <EditForm entry={editing} types={TYPES} onChange={setEditing}
-        onSave={() => { dispatch({ type: "UPDATE", id: editing.id, data: editing }); setSelected(editing); setEditing(null); showToast("Entry saved", "✓", 2000); }}
+        onSave={() => { dispatch({ type: "UPDATE", id: editing.id, data: editing }); setSelected(editing); setCardTab("overview"); setEditing(null); showToast("Entry saved", "✓", 2000); }}
         onClose={() => setEditing(null)}
         onDelete={() => setConfirmDelete(editing.id)}
         onAddStop={stop => { const updated = { ...editing, stops: [...(editing.stops || []), stop] }; setEditing(updated); dispatch({ type: "UPDATE", id: editing.id, data: { stops: updated.stops } }); }} />}
