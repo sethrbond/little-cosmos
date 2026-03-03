@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef, useCallback, useMemo, useReducer, Component } from "react";
 import * as THREE from "three";
-import { loadEntries, saveEntry, deleteEntry, loadConfig as loadCfg, saveConfig as saveCfg, uploadPhoto } from "./supabase.js";
+import { loadEntries, saveEntry, deleteEntry, loadConfig as loadCfg, saveConfig as saveCfg, uploadPhoto, deletePhoto } from "./supabase.js";
 
 /* =================================================================
    🌍 OUR WORLD — Seth & Rosie Posie
    "every moment, every adventure"
-   v7.3 — hosted edition with Supabase
+   v7.5 — hosted edition with Supabase
    ================================================================= */
 
 const DEFAULT_CONFIG = {
@@ -760,6 +760,8 @@ function reducer(st, a) {
       { const updated = next.entries.find(e => e.id === a.id); if (updated) saveEntry(updated); }
       break;
     case "REMOVE_PHOTO":
+      { const photoUrl = (st.entries.find(e => e.id === a.id)?.photos || [])[a.photoIndex];
+        if (photoUrl) deletePhoto(photoUrl); } // delete from Supabase storage
       next = { ...st, entries: st.entries.map(e => e.id === a.id ? { ...e, photos: (e.photos || []).filter((_, i) => i !== a.photoIndex) } : e) };
       { const updated = next.entries.find(e => e.id === a.id); if (updated) saveEntry(updated); }
       break;
@@ -771,9 +773,9 @@ function reducer(st, a) {
 // ---- SEASONAL TINT ----
 function seasonalHue(dateStr) {
   const m = new Date(dateStr + "T12:00:00").getMonth();
-  if (m >= 4 && m <= 8) return { glow: "#f5d0c0", particle: "#e0a888" }; // warm summer
-  if (m >= 9 || m <= 1) return { glow: "#d0d8f0", particle: "#a0b0d4" }; // cool winter
-  return { glow: "#e0d8c8", particle: "#c8b8a0" }; // neutral spring/fall
+  if (m >= 4 && m <= 8) return { glow: "#f5c8d8", particle: "#e8a0b8" }; // summer — warm rose
+  if (m >= 9 || m <= 1) return { glow: "#d8c8f0", particle: "#b0a0d8" }; // winter — lavender frost
+  return { glow: "#f0d0e0", particle: "#d0a8c8" }; // spring/fall — blush pink
 }
 
 // ---- FIRST BADGES ----
@@ -1413,7 +1415,7 @@ function OurWorldInner() {
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color("#161028"); // warm deep plum
-    scene.fog = new THREE.FogExp2("#161028", 0.018); // subtle depth fog
+    scene.fog = new THREE.FogExp2("#161028", 0.008); // very gentle — lets stars shine through
     scnRef.current = scene;
 
     const cam = new THREE.PerspectiveCamera(45, w / h, 0.1, 100);
@@ -1425,32 +1427,36 @@ function OurWorldInner() {
     el.appendChild(rend.domElement);
     rendRef.current = rend;
 
-    scene.add(new THREE.AmbientLight("#fff8f0", 0.85));
-    const sun = new THREE.DirectionalLight("#fffaf0", 1.1);
+    scene.add(new THREE.AmbientLight("#fff0f8", 0.9)); // pink-warm ambient
+    const sun = new THREE.DirectionalLight("#fff4f0", 1.0);
     sun.position.set(4, 3, 5); scene.add(sun);
-    const fill = new THREE.DirectionalLight("#f0e0f5", 0.4);
+    const fill = new THREE.DirectionalLight("#f0d8f5", 0.5); // lavender fill
     fill.position.set(-4, -2, -4); scene.add(fill);
-    const rim = new THREE.PointLight("#fce4ec", 0.5, 10);
+    const rim = new THREE.PointLight("#fce4ec", 0.6, 12); // rose rim
     rim.position.set(0, 4, 2); scene.add(rim);
+    const bottomGlow = new THREE.PointLight("#d8b0e8", 0.3, 8); // lavender underglow
+    bottomGlow.position.set(0, -3, 1); scene.add(bottomGlow);
 
     const globe = new THREE.Group();
     scene.add(globe);
     globeRef.current = globe;
 
-    // Main sphere — opaque, writes to depth buffer to occlude far-side markers
+    // Main sphere — soft lavender-pink surface with deep purple inner glow
     globe.add(new THREE.Mesh(
       new THREE.SphereGeometry(RAD, 96, 96),
-      new THREE.MeshPhongMaterial({ color: "#ece6dc", emissive: "#3d2050", emissiveIntensity: 0.05, shininess: 25, transparent: false })
+      new THREE.MeshPhongMaterial({ color: "#e8d8f0", emissive: "#5a2878", emissiveIntensity: 0.08, shininess: 18, transparent: false })
     ));
 
-    // Glow layers — lush, dreamy, airy
+    // Glow layers — 8-layer ethereal rose-lavender halo
     const glows = [
-      { r: 1.02, color: "#d0a0e0", op: 0.22 },
-      { r: 1.05, color: "#e8a8d0", op: 0.16 },
-      { r: 1.09, color: "#f0c0d8", op: 0.12 },
-      { r: 1.14, color: "#f0c8e4", op: 0.08 },
-      { r: 1.22, color: "#f4d8ee", op: 0.05 },
-      { r: 1.35, color: "#f8e8f4", op: 0.03 },
+      { r: 1.015, color: "#d8a0f0", op: 0.30 },  // inner: bright lavender
+      { r: 1.035, color: "#e8a0d8", op: 0.24 },  // rose-lavender
+      { r: 1.06, color: "#f0b8d8", op: 0.18 },   // warm pink
+      { r: 1.09, color: "#e8c0e8", op: 0.14 },   // orchid
+      { r: 1.12, color: "#f0c0e8", op: 0.10 },   // soft pink-lavender
+      { r: 1.18, color: "#f4d0f0", op: 0.07 },   // outer pink mist
+      { r: 1.28, color: "#f8e0f8", op: 0.04 },   // faint blush
+      { r: 1.42, color: "#f8e8f8", op: 0.02 },   // outermost whisper
     ].map(({ r, color, op }) => {
       const m = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: op, side: THREE.BackSide });
       const mesh = new THREE.Mesh(new THREE.SphereGeometry(RAD * r, 48, 48), m);
@@ -1459,36 +1465,29 @@ function OurWorldInner() {
     });
     glowLayersRef.current = glows;
 
-    // Graticule — very subtle, almost invisible
-    const gM = new THREE.LineBasicMaterial({ color: "#e8e2da", transparent: true, opacity: 0.03 });
-    for (let lat = -60; lat <= 60; lat += 30) {
-      const pts = []; for (let lng = -180; lng <= 180; lng += 4) pts.push(ll2v(lat, lng, RAD * 1.001));
-      globe.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), gM));
-    }
-    for (let lng = -180; lng < 180; lng += 30) {
-      const pts = []; for (let lat = -90; lat <= 90; lat += 4) pts.push(ll2v(lat, lng, RAD * 1.001));
-      globe.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), gM));
-    }
+    // (Graticule removed — cleaner, more ethereal look)
 
-    // Land dots — varied sizes for more organic feel
+    // Land dots — soft pink/lavender touches for a sweet feel
     LAND.forEach(([lat, lng]) => {
       const p = ll2v(lat, lng, RAD * 1.002);
-      const sz = 0.002 + Math.random() * 0.0025;
-      const op = 0.2 + Math.random() * 0.25;
-      const d = new THREE.Mesh(new THREE.CircleGeometry(sz, 5), new THREE.MeshBasicMaterial({ color: "#c8bfb0", transparent: true, opacity: op, side: THREE.DoubleSide }));
+      const sz = 0.002 + Math.random() * 0.003;
+      const op = 0.18 + Math.random() * 0.25;
+      const colors = ["#e0b0d0", "#d8b0e0", "#e0c0d8", "#d0b8d8", "#e8c0e0"]; // rose, lavender, pink, mauve, blush
+      const c = colors[Math.floor(Math.random() * colors.length)];
+      const d = new THREE.Mesh(new THREE.CircleGeometry(sz, 5), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: op, side: THREE.DoubleSide }));
       d.position.copy(p); d.lookAt(p.clone().multiplyScalar(2)); globe.add(d);
     });
 
-    // Geography lines — coastlines and borders, fade in on zoom
+    // Geography lines — coastlines always visible in glowing rose/lavender
     const geoGroup = [];
     GEO_LINES.forEach(geo => {
       const pts = geo.p.map(c => ll2v(c[0], c[1], RAD * 1.003));
       const geom = new THREE.BufferGeometry().setFromPoints(pts);
       const isBorder = geo.t === "border";
       const mat = new THREE.LineBasicMaterial({
-        color: isBorder ? "#c0b8a8" : "#b8a898",
+        color: isBorder ? "#c8a0d0" : "#e0a0c8", // borders: soft lavender, coastlines: glowing rose
         transparent: true,
-        opacity: 0, // starts invisible, fades in on zoom
+        opacity: isBorder ? 0.22 : 0.50, // always clearly visible
       });
       const line = new THREE.Line(geom, mat);
       line.renderOrder = -1;
@@ -1497,69 +1496,71 @@ function OurWorldInner() {
     });
     // geoGroup managed via closure in animation loop
 
-    // Particles — multi-layered, varied colors and sizes
-    const pN = 350;
+    // Particles — rose-pink fairy dust floating in space
+    const pN = 450;
     const pG = new THREE.BufferGeometry();
     const pP = new Float32Array(pN * 3);
     for (let i = 0; i < pN; i++) { pP[i * 3] = (Math.random() - 0.5) * 16; pP[i * 3 + 1] = (Math.random() - 0.5) * 16; pP[i * 3 + 2] = (Math.random() - 0.5) * 16; }
     pG.setAttribute("position", new THREE.BufferAttribute(pP, 3));
-    const pMat = new THREE.PointsMaterial({ color: P.roseSoft, size: 0.008, transparent: true, opacity: 0.25 });
+    const pMat = new THREE.PointsMaterial({ color: "#f0a0c8", size: 0.010, transparent: true, opacity: 0.32 });
     const particles = new THREE.Points(pG, pMat);
     scene.add(particles);
     particlesRef.current = particles;
 
-    // Second particle layer — warmer/gold dust
-    const p2N = 180;
+    // Second particle layer — lavender stardust
+    const p2N = 260;
     const p2G = new THREE.BufferGeometry();
     const p2P = new Float32Array(p2N * 3);
-    for (let i = 0; i < p2N; i++) { p2P[i * 3] = (Math.random() - 0.5) * 12; p2P[i * 3 + 1] = (Math.random() - 0.5) * 12; p2P[i * 3 + 2] = (Math.random() - 0.5) * 12; }
+    for (let i = 0; i < p2N; i++) { p2P[i * 3] = (Math.random() - 0.5) * 13; p2P[i * 3 + 1] = (Math.random() - 0.5) * 13; p2P[i * 3 + 2] = (Math.random() - 0.5) * 13; }
     p2G.setAttribute("position", new THREE.BufferAttribute(p2P, 3));
-    const p2Mat = new THREE.PointsMaterial({ color: P.goldWarm, size: 0.005, transparent: true, opacity: 0.1 });
+    const p2Mat = new THREE.PointsMaterial({ color: "#d0a0f0", size: 0.007, transparent: true, opacity: 0.20 });
     const particles2 = new THREE.Points(p2G, p2Mat);
     scene.add(particles2);
 
-    // Stars — 900+ twinkling background field with warm/cool color mix
+    // Stars — 900+ twinkling field, no sizeAttenuation so they're visible at distance
     const starN = 920;
     const starG = new THREE.BufferGeometry();
     const starP = new Float32Array(starN * 3);
     const starS = new Float32Array(starN);
-    const starPhase = new Float32Array(starN); // per-star twinkle phase
-    const starSpeed = new Float32Array(starN); // per-star twinkle speed
-    const starBaseOp = new Float32Array(starN); // base opacity per star
+    const starPhase = new Float32Array(starN);
+    const starSpeed = new Float32Array(starN);
+    const starBaseOp = new Float32Array(starN);
     for (let i = 0; i < starN; i++) {
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
-      const r = 16 + Math.random() * 22;
+      const r = 14 + Math.random() * 18; // closer so fog doesn't eat them
       starP[i * 3] = r * Math.sin(phi) * Math.cos(theta);
       starP[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
       starP[i * 3 + 2] = r * Math.cos(phi);
-      starS[i] = 0.2 + Math.random() * 1.5;
+      starS[i] = 1.0 + Math.random() * 2.5; // screen-space pixels since no sizeAttenuation
       starPhase[i] = Math.random() * Math.PI * 2;
-      starSpeed[i] = 0.3 + Math.random() * 2.5; // different twinkle rates
+      starSpeed[i] = 0.3 + Math.random() * 2.5;
       starBaseOp[i] = 0.15 + Math.random() * 0.55;
     }
     starG.setAttribute("position", new THREE.BufferAttribute(starP, 3));
     starG.setAttribute("size", new THREE.BufferAttribute(starS, 1));
-    // Two star layers: cool white + warm gold
-    const starMat = new THREE.PointsMaterial({ color: "#f0e8ff", size: 0.04, transparent: true, opacity: 0.5, sizeAttenuation: true });
+    const starMat = new THREE.PointsMaterial({ color: "#f0e8ff", size: 1.8, transparent: true, opacity: 0.6, sizeAttenuation: false });
     const stars = new THREE.Points(starG, starMat);
+    stars.renderOrder = -10; // render behind everything
     scene.add(stars);
     starsRef.current = { mesh: stars, phases: starPhase, speeds: starSpeed, baseOps: starBaseOp, sizes: starS, geometry: starG };
-    // Warm star layer — golden tint
-    const warmStarN = 200;
+    // Warm star layer — golden/rose tint, also fixed-size
+    const warmStarN = 250;
     const warmG = new THREE.BufferGeometry();
     const warmP = new Float32Array(warmStarN * 3);
     for (let i = 0; i < warmStarN; i++) {
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
-      const r = 18 + Math.random() * 18;
+      const r = 15 + Math.random() * 16;
       warmP[i * 3] = r * Math.sin(phi) * Math.cos(theta);
       warmP[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
       warmP[i * 3 + 2] = r * Math.cos(phi);
     }
     warmG.setAttribute("position", new THREE.BufferAttribute(warmP, 3));
-    const warmStarMat = new THREE.PointsMaterial({ color: "#ffe8c8", size: 0.03, transparent: true, opacity: 0.3, sizeAttenuation: true });
-    scene.add(new THREE.Points(warmG, warmStarMat));
+    const warmStarMat = new THREE.PointsMaterial({ color: "#ffd8e8", size: 1.2, transparent: true, opacity: 0.35, sizeAttenuation: false });
+    const warmStars = new THREE.Points(warmG, warmStarMat);
+    warmStars.renderOrder = -10;
+    scene.add(warmStars);
 
     // Night shadow — soft terminator gradient using a full sphere with custom opacity
     const nightGeo = new THREE.SphereGeometry(RAD * 1.0015, 64, 64);
@@ -1683,11 +1684,12 @@ function OurWorldInner() {
         ag.attributes.position.needsUpdate = true;
       }
 
-      // Fade geography lines based on zoom (closer = more visible)
-      const zoomFactor = clamp((3.5 - zmR.current) / 1.5, 0, 1); // starts showing earlier, fully visible below ~2.0
+      // Geography lines — always visible from the start, gentle brightening on zoom
+      const zoomFactor = clamp((3.5 - zmR.current) / 2.0, 0, 1);
       geoGroup.forEach(g => {
-        const maxOp = g.isBorder ? 0.18 : 0.4;
-        g.mat.opacity = zoomFactor * maxOp;
+        const baseOp = g.isBorder ? 0.22 : 0.50; // clearly visible at all zoom levels
+        const zoomBoost = g.isBorder ? 0.08 : 0.15; // subtle extra glow on zoom
+        g.mat.opacity = baseOp + zoomFactor * zoomBoost;
       });
 
       rend.render(scene, cam);
@@ -2063,17 +2065,17 @@ function OurWorldInner() {
 
       {/* TOOLBAR */}
       <div style={{ position: "absolute", top: 22, left: 22, zIndex: 20, display: "flex", flexDirection: "column", gap: 7, opacity: introComplete ? 1 : 0, transition: "opacity .8s ease" }}>
-        <TBtn a={editMode} onClick={() => { setEditMode(v => !v); if (editMode) { setEditing(null); setShowAdd(false); } }}>✏️</TBtn>
-        {editMode && <TBtn onClick={() => setShowAdd(true)} accent>＋</TBtn>}
-        {editMode && <TBtn onClick={() => setShowSettings(true)}>⚙️</TBtn>}
-        {allPhotos.length > 0 && <TBtn a={showGallery} onClick={() => setShowGallery(v => !v)}>📷</TBtn>}
-        {data.entries.length > 0 && <TBtn a={showStats} onClick={() => setShowStats(v => !v)}>📊</TBtn>}
-        {data.entries.length > 0 && <TBtn a={showSearch} onClick={() => setShowSearch(v => !v)}>🔍</TBtn>}
-        {togetherList.length > 1 && <TBtn a={showLoveThread} onClick={() => setShowLoveThread(v => !v)}>🧵</TBtn>}
-        {data.entries.length > 2 && <TBtn a={showConstellation} onClick={() => setShowConstellation(v => !v)}>⭐</TBtn>}
-        {<TBtn a={showDreams} onClick={() => setShowDreams(v => !v)}>✦</TBtn>}
-        {togetherList.length > 0 && !isPlaying && <TBtn onClick={playStory}>▶</TBtn>}
-        {isPlaying && <TBtn onClick={stopPlay} a>⏹</TBtn>}
+        <TBtn a={editMode} onClick={() => { setEditMode(v => !v); if (editMode) { setEditing(null); setShowAdd(false); } }} tip="Edit Mode">✏️</TBtn>
+        {editMode && <TBtn onClick={() => setShowAdd(true)} accent tip="Add Entry">＋</TBtn>}
+        {editMode && <TBtn onClick={() => setShowSettings(true)} tip="Settings">⚙️</TBtn>}
+        {allPhotos.length > 0 && <TBtn a={showGallery} onClick={() => setShowGallery(v => !v)} tip="Photo Gallery">📷</TBtn>}
+        {data.entries.length > 0 && <TBtn a={showStats} onClick={() => setShowStats(v => !v)} tip="Stats & Insights">📊</TBtn>}
+        {data.entries.length > 0 && <TBtn a={showSearch} onClick={() => setShowSearch(v => !v)} tip="Search Entries">🔍</TBtn>}
+        {togetherList.length > 1 && <TBtn a={showLoveThread} onClick={() => setShowLoveThread(v => !v)} tip="Love Thread">🧵</TBtn>}
+        {data.entries.length > 2 && <TBtn a={showConstellation} onClick={() => setShowConstellation(v => !v)} tip="Constellation">⭐</TBtn>}
+        {<TBtn a={showDreams} onClick={() => setShowDreams(v => !v)} tip="Dream Destinations">✦</TBtn>}
+        {togetherList.length > 0 && !isPlaying && <TBtn onClick={playStory} tip="Play Our Story">▶</TBtn>}
+        {isPlaying && <TBtn onClick={stopPlay} a tip="Stop Playback">⏹</TBtn>}
       </div>
 
       {/* SEARCH PANEL */}
@@ -2218,7 +2220,7 @@ function OurWorldInner() {
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(90px, 1fr))", gap: 4 }}>
                 {cur.photos.map((url, i) => (
                   <div key={i} style={{ position: "relative" }}>
-                    <button onClick={() => { if (photoDeleteMode) { dispatch({ type: "REMOVE_PHOTO", id: cur.id, photoIndex: i }); setPhotoIdx(pi => pi >= i && pi > 0 ? pi - 1 : pi); showToast("Photo removed", "🗑", 2000); } else { setPhotoIdx(i); setCardGallery(false); setPhotoDeleteMode(false); } }} style={{ padding: 0, border: photoIdx === i ? `2px solid ${P.rose}` : "2px solid transparent", background: "#ece6dc", cursor: "pointer", borderRadius: 6, overflow: "hidden", aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center", width: "100%", opacity: photoDeleteMode ? 0.7 : 1 }}>
+                    <button onClick={() => { if (photoDeleteMode) { dispatch({ type: "REMOVE_PHOTO", id: cur.id, photoIndex: i }); setPhotoIdx(pi => pi >= i && pi > 0 ? pi - 1 : pi); showToast("Photo removed", "🗑", 2000); } else { setPhotoIdx(i); setCardGallery(false); setPhotoDeleteMode(false); } }} style={{ padding: 0, border: photoIdx === i ? `2px solid ${P.rose}` : "2px solid transparent", background: "#f0e8f0", cursor: "pointer", borderRadius: 6, overflow: "hidden", aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center", width: "100%", opacity: photoDeleteMode ? 0.7 : 1 }}>
                       <img loading="lazy" src={url} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", borderRadius: 4 }} />
                     </button>
                     {photoDeleteMode && <div style={{ position: "absolute", top: 2, right: 2, width: 16, height: 16, borderRadius: "50%", background: "#c9777a", color: "#fff", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>×</div>}
@@ -2296,7 +2298,7 @@ function OurWorldInner() {
               {cardTab === "photos" && (<>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))", gap: 4 }}>
                   {(cur.photos || []).map((url, i) => (
-                    <button key={i} onClick={() => { setPhotoIdx(i); setCardTab("overview"); }} style={{ padding: 0, border: "2px solid transparent", background: "#ece6dc", cursor: "pointer", borderRadius: 6, overflow: "hidden", aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
+                    <button key={i} onClick={() => { setPhotoIdx(i); setCardTab("overview"); }} style={{ padding: 0, border: "2px solid transparent", background: "#f0e8f0", cursor: "pointer", borderRadius: 6, overflow: "hidden", aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
                       <img loading="lazy" src={url} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "cover", borderRadius: 4 }} />
                     </button>
                   ))}
@@ -2355,7 +2357,7 @@ function OurWorldInner() {
                   });
                 }
               }} style={{ padding: "8px 20px", background: "#c9777a", color: "#fff", border: "none", borderRadius: 7, cursor: "pointer", fontSize: 12, fontFamily: "inherit" }}>Delete</button>
-              <button onClick={() => setConfirmDelete(null)} style={{ padding: "8px 20px", background: "transparent", border: "1px solid #ddd", borderRadius: 7, cursor: "pointer", fontSize: 12, fontFamily: "inherit", color: P.textMuted }}>Keep</button>
+              <button onClick={() => setConfirmDelete(null)} style={{ padding: "8px 20px", background: "transparent", border: "1px solid #e8d8e0", borderRadius: 7, cursor: "pointer", fontSize: 12, fontFamily: "inherit", color: P.textMuted }}>Keep</button>
             </div>
           </div>
         </div>
@@ -2380,7 +2382,7 @@ function OurWorldInner() {
             <textarea value={letterDraft} onChange={e => setLetterDraft(e.target.value)} rows={8} placeholder={`Dear ${config.partnerName}...`} style={{ ...inpSt, resize: "vertical", lineHeight: 1.8 }} />
             <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
               <button onClick={() => { setConfig({ loveLetter: letterDraft }); setEditLetter(false); }} style={{ flex: 1, padding: "9px", background: P.rose, color: "#fff", border: "none", borderRadius: 7, cursor: "pointer", fontSize: 11, fontFamily: "inherit" }}>Save</button>
-              <button onClick={() => setEditLetter(false)} style={{ padding: "9px 14px", background: "transparent", border: "1px solid #e5e0d8", borderRadius: 7, cursor: "pointer", fontSize: 11, fontFamily: "inherit", color: P.textMuted }}>Cancel</button>
+              <button onClick={() => setEditLetter(false)} style={{ padding: "9px 14px", background: "transparent", border: "1px solid #e8d8e4", borderRadius: 7, cursor: "pointer", fontSize: 11, fontFamily: "inherit", color: P.textMuted }}>Cancel</button>
             </div>
           </div>
         </div>
@@ -2718,11 +2720,24 @@ function OurWorldInner() {
 }
 
 // ---- SHARED UI ----
-const inpSt = { width: "100%", padding: "7px 9px", border: "1px solid #e5e0d8", borderRadius: 5, fontSize: 12, fontFamily: "'Palatino Linotype',Palatino,Georgia,serif", color: P.text, background: "#fdfcfa", boxSizing: "border-box" };
+const inpSt = { width: "100%", padding: "7px 9px", border: "1px solid #e8d8e4", borderRadius: 5, fontSize: 12, fontFamily: "'Palatino Linotype',Palatino,Georgia,serif", color: P.text, background: "#fdfcfa", boxSizing: "border-box" };
 const navSt = { background: "none", border: `1px solid ${P.textFaint}35`, borderRadius: 5, padding: "3px 9px", cursor: "pointer", fontSize: 10, color: P.textMid, fontFamily: "inherit", transition: "all .2s" };
 function imgN(s) { return { position: "absolute", [s]: 5, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,.65)", border: "none", borderRadius: "50%", width: 24, height: 24, cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center" }; }
 function renderList(t, items, icon, color) { if (!items?.length) return null; return <div style={{ marginTop: 7 }}><div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 3 }}>{t}</div>{items.map((it, i) => <div key={i} style={{ display: "flex", gap: 4, marginBottom: 2 }}><span style={{ color, fontSize: 6, marginTop: 4 }}>{icon}</span><span style={{ fontSize: 11, opacity: .8, lineHeight: 1.5 }}>{it}</span></div>)}</div>; }
-function TBtn({ a, onClick, children, accent }) { return <button onClick={onClick} style={{ width: 34, height: 34, borderRadius: 9, border: `1px solid ${a ? P.rose : accent ? P.sage : "#ddd8d0"}`, background: a ? P.card : "rgba(253,251,247,.7)", backdropFilter: "blur(10px)", cursor: "pointer", fontSize: accent ? 15 : 14, display: "flex", alignItems: "center", justifyContent: "center", transition: "all .3s", fontFamily: "inherit", color: P.text }}>{children}</button>; }
+function TBtn({ a, onClick, children, accent, tip }) {
+  const [showTip, setShowTip] = useState(false);
+  const tipTimer = useRef(null);
+  const onEnter = () => { if (tip) tipTimer.current = setTimeout(() => setShowTip(true), 2000); };
+  const onLeave = () => { clearTimeout(tipTimer.current); setShowTip(false); };
+  return (
+    <div style={{ position: "relative" }} onMouseEnter={onEnter} onMouseLeave={onLeave}>
+      <button onClick={onClick} style={{ width: 34, height: 34, borderRadius: 9, border: `1px solid ${a ? P.rose : accent ? P.sage : "#e0d0e0"}`, background: a ? P.card : "rgba(253,251,247,.7)", backdropFilter: "blur(10px)", cursor: "pointer", fontSize: accent ? 15 : 14, display: "flex", alignItems: "center", justifyContent: "center", transition: "all .3s", fontFamily: "inherit", color: P.text }}>{children}</button>
+      {showTip && tip && (
+        <div style={{ position: "absolute", left: 42, top: "50%", transform: "translateY(-50%)", whiteSpace: "nowrap", background: P.card, backdropFilter: "blur(12px)", border: `1px solid ${P.rose}20`, borderRadius: 7, padding: "4px 10px", fontSize: 9, color: P.textMid, boxShadow: "0 3px 12px rgba(61,53,82,.12)", pointerEvents: "none", animation: "fadeIn .2s ease", zIndex: 30, letterSpacing: ".04em" }}>{tip}</div>
+      )}
+    </div>
+  );
+}
 function Lbl({ children }) { return <label style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".13em", textTransform: "uppercase", display: "block", marginBottom: 2 }}>{children}</label>; }
 function Fld({ l, v, set, t = "text", ph = "" }) { return <div style={{ marginBottom: 9 }}><Lbl>{l}</Lbl><input type={t} value={v || ""} placeholder={ph} onChange={e => set(e.target.value)} style={inpSt} /></div>; }
 
@@ -2731,7 +2746,9 @@ function AddForm({ types, onAdd, onClose }) {
   const [f, sf] = useState({ city: "", country: "", lat: "", lng: "", dateStart: "", dateEnd: "", type: "together", who: "both", zoomLevel: 1, notes: "", memories: "", museums: "", restaurants: "", highlights: "", musicUrl: "", stops: [] });
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [ns, setNs] = useState({ city: "", lat: "", lng: "", notes: "" });
+  const [ns, setNs] = useState({ city: "", lat: "", lng: "", notes: "", dateStart: "", dateEnd: "" });
+  const [stopSugg, setStopSugg] = useState([]);
+  const [showStopSugg, setShowStopSugg] = useState(false);
 
   const lat = parseFloat(f.lat), lng = parseFloat(f.lng);
   const validCoords = !isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
@@ -2756,6 +2773,21 @@ function AddForm({ types, onAdd, onClose }) {
     sf(p => ({ ...p, city: c[0], country: c[1], lat: c[2].toString(), lng: c[3].toString() }));
     setSuggestions([]);
     setShowSuggestions(false);
+  };
+
+  const onStopCityInput = v => {
+    setNs(p => ({ ...p, city: v }));
+    if (v.length >= 2) {
+      const q = v.toLowerCase();
+      const matches = CITIES.filter(c => c[0].toLowerCase().includes(q)).slice(0, 6);
+      setStopSugg(matches);
+      setShowStopSugg(matches.length > 0);
+    } else { setStopSugg([]); setShowStopSugg(false); }
+  };
+
+  const selectStopCity = c => {
+    setNs(p => ({ ...p, city: c[0], lat: c[2].toString(), lng: c[3].toString() }));
+    setStopSugg([]); setShowStopSugg(false);
   };
 
   return (
@@ -2788,14 +2820,14 @@ function AddForm({ types, onAdd, onClose }) {
           onChange={e => onCityInput(e.target.value)}
           onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
           placeholder="Start typing — e.g. Haw..."
-          style={{ ...inpSt, borderColor: f.city ? "#e5e0d8" : undefined }}
+          style={{ ...inpSt, borderColor: f.city ? "#e8d8e4" : undefined }}
         />
         {showSuggestions && suggestions.length > 0 && (
-          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e5e0d8", borderRadius: 6, maxHeight: 150, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
+          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e8d8e4", borderRadius: 6, maxHeight: 150, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
             {suggestions.map((c, i) => (
               <button key={i} onClick={() => selectCity(c)} style={{
                 display: "flex", alignItems: "center", gap: 6, width: "100%", textAlign: "left",
-                padding: "8px 10px", border: "none", borderBottom: "1px solid #f5f2ed",
+                padding: "8px 10px", border: "none", borderBottom: "1px solid #f5f0f4",
                 background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 11, color: P.textMid,
                 transition: "background .15s",
               }}
@@ -2835,11 +2867,29 @@ function AddForm({ types, onAdd, onClose }) {
       <div style={{ margin: "6px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.sage}18,transparent)` }} />
       <Lbl>Trip Stops</Lbl>
       {f.stops.map(s => <div key={s.sid} style={{ fontSize: 10, padding: "3px 7px", background: `${P.sage}08`, borderRadius: 5, marginBottom: 3, display: "flex", justifyContent: "space-between" }}><span>{s.city}</span><button onClick={() => sf(p => ({ ...p, stops: p.stops.filter(st => st.sid !== s.sid) }))} style={{ background: "none", border: "none", color: "#c9777a", cursor: "pointer", fontSize: 11 }}>×</button></div>)}
-      <div style={{ display: "flex", gap: 4, marginTop: 4, marginBottom: 12 }}>
-        <input placeholder="City" value={ns.city} onChange={e => setNs(p => ({ ...p, city: e.target.value }))} style={{ ...inpSt, flex: 1 }} />
-        <input placeholder="Lat" value={ns.lat} onChange={e => setNs(p => ({ ...p, lat: e.target.value }))} style={{ ...inpSt, width: 48 }} />
-        <input placeholder="Lng" value={ns.lng} onChange={e => setNs(p => ({ ...p, lng: e.target.value }))} style={{ ...inpSt, width: 48 }} />
-        <button disabled={!ns.city || !ns.lat} onClick={() => { sf(p => ({ ...p, stops: [...p.stops, { sid: `s-${Date.now()}`, city: ns.city, lat: parseFloat(ns.lat) || 0, lng: parseFloat(ns.lng) || 0, notes: ns.notes }] })); setNs({ city: "", lat: "", lng: "", notes: "" }); }} style={{ padding: "0 7px", background: P.sage, color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 10 }}>+</button>
+      <div style={{ position: "relative", marginTop: 4, marginBottom: 12 }}>
+        <div style={{ display: "flex", gap: 4 }}>
+          <input placeholder="Start typing city..." value={ns.city} onChange={e => onStopCityInput(e.target.value)} onFocus={() => { if (stopSugg.length > 0) setShowStopSugg(true); }} style={{ ...inpSt, flex: 1 }} />
+          <input placeholder="Lat" value={ns.lat} onChange={e => setNs(p => ({ ...p, lat: e.target.value }))} style={{ ...inpSt, width: 48 }} />
+          <input placeholder="Lng" value={ns.lng} onChange={e => setNs(p => ({ ...p, lng: e.target.value }))} style={{ ...inpSt, width: 48 }} />
+        </div>
+        {showStopSugg && stopSugg.length > 0 && (
+          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e8d8e4", borderRadius: 6, maxHeight: 120, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
+            {stopSugg.map((c, i) => (
+              <button key={i} onClick={() => selectStopCity(c)} style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", border: "none", borderBottom: "1px solid #f5f0f4", background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }}
+                onMouseEnter={e => e.currentTarget.style.background = P.blush}
+                onMouseLeave={e => e.currentTarget.style.background = "none"}
+              >
+                <span style={{ fontWeight: 500, color: P.text }}>{c[0]}</span> <span style={{ color: P.textFaint }}>{c[1]}</span>
+              </button>
+            ))}
+          </div>
+        )}
+        <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
+          <input type="date" placeholder="Start" value={ns.dateStart || ""} onChange={e => setNs(p => ({ ...p, dateStart: e.target.value }))} style={{ ...inpSt, flex: 1, fontSize: 9 }} />
+          <input type="date" placeholder="End" value={ns.dateEnd || ""} onChange={e => setNs(p => ({ ...p, dateEnd: e.target.value }))} style={{ ...inpSt, flex: 1, fontSize: 9 }} />
+        </div>
+        <button disabled={!ns.city || !ns.lat} onClick={() => { setShowStopSugg(false); sf(p => ({ ...p, stops: [...p.stops, { sid: `s-${Date.now()}`, city: ns.city, lat: parseFloat(ns.lat) || 0, lng: parseFloat(ns.lng) || 0, notes: ns.notes, dateStart: ns.dateStart || null, dateEnd: ns.dateEnd || null }] })); setNs({ city: "", lat: "", lng: "", notes: "", dateStart: "", dateEnd: "" }); }} style={{ marginTop: 4, width: "100%", padding: "6px", background: P.sage, color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 10, fontFamily: "inherit" }}>+ Add Stop</button>
       </div>
 
       <button disabled={!ok} onClick={() => { setShowSuggestions(false); onAdd({
@@ -2848,7 +2898,7 @@ function AddForm({ types, onAdd, onClose }) {
         notes: f.notes, memories: f.memories.split("\n").filter(Boolean), museums: f.museums.split("\n").filter(Boolean),
         restaurants: f.restaurants.split("\n").filter(Boolean), highlights: f.highlights.split("\n").filter(Boolean),
         photos: [], stops: f.stops, musicUrl: f.musicUrl || null,
-      }); }} style={{ width: "100%", padding: "10px 0", background: ok ? P.rose : "#e5e0d8", color: "#fff", border: "none", borderRadius: 9, cursor: ok ? "pointer" : "default", fontSize: 12, letterSpacing: ".1em", fontFamily: "inherit", transition: "all .3s" }}>
+      }); }} style={{ width: "100%", padding: "10px 0", background: ok ? P.rose : "#e8d8e4", color: "#fff", border: "none", borderRadius: 9, cursor: ok ? "pointer" : "default", fontSize: 12, letterSpacing: ".1em", fontFamily: "inherit", transition: "all .3s" }}>
         {ok ? "Add to Our World 💕" : "Fill required fields to continue"}
       </button>
       {!ok && <p style={{ fontSize: 8, color: validationMsg.includes("must be") ? "#c9777a" : P.textFaint, textAlign: "center", marginTop: 5, letterSpacing: ".08em" }}>
@@ -2915,9 +2965,9 @@ function EditForm({ entry, types, onChange, onSave, onClose, onDelete, onAddStop
         <Lbl>City</Lbl>
         <input value={entry.city || ""} onChange={e => onEditCity(e.target.value)} onFocus={() => { if (citySugg.length > 0) setShowCitySugg(true); }} style={inpSt} />
         {showCitySugg && citySugg.length > 0 && (
-          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e5e0d8", borderRadius: 6, maxHeight: 120, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
+          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e8d8e4", borderRadius: 6, maxHeight: 120, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
             {citySugg.map((c, i) => (
-              <button key={i} onClick={() => selectEditCity(c)} style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", border: "none", borderBottom: "1px solid #f5f2ed", background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }}
+              <button key={i} onClick={() => selectEditCity(c)} style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", border: "none", borderBottom: "1px solid #f5f0f4", background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }}
                 onMouseEnter={e => e.currentTarget.style.background = P.blush}
                 onMouseLeave={e => e.currentTarget.style.background = "none"}
               >
@@ -2947,9 +2997,9 @@ function EditForm({ entry, types, onChange, onSave, onClose, onDelete, onAddStop
           <input placeholder="Start typing city..." value={ns.city} onChange={e => onStopCity(e.target.value)} onFocus={() => { if (stopSugg.length > 0) setShowStopSugg(true); }} style={{ ...inpSt, flex: 1 }} />
         </div>
         {showStopSugg && stopSugg.length > 0 && (
-          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e5e0d8", borderRadius: 6, maxHeight: 120, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
+          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e8d8e4", borderRadius: 6, maxHeight: 120, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
             {stopSugg.map((c, i) => (
-              <button key={i} onClick={() => selectStopCity(c)} style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", border: "none", borderBottom: "1px solid #f5f2ed", background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }}
+              <button key={i} onClick={() => selectStopCity(c)} style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", border: "none", borderBottom: "1px solid #f5f0f4", background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }}
                 onMouseEnter={e => e.currentTarget.style.background = P.blush}
                 onMouseLeave={e => e.currentTarget.style.background = "none"}
               >
@@ -2969,7 +3019,7 @@ function EditForm({ entry, types, onChange, onSave, onClose, onDelete, onAddStop
 
       <div style={{ display: "flex", gap: 7, marginTop: 10 }}>
         <button onClick={onSave} style={{ flex: 1, padding: "8px 0", background: P.sage, color: "#fff", border: "none", borderRadius: 7, cursor: "pointer", fontSize: 10, fontFamily: "inherit" }}>Save</button>
-        <button onClick={onClose} style={{ padding: "8px 12px", background: "transparent", border: "1px solid #e5e0d8", borderRadius: 7, cursor: "pointer", fontSize: 10, fontFamily: "inherit", color: P.textMuted }}>Cancel</button>
+        <button onClick={onClose} style={{ padding: "8px 12px", background: "transparent", border: "1px solid #e8d8e4", borderRadius: 7, cursor: "pointer", fontSize: 10, fontFamily: "inherit", color: P.textMuted }}>Cancel</button>
       </div>
       <button onClick={onDelete} style={{ marginTop: 7, width: "100%", padding: "6px 0", background: "transparent", color: "#c9777a", border: "1px solid #e5c5c6", borderRadius: 7, cursor: "pointer", fontSize: 9, fontFamily: "inherit" }}>Delete</button>
     </div>
