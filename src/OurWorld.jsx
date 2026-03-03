@@ -576,6 +576,9 @@ function reducer(st, a) {
       { const updated = next.entries.find(e => e.id === a.id); if (updated) saveEntry(updated); }
       break;
     case "DELETE":
+      { const doomed = st.entries.find(e => e.id === a.id);
+        if (doomed?.photos?.length) doomed.photos.forEach(url => deletePhoto(url));
+      }
       next = { ...st, entries: st.entries.filter(e => e.id !== a.id) };
       deleteEntry(a.id);
       break;
