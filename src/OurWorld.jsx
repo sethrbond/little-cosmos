@@ -6,7 +6,7 @@ import { geocodeSearch } from "./geocode.js";
 /* =================================================================
    🌍 OUR WORLD — Seth & Rosie Posie
    "every moment, every adventure"
-   v7.9.5 — pre-beta final: cardTab fix, dead code cleanup, SQL schema alignment
+   v7.9.6 — pre-beta final: cardTab fix, dead code cleanup, SQL schema alignment
    ================================================================= */
 
 const DEFAULT_CONFIG = {
@@ -797,7 +797,7 @@ function OurWorldInner() {
   const filteredList = useMemo(() => {
     const list = markerFilter === "all" ? data.entries : markerFilter === "favorites" ? data.entries.filter(e => e.favorite) : data.entries.filter(e => e.type === markerFilter);
     return [...list].sort((a, b) => (b.dateStart || "").localeCompare(a.dateStart || "")); // newest first
-  }, [data.entries, markerFilter]);
+  }, [data.entries]);
   const togetherList = useMemo(() => sorted.filter(e => e.who === "both"), [sorted]);
   const firstBadges = useMemo(() => getFirstBadges(data.entries), [data.entries]);
   const season = useMemo(() => seasonalHue(sliderDate), [sliderDate]);
@@ -805,7 +805,7 @@ function OurWorldInner() {
   // Auto-hide zoom hint after 4 seconds
   useEffect(() => {
     if (!introComplete || !showZoomHint) return;
-    const t = setTimeout(() => setShowZoomHint(false), 4000);
+    const t = setTimeout(() => setShowZoomHint(false), 6000);
     return () => clearTimeout(t);
   }, [introComplete, showZoomHint]);
 
@@ -1107,7 +1107,7 @@ function OurWorldInner() {
         tSpinSpd.current = 0.001;
         setIsAnimating(false);
         const p = ll2v(target.lat, target.lng, RAD);
-        tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) };
+        tRot.current = { x: -Math.asin(p.y / RAD) * 0.92, y: Math.atan2(-p.x, p.z) };
         tZm.current = 2.5;
         setTimeout(() => { setSelected(target); setPhotoIdx(0); setCardTab("overview"); }, 500);
       }
@@ -1136,12 +1136,12 @@ function OurWorldInner() {
 
       // Fly to
       const p = ll2v(entry.lat, entry.lng, RAD);
-      tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) };
+      tRot.current = { x: -Math.asin(p.y / RAD) * 0.92, y: Math.atan2(-p.x, p.z) };
       tZm.current = 2.4;
-      tSpinSpd.current = 0.05;
+      tSpinSpd.current = 0; // stop spin during fly-in so target stays centered
 
       playRef.current = setTimeout(() => {
-        tSpinSpd.current = 0.001;
+        tSpinSpd.current = 0;
         setSelected(entry);
         setPhotoIdx(0);
         setCardTab("overview");
@@ -1150,9 +1150,9 @@ function OurWorldInner() {
           setSelected(null);
           idx++;
           if (idx < togetherList.length) {
-            tSpinSpd.current = 0.07;
-            tZm.current = 3.6;
-            playRef.current = setTimeout(step, 900);
+            tSpinSpd.current = 0.02; // gentle spin between entries
+            tZm.current = 3.2;
+            playRef.current = setTimeout(step, 1200);
           } else { stopPlay(); }
         }, 4500);
       }, 1400);
@@ -1163,11 +1163,12 @@ function OurWorldInner() {
   // Keyboard shortcuts (must be after stopPlay/playStory declarations)
   useEffect(() => {
     const handler = e => {
-      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") return;
+      const inInput = e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT";
+      if (inInput && e.key !== "Escape") return;
       if (e.key === "ArrowLeft") { e.preventDefault(); stepDay(-1); }
       if (e.key === "ArrowRight") { e.preventDefault(); stepDay(1); }
-      if (e.key === "Escape") { setSelected(null); setEditing(null); setShowAdd(false); setQuickAddMode(false); setShowLetter(false); setShowSettings(false); setShowGallery(false); setCardGallery(false); setShowFilter(false); setShowStats(false); setShowRecap(false); setShowSearch(false); setSearchQuery(""); if (isPlaying) stopPlay(); }
-      if (e.key === "f" && !showAdd && !editing && !showSettings) setShowFilter(v => !v);
+      if (e.key === "Escape") { setSelected(null); setEditing(null); setShowAdd(false); setQuickAddMode(false); setShowLetter(false); setShowSettings(false); setShowGallery(false); setCardGallery(false); setShowFilter(false); setMarkerFilter("all"); setLocationList(null); setShowStats(false); setShowRecap(false); setShowSearch(false); setSearchQuery(""); setShowDreams(false); if (isPlaying) stopPlay(); }
+      if (e.key === "f" && !showAdd && !editing && !showSettings) { setShowFilter(v => { if (v) { setMarkerFilter("all"); setLocationList(null); } return !v; }); }
       if (e.key === "i" && !showAdd && !editing && !showSettings) setShowStats(v => !v);
       if (e.key === "s" && !showAdd && !editing && !showSettings && !showSearch) { e.preventDefault(); setShowSearch(true); }
       if (e.key === "g" && !showAdd && !editing && !showSettings) setShowGallery(v => !v);
@@ -1192,7 +1193,7 @@ function OurWorldInner() {
     const first = yearEntries[0];
     setSliderDate(first.dateStart);
     const p = ll2v(first.lat, first.lng, RAD);
-    tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) };
+    tRot.current = { x: -Math.asin(p.y / RAD) * 0.92, y: Math.atan2(-p.x, p.z) };
     tZm.current = 2.6;
   }, [sorted]);
 
@@ -1212,7 +1213,7 @@ function OurWorldInner() {
     const entry = recapEntries[next];
     setSliderDate(entry.dateStart);
     const p = ll2v(entry.lat, entry.lng, RAD);
-    tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) };
+    tRot.current = { x: -Math.asin(p.y / RAD) * 0.92, y: Math.atan2(-p.x, p.z) };
     tZm.current = 2.4;
   }, [recapIdx, recapEntries, showToast]);
 
@@ -1586,9 +1587,9 @@ function OurWorldInner() {
   // ---- REBUILD MARKERS ----
   // Group entries by location (within ~0.5 degrees)
   const locationGroups = useMemo(() => {
-    const filtered = markerFilter === "all" ? data.entries : markerFilter === "favorites" ? data.entries.filter(e => e.favorite) : data.entries.filter(e => e.type === markerFilter);
+    // Always group ALL entries by location so multi-entry clicks show everything
     const groups = [];
-    filtered.forEach(e => {
+    data.entries.forEach(e => {
       const existing = groups.find(g => Math.abs(g.lat - e.lat) < 0.5 && Math.abs(g.lng - e.lng) < 0.5);
       if (existing) { existing.entries.push(e); }
       else { groups.push({ lat: e.lat, lng: e.lng, city: e.city, entries: [e] }); }
@@ -1646,13 +1647,13 @@ function OurWorldInner() {
 
     // ---- Distance line when apart ----
     if (positions.seth && positions.rosie && !areTogether) {
-      const from = ll2v(positions.seth.lat, positions.seth.lng, RAD * 1.005);
-      const to = ll2v(positions.rosie.lat, positions.rosie.lng, RAD * 1.005);
+      const from = ll2v(positions.seth.lat, positions.seth.lng, RAD * 1.03);
+      const to = ll2v(positions.rosie.lat, positions.rosie.lng, RAD * 1.03);
       const mid = from.clone().add(to).multiplyScalar(0.5);
-      mid.normalize().multiplyScalar(RAD + from.distanceTo(to) * 0.25);
+      mid.normalize().multiplyScalar(RAD * 1.03 + from.distanceTo(to) * 0.3);
       const curve = new THREE.QuadraticBezierCurve3(from, mid, to);
       const lG = new THREE.BufferGeometry().setFromPoints(curve.getPoints(50));
-      const lM = new THREE.LineDashedMaterial({ color: P.rose, transparent: true, opacity: 0.18, dashSize: 0.012, gapSize: 0.008 });
+      const lM = new THREE.LineDashedMaterial({ color: P.rose, transparent: true, opacity: 0.5, dashSize: 0.018, gapSize: 0.012, linewidth: 1 });
       const line = new THREE.Line(lG, lM); line.computeLineDistances(); line.renderOrder = 3;
       g.add(line); rtRef.current.push({ line });
     }
@@ -1678,13 +1679,13 @@ function OurWorldInner() {
     loveThreadRef.current = [];
     if (showLoveThread) {
       loveThreadData.forEach(({ from, to }) => {
-        const f = ll2v(from.lat, from.lng, RAD * 1.006);
-        const t = ll2v(to.lat, to.lng, RAD * 1.006);
+        const f = ll2v(from.lat, from.lng, RAD * 1.03);
+        const t = ll2v(to.lat, to.lng, RAD * 1.03);
         const mid = f.clone().add(t).multiplyScalar(0.5);
-        mid.normalize().multiplyScalar(RAD + f.distanceTo(t) * 0.15);
+        mid.normalize().multiplyScalar(RAD * 1.04 + f.distanceTo(t) * 0.2);
         const curve = new THREE.QuadraticBezierCurve3(f, mid, t);
         const geom = new THREE.BufferGeometry().setFromPoints(curve.getPoints(40));
-        const mat = new THREE.LineBasicMaterial({ color: P.goldWarm, transparent: true, opacity: 0.3 });
+        const mat = new THREE.LineBasicMaterial({ color: P.goldWarm, transparent: true, opacity: 0.65 });
         const line = new THREE.Line(geom, mat); line.renderOrder = 3;
         g.add(line);
         loveThreadRef.current.push(line);
@@ -1696,10 +1697,10 @@ function OurWorldInner() {
     constellationRef.current = [];
     if (showConstellation) {
       constellationData.forEach(({ from, to }) => {
-        const f = ll2v(from.lat, from.lng, RAD * 1.008);
-        const t = ll2v(to.lat, to.lng, RAD * 1.008);
+        const f = ll2v(from.lat, from.lng, RAD * 1.035);
+        const t = ll2v(to.lat, to.lng, RAD * 1.035);
         const geom = new THREE.BufferGeometry().setFromPoints([f, t]);
-        const mat = new THREE.LineBasicMaterial({ color: "#b8c8f0", transparent: true, opacity: 0.15 });
+        const mat = new THREE.LineBasicMaterial({ color: "#b8c8f0", transparent: true, opacity: 0.45 });
         const line = new THREE.Line(geom, mat); line.renderOrder = 1;
         g.add(line);
         constellationRef.current.push(line);
@@ -1768,7 +1769,7 @@ function OurWorldInner() {
             setLocationList(group);
             setSelected(null);
             const p = ll2v(group.lat, group.lng, RAD);
-            tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) };
+            tRot.current = { x: -Math.asin(p.y / RAD) * 0.92, y: Math.atan2(-p.x, p.z) };
             tZm.current = 2.3;
           }
         } else {
@@ -1777,7 +1778,7 @@ function OurWorldInner() {
             setSelected(entry); setPhotoIdx(0); setCardTab("overview"); setLocationList(null);
             setSliderDate(entry.dateStart);
             const p = ll2v(entry.lat, entry.lng, RAD);
-            tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) };
+            tRot.current = { x: -Math.asin(p.y / RAD) * 0.92, y: Math.atan2(-p.x, p.z) };
             tZm.current = 2.5;
           } else if (id.startsWith("love-")) {
             // Love letter easter egg clicked!
@@ -1867,7 +1868,7 @@ function OurWorldInner() {
   if (loading) return <div style={{ width: "100%", height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#161028", fontFamily: "Georgia,serif", color: P.textFaint }}>
     <div style={{ fontSize: 48, animation: "heartPulse 2s ease infinite", marginBottom: 16 }}>🌍</div>
     <div style={{ fontSize: 14, letterSpacing: ".2em", opacity: 0.7 }}>Loading your world<span style={{ animation: "ellipsis 1.5s infinite" }}>...</span></div>
-    <div style={{ fontSize: 9, opacity: 0.3, marginTop: 12, letterSpacing: ".15em" }}>v7.9.5</div>
+    <div style={{ fontSize: 9, opacity: 0.3, marginTop: 12, letterSpacing: ".15em" }}>v7.9.6</div>
     <style>{`@keyframes heartPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}} @keyframes ellipsis{0%{opacity:0}50%{opacity:1}100%{opacity:0}}`}</style>
   </div>;
 
@@ -1887,8 +1888,8 @@ function OurWorldInner() {
 
       {/* ZOOM HINT — fades after 4 seconds */}
       {showZoomHint && introComplete && !selected && (
-        <div style={{ position: "absolute", bottom: isMobile ? 115 : 130, left: "50%", transform: "translateX(-50%)", zIndex: 10, pointerEvents: "none", opacity: 0.5, animation: "fadeIn .6s ease", transition: "opacity 1s ease" }}>
-          <div style={{ fontSize: 9, color: P.textFaint, letterSpacing: ".12em", textAlign: "center", background: "rgba(250,248,244,0.5)", backdropFilter: "blur(8px)", borderRadius: 16, padding: "5px 14px" }}>
+        <div style={{ position: "absolute", bottom: isMobile ? 115 : 130, left: "50%", transform: "translateX(-50%)", zIndex: 10, pointerEvents: "none", opacity: 0.8, animation: "fadeIn .6s ease", transition: "opacity 1s ease" }}>
+          <div style={{ fontSize: 11, color: P.textMid, letterSpacing: ".12em", textAlign: "center", background: "rgba(250,248,244,0.7)", backdropFilter: "blur(8px)", borderRadius: 16, padding: "5px 14px" }}>
             {isMobile ? "Pinch to zoom · Double-tap to zoom in" : "Scroll to zoom · Click markers to explore"}
           </div>
         </div>
@@ -1903,7 +1904,7 @@ function OurWorldInner() {
           </div>
         )}
         {nextTogether && !areTogether && (
-          <div style={{ fontSize: 9, color: P.goldWarm, letterSpacing: ".08em", marginBottom: 4 }}>
+          <div style={{ fontSize: 10, color: P.goldWarm, letterSpacing: ".08em", marginBottom: 4, fontWeight: 500, textShadow: "0 1px 3px rgba(0,0,0,.15)" }}>
             {daysBetween(todayStr(), nextTogether.dateStart)} days until together 💛
           </div>
         )}
@@ -1945,7 +1946,7 @@ function OurWorldInner() {
                   <button key={e.id} onClick={() => {
                     setSelected(e); setPhotoIdx(0); setCardTab("overview"); setLocationList(null); setSliderDate(e.dateStart);
                     const p = ll2v(e.lat, e.lng, RAD);
-                    tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) };
+                    tRot.current = { x: -Math.asin(p.y / RAD) * 0.92, y: Math.atan2(-p.x, p.z) };
                     tZm.current = 2.5;
                   }}
                     style={{ display: "flex", width: "100%", alignItems: "center", gap: 8, padding: "6px 10px", border: "none", borderBottom: `1px solid ${P.parchment}60`, background: selected?.id === e.id ? P.blush : "transparent", cursor: "pointer", fontFamily: "inherit", textAlign: "left", transition: "background .15s" }}
@@ -2001,7 +2002,7 @@ function OurWorldInner() {
                     setSelected(e); setPhotoIdx(0); setCardTab("overview"); setShowSearch(false); setSearchQuery("");
                     setSliderDate(e.dateStart);
                     const p = ll2v(e.lat, e.lng, RAD);
-                    tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) };
+                    tRot.current = { x: -Math.asin(p.y / RAD) * 0.92, y: Math.atan2(-p.x, p.z) };
                     tZm.current = 2.5;
                   }} style={{ display: "flex", width: "100%", alignItems: "center", gap: 8, padding: "9px 14px", border: "none", borderBottom: `1px solid ${P.parchment}`, background: "transparent", cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}
                     onMouseEnter={ev => ev.currentTarget.style.background = P.blush}
@@ -2156,7 +2157,7 @@ function OurWorldInner() {
               {editMode && <button onClick={() => handlePhotos(cur.id)} style={{ marginTop: 6, width: "100%", padding: "5px", background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: "none", borderRadius: 5, cursor: "pointer", fontSize: 9, color: P.textMuted, fontFamily: "inherit" }}>+ Add More Photos</button>}
             </div>
           )}
-          {(cur.photos || []).length === 0 && editMode && <div
+          {(cur.photos || []).length === 0 && <div
             onDragOver={e => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
             onDrop={async e => {
@@ -2258,12 +2259,12 @@ function OurWorldInner() {
               const next = idx < sorted.length - 1 ? sorted[idx + 1] : null;
               return (
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10, paddingTop: 8, borderTop: `1px solid ${P.rose}10` }}>
-                  <button disabled={!prev} onClick={() => { if (prev) { setSelected(prev); setPhotoIdx(0); setCardTab("overview"); setSliderDate(prev.dateStart); const p = ll2v(prev.lat, prev.lng, RAD); tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) }; } }}
+                  <button disabled={!prev} onClick={() => { if (prev) { setSelected(prev); setPhotoIdx(0); setCardTab("overview"); setSliderDate(prev.dateStart); const p = ll2v(prev.lat, prev.lng, RAD); tRot.current = { x: -Math.asin(p.y / RAD) * 0.92, y: Math.atan2(-p.x, p.z) }; } }}
                     style={{ background: "none", border: "none", fontSize: 9, color: prev ? P.textMid : P.textFaint, cursor: prev ? "pointer" : "default", fontFamily: "inherit", opacity: prev ? 1 : 0.3, padding: "2px 6px" }}>
                     ◂ {prev ? prev.city : ""}
                   </button>
                   <span style={{ fontSize: 7, color: P.textFaint }}>{idx + 1} / {sorted.length}</span>
-                  <button disabled={!next} onClick={() => { if (next) { setSelected(next); setPhotoIdx(0); setCardTab("overview"); setSliderDate(next.dateStart); const p = ll2v(next.lat, next.lng, RAD); tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) }; } }}
+                  <button disabled={!next} onClick={() => { if (next) { setSelected(next); setPhotoIdx(0); setCardTab("overview"); setSliderDate(next.dateStart); const p = ll2v(next.lat, next.lng, RAD); tRot.current = { x: -Math.asin(p.y / RAD) * 0.92, y: Math.atan2(-p.x, p.z) }; } }}
                     style={{ background: "none", border: "none", fontSize: 9, color: next ? P.textMid : P.textFaint, cursor: next ? "pointer" : "default", fontFamily: "inherit", opacity: next ? 1 : 0.3, padding: "2px 6px" }}>
                     {next ? next.city : ""} ▸
                   </button>
@@ -2275,8 +2276,8 @@ function OurWorldInner() {
       )}
 
       {/* ADD / EDIT / SETTINGS / LETTER overlays */}
-      {showAdd && <AddForm types={TYPES} onAdd={entry => { dispatch({ type: "ADD", entry }); setShowAdd(false); showToast(`${entry.city} added to your world`, "🌍", 2500); const p = ll2v(entry.lat, entry.lng, RAD); tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) }; tZm.current = 2.6; setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400); }} onClose={() => setShowAdd(false)} />}
-      {quickAddMode && <QuickAddForm types={TYPES} onAdd={entry => { dispatch({ type: "ADD", entry }); setQuickAddMode(false); showToast(`${entry.city} added ⚡`, "⚡", 2500); const p = ll2v(entry.lat, entry.lng, RAD); tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) }; tZm.current = 2.6; setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400); }} onClose={() => setQuickAddMode(false)} />}
+      {showAdd && <AddForm types={TYPES} onAdd={entry => { dispatch({ type: "ADD", entry }); setShowAdd(false); showToast(`${entry.city} added to your world`, "🌍", 2500); const p = ll2v(entry.lat, entry.lng, RAD); tRot.current = { x: -Math.asin(p.y / RAD) * 0.92, y: Math.atan2(-p.x, p.z) }; tZm.current = 2.6; setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400); }} onClose={() => setShowAdd(false)} />}
+      {quickAddMode && <QuickAddForm types={TYPES} onAdd={entry => { dispatch({ type: "ADD", entry }); setQuickAddMode(false); showToast(`${entry.city} added to your world ⚡`, "⚡", 2500); const p = ll2v(entry.lat, entry.lng, RAD); tRot.current = { x: -Math.asin(p.y / RAD) * 0.92, y: Math.atan2(-p.x, p.z) }; tZm.current = 2.6; setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400); }} onClose={() => setQuickAddMode(false)} />}
 
       {editing && <EditForm entry={editing} types={TYPES} onChange={setEditing}
         onSave={() => { dispatch({ type: "UPDATE", id: editing.id, data: editing }); setSelected(editing); setCardTab("overview"); setEditing(null); showToast("Entry saved", "✓", 2000); }}
@@ -2388,7 +2389,7 @@ function OurWorldInner() {
                   if (entry) {
                     setSelected(entry); setPhotoIdx(0); setCardTab("overview"); setShowGallery(false);
                     const p = ll2v(entry.lat, entry.lng, RAD);
-                    tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) };
+                    tRot.current = { x: -Math.asin(p.y / RAD) * 0.92, y: Math.atan2(-p.x, p.z) };
                     tZm.current = 2.5;
                     setSliderDate(entry.dateStart);
                   }
@@ -2662,7 +2663,7 @@ function OurWorldInner() {
 
       {/* TOAST NOTIFICATION */}
       {toast && (
-        <div key={toast.key} style={{ position: "absolute", top: 75, left: "50%", transform: "translateX(-50%)", zIndex: 55, pointerEvents: toast.undoAction ? "auto" : "none", animation: "fadeIn .3s ease" }}>
+        <div key={toast.key} style={{ position: "absolute", bottom: 120, left: "50%", transform: "translateX(-50%)", zIndex: 55, pointerEvents: toast.undoAction ? "auto" : "none", animation: "fadeIn .3s ease" }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 18px", background: P.card, backdropFilter: "blur(16px)", borderRadius: 24, boxShadow: "0 4px 20px rgba(0,0,0,.1)", border: `1px solid ${P.rose}15`, fontSize: 12, color: P.text, letterSpacing: ".05em" }}>
             <span>{toast.icon}</span>
             <span>{toast.message}</span>
@@ -2680,7 +2681,7 @@ function OurWorldInner() {
             setSelected(entry); setPhotoIdx(0); setCardTab("overview");
             setSliderDate(entry.dateStart);
             const p = ll2v(entry.lat, entry.lng, RAD);
-            tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) };
+            tRot.current = { x: -Math.asin(p.y / RAD) * 0.92, y: Math.atan2(-p.x, p.z) };
             tZm.current = 2.5;
           }
         }} style={{ position: "absolute", top: 75, left: "50%", transform: "translateX(-50%)", zIndex: 12, background: P.card, backdropFilter: "blur(12px)", border: `1px solid ${P.gold}25`, borderRadius: 20, padding: "5px 14px", cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6, boxShadow: "0 2px 12px rgba(0,0,0,.06)", opacity: 0.7, transition: "opacity .3s" }}
