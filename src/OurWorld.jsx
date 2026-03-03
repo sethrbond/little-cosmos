@@ -5,32 +5,33 @@ import { loadEntries, saveEntry, deleteEntry, loadConfig as loadCfg, saveConfig 
 /* =================================================================
    🌍 OUR WORLD — Seth & Rosie Posie
    "every moment, every adventure"
-   v7.5 — hosted edition with Supabase
+   v7.7 — earthy aesthetic, love letters, dream input, scrollable lists
    ================================================================= */
 
 const DEFAULT_CONFIG = {
   startDate: "2021-06-01",
   title: "Our World",
   subtitle: "every moment, every adventure",
-  loveLetter: "",
+  loveLetter: "",            // legacy single letter (migrated to loveLetters on load)
+  loveLetters: [],           // [{id, text, lat, lng, city}]
   youName: "Seth",
   partnerName: "Rosie Posie",
-  chapters: [],          // [{label, startDate, endDate}]
-  dreamDestinations: [], // [{id, city, country, lat, lng, notes}]
+  chapters: [],              // [{label, startDate, endDate}]
+  dreamDestinations: [],     // [{id, city, country, lat, lng, notes}]
   darkMode: true,
 };
 
 const P = {
-  cream: "#faf8f4", warm: "#fef9f4", parchment: "#f5f1ea",
-  blush: "#fdf2f4", lavMist: "#f3f0ff",
-  text: "#3d3552", textMid: "#6b5e7e", textMuted: "#958ba8", textFaint: "#c4bbd4",
-  rose: "#d4a0b9", roseLight: "#f0d4e4", roseSoft: "#e8c0d4",
+  cream: "#f8f6f0", warm: "#f4f2ea", parchment: "#ede9df",
+  blush: "#eef2e8", lavMist: "#eee8f5",
+  text: "#3d4a35", textMid: "#5e7050", textMuted: "#8a9e7c", textFaint: "#b5c4a8",
+  rose: "#8baa6b", roseLight: "#c8dbb8", roseSoft: "#a8c488",
   sky: "#9bb5d6", skyLight: "#c8daf0", skySoft: "#b0c8e0",
-  sage: "#a8bf94", gold: "#d4b078", goldWarm: "#e8c88a", lavender: "#b8a5cc",
-  together: "#c4a8e0", togetherSoft: "#d8c4f0", togetherLight: "#ece0f8",
-  heart: "#e07a9a", heartSoft: "#f0a0b8",
-  special: "#dfc090", specialSoft: "#eedbb0",
-  card: "rgba(253,251,247,0.96)", glass: "rgba(250,248,244,0.92)",
+  sage: "#7a9e5a", gold: "#c4a858", goldWarm: "#d8c070", lavender: "#b8a5cc",
+  together: "#a8b8d8", togetherSoft: "#c0d0e8", togetherLight: "#dce4f0",
+  heart: "#8baa6b", heartSoft: "#a8c488",
+  special: "#d0b870", specialSoft: "#e0d0a0",
+  card: "rgba(250,248,242,0.96)", glass: "rgba(246,244,238,0.92)",
 };
 
 const TYPES = {
@@ -226,9 +227,94 @@ const GEO_LINES = [
   {n:"us_mexico",t:"border",p:[[32,-117],[32,-111],[31,-108],[30,-105],[29,-103],[27,-99],[26,-97]]},
   {n:"india_border",t:"border",p:[[35,74],[30,72],[28,70],[25,68],[24,69],[23,68],[22,69]]},
   {n:"china_russia",t:"border",p:[[42,130],[45,133],[49,135],[53,134],[55,130],[58,120],[55,100],[50,87],[46,82],[44,80]]},
+,
+  {n:"hawaii_chain",t:"coast",p:[[22,-160],[21,-158],[21,-157],[21,-156],[20,-156],[20,-155],[19,-155],[19,-156],[20,-156],[20,-157],[21,-157],[22,-160]]},
+  {n:"hawaii_big_island",t:"coast",p:[[20,-155],[20,-156],[19,-156],[19,-155],[19,-154],[20,-154],[20,-155]]},
+  {n:"fiji",t:"coast",p:[[-17,177],[-17,178],[-18,178],[-18,177],[-17,177]]},
+  {n:"fiji_vanua_levu",t:"coast",p:[[-16,179],[-16,180],[-17,180],[-17,179],[-16,179]]},
+  {n:"samoa",t:"coast",p:[[-13,-173],[-14,-172],[-14,-171],[-13,-172],[-13,-173]]},
+  {n:"tonga",t:"coast",p:[[-18,-176],[-19,-176],[-20,-175],[-21,-175],[-21,-174],[-20,-174],[-19,-175],[-18,-176]]},
+  {n:"new_caledonia",t:"coast",p:[[-20,164],[-21,165],[-22,166],[-22,167],[-21,167],[-20,166],[-20,164]]},
+  {n:"vanuatu",t:"coast",p:[[-14,167],[-15,167],[-16,168],[-17,168],[-18,169],[-19,169],[-20,170],[-19,169],[-18,168],[-17,168],[-16,167],[-15,167],[-14,167]]},
+  {n:"solomon_islands",t:"coast",p:[[-6,155],[-7,156],[-8,157],[-8,158],[-9,159],[-9,160],[-10,161],[-10,162],[-9,161],[-8,160],[-7,158],[-6,157],[-6,155]]},
+  {n:"guam_marianas",t:"coast",p:[[20,144],[18,145],[16,146],[15,145],[14,145],[13,144],[14,144],[15,145],[17,145],[19,145],[20,144]]},
+  {n:"bahamas",t:"coast",p:[[27,-79],[26,-78],[25,-78],[25,-77],[24,-78],[24,-77],[23,-76],[22,-74],[23,-75],[24,-77],[25,-78],[26,-79],[27,-79]]},
+  {n:"lesser_antilles",t:"coast",p:[[18,-63],[17,-62],[16,-62],[15,-61],[14,-61],[13,-60],[12,-61],[11,-61],[10,-62],[11,-62],[12,-62],[13,-61],[14,-61],[15,-61],[16,-62],[17,-62],[18,-63]]},
+  {n:"trinidad",t:"coast",p:[[11,-61],[10,-62],[10,-61],[10,-60],[11,-60],[11,-61]]},
+  {n:"barbados",t:"coast",p:[[13,-60],[13,-59],[13,-60]]},
+  {n:"virgin_islands",t:"coast",p:[[18,-65],[18,-64],[19,-65],[18,-65]]},
+  {n:"cayman_islands",t:"coast",p:[[19,-82],[19,-80],[20,-80],[19,-82]]},
+  {n:"turks_caicos",t:"coast",p:[[22,-72],[21,-72],[21,-71],[22,-72]]},
+  {n:"cyprus",t:"coast",p:[[35,32],[35,33],[35,34],[34,34],[34,33],[35,33],[35,32]]},
+  {n:"balearic_islands",t:"coast",p:[[40,3],[39,3],[39,2],[40,3]]},
+  {n:"balearic_menorca",t:"coast",p:[[40,4],[39,4],[40,4]]},
+  {n:"malta",t:"coast",p:[[36,14],[36,15],[36,14]]},
+  {n:"rhodes_dodecanese",t:"coast",p:[[36,28],[36,27],[35,27],[35,28],[36,28]]},
+  {n:"svalbard",t:"coast",p:[[77,15],[78,16],[79,18],[80,20],[80,22],[79,24],[78,22],[77,18],[76,16],[77,15]]},
+  {n:"baffin_island",t:"coast",p:[[73,-80],[72,-78],[70,-72],[68,-67],[66,-64],[64,-66],[63,-68],[62,-70],[63,-73],[64,-76],[66,-78],[68,-80],[70,-82],[72,-82],[73,-80]]},
+  {n:"ellesmere_island",t:"coast",p:[[83,-72],[82,-68],[81,-66],[80,-68],[80,-72],[81,-76],[82,-80],[83,-78],[83,-72]]},
+  {n:"victoria_island",t:"coast",p:[[73,-110],[72,-106],[71,-104],[70,-102],[69,-104],[69,-108],[70,-110],[71,-112],[72,-114],[73,-112],[73,-110]]},
+  {n:"banks_island",t:"coast",p:[[74,-118],[73,-116],[72,-116],[71,-118],[71,-122],[72,-124],[73,-124],[74,-122],[74,-118]]},
+  {n:"novaya_zemlya",t:"coast",p:[[77,54],[76,56],[74,57],[73,55],[72,53],[71,52],[72,50],[73,52],[74,54],[75,56],[76,58],[77,56],[77,54]]},
+  {n:"franz_josef_land",t:"coast",p:[[81,48],[80,50],[80,52],[81,54],[82,52],[81,48]]},
+  {n:"severnaya_zemlya",t:"coast",p:[[80,95],[79,97],[78,100],[79,102],[80,100],[81,97],[80,95]]},
+  {n:"new_siberian_islands",t:"coast",p:[[75,140],[74,142],[73,141],[74,138],[75,140]]},
+  {n:"wrangel_island",t:"coast",p:[[71,-180],[71,-178],[72,-178],[71,-180]]},
+  {n:"denmark_jutland",t:"coast",p:[[57,10],[56,8],[55,8],[55,9],[54,9],[54,10],[55,11],[55,12],[56,12],[57,11],[57,10]]},
+  {n:"zealand_denmark",t:"coast",p:[[56,12],[55,12],[55,11],[56,11],[56,12]]},
+  {n:"black_sea_north",t:"coast",p:[[46,30],[46,32],[46,34],[45,36],[44,38],[43,40],[42,41],[43,39],[44,37],[45,35],[46,33],[47,32],[46,30]]},
+  {n:"black_sea_south",t:"coast",p:[[42,28],[41,29],[41,31],[42,33],[42,35],[41,37],[41,39],[42,41],[42,39],[41,37],[41,35],[42,33],[42,31],[41,29],[42,28]]},
+  {n:"crimea",t:"coast",p:[[46,33],[45,33],[44,34],[44,35],[44,36],[45,36],[46,34],[46,33]]},
+  {n:"caspian_west",t:"coast",p:[[42,50],[41,49],[40,49],[39,49],[38,49],[37,50],[38,51],[39,50],[40,50],[41,50],[42,50]]},
+  {n:"caspian_east",t:"coast",p:[[42,52],[41,53],[40,53],[39,53],[38,54],[37,54],[38,53],[39,52],[40,52],[41,51],[42,52]]},
+  {n:"hainan",t:"coast",p:[[20,110],[19,109],[18,109],[18,110],[19,111],[20,111],[20,110]]},
+  {n:"timor",t:"coast",p:[[-8,124],[-9,125],[-9,126],[-8,127],[-8,126],[-9,125],[-8,124]]},
+  {n:"bali_lombok",t:"coast",p:[[-8,114],[-9,115],[-8,116],[-8,117],[-9,117],[-9,116],[-8,115],[-8,114]]},
+  {n:"palawan",t:"coast",p:[[12,119],[11,119],[10,119],[9,118],[8,117],[9,117],[10,118],[11,119],[12,119]]},
+  {n:"mindoro",t:"coast",p:[[13,121],[12,121],[12,120],[13,121]]},
+  {n:"okinawa_ryukyu",t:"coast",p:[[27,128],[26,127],[25,126],[24,125],[25,124],[26,126],[27,128]]},
+  {n:"sakhalin",t:"coast",p:[[54,143],[53,142],[52,141],[51,142],[50,143],[49,144],[48,144],[47,143],[46,142],[47,143],[48,144],[49,145],[50,144],[51,143],[52,142],[53,143],[54,143]]},
+  {n:"kuril_islands",t:"coast",p:[[50,155],[49,154],[48,153],[47,152],[46,151],[45,150],[44,149],[45,148],[46,150],[47,151],[48,153],[49,154],[50,155]]},
+  {n:"maldives",t:"coast",p:[[7,73],[5,73],[3,73],[1,73],[0,73],[-1,73],[0,73],[2,73],[4,73],[6,73],[7,73]]},
+  {n:"seychelles",t:"coast",p:[[-4,55],[-5,56],[-5,55],[-4,55]]},
+  {n:"mauritius",t:"coast",p:[[-20,57],[-20,58],[-20,57]]},
+  {n:"reunion",t:"coast",p:[[-21,55],[-21,56],[-21,55]]},
+  {n:"zanzibar",t:"coast",p:[[-5,39],[-6,40],[-6,39],[-5,39]]},
+  {n:"socotra",t:"coast",p:[[12,54],[12,53],[12,54]]},
+  {n:"andaman_islands",t:"coast",p:[[14,93],[13,93],[12,93],[11,92],[10,92],[11,93],[12,93],[13,93],[14,93]]},
+  {n:"comoros",t:"coast",p:[[-11,43],[-12,44],[-12,43],[-11,43]]},
+  {n:"canary_islands",t:"coast",p:[[29,-14],[28,-15],[28,-17],[29,-16],[29,-14]]},
+  {n:"cape_verde",t:"coast",p:[[17,-24],[16,-25],[15,-24],[16,-23],[17,-24]]},
+  {n:"azores",t:"coast",p:[[39,-28],[38,-27],[37,-26],[38,-28],[39,-28]]},
+  {n:"madeira",t:"coast",p:[[33,-17],[33,-16],[33,-17]]},
+  {n:"falkland_islands",t:"coast",p:[[-51,-59],[-52,-60],[-52,-59],[-51,-58],[-51,-59]]},
+  {n:"south_georgia",t:"coast",p:[[-54,-37],[-55,-36],[-54,-35],[-54,-37]]},
+  {n:"faroe_islands",t:"coast",p:[[62,-7],[62,-6],[62,-7]]},
+  {n:"shetland",t:"coast",p:[[61,-1],[60,-1],[61,-1]]},
+  {n:"mozambique_north",t:"coast",p:[[-10,40],[-11,40],[-12,40],[-13,41],[-14,41],[-15,40],[-16,40],[-15,40],[-14,40],[-13,40],[-12,40],[-11,40],[-10,40]]},
+  {n:"somalia_coast",t:"coast",p:[[12,44],[11,45],[10,46],[9,47],[8,48],[7,49],[5,49],[4,48],[3,47],[2,46],[1,45],[0,44],[-1,42],[0,43],[1,44],[2,45],[3,46],[4,47],[5,48],[6,49],[7,49],[8,48],[9,47],[10,46],[11,45],[12,44]]},
+  {n:"angola_coast",t:"coast",p:[[-5,12],[-6,12],[-7,12],[-8,13],[-9,13],[-10,13],[-11,14],[-12,14],[-13,13],[-14,12],[-15,12],[-16,12],[-17,11]]},
+  {n:"namibia_skeleton",t:"coast",p:[[-17,11],[-18,12],[-19,12],[-20,13],[-21,13],[-22,14],[-23,14],[-24,15],[-25,15],[-26,15],[-27,15],[-28,16]]},
+  {n:"gambia_senegal",t:"coast",p:[[16,-17],[15,-17],[14,-17],[13,-17],[13,-16],[14,-16],[15,-17],[16,-17]]},
+  {n:"sierra_leone",t:"coast",p:[[9,-13],[8,-13],[7,-12],[7,-11],[8,-11],[9,-13]]},
+  {n:"liberia",t:"coast",p:[[7,-11],[6,-11],[5,-10],[5,-8],[4,-8],[5,-9],[6,-10],[7,-11]]},
+  {n:"gabon",t:"coast",p:[[2,9],[1,9],[0,9],[-1,9],[-2,10],[-3,10],[-4,11]]},
+  {n:"guyana_suriname",t:"coast",p:[[8,-60],[7,-58],[6,-57],[6,-55],[5,-54],[6,-55],[6,-57],[7,-58],[8,-60]]},
+  {n:"uruguay_coast",t:"coast",p:[[-34,-54],[-34,-55],[-35,-57],[-34,-58],[-33,-58],[-34,-57],[-34,-55],[-34,-54]]},
+  {n:"patagonia_east",t:"coast",p:[[-40,-63],[-41,-65],[-42,-65],[-43,-65],[-44,-66],[-45,-66],[-46,-67],[-47,-66],[-48,-66],[-49,-67],[-50,-69],[-51,-69],[-52,-69]]},
+  {n:"antarctica_peninsula",t:"coast",p:[[-63,-60],[-64,-62],[-65,-64],[-66,-65],[-67,-66],[-68,-67],[-69,-68],[-70,-68],[-71,-68]]},
+  {n:"antarctica_ross",t:"coast",p:[[-77,165],[-78,170],[-79,175],[-80,180],[-80,-175],[-79,-170],[-78,-165],[-77,-165]]},
+  {n:"antarctica_east",t:"coast",p:[[-66,50],[-67,60],[-68,70],[-69,80],[-69,90],[-68,100],[-67,110],[-66,120]]},
+  {n:"antarctica_west",t:"coast",p:[[-71,-80],[-72,-90],[-73,-100],[-74,-110],[-74,-120],[-73,-130],[-72,-140],[-71,-150]]},
+  {n:"gotland",t:"coast",p:[[58,18],[57,18],[57,19],[58,19],[58,18]]},
+  {n:"aegean_islands",t:"coast",p:[[39,26],[38,25],[37,25],[36,26],[37,27],[38,26],[39,26]]},
+  {n:"vancouver_island",t:"coast",p:[[51,-128],[50,-128],[49,-126],[48,-124],[48,-123],[49,-124],[50,-127],[51,-128]]},
+  {n:"queen_charlotte",t:"coast",p:[[54,-133],[53,-132],[52,-131],[53,-132],[54,-133]]},
+  {n:"kodiak_island",t:"coast",p:[[58,-153],[57,-154],[57,-153],[58,-152],[58,-153]]},
+  {n:"newfoundland",t:"coast",p:[[52,-56],[51,-56],[50,-56],[49,-55],[48,-54],[47,-53],[47,-54],[47,-56],[48,-58],[49,-58],[50,-57],[51,-57],[52,-56]]}
 ];
 
-// 1500 world cities
+// 1776 world cities
 const CITIES = [
   ["New York City","USA",40.7128,-74.006],["Los Angeles","USA",34.0522,-118.2437],["Chicago","USA",41.8781,-87.6298],
   ["Houston","USA",29.7604,-95.3698],["Phoenix","USA",33.4484,-112.074],["Philadelphia","USA",39.9526,-75.1652],
@@ -732,6 +818,283 @@ const CITIES = [
   ["Tatev","Armenia",39.3797,46.2507],["Dilijan","Armenia",40.7416,44.8625],["Mestia","Georgia",43.0436,42.7277],
   ["Kazbegi","Georgia",42.6558,44.6383],["Sighnaghi","Georgia",41.6167,45.9167],["Kutaisi","Georgia",42.2679,42.6946],
   ["Sheki","Azerbaijan",41.1919,47.1706]
+,
+  ["Nuku'alofa","Tonga",-21.2087,-175.1982],
+  ["Hagatna","Guam",13.4757,144.7489],
+  ["Nauru Island","Nauru",-0.5228,166.9315],
+  ["Kailua-Kona","USA",19.64,-155.9969],
+  ["Waikiki","USA",21.2769,-157.8269],
+  ["Saint John's","Antigua and Barbuda",17.1175,-61.8456],
+  ["Kingstown","Saint Vincent",13.1587,-61.2248],
+  ["Charlotte Amalie","US Virgin Islands",18.3419,-64.9307],
+  ["Road Town","British Virgin Islands",18.4286,-64.6185],
+  ["Cockburn Town","Turks and Caicos",21.4602,-71.1419],
+  ["Freeport","Bahamas",26.5285,-78.6968],
+  ["Nukus","Uzbekistan",42.4619,59.6003],
+  ["Sanaa","Yemen",15.3694,44.191],
+  ["Aden","Yemen",12.7855,45.0187],
+  ["Ramallah","Palestine",31.9038,35.2034],
+  ["Bethlehem","Palestine",31.7054,35.2024],
+  ["Sulaymaniyah","Iraq",35.5573,45.4353],
+  ["Lilongwe","Malawi",-13.9626,33.7741],
+  ["Lusaka","Zambia",-15.3875,28.3228],
+  ["Bulawayo","Zimbabwe",-20.1325,28.6266],
+  ["Moroni","Comoros",-11.7172,43.2473],
+  ["Port Louis","Mauritius",-20.1609,57.5012],
+  ["Saint-Denis","Reunion",-20.8789,55.4481],
+  ["Sao Tome","Sao Tome and Principe",0.3302,6.7335],
+  ["Yamoussoukro","Ivory Coast",6.8276,-5.2893],
+  ["Mbabane","Eswatini",-26.3054,31.1367],
+  ["Maseru","Lesotho",-29.3167,27.4833],
+  ["Zanzibar City","Tanzania",-6.1622,39.1921],
+  ["Toamasina","Madagascar",-18.1492,49.4023],
+  ["Walvis Bay","Namibia",-22.9575,14.5053],
+  ["Paro","Bhutan",27.4305,89.4125],
+  ["Jaffna","Sri Lanka",9.6615,80.0255],
+  ["Male","Maldives",4.1755,73.5093],
+  ["Sylhet","Bangladesh",24.8949,91.8687],
+  ["Shigatse","China",29.267,88.88],
+  ["Bandar Seri Begawan","Brunei",4.9431,114.9425],
+  ["Dili","Timor-Leste",-8.5569,125.5603],
+  ["Denpasar","Indonesia",-8.65,115.2167],
+  ["Kuta","Indonesia",-8.722,115.1685],
+  ["Makassar","Indonesia",-5.1477,119.4327],
+  ["Manado","Indonesia",1.4748,124.8421],
+  ["Davao","Philippines",7.1907,125.4553],
+  ["Cebu City","Philippines",10.3157,123.8854],
+  ["Palawan Puerto Princesa","Philippines",9.7392,118.7353],
+  ["Karakorum","Mongolia",47.1972,102.6549],
+  ["Khabarovsk","Russia",48.4827,135.0837],
+  ["Naha","Japan",26.3344,127.7427],
+  ["Jeju City","South Korea",33.4996,126.5312],
+  ["Taichung","Taiwan",24.1477,120.6736],
+  ["Tromso","Norway",69.6492,18.9553],
+  ["Chisinau","Moldova",47.0105,28.8638],
+  ["Podgorica","Montenegro",42.4304,19.2594],
+  ["Nicosia","Cyprus",35.1856,33.3823],
+  ["Luxembourg City","Luxembourg",49.6117,6.13],
+  ["Andorra la Vella","Andorra",42.5063,1.5218],
+  ["San Marino","San Marino",43.9424,12.4578],
+  ["Vaduz","Liechtenstein",47.141,9.5215],
+  ["Brasov","Romania",45.6427,25.5887],
+  ["Gdansk","Poland",54.352,18.6466],
+  ["Wroclaw","Poland",51.1079,17.0385],
+  ["Cesky Krumlov","Czech Republic",48.8127,14.3175],
+  ["El Calafate","Argentina",-50.3402,-72.2649],
+  ["Cayenne","French Guiana",4.9372,-52.326],
+  ["Galapagos Islands","Ecuador",-0.9538,-90.9656],
+  ["Iquitos","Peru",-3.7491,-73.2538],
+  ["Florianopolis","Brazil",-27.5954,-48.548],
+  ["Valparaiso","Chile",-33.0472,-71.6127],
+  ["San Cristobal de las Casas","Mexico",16.737,-92.6376],
+  ["Merida","Mexico",20.9674,-89.5926],
+  ["Roatan","Honduras",16.3217,-86.5234],
+  ["Longyearbyen","Norway",78.2232,15.6267],
+  ["Nuuk","Greenland",64.1814,-51.6941],
+  ["Ilulissat","Greenland",69.2198,-51.0986],
+  ["Stanley","Falkland Islands",-51.7023,-57.8527],
+  ["Punta Arenas","Chile",-53.1548,-70.9113],
+  ["Timbuktu","Mali",16.7666,-3.0026],
+  ["Urgench","Uzbekistan",41.55,60.6333],
+  ["Taveuni","Fiji",-16.95,-179.8833],
+  ["Niue Island","Niue",-19.0544,-169.8672],
+  ["Palmerston North","New Zealand",-40.3523,175.6082],
+  ["Whangarei","New Zealand",-35.7275,174.3166],
+  ["Invercargill","New Zealand",-46.4132,168.3538],
+  ["Port Douglas","Australia",-16.4836,145.465],
+  ["Karratha","Australia",-20.7377,116.8463],
+  ["Albany","Australia",-35.0269,117.8837],
+  ["Airlie Beach","Australia",-20.2686,148.7188],
+  ["Sapa","Vietnam",22.3402,103.8448],
+  ["Koh Lipe","Thailand",6.4969,99.3033],
+  ["Koh Phangan","Thailand",9.7314,100.0136],
+  ["Railay Beach","Thailand",8.01,98.84],
+  ["Vigan","Philippines",17.5747,120.3869],
+  ["Komodo Island","Indonesia",-8.55,119.4833],
+  ["Toraja","Indonesia",-3.0667,119.85],
+  ["Mrauk U","Myanmar",20.5961,93.2011],
+  ["Pakse","Laos",15.1167,105.8],
+  ["Ladakh Pangong","India",33.7595,78.6842],
+  ["Anuradhapura","Sri Lanka",8.3114,80.4037],
+  ["Nagarkot","Nepal",27.7172,85.5167],
+  ["Bandipur","Nepal",27.9333,84.4],
+  ["Gobi Desert Dalanzadgad","Mongolia",43.5722,104.4254],
+  ["Kharkhorin","Mongolia",47.1972,102.6549],
+  ["Song Kul","Kyrgyzstan",41.8333,75.1667],
+  ["Issyk Kul","Kyrgyzstan",42.45,77.25],
+  ["Fergana","Uzbekistan",40.3842,71.789],
+  ["Shakhrisabz","Uzbekistan",39.06,66.83],
+  ["Nurata","Uzbekistan",40.5667,65.6833],
+  ["Merv","Turkmenistan",37.6625,62.1667],
+  ["Konye-Urgench","Turkmenistan",42.3333,59.15],
+  ["Mount Emei","China",29.5964,103.3322],
+  ["Wuyuan","China",29.25,117.85],
+  ["Kaesong","North Korea",37.971,126.5547],
+  ["Kamikochi","Japan",36.2481,137.6344],
+  ["Iya Valley","Japan",33.9,134.0167],
+  ["Tsumago","Japan",35.5833,137.5833],
+  ["Sun Moon Lake","Taiwan",23.85,120.9167],
+  ["Alishan","Taiwan",23.51,120.7033],
+  ["Kenting","Taiwan",21.9447,120.8113],
+  ["Axum","Ethiopia",14.121,38.7468],
+  ["Simien Mountains","Ethiopia",13.25,38.3833],
+  ["Omo Valley","Ethiopia",5.5,36.5],
+  ["Lake Turkana","Kenya",3.5833,36.0833],
+  ["Samburu","Kenya",-0.5833,37.5333],
+  ["Lake Malawi Cape Maclear","Malawi",-14.0167,35.1333],
+  ["Makgadikgadi","Botswana",-20.75,25.5833],
+  ["Skeleton Coast","Namibia",-20,13],
+  ["Djemila","Algeria",36.3167,5.7333],
+  ["Ghardaia","Algeria",32.49,3.67],
+  ["Tassili n'Ajjer","Algeria",25.5,9],
+  ["Dogon Country Bandiagara","Mali",14.35,-3.6167],
+  ["Djenne","Mali",13.9,-4.55],
+  ["Gorée Island","Senegal",14.6667,-17.3989],
+  ["Leptis Magna","Libya",32.6381,14.2892],
+  ["Etretat","France",49.7075,0.2014],
+  ["Cudillero","Spain",43.5639,-6.1517],
+  ["Castelluccio","Italy",42.8264,13.205],
+  ["Civita di Bagnoregio","Italy",42.6278,12.1139],
+  ["Bled","Slovenia",46.3683,14.1146],
+  ["Predjama","Slovenia",45.8167,14.1267],
+  ["Bovec","Slovenia",46.3381,13.5531],
+  ["Rothenburg ob der Tauber","Germany",49.3769,10.1789],
+  ["Quedlinburg","Germany",51.7884,11.1508],
+  ["Saxon Switzerland","Germany",50.9167,14.0833],
+  ["Trolltunga","Norway",60.124,6.74],
+  ["Geiranger","Norway",62.1,7.2],
+  ["Faroe Islands Torshavn","Denmark",62.0107,-6.768],
+  ["Abisko","Sweden",68.3498,18.8313],
+  ["Salar de Uyuni","Bolivia",-20.1338,-67.4891],
+  ["Potosi","Bolivia",-19.5836,-65.7531],
+  ["Copacabana Bolivia","Bolivia",-16.1667,-69.0833],
+  ["Lake Titicaca Puno","Peru",-15.8402,-70.0219],
+  ["Guatape","Colombia",6.2333,-75.1583],
+  ["Ciudad Perdida","Colombia",11.0375,-73.9253],
+  ["Lencois Maranhenses","Brazil",-2.4833,-43.1167],
+  ["Alter do Chao","Brazil",-2.5028,-54.95],
+  ["Jalapao","Brazil",-10.55,-47],
+  ["Chiloe Island","Chile",-42.4833,-73.9667],
+  ["Marble Caves Chile","Chile",-46.6578,-72.6264],
+  ["Quebrada de Humahuaca","Argentina",-23.2,-65.35],
+  ["Cachi","Argentina",-25.1211,-66.1631],
+  ["Lake Atitlan","Guatemala",14.6833,-91.2333],
+  ["Ometepe Island","Nicaragua",11.5,-85.55],
+  ["Dominical","Costa Rica",9.2594,-83.8575],
+  ["Tortuguero","Costa Rica",10.5417,-83.5033],
+  ["San Blas Islands","Panama",9.57,-78.99],
+  ["Bequia","Saint Vincent",13.0167,-61.2333],
+  ["Dominica Roseau","Dominica",15.3017,-61.3881],
+  ["Motovun","Croatia",45.3364,13.8286],
+  ["Trogir","Croatia",43.5167,16.25],
+  ["Korcula","Croatia",42.9606,17.1358],
+  ["Vis Island","Croatia",43.0611,16.1833],
+  ["Mljet","Croatia",42.75,17.55],
+  ["Folegandros","Greece",36.6236,24.9119],
+  ["Kotor Bay","Montenegro",42.475,18.5183],
+  ["Kruje","Albania",41.5089,19.7936],
+  ["Gjirokaster","Albania",40.0758,20.1389],
+  ["Vardzia","Georgia",41.3817,43.2817],
+  ["Kas","Turkey",36.2,29.65],
+  ["Sumela Monastery","Turkey",40.6883,39.6592],
+  ["Ani","Turkey",40.5058,43.5728],
+  ["Longji Rice Terraces","China",25.75,110.1333],
+  ["Mount Koya","Japan",34.2131,135.5833],
+  ["Amanohashidate","Japan",35.5556,135.1903],
+  ["Kenrokuen","Japan",36.5625,136.6625],
+  ["Takachiho","Japan",32.7167,131.3],
+  ["Tongyeong","South Korea",34.85,128.4333],
+  ["Damyang","South Korea",35.32,126.99],
+  ["Suncheon","South Korea",34.9506,127.4872],
+  ["Taroko Gorge","Taiwan",24.1833,121.5],
+  ["Kinmen","Taiwan",24.45,118.3767],
+  ["Penghu","Taiwan",23.5711,119.5769],
+  ["Zanskar","India",33.5,77],
+  ["Majuli Island","India",26.95,94.1667],
+  ["Tawang","India",27.5833,91.8667],
+  ["Chettinad","India",10.1833,78.9333],
+  ["Mandu","India",22.3333,75.4],
+  ["Bundi","India",25.4305,75.6499],
+  ["Nubra Valley","India",34.6833,77.5833],
+  ["Horton Plains","Sri Lanka",6.8,80.8],
+  ["Bumthang","Bhutan",27.55,90.7333],
+  ["Punakha","Bhutan",27.5833,89.8667],
+  ["Tiger's Nest","Bhutan",27.4917,89.3633],
+  ["Bandarban","Bangladesh",22.1953,92.2184],
+  ["Sundarbans","Bangladesh",21.9497,89.1833],
+  ["Lamu Old Town","Kenya",-2.2678,40.9],
+  ["Hell's Gate","Kenya",-0.8833,36.3167],
+  ["Ol Pejeta","Kenya",0.0167,36.9333],
+  ["Bahir Dar","Ethiopia",11.5833,37.3667],
+  ["Meknes","Morocco",33.8833,-5.55],
+  ["Todra Gorge","Morocco",31.5833,-5.5833],
+  ["Bazaruto Island","Mozambique",-21.55,35.4833],
+  ["Ile Sainte-Marie","Madagascar",-17,49.85],
+  ["Avenue of Baobabs","Madagascar",-20.25,44.4167],
+  ["Tsingy","Madagascar",-19.1333,44.8],
+  ["Cap Skirring","Senegal",12.3833,-16.75],
+  ["Casamance","Senegal",12.5833,-16.25],
+  ["Ouidah","Benin",6.3667,2.0833],
+  ["Abomey","Benin",7.1833,1.9833],
+  ["Banfora","Burkina Faso",10.6333,-4.7667],
+  ["Mole National Park","Ghana",9.25,-1.8333],
+  ["Wli Waterfall","Ghana",7.1,0.5833],
+  ["Quilotoa","Ecuador",-0.8583,-78.9],
+  ["Tatacoa Desert","Colombia",3.2333,-75.1667],
+  ["San Gil","Colombia",6.5569,-73.1347],
+  ["Rurrenabaque","Bolivia",-14.4333,-67.5333],
+  ["Sajama","Bolivia",-18.1167,-68.9833],
+  ["Pantanal Corumba","Brazil",-19.0094,-57.6517],
+  ["Itacare","Brazil",-14.2778,-38.9958],
+  ["Sao Jorge Chapada","Brazil",-14.1833,-47.6167],
+  ["Monte Verde","Brazil",-22.8589,-46.0386],
+  ["Coyhaique","Chile",-45.5712,-72.0686],
+  ["Cochamo","Chile",-41.5167,-72.3167],
+  ["Futaleufu","Chile",-43.1833,-71.8667],
+  ["Elqui Valley","Chile",-30.1333,-70.5],
+  ["Iruya","Argentina",-22.7833,-65.2167],
+  ["El Bolson","Argentina",-41.9667,-71.5333],
+  ["El Chalten","Argentina",-49.3317,-72.8861],
+  ["Valdes Peninsula","Argentina",-42.4833,-63.5833],
+  ["Luquillo","Puerto Rico",18.3724,-65.7168],
+  ["Vieques","Puerto Rico",18.1263,-65.4401],
+  ["Culebra","Puerto Rico",18.3008,-65.3028],
+  ["Vinales","Cuba",22.6167,-83.7167],
+  ["Baracoa","Cuba",20.3464,-74.4992],
+  ["Cienfuegos","Cuba",22.1456,-80.4364],
+  ["Copan Ruinas","Honduras",14.8389,-89.1417],
+  ["Creel","Mexico",27.7508,-107.6353],
+  ["Bernal","Mexico",20.7436,-99.9425],
+  ["Hegra","Saudi Arabia",26.7828,37.9531],
+  ["Wadi Shab","Oman",22.8333,59.2333],
+  ["Jebel Akhdar","Oman",23.2,57.6667],
+  ["Dilmun Bahrain","Bahrain",26.2333,50.55],
+  ["Sir Bani Yas","UAE",24.3167,52.5833],
+  ["Fairy Meadows","Pakistan",35.375,74.5917],
+  ["Hunza Valley","Pakistan",36.3167,74.65],
+  ["Skardu","Pakistan",35.2972,75.6333],
+  ["Swat Valley","Pakistan",35.2,72.35],
+  ["Gobustan","Azerbaijan",40.0833,49.3833],
+  ["Stepantsminda","Georgia",42.4566,44.6509],
+  ["Uzungol","Turkey",40.6222,40.2903],
+  ["Cappadocia Uchisar","Turkey",38.6292,34.8],
+  ["Terceira Azores","Portugal",38.7167,-27.2167],
+  ["Flores Azores","Portugal",39.45,-31.1833],
+  ["Skellig Michael","Ireland",51.77,-10.54],
+  ["Giants Causeway","Northern Ireland",55.2408,-6.5116],
+  ["Staffa","Scotland",56.4333,-6.3417],
+  ["Glencoe","Scotland",56.6833,-5.05],
+  ["Faroe Gasadalur","Denmark",62.1089,-7.4342],
+  ["Jokulsarlon","Iceland",64.0784,-16.2297],
+  ["Landmannalaugar","Iceland",63.9933,-19.0631],
+  ["Myvatn","Iceland",65.6,-16.9833],
+  ["Husavik","Iceland",66.0449,-17.3383],
+  ["Westfjords","Iceland",65.75,-22.0833],
+  ["Kerlingarfjoll","Iceland",64.6333,-19.3],
+  ["Snaefellsnes","Iceland",64.8,-23.7],
+  ["Thorsmork","Iceland",63.6833,-19.5333],
+  ["Dettifoss","Iceland",65.8147,-16.3844],
+  ["Stykkisholmur","Iceland",65.075,-22.73]
 ];
 
 
@@ -837,7 +1200,15 @@ function OurWorldInner() {
       try {
         const [entries, cfg] = await Promise.all([loadEntries(), loadCfg()]);
         dispatch({ type: "LOAD", entries: entries || [] });
-        if (cfg) setConfigState({ ...DEFAULT_CONFIG, ...cfg });
+        if (cfg) {
+          const merged = { ...DEFAULT_CONFIG, ...cfg };
+          // Migrate legacy single loveLetter to loveLetters array
+          if (merged.loveLetter && (!merged.loveLetters || merged.loveLetters.length === 0)) {
+            merged.loveLetters = [{ id: `ll-legacy`, text: merged.loveLetter, lat: 48.8566, lng: 2.3522, city: "Paris" }];
+            merged.loveLetter = "";
+          }
+          setConfigState(merged);
+        }
       } catch (err) {
         console.error("Failed to load from Supabase:", err);
       }
@@ -897,9 +1268,14 @@ function OurWorldInner() {
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState(null);
   const [photoIdx, setPhotoIdx] = useState(0);
-  const [showLetter, setShowLetter] = useState(false);
-  const [editLetter, setEditLetter] = useState(false);
+  const [showLetter, setShowLetter] = useState(null); // letter id to show, or null
+  const [editLetter, setEditLetter] = useState(false); // show letter editor
   const [letterDraft, setLetterDraft] = useState("");
+  const [letterEditId, setLetterEditId] = useState(null); // null = new letter
+  const [letterCity, setLetterCity] = useState("");
+  const [letterCitySugg, setLetterCitySugg] = useState([]);
+  const [letterLat, setLetterLat] = useState("");
+  const [letterLng, setLetterLng] = useState("");
   const [showSettings, setShowSettings] = useState(false);
   const [sliderDate, setSliderDate] = useState(todayStr());
   const [isAnimating, setIsAnimating] = useState(false);
@@ -940,6 +1316,10 @@ function OurWorldInner() {
 
   // ---- DERIVED ----
   const sorted = useMemo(() => [...data.entries].sort((a, b) => (a.dateStart || "").localeCompare(b.dateStart || "")), [data.entries]);
+  const filteredList = useMemo(() => {
+    const list = markerFilter === "all" ? data.entries : markerFilter === "favorites" ? data.entries.filter(e => e.favorite) : data.entries.filter(e => e.type === markerFilter);
+    return [...list].sort((a, b) => (b.dateStart || "").localeCompare(a.dateStart || "")); // newest first
+  }, [data.entries, markerFilter]);
   const togetherList = useMemo(() => sorted.filter(e => e.who === "both"), [sorted]);
   const firstBadges = useMemo(() => getFirstBadges(data.entries), [data.entries]);
   const season = useMemo(() => seasonalHue(sliderDate), [sliderDate]);
@@ -1427,36 +1807,36 @@ function OurWorldInner() {
     el.appendChild(rend.domElement);
     rendRef.current = rend;
 
-    scene.add(new THREE.AmbientLight("#fff0f8", 0.9)); // pink-warm ambient
-    const sun = new THREE.DirectionalLight("#fff4f0", 1.0);
+    scene.add(new THREE.AmbientLight("#f0f8e8", 0.9)); // warm green ambient
+    const sun = new THREE.DirectionalLight("#fff8f0", 1.0);
     sun.position.set(4, 3, 5); scene.add(sun);
-    const fill = new THREE.DirectionalLight("#f0d8f5", 0.5); // lavender fill
+    const fill = new THREE.DirectionalLight("#d8e0f5", 0.5); // lavender fill
     fill.position.set(-4, -2, -4); scene.add(fill);
-    const rim = new THREE.PointLight("#fce4ec", 0.6, 12); // rose rim
+    const rim = new THREE.PointLight("#c8e0b8", 0.6, 12); // sage rim
     rim.position.set(0, 4, 2); scene.add(rim);
-    const bottomGlow = new THREE.PointLight("#d8b0e8", 0.3, 8); // lavender underglow
+    const bottomGlow = new THREE.PointLight("#c0b0e0", 0.3, 8); // lavender underglow
     bottomGlow.position.set(0, -3, 1); scene.add(bottomGlow);
 
     const globe = new THREE.Group();
     scene.add(globe);
     globeRef.current = globe;
 
-    // Main sphere — soft lavender-pink surface with deep purple inner glow
+    // Main sphere — soft earthy surface with green-lavender inner glow
     globe.add(new THREE.Mesh(
       new THREE.SphereGeometry(RAD, 96, 96),
-      new THREE.MeshPhongMaterial({ color: "#e8d8f0", emissive: "#5a2878", emissiveIntensity: 0.08, shininess: 18, transparent: false })
+      new THREE.MeshPhongMaterial({ color: "#e8e4d8", emissive: "#2a4828", emissiveIntensity: 0.06, shininess: 18, transparent: false })
     ));
 
-    // Glow layers — 8-layer ethereal rose-lavender halo
+    // Glow layers — 8-layer ethereal sage-lavender halo
     const glows = [
-      { r: 1.015, color: "#d8a0f0", op: 0.30 },  // inner: bright lavender
-      { r: 1.035, color: "#e8a0d8", op: 0.24 },  // rose-lavender
-      { r: 1.06, color: "#f0b8d8", op: 0.18 },   // warm pink
-      { r: 1.09, color: "#e8c0e8", op: 0.14 },   // orchid
-      { r: 1.12, color: "#f0c0e8", op: 0.10 },   // soft pink-lavender
-      { r: 1.18, color: "#f4d0f0", op: 0.07 },   // outer pink mist
-      { r: 1.28, color: "#f8e0f8", op: 0.04 },   // faint blush
-      { r: 1.42, color: "#f8e8f8", op: 0.02 },   // outermost whisper
+      { r: 1.015, color: "#90c870", op: 0.26 },  // inner: bright sage
+      { r: 1.035, color: "#a0c890", op: 0.20 },  // warm green
+      { r: 1.06, color: "#b8d0a8", op: 0.16 },   // soft sage
+      { r: 1.09, color: "#c0c8d8", op: 0.12 },   // sage-lavender transition
+      { r: 1.12, color: "#c8b8e0", op: 0.09 },   // lavender
+      { r: 1.18, color: "#d8c8e8", op: 0.06 },   // soft lavender
+      { r: 1.28, color: "#e0d8f0", op: 0.04 },   // pale lavender mist
+      { r: 1.42, color: "#e8e0f0", op: 0.02 },   // outermost whisper
     ].map(({ r, color, op }) => {
       const m = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: op, side: THREE.BackSide });
       const mesh = new THREE.Mesh(new THREE.SphereGeometry(RAD * r, 48, 48), m);
@@ -1467,27 +1847,28 @@ function OurWorldInner() {
 
     // (Graticule removed — cleaner, more ethereal look)
 
-    // Land dots — soft pink/lavender touches for a sweet feel
+    // Land dots — earthy sage, moss, and warm green touches
     LAND.forEach(([lat, lng]) => {
       const p = ll2v(lat, lng, RAD * 1.002);
       const sz = 0.002 + Math.random() * 0.003;
       const op = 0.18 + Math.random() * 0.25;
-      const colors = ["#e0b0d0", "#d8b0e0", "#e0c0d8", "#d0b8d8", "#e8c0e0"]; // rose, lavender, pink, mauve, blush
+      const colors = ["#a0b888", "#90a878", "#b0c098", "#88a070", "#a8b498"]; // sage, moss, fern, olive, mist
       const c = colors[Math.floor(Math.random() * colors.length)];
       const d = new THREE.Mesh(new THREE.CircleGeometry(sz, 5), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: op, side: THREE.DoubleSide }));
       d.position.copy(p); d.lookAt(p.clone().multiplyScalar(2)); globe.add(d);
     });
 
-    // Geography lines — coastlines always visible in glowing rose/lavender
+    // Geography lines — coastlines BRIGHT and always visible in glowing green/sage
     const geoGroup = [];
     GEO_LINES.forEach(geo => {
       const pts = geo.p.map(c => ll2v(c[0], c[1], RAD * 1.003));
       const geom = new THREE.BufferGeometry().setFromPoints(pts);
       const isBorder = geo.t === "border";
       const mat = new THREE.LineBasicMaterial({
-        color: isBorder ? "#c8a0d0" : "#e0a0c8", // borders: soft lavender, coastlines: glowing rose
+        color: isBorder ? "#a0b890" : "#80c060", // borders: soft sage, coastlines: vivid green
         transparent: true,
-        opacity: isBorder ? 0.22 : 0.50, // always clearly visible
+        opacity: isBorder ? 0.30 : 0.65, // always clearly visible
+        linewidth: 1,
       });
       const line = new THREE.Line(geom, mat);
       line.renderOrder = -1;
@@ -1496,24 +1877,24 @@ function OurWorldInner() {
     });
     // geoGroup managed via closure in animation loop
 
-    // Particles — rose-pink fairy dust floating in space
+    // Particles — sage-green dust floating in space
     const pN = 450;
     const pG = new THREE.BufferGeometry();
     const pP = new Float32Array(pN * 3);
     for (let i = 0; i < pN; i++) { pP[i * 3] = (Math.random() - 0.5) * 16; pP[i * 3 + 1] = (Math.random() - 0.5) * 16; pP[i * 3 + 2] = (Math.random() - 0.5) * 16; }
     pG.setAttribute("position", new THREE.BufferAttribute(pP, 3));
-    const pMat = new THREE.PointsMaterial({ color: "#f0a0c8", size: 0.010, transparent: true, opacity: 0.32 });
+    const pMat = new THREE.PointsMaterial({ color: "#90c080", size: 0.010, transparent: true, opacity: 0.28 });
     const particles = new THREE.Points(pG, pMat);
     scene.add(particles);
     particlesRef.current = particles;
 
-    // Second particle layer — lavender stardust
+    // Second particle layer — lavender fairy dust
     const p2N = 260;
     const p2G = new THREE.BufferGeometry();
     const p2P = new Float32Array(p2N * 3);
     for (let i = 0; i < p2N; i++) { p2P[i * 3] = (Math.random() - 0.5) * 13; p2P[i * 3 + 1] = (Math.random() - 0.5) * 13; p2P[i * 3 + 2] = (Math.random() - 0.5) * 13; }
     p2G.setAttribute("position", new THREE.BufferAttribute(p2P, 3));
-    const p2Mat = new THREE.PointsMaterial({ color: "#d0a0f0", size: 0.007, transparent: true, opacity: 0.20 });
+    const p2Mat = new THREE.PointsMaterial({ color: "#b8a0d0", size: 0.007, transparent: true, opacity: 0.18 });
     const particles2 = new THREE.Points(p2G, p2Mat);
     scene.add(particles2);
 
@@ -1557,7 +1938,7 @@ function OurWorldInner() {
       warmP[i * 3 + 2] = r * Math.cos(phi);
     }
     warmG.setAttribute("position", new THREE.BufferAttribute(warmP, 3));
-    const warmStarMat = new THREE.PointsMaterial({ color: "#ffd8e8", size: 1.2, transparent: true, opacity: 0.35, sizeAttenuation: false });
+    const warmStarMat = new THREE.PointsMaterial({ color: "#d0e8c0", size: 1.2, transparent: true, opacity: 0.30, sizeAttenuation: false });
     const warmStars = new THREE.Points(warmG, warmStarMat);
     warmStars.renderOrder = -10;
     scene.add(warmStars);
@@ -1582,9 +1963,9 @@ function OurWorldInner() {
       auroraP[i * 3 + 2] = -4 + (Math.random() - 0.5) * 8;
       const t = i / auroraN;
       const band = Math.sin(t * Math.PI * 3); // creates color banding
-      auroraC[i * 3] = 0.55 + band * 0.2 + t * 0.2;     // R — rose to peach
-      auroraC[i * 3 + 1] = 0.4 + Math.abs(band) * 0.25;  // G — subtle greens
-      auroraC[i * 3 + 2] = 0.7 + (1 - t) * 0.2;          // B — lavender base
+      auroraC[i * 3] = 0.35 + band * 0.15 + t * 0.15;   // R — muted earthy
+      auroraC[i * 3 + 1] = 0.55 + Math.abs(band) * 0.3;  // G — rich greens
+      auroraC[i * 3 + 2] = 0.55 + (1 - t) * 0.3;         // B — lavender base
     }
     auroraG.setAttribute("position", new THREE.BufferAttribute(auroraP, 3));
     auroraG.setAttribute("color", new THREE.BufferAttribute(auroraC, 3));
@@ -1684,11 +2065,11 @@ function OurWorldInner() {
         ag.attributes.position.needsUpdate = true;
       }
 
-      // Geography lines — always visible from the start, gentle brightening on zoom
+      // Geography lines — always bright, even more vivid on zoom
       const zoomFactor = clamp((3.5 - zmR.current) / 2.0, 0, 1);
       geoGroup.forEach(g => {
-        const baseOp = g.isBorder ? 0.22 : 0.50; // clearly visible at all zoom levels
-        const zoomBoost = g.isBorder ? 0.08 : 0.15; // subtle extra glow on zoom
+        const baseOp = g.isBorder ? 0.30 : 0.65; // always very visible
+        const zoomBoost = g.isBorder ? 0.10 : 0.20; // extra brightness on zoom
         g.mat.opacity = baseOp + zoomFactor * zoomBoost;
       });
 
@@ -1861,7 +2242,21 @@ function OurWorldInner() {
       g.add(ring);
       mkRef.current.push({ entryId: `dream-${dream.id}`, dot, ring, glow: null });
     });
-  }, [sliderDate, data, getPositions, areTogether, locationGroups, selected, sceneReady, showLoveThread, loveThreadData, showConstellation, constellationData, config.dreamDestinations]);
+
+    // ---- LOVE LETTERS — easter egg ❀ markers scattered on globe ----
+    (config.loveLetters || []).forEach(letter => {
+      const p = ll2v(letter.lat, letter.lng, RAD * 1.014);
+      // Soft pulsing flower marker
+      const dot = new THREE.Mesh(new THREE.CircleGeometry(0.018, 16), new THREE.MeshBasicMaterial({ color: "#c8a0d8", transparent: true, opacity: 0.45, side: THREE.DoubleSide }));
+      dot.position.copy(p); dot.lookAt(p.clone().multiplyScalar(2)); dot.userData = { entryId: `love-${letter.id}` }; dot.renderOrder = 3;
+      g.add(dot);
+      // Outer glow ring
+      const glow = new THREE.Mesh(new THREE.RingGeometry(0.022, 0.032, 16), new THREE.MeshBasicMaterial({ color: "#d8b0e8", transparent: true, opacity: 0.18, side: THREE.DoubleSide }));
+      glow.position.copy(p); glow.lookAt(p.clone().multiplyScalar(2)); glow.renderOrder = 2;
+      g.add(glow);
+      mkRef.current.push({ entryId: `love-${letter.id}`, dot, ring: glow, glow: null });
+    });
+  }, [sliderDate, data, getPositions, areTogether, locationGroups, selected, sceneReady, showLoveThread, loveThreadData, showConstellation, constellationData, config.dreamDestinations, config.loveLetters]);
 
   function makeDot(group, lat, lng, color, size, id, faint = false) {
     const p = ll2v(lat, lng, RAD * 1.012);
@@ -1908,6 +2303,10 @@ function OurWorldInner() {
             const p = ll2v(entry.lat, entry.lng, RAD);
             tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) };
             tZm.current = 2.5;
+          } else if (id.startsWith("love-")) {
+            // Love letter easter egg clicked!
+            const letterId = id.replace("love-", "");
+            setShowLetter(letterId);
           }
         }
       } else { setSelected(null); setLocationList(null); }
@@ -2034,15 +2433,15 @@ function OurWorldInner() {
         {!isMobile && <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".08em", lineHeight: 1.6 }}>
           {stats.daysTog} days together<br />{stats.trips} adventures · {stats.countries} countries<br />{stats.totalMiles.toLocaleString()} miles traveled
         </div>}
-        {/* Entry type filter */}
+        {/* Entry type filter + scrollable entry list */}
         {data.entries.length > 0 && (
           <div style={{ marginTop: 10, position: "relative" }}>
-            <button onClick={() => setShowFilter(v => !v)} style={{ background: showFilter ? P.blush : "rgba(255,255,255,.6)", border: `1px solid ${P.rose}20`, borderRadius: 8, padding: "4px 10px", fontSize: 8, cursor: "pointer", fontFamily: "inherit", color: P.textMid, letterSpacing: ".06em", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", gap: 4, marginLeft: "auto" }}>
+            <button onClick={() => setShowFilter(v => !v)} style={{ background: showFilter ? P.blush : "rgba(255,255,255,.6)", border: `1px solid ${P.sage}20`, borderRadius: 8, padding: "4px 10px", fontSize: 8, cursor: "pointer", fontFamily: "inherit", color: P.textMid, letterSpacing: ".06em", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", gap: 4, marginLeft: "auto" }}>
               {markerFilter === "all" ? "🌍 All Entries" : markerFilter === "favorites" ? "♥ Favorites" : `${(TYPES[markerFilter] || {}).icon || "✨"} ${(TYPES[markerFilter] || {}).label || markerFilter}`}
               <span style={{ fontSize: 6, opacity: 0.5 }}>{showFilter ? "▲" : "▼"}</span>
             </button>
             {showFilter && (
-              <div style={{ position: "absolute", top: "100%", right: 0, marginTop: 4, background: P.card, backdropFilter: "blur(16px)", borderRadius: 10, boxShadow: "0 8px 28px rgba(61,53,82,.12)", border: `1px solid ${P.rose}10`, overflow: "hidden", minWidth: 150, zIndex: 20 }}>
+              <div style={{ position: "absolute", top: "100%", right: 0, marginTop: 4, background: P.card, backdropFilter: "blur(16px)", borderRadius: 10, boxShadow: "0 8px 28px rgba(61,53,82,.12)", border: `1px solid ${P.sage}10`, overflow: "hidden", minWidth: 150, zIndex: 20 }}>
                 {[{ key: "all", icon: "🌍", label: "All Entries", count: data.entries.length },
                   { key: "favorites", icon: "♥", label: "Favorites", count: favorites.length },
                   ...Object.entries(TYPES).map(([k, v]) => ({ key: k, icon: v.icon, label: v.label, count: data.entries.filter(e => e.type === k).length }))
@@ -2055,6 +2454,33 @@ function OurWorldInner() {
                     <span>{f.icon}</span>
                     <span style={{ flex: 1 }}>{f.label}</span>
                     <span style={{ fontSize: 7, color: P.textFaint, background: `${P.parchment}`, borderRadius: 10, padding: "1px 5px" }}>{f.count}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {/* Scrollable chronological entry list */}
+            {filteredList.length > 0 && (
+              <div style={{ marginTop: 6, background: P.card, backdropFilter: "blur(12px)", borderRadius: 10, border: `1px solid ${P.sage}10`, maxHeight: "calc(100vh - 340px)", overflowY: "auto", boxShadow: "0 4px 16px rgba(61,53,82,.06)" }}>
+                <div style={{ padding: "6px 10px 4px", fontSize: 7, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", borderBottom: `1px solid ${P.parchment}`, position: "sticky", top: 0, background: P.card, zIndex: 1 }}>
+                  {filteredList.length} {markerFilter === "all" ? "entries" : markerFilter === "favorites" ? "favorites" : (TYPES[markerFilter]?.label || "entries").toLowerCase()} · newest first
+                </div>
+                {filteredList.map(e => (
+                  <button key={e.id} onClick={() => {
+                    setSelected(e); setPhotoIdx(0); setLocationList(null); setSliderDate(e.dateStart);
+                    const p = ll2v(e.lat, e.lng, RAD);
+                    tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) };
+                    tZm.current = 2.5;
+                  }}
+                    style={{ display: "flex", width: "100%", alignItems: "center", gap: 8, padding: "6px 10px", border: "none", borderBottom: `1px solid ${P.parchment}60`, background: selected?.id === e.id ? P.blush : "transparent", cursor: "pointer", fontFamily: "inherit", textAlign: "left", transition: "background .15s" }}
+                    onMouseEnter={ev => { if (selected?.id !== e.id) ev.currentTarget.style.background = P.lavMist; }}
+                    onMouseLeave={ev => { if (selected?.id !== e.id) ev.currentTarget.style.background = "transparent"; }}
+                  >
+                    <span style={{ fontSize: 12, flexShrink: 0 }}>{(TYPES[e.type] || {}).icon || "📍"}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 10, fontWeight: 400, color: P.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.city}</div>
+                      <div style={{ fontSize: 8, color: P.textFaint }}>{fmtDate(e.dateStart)}{e.dateEnd && e.dateEnd !== e.dateStart ? ` → ${fmtDate(e.dateEnd)}` : ""}</div>
+                    </div>
+                    {e.favorite && <span style={{ fontSize: 8, color: P.heart }}>♥</span>}
                   </button>
                 ))}
               </div>
@@ -2115,9 +2541,19 @@ function OurWorldInner() {
         </div>
       )}
 
-      {/* LOVE LETTER TRIGGER */}
-      {config.loveLetter && <button onClick={() => setShowLetter(true)} style={{ position: "absolute", bottom: 118, right: 22, zIndex: 12, background: "none", border: "none", cursor: "pointer", fontSize: 15, opacity: 0.2, transition: "opacity .5s", padding: 4 }} onMouseEnter={e => e.currentTarget.style.opacity = 0.55} onMouseLeave={e => e.currentTarget.style.opacity = 0.2}>❀</button>}
-      {editMode && !config.loveLetter && <button onClick={() => { setEditLetter(true); setLetterDraft(""); }} style={{ position: "absolute", bottom: 118, right: 22, zIndex: 12, background: P.glass, border: `1px dashed ${P.rose}40`, borderRadius: 7, cursor: "pointer", fontSize: 9, color: P.textMuted, padding: "3px 9px", fontFamily: "inherit" }}>+ Letter</button>}
+      {/* LOVE LETTER TRIGGERS — small ❀ markers in bottom-right */}
+      {(config.loveLetters || []).length > 0 && !editMode && (
+        <div style={{ position: "absolute", bottom: 118, right: 22, zIndex: 12, display: "flex", flexDirection: "column", gap: 4 }}>
+          {(config.loveLetters || []).map((lt, i) => (
+            <button key={lt.id} onClick={() => setShowLetter(lt.id)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, opacity: 0.22, transition: "opacity .5s", padding: 2 }}
+              onMouseEnter={e => e.currentTarget.style.opacity = 0.55} onMouseLeave={e => e.currentTarget.style.opacity = 0.22}
+              title={lt.city || "Love letter"}>❀</button>
+          ))}
+        </div>
+      )}
+      {editMode && (
+        <button onClick={() => { setEditLetter(true); setLetterDraft(""); setLetterEditId(null); setLetterCity(""); setLetterLat(""); setLetterLng(""); }} style={{ position: "absolute", bottom: 118, right: 22, zIndex: 12, background: P.glass, border: `1px dashed ${P.sage}40`, borderRadius: 7, cursor: "pointer", fontSize: 9, color: P.textMuted, padding: "3px 9px", fontFamily: "inherit" }}>+ Love Letter</button>
+      )}
 
       {/* SLIDER */}
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 105, background: P.glass, backdropFilter: "blur(16px)", borderTop: `1px solid ${P.rose}10`, zIndex: 15, display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 22px" }}>
@@ -2357,32 +2793,71 @@ function OurWorldInner() {
                   });
                 }
               }} style={{ padding: "8px 20px", background: "#c9777a", color: "#fff", border: "none", borderRadius: 7, cursor: "pointer", fontSize: 12, fontFamily: "inherit" }}>Delete</button>
-              <button onClick={() => setConfirmDelete(null)} style={{ padding: "8px 20px", background: "transparent", border: "1px solid #e8d8e0", borderRadius: 7, cursor: "pointer", fontSize: 12, fontFamily: "inherit", color: P.textMuted }}>Keep</button>
+              <button onClick={() => setConfirmDelete(null)} style={{ padding: "8px 20px", background: "transparent", border: "1px solid #d8e0d4", borderRadius: 7, cursor: "pointer", fontSize: 12, fontFamily: "inherit", color: P.textMuted }}>Keep</button>
             </div>
           </div>
         </div>
       )}
 
-      {showLetter && (
-        <div onClick={() => setShowLetter(false)} style={{ position: "absolute", inset: 0, zIndex: 50, background: "rgba(22,16,40,.88)", backdropFilter: "blur(30px)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", animation: "fadeIn .8s ease" }}>
+      {showLetter && (() => {
+        const letter = (config.loveLetters || []).find(l => l.id === showLetter);
+        if (!letter) return null;
+        return (
+        <div onClick={() => setShowLetter(null)} style={{ position: "absolute", inset: 0, zIndex: 50, background: "rgba(22,16,40,.88)", backdropFilter: "blur(30px)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", animation: "fadeIn .8s ease" }}>
           <div style={{ maxWidth: 460, padding: 36, textAlign: "center" }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 30, marginBottom: 14 }}>💌</div>
-            <p style={{ fontSize: 14, lineHeight: 2, color: P.text, whiteSpace: "pre-wrap", fontStyle: "italic" }}>{config.loveLetter}</p>
+            {letter.city && <div style={{ fontSize: 9, color: P.textFaint, letterSpacing: ".12em", marginBottom: 8 }}>found near {letter.city}</div>}
+            <p style={{ fontSize: 14, lineHeight: 2, color: P.text, whiteSpace: "pre-wrap", fontStyle: "italic" }}>{letter.text}</p>
             <p style={{ fontSize: 10, color: P.textFaint, marginTop: 20, letterSpacing: ".15em" }}>— {config.youName}</p>
-            {editMode && <button onClick={() => { setEditLetter(true); setLetterDraft(config.loveLetter); setShowLetter(false); }} style={{ marginTop: 14, background: "none", border: `1px solid ${P.rose}28`, borderRadius: 5, padding: "4px 12px", fontSize: 9, color: P.textMuted, cursor: "pointer", fontFamily: "inherit" }}>Edit</button>}
+            {editMode && <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 14 }}>
+              <button onClick={() => { setLetterEditId(letter.id); setLetterDraft(letter.text); setLetterCity(letter.city || ""); setLetterLat(letter.lat?.toString() || ""); setLetterLng(letter.lng?.toString() || ""); setEditLetter(true); setShowLetter(null); }} style={{ background: "none", border: `1px solid ${P.sage}28`, borderRadius: 5, padding: "4px 12px", fontSize: 9, color: P.textMuted, cursor: "pointer", fontFamily: "inherit" }}>Edit</button>
+              <button onClick={() => { setConfig({ loveLetters: (config.loveLetters || []).filter(l => l.id !== letter.id) }); setShowLetter(null); }} style={{ background: "none", border: `1px solid #c97a7a28`, borderRadius: 5, padding: "4px 12px", fontSize: 9, color: "#c97a7a", cursor: "pointer", fontFamily: "inherit" }}>Remove</button>
+            </div>}
           </div>
-        </div>
-      )}
+        </div>);
+      })()}
 
       {editLetter && (
         <div style={{ position: "absolute", inset: 0, zIndex: 55, background: "rgba(253,251,247,.95)", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ width: 420, padding: 28, background: P.card, borderRadius: 16, boxShadow: "0 14px 48px rgba(61,53,82,.1)" }}>
-            <h3 style={{ margin: "0 0 10px", fontSize: 16, fontWeight: 400 }}>💌 Your Love Letter</h3>
-            <p style={{ fontSize: 9, color: P.textMuted, marginBottom: 12, fontStyle: "italic" }}>Hidden behind the tiny flower ❀ — she'll find it</p>
+            <h3 style={{ margin: "0 0 10px", fontSize: 16, fontWeight: 400 }}>💌 {letterEditId ? "Edit" : "New"} Love Letter</h3>
+            <p style={{ fontSize: 9, color: P.textMuted, marginBottom: 12, fontStyle: "italic" }}>Hidden as an easter egg ❀ on the globe — she'll discover it!</p>
+            <div style={{ marginBottom: 8, position: "relative" }}>
+              <label style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".13em", textTransform: "uppercase", display: "block", marginBottom: 2 }}>Place on globe near...</label>
+              <input value={letterCity} onChange={e => {
+                const v = e.target.value; setLetterCity(v);
+                if (v.length >= 2) { const q = v.toLowerCase(); const m = CITIES.filter(c => c[0].toLowerCase().includes(q)).slice(0, 5); setLetterCitySugg(m); } else setLetterCitySugg([]);
+              }} placeholder="Type a city..." style={inpSt} />
+              {letterCitySugg.length > 0 && (
+                <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e5e0d8", borderRadius: 6, maxHeight: 120, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
+                  {letterCitySugg.map((c, i) => (
+                    <button key={i} onClick={() => { setLetterCity(c[0]); setLetterLat(c[2].toString()); setLetterLng(c[3].toString()); setLetterCitySugg([]); }}
+                      style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", border: "none", borderBottom: "1px solid #f5f2ed", background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }}
+                      onMouseEnter={e => e.currentTarget.style.background = P.blush} onMouseLeave={e => e.currentTarget.style.background = "none"}>
+                      <span style={{ fontWeight: 500 }}>{c[0]}</span> <span style={{ color: P.textFaint }}>{c[1]}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <textarea value={letterDraft} onChange={e => setLetterDraft(e.target.value)} rows={8} placeholder={`Dear ${config.partnerName}...`} style={{ ...inpSt, resize: "vertical", lineHeight: 1.8 }} />
             <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-              <button onClick={() => { setConfig({ loveLetter: letterDraft }); setEditLetter(false); }} style={{ flex: 1, padding: "9px", background: P.rose, color: "#fff", border: "none", borderRadius: 7, cursor: "pointer", fontSize: 11, fontFamily: "inherit" }}>Save</button>
-              <button onClick={() => setEditLetter(false)} style={{ padding: "9px 14px", background: "transparent", border: "1px solid #e8d8e4", borderRadius: 7, cursor: "pointer", fontSize: 11, fontFamily: "inherit", color: P.textMuted }}>Cancel</button>
+              <button onClick={() => {
+                const lat = parseFloat(letterLat) || (20 + Math.random() * 40);
+                const lng = parseFloat(letterLng) || (-120 + Math.random() * 240);
+                if (letterEditId) {
+                  // Update existing
+                  setConfig({ loveLetters: (config.loveLetters || []).map(l => l.id === letterEditId ? { ...l, text: letterDraft, city: letterCity, lat, lng } : l) });
+                } else {
+                  // Add new
+                  setConfig({ loveLetters: [...(config.loveLetters || []), { id: `ll-${Date.now()}`, text: letterDraft, city: letterCity, lat, lng }] });
+                }
+                setEditLetter(false);
+                showToast(letterEditId ? "Letter updated 💌" : "Letter hidden on the globe ❀", "💌", 2500);
+              }} disabled={!letterDraft.trim()} style={{ flex: 1, padding: "9px", background: letterDraft.trim() ? P.sage : "#d8d8d0", color: "#fff", border: "none", borderRadius: 7, cursor: letterDraft.trim() ? "pointer" : "default", fontSize: 11, fontFamily: "inherit" }}>
+                {letterEditId ? "Update" : "Hide on Globe"} 💌
+              </button>
+              <button onClick={() => setEditLetter(false)} style={{ padding: "9px 14px", background: "transparent", border: "1px solid #e0e0d8", borderRadius: 7, cursor: "pointer", fontSize: 11, fontFamily: "inherit", color: P.textMuted }}>Cancel</button>
             </div>
           </div>
         </div>
@@ -2720,7 +3195,7 @@ function OurWorldInner() {
 }
 
 // ---- SHARED UI ----
-const inpSt = { width: "100%", padding: "7px 9px", border: "1px solid #e8d8e4", borderRadius: 5, fontSize: 12, fontFamily: "'Palatino Linotype',Palatino,Georgia,serif", color: P.text, background: "#fdfcfa", boxSizing: "border-box" };
+const inpSt = { width: "100%", padding: "7px 9px", border: "1px solid #d8e0d4", borderRadius: 5, fontSize: 12, fontFamily: "'Palatino Linotype',Palatino,Georgia,serif", color: P.text, background: "#fdfcfa", boxSizing: "border-box" };
 const navSt = { background: "none", border: `1px solid ${P.textFaint}35`, borderRadius: 5, padding: "3px 9px", cursor: "pointer", fontSize: 10, color: P.textMid, fontFamily: "inherit", transition: "all .2s" };
 function imgN(s) { return { position: "absolute", [s]: 5, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,.65)", border: "none", borderRadius: "50%", width: 24, height: 24, cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center" }; }
 function renderList(t, items, icon, color) { if (!items?.length) return null; return <div style={{ marginTop: 7 }}><div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 3 }}>{t}</div>{items.map((it, i) => <div key={i} style={{ display: "flex", gap: 4, marginBottom: 2 }}><span style={{ color, fontSize: 6, marginTop: 4 }}>{icon}</span><span style={{ fontSize: 11, opacity: .8, lineHeight: 1.5 }}>{it}</span></div>)}</div>; }
@@ -2741,6 +3216,48 @@ function TBtn({ a, onClick, children, accent, tip }) {
 function Lbl({ children }) { return <label style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".13em", textTransform: "uppercase", display: "block", marginBottom: 2 }}>{children}</label>; }
 function Fld({ l, v, set, t = "text", ph = "" }) { return <div style={{ marginBottom: 9 }}><Lbl>{l}</Lbl><input type={t} value={v || ""} placeholder={ph} onChange={e => set(e.target.value)} style={inpSt} /></div>; }
 
+// ---- DREAM ADD FORM ----
+function DreamAddForm({ onAdd }) {
+  const [f, sf] = useState({ city: "", country: "", lat: "", lng: "", notes: "" });
+  const [sugg, setSugg] = useState([]);
+  const [showSugg, setShowSugg] = useState(false);
+  const onInput = v => {
+    sf(p => ({ ...p, city: v }));
+    if (v.length >= 2) {
+      const q = v.toLowerCase();
+      const m = CITIES.filter(c => c[0].toLowerCase().includes(q)).slice(0, 6);
+      setSugg(m); setShowSugg(m.length > 0);
+    } else { setSugg([]); setShowSugg(false); }
+  };
+  const pick = c => { sf(p => ({ ...p, city: c[0], country: c[1], lat: c[2].toString(), lng: c[3].toString() })); setSugg([]); setShowSugg(false); };
+  const ok = f.city && f.lat && f.lng;
+  return (
+    <div style={{ marginTop: 12, padding: 12, background: `${P.gold}06`, borderRadius: 10, border: `1px dashed ${P.goldWarm}30` }}>
+      <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 6 }}>Add a Dream</div>
+      <div style={{ position: "relative", marginBottom: 6 }}>
+        <input placeholder="Start typing a city..." value={f.city} onChange={e => onInput(e.target.value)} onFocus={() => { if (sugg.length > 0) setShowSugg(true); }} style={{ ...inpSt, fontSize: 11 }} />
+        {showSugg && sugg.length > 0 && (
+          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e5e0d8", borderRadius: 6, maxHeight: 120, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
+            {sugg.map((c, i) => (
+              <button key={i} onClick={() => pick(c)} style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", border: "none", borderBottom: "1px solid #f5f2ed", background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }}
+                onMouseEnter={e => e.currentTarget.style.background = P.blush}
+                onMouseLeave={e => e.currentTarget.style.background = "none"}
+              >
+                <span style={{ fontWeight: 500, color: P.text }}>{c[0]}</span> <span style={{ color: P.textFaint }}>{c[1]}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <input placeholder="Why this place?" value={f.notes} onChange={e => sf(p => ({ ...p, notes: e.target.value }))} style={{ ...inpSt, fontSize: 10, marginBottom: 6 }} />
+      <button disabled={!ok} onClick={() => { onAdd({ city: f.city, country: f.country, lat: parseFloat(f.lat), lng: parseFloat(f.lng), notes: f.notes }); sf({ city: "", country: "", lat: "", lng: "", notes: "" }); }}
+        style={{ width: "100%", padding: "7px", background: ok ? P.goldWarm : "#e5e0d8", color: "#fff", border: "none", borderRadius: 6, cursor: ok ? "pointer" : "default", fontSize: 10, fontFamily: "inherit" }}>
+        ✦ Add Dream
+      </button>
+    </div>
+  );
+}
+
 // ---- ADD FORM ----
 function AddForm({ types, onAdd, onClose }) {
   const [f, sf] = useState({ city: "", country: "", lat: "", lng: "", dateStart: "", dateEnd: "", type: "together", who: "both", zoomLevel: 1, notes: "", memories: "", museums: "", restaurants: "", highlights: "", musicUrl: "", stops: [] });
@@ -2749,6 +3266,8 @@ function AddForm({ types, onAdd, onClose }) {
   const [ns, setNs] = useState({ city: "", lat: "", lng: "", notes: "", dateStart: "", dateEnd: "" });
   const [stopSugg, setStopSugg] = useState([]);
   const [showStopSugg, setShowStopSugg] = useState(false);
+  const dateEndRef = useRef(null);
+  const notesRef = useRef(null);
 
   const lat = parseFloat(f.lat), lng = parseFloat(f.lng);
   const validCoords = !isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
@@ -2820,14 +3339,14 @@ function AddForm({ types, onAdd, onClose }) {
           onChange={e => onCityInput(e.target.value)}
           onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
           placeholder="Start typing — e.g. Haw..."
-          style={{ ...inpSt, borderColor: f.city ? "#e8d8e4" : undefined }}
+          style={{ ...inpSt, borderColor: f.city ? "#d8e0d4" : undefined }}
         />
         {showSuggestions && suggestions.length > 0 && (
-          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e8d8e4", borderRadius: 6, maxHeight: 150, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
+          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #d8e0d4", borderRadius: 6, maxHeight: 150, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
             {suggestions.map((c, i) => (
               <button key={i} onClick={() => selectCity(c)} style={{
                 display: "flex", alignItems: "center", gap: 6, width: "100%", textAlign: "left",
-                padding: "8px 10px", border: "none", borderBottom: "1px solid #f5f0f4",
+                padding: "8px 10px", border: "none", borderBottom: "1px solid #e8ede4",
                 background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 11, color: P.textMid,
                 transition: "background .15s",
               }}
@@ -2851,13 +3370,13 @@ function AddForm({ types, onAdd, onClose }) {
         <div style={{ flex: 1 }}><FldR l="Longitude" v={f.lng} t="number" set={v => sf(p => ({ ...p, lng: v }))} ph="Auto-filled" req /></div>
       </div>
       <div style={{ display: "flex", gap: 8 }}>
-        <div style={{ flex: 1 }}><FldR l="Start Date" v={f.dateStart} t="date" set={v => sf(p => ({ ...p, dateStart: v }))} req /></div>
-        <div style={{ flex: 1 }}><FldR l="End Date" v={f.dateEnd} t="date" set={v => sf(p => ({ ...p, dateEnd: v }))} req /></div>
+        <div style={{ flex: 1, marginBottom: 9 }}><RLbl req>Start Date</RLbl><input type="date" value={f.dateStart || ""} onChange={e => { sf(p => ({ ...p, dateStart: e.target.value })); setTimeout(() => { if (dateEndRef.current) { dateEndRef.current.showPicker?.(); dateEndRef.current.focus(); } }, 50); }} style={inpSt} /></div>
+        <div style={{ flex: 1, marginBottom: 9 }}><RLbl req>End Date</RLbl><input ref={dateEndRef} type="date" value={f.dateEnd || ""} onChange={e => { sf(p => ({ ...p, dateEnd: e.target.value })); setTimeout(() => { if (notesRef.current) notesRef.current.focus(); }, 50); }} style={inpSt} /></div>
       </div>
 
-      <div style={{ margin: "10px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
+      <div style={{ margin: "10px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.sage}15,transparent)` }} />
 
-      <div style={{ marginBottom: 8 }}><RLbl req>Notes</RLbl><textarea value={f.notes} onChange={e => sf(p => ({ ...p, notes: e.target.value }))} rows={2} placeholder="What made this place special?" style={{ ...inpSt, resize: "vertical" }} /></div>
+      <div style={{ marginBottom: 8 }}><RLbl req>Notes</RLbl><textarea ref={notesRef} value={f.notes} onChange={e => sf(p => ({ ...p, notes: e.target.value }))} rows={2} placeholder="What made this place special?" style={{ ...inpSt, resize: "vertical" }} /></div>
       <div style={{ marginBottom: 8 }}><Lbl>Memories (one per line)</Lbl><textarea value={f.memories} onChange={e => sf(p => ({ ...p, memories: e.target.value }))} rows={2} placeholder={"The sunset was perfect\nDancing until midnight"} style={{ ...inpSt, resize: "vertical" }} /></div>
       <div style={{ marginBottom: 8 }}><Lbl>Museums & Culture</Lbl><textarea value={f.museums} onChange={e => sf(p => ({ ...p, museums: e.target.value }))} rows={1} style={{ ...inpSt, resize: "vertical" }} /></div>
       <div style={{ marginBottom: 8 }}><Lbl>Restaurants & Food</Lbl><textarea value={f.restaurants} onChange={e => sf(p => ({ ...p, restaurants: e.target.value }))} rows={1} style={{ ...inpSt, resize: "vertical" }} /></div>
@@ -2874,9 +3393,9 @@ function AddForm({ types, onAdd, onClose }) {
           <input placeholder="Lng" value={ns.lng} onChange={e => setNs(p => ({ ...p, lng: e.target.value }))} style={{ ...inpSt, width: 48 }} />
         </div>
         {showStopSugg && stopSugg.length > 0 && (
-          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e8d8e4", borderRadius: 6, maxHeight: 120, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
+          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #d8e0d4", borderRadius: 6, maxHeight: 120, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
             {stopSugg.map((c, i) => (
-              <button key={i} onClick={() => selectStopCity(c)} style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", border: "none", borderBottom: "1px solid #f5f0f4", background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }}
+              <button key={i} onClick={() => selectStopCity(c)} style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", border: "none", borderBottom: "1px solid #e8ede4", background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }}
                 onMouseEnter={e => e.currentTarget.style.background = P.blush}
                 onMouseLeave={e => e.currentTarget.style.background = "none"}
               >
@@ -2898,7 +3417,7 @@ function AddForm({ types, onAdd, onClose }) {
         notes: f.notes, memories: f.memories.split("\n").filter(Boolean), museums: f.museums.split("\n").filter(Boolean),
         restaurants: f.restaurants.split("\n").filter(Boolean), highlights: f.highlights.split("\n").filter(Boolean),
         photos: [], stops: f.stops, musicUrl: f.musicUrl || null,
-      }); }} style={{ width: "100%", padding: "10px 0", background: ok ? P.rose : "#e8d8e4", color: "#fff", border: "none", borderRadius: 9, cursor: ok ? "pointer" : "default", fontSize: 12, letterSpacing: ".1em", fontFamily: "inherit", transition: "all .3s" }}>
+      }); }} style={{ width: "100%", padding: "10px 0", background: ok ? P.rose : "#d8e0d4", color: "#fff", border: "none", borderRadius: 9, cursor: ok ? "pointer" : "default", fontSize: 12, letterSpacing: ".1em", fontFamily: "inherit", transition: "all .3s" }}>
         {ok ? "Add to Our World 💕" : "Fill required fields to continue"}
       </button>
       {!ok && <p style={{ fontSize: 8, color: validationMsg.includes("must be") ? "#c9777a" : P.textFaint, textAlign: "center", marginTop: 5, letterSpacing: ".08em" }}>
@@ -2927,6 +3446,8 @@ function EditForm({ entry, types, onChange, onSave, onClose, onDelete, onAddStop
   const [showStopSugg, setShowStopSugg] = useState(false);
   const [citySugg, setCitySugg] = useState([]);
   const [showCitySugg, setShowCitySugg] = useState(false);
+  const editDateEndRef = useRef(null);
+  const editNotesRef = useRef(null);
 
   const onEditCity = v => {
     onChange(p => ({ ...p, city: v }));
@@ -2965,9 +3486,9 @@ function EditForm({ entry, types, onChange, onSave, onClose, onDelete, onAddStop
         <Lbl>City</Lbl>
         <input value={entry.city || ""} onChange={e => onEditCity(e.target.value)} onFocus={() => { if (citySugg.length > 0) setShowCitySugg(true); }} style={inpSt} />
         {showCitySugg && citySugg.length > 0 && (
-          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e8d8e4", borderRadius: 6, maxHeight: 120, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
+          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #d8e0d4", borderRadius: 6, maxHeight: 120, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
             {citySugg.map((c, i) => (
-              <button key={i} onClick={() => selectEditCity(c)} style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", border: "none", borderBottom: "1px solid #f5f0f4", background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }}
+              <button key={i} onClick={() => selectEditCity(c)} style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", border: "none", borderBottom: "1px solid #e8ede4", background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }}
                 onMouseEnter={e => e.currentTarget.style.background = P.blush}
                 onMouseLeave={e => e.currentTarget.style.background = "none"}
               >
@@ -2979,9 +3500,9 @@ function EditForm({ entry, types, onChange, onSave, onClose, onDelete, onAddStop
       </div>
       <Fld l="Country" v={entry.country} set={v => onChange(p => ({ ...p, country: v }))} />
       <div style={{ display: "flex", gap: 6 }}><div style={{ flex: 1 }}><Fld l="Lat" v={entry.lat} t="number" set={v => onChange(p => ({ ...p, lat: parseFloat(v) || 0 }))} /></div><div style={{ flex: 1 }}><Fld l="Lng" v={entry.lng} t="number" set={v => onChange(p => ({ ...p, lng: parseFloat(v) || 0 }))} /></div></div>
-      <div style={{ display: "flex", gap: 6 }}><div style={{ flex: 1 }}><Fld l="Start" v={entry.dateStart} t="date" set={v => onChange(p => ({ ...p, dateStart: v }))} /></div><div style={{ flex: 1 }}><Fld l="End" v={entry.dateEnd || ""} t="date" set={v => onChange(p => ({ ...p, dateEnd: v || null }))} /></div></div>
+      <div style={{ display: "flex", gap: 6 }}><div style={{ flex: 1, marginBottom: 9 }}><Lbl>Start</Lbl><input type="date" value={entry.dateStart || ""} onChange={e => { onChange(p => ({ ...p, dateStart: e.target.value })); setTimeout(() => { if (editDateEndRef.current) { editDateEndRef.current.showPicker?.(); editDateEndRef.current.focus(); } }, 50); }} style={inpSt} /></div><div style={{ flex: 1, marginBottom: 9 }}><Lbl>End</Lbl><input ref={editDateEndRef} type="date" value={entry.dateEnd || ""} onChange={e => { onChange(p => ({ ...p, dateEnd: e.target.value || null })); setTimeout(() => { if (editNotesRef.current) editNotesRef.current.focus(); }, 50); }} style={inpSt} /></div></div>
       <div style={{ marginBottom: 8 }}><Lbl>Type</Lbl><select value={entry.type} onChange={e => { const t = e.target.value; onChange(p => ({ ...p, type: t, who: types[t]?.who || "both" })); }} style={inpSt}>{Object.entries(types).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}</select></div>
-      <div style={{ marginBottom: 8 }}><Lbl>Notes</Lbl><textarea value={entry.notes || ""} onChange={e => onChange(p => ({ ...p, notes: e.target.value }))} rows={2} style={{ ...inpSt, resize: "vertical" }} /></div>
+      <div style={{ marginBottom: 8 }}><Lbl>Notes</Lbl><textarea ref={editNotesRef} value={entry.notes || ""} onChange={e => onChange(p => ({ ...p, notes: e.target.value }))} rows={2} style={{ ...inpSt, resize: "vertical" }} /></div>
       <div style={{ marginBottom: 8 }}><Lbl>Memories</Lbl><textarea value={(entry.memories || []).join("\n")} onChange={e => onChange(p => ({ ...p, memories: e.target.value.split("\n").filter(Boolean) }))} rows={2} style={{ ...inpSt, resize: "vertical" }} /></div>
       <div style={{ marginBottom: 8 }}><Lbl>Museums</Lbl><textarea value={(entry.museums || []).join("\n")} onChange={e => onChange(p => ({ ...p, museums: e.target.value.split("\n").filter(Boolean) }))} rows={1} style={{ ...inpSt, resize: "vertical" }} /></div>
       <div style={{ marginBottom: 8 }}><Lbl>Restaurants</Lbl><textarea value={(entry.restaurants || []).join("\n")} onChange={e => onChange(p => ({ ...p, restaurants: e.target.value.split("\n").filter(Boolean) }))} rows={1} style={{ ...inpSt, resize: "vertical" }} /></div>
@@ -2997,9 +3518,9 @@ function EditForm({ entry, types, onChange, onSave, onClose, onDelete, onAddStop
           <input placeholder="Start typing city..." value={ns.city} onChange={e => onStopCity(e.target.value)} onFocus={() => { if (stopSugg.length > 0) setShowStopSugg(true); }} style={{ ...inpSt, flex: 1 }} />
         </div>
         {showStopSugg && stopSugg.length > 0 && (
-          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e8d8e4", borderRadius: 6, maxHeight: 120, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
+          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #d8e0d4", borderRadius: 6, maxHeight: 120, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
             {stopSugg.map((c, i) => (
-              <button key={i} onClick={() => selectStopCity(c)} style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", border: "none", borderBottom: "1px solid #f5f0f4", background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }}
+              <button key={i} onClick={() => selectStopCity(c)} style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", border: "none", borderBottom: "1px solid #e8ede4", background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }}
                 onMouseEnter={e => e.currentTarget.style.background = P.blush}
                 onMouseLeave={e => e.currentTarget.style.background = "none"}
               >
@@ -3019,7 +3540,7 @@ function EditForm({ entry, types, onChange, onSave, onClose, onDelete, onAddStop
 
       <div style={{ display: "flex", gap: 7, marginTop: 10 }}>
         <button onClick={onSave} style={{ flex: 1, padding: "8px 0", background: P.sage, color: "#fff", border: "none", borderRadius: 7, cursor: "pointer", fontSize: 10, fontFamily: "inherit" }}>Save</button>
-        <button onClick={onClose} style={{ padding: "8px 12px", background: "transparent", border: "1px solid #e8d8e4", borderRadius: 7, cursor: "pointer", fontSize: 10, fontFamily: "inherit", color: P.textMuted }}>Cancel</button>
+        <button onClick={onClose} style={{ padding: "8px 12px", background: "transparent", border: "1px solid #d8e0d4", borderRadius: 7, cursor: "pointer", fontSize: 10, fontFamily: "inherit", color: P.textMuted }}>Cancel</button>
       </div>
       <button onClick={onDelete} style={{ marginTop: 7, width: "100%", padding: "6px 0", background: "transparent", color: "#c9777a", border: "1px solid #e5c5c6", borderRadius: 7, cursor: "pointer", fontSize: 9, fontFamily: "inherit" }}>Delete</button>
     </div>
