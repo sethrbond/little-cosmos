@@ -6,7 +6,7 @@ import { geocodeSearch } from "./geocode.js";
 /* =================================================================
    🌍 OUR WORLD — Seth & Rosie Posie
    "every moment, every adventure"
-   v7.9.2 — rose/lavender globe + green coasts, Natural Earth 50m, deep zoom, love_note fix, Nominatim geocoding (unlimited locations)
+   v7.9.3 — rose/lavender globe, Nominatim geocoding, resilient saves, cardTab fix
    ================================================================= */
 
 const DEFAULT_CONFIG = {
@@ -1092,7 +1092,7 @@ function OurWorldInner() {
         const p = ll2v(target.lat, target.lng, RAD);
         tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) };
         tZm.current = 2.5;
-        setTimeout(() => { setSelected(target); setPhotoIdx(0); }, 500);
+        setTimeout(() => { setSelected(target); setPhotoIdx(0); setCardTab("overview"); }, 500);
       }
     };
     animRef.current = requestAnimationFrame(anim);
@@ -1127,6 +1127,7 @@ function OurWorldInner() {
         tSpinSpd.current = 0.001;
         setSelected(entry);
         setPhotoIdx(0);
+        setCardTab("overview");
 
         playRef.current = setTimeout(() => {
           setSelected(null);
@@ -1849,7 +1850,7 @@ function OurWorldInner() {
   if (loading) return <div style={{ width: "100%", height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#161028", fontFamily: "Georgia,serif", color: P.textFaint }}>
     <div style={{ fontSize: 48, animation: "heartPulse 2s ease infinite", marginBottom: 16 }}>🌍</div>
     <div style={{ fontSize: 14, letterSpacing: ".2em", opacity: 0.7 }}>Loading your world<span style={{ animation: "ellipsis 1.5s infinite" }}>...</span></div>
-    <div style={{ fontSize: 9, opacity: 0.3, marginTop: 12, letterSpacing: ".15em" }}>v7.9.2</div>
+    <div style={{ fontSize: 9, opacity: 0.3, marginTop: 12, letterSpacing: ".15em" }}>v7.9.3</div>
     <style>{`@keyframes heartPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}} @keyframes ellipsis{0%{opacity:0}50%{opacity:1}100%{opacity:0}}`}</style>
   </div>;
 
@@ -1978,7 +1979,7 @@ function OurWorldInner() {
                 const t = TYPES[e.type] || TYPES.together;
                 return (
                   <button key={e.id} onClick={() => {
-                    setSelected(e); setPhotoIdx(0); setShowSearch(false); setSearchQuery("");
+                    setSelected(e); setPhotoIdx(0); setCardTab("overview"); setShowSearch(false); setSearchQuery("");
                     setSliderDate(e.dateStart);
                     const p = ll2v(e.lat, e.lng, RAD);
                     tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) };
@@ -2228,7 +2229,7 @@ function OurWorldInner() {
       )}
 
       {/* ADD / EDIT / SETTINGS / LETTER overlays */}
-      {showAdd && <AddForm types={TYPES} onAdd={entry => { dispatch({ type: "ADD", entry }); setShowAdd(false); showToast(`${entry.city} added to your world`, "🌍", 2500); const p = ll2v(entry.lat, entry.lng, RAD); tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) }; tZm.current = 2.6; setTimeout(() => { setSelected(entry); setPhotoIdx(0); }, 400); }} onClose={() => setShowAdd(false)} />}
+      {showAdd && <AddForm types={TYPES} onAdd={entry => { dispatch({ type: "ADD", entry }); setShowAdd(false); showToast(`${entry.city} added to your world`, "🌍", 2500); const p = ll2v(entry.lat, entry.lng, RAD); tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) }; tZm.current = 2.6; setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400); }} onClose={() => setShowAdd(false)} />}
 
       {editing && <EditForm entry={editing} types={TYPES} onChange={setEditing}
         onSave={() => { dispatch({ type: "UPDATE", id: editing.id, data: editing }); setSelected(editing); setEditing(null); showToast("Entry saved", "✓", 2000); }}
@@ -2338,7 +2339,7 @@ function OurWorldInner() {
                 <button key={i} onClick={() => {
                   const entry = data.entries.find(e => e.id === ph.id);
                   if (entry) {
-                    setSelected(entry); setPhotoIdx(0); setShowGallery(false);
+                    setSelected(entry); setPhotoIdx(0); setCardTab("overview"); setShowGallery(false);
                     const p = ll2v(entry.lat, entry.lng, RAD);
                     tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) };
                     tZm.current = 2.5;
@@ -2592,7 +2593,7 @@ function OurWorldInner() {
             })()}
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10 }}>
               <button onClick={() => advanceRecap(-1)} disabled={recapIdx === 0} style={{ ...navSt, opacity: recapIdx === 0 ? 0.3 : 1 }}>◂ Prev</button>
-              <button onClick={() => { setSelected(recapEntries[recapIdx]); setPhotoIdx(0); }} style={{ ...navSt, color: P.heart }}>View Entry</button>
+              <button onClick={() => { setSelected(recapEntries[recapIdx]); setPhotoIdx(0); setCardTab("overview"); }} style={{ ...navSt, color: P.heart }}>View Entry</button>
               <button onClick={() => advanceRecap(1)} style={navSt}>{recapIdx === recapEntries.length - 1 ? "Finish ✨" : "Next ▸"}</button>
             </div>
           </div>
@@ -2616,7 +2617,7 @@ function OurWorldInner() {
           const mem = onThisDay[0];
           const entry = data.entries.find(e => e.id === mem.id);
           if (entry) {
-            setSelected(entry); setPhotoIdx(0);
+            setSelected(entry); setPhotoIdx(0); setCardTab("overview");
             setSliderDate(entry.dateStart);
             const p = ll2v(entry.lat, entry.lng, RAD);
             tRot.current = { x: Math.asin(p.y / RAD) * 0.3, y: Math.atan2(-p.x, p.z) };
