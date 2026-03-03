@@ -5,14 +5,7 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 
 export const supabase = createClient(supabaseUrl, supabaseKey)
 
-/*
- * MIGRATION REQUIRED — run this SQL in your Supabase SQL editor if not already done:
- *
- *   ALTER TABLE config ADD COLUMN IF NOT EXISTS metadata jsonb DEFAULT '{}'::jsonb;
- *
- * This column stores loveLetters, dreamDestinations, chapters, and darkMode.
- * Without it, those features will only persist via JSON export/import.
- */
+/* supabase.js v7.9.2 — love_note persistence fix included */
 
 // ---- Retry helper ----
 async function withRetry(fn, retries = 2) {
@@ -128,6 +121,7 @@ export async function loadEntries() {
     stops: row.stops || [],
     musicUrl: row.music_url || null,
     favorite: row.favorite || false,
+    loveNote: row.love_note || '',
   }))
 }
 
@@ -152,6 +146,7 @@ export async function saveEntry(entry) {
     stops: entry.stops || [],
     music_url: entry.musicUrl || null,
     favorite: entry.favorite || false,
+    love_note: entry.loveNote || '',
   }
   return withRetry(async () => {
     const { error } = await supabase.from('entries').upsert(row, { onConflict: 'id' })
@@ -170,10 +165,6 @@ export async function deleteEntry(id) {
 // ============================================================
 //  CONFIG — persists ALL settings including complex arrays
 // ============================================================
-//
-// Basic fields → individual columns (backward compatible)
-// Complex fields → single "metadata" JSONB column:
-//   loveLetters, dreamDestinations, chapters, darkMode
 
 export async function loadConfig() {
   const { data, error } = await supabase
@@ -184,7 +175,6 @@ export async function loadConfig() {
 
   if (error || !data) return null
 
-  // Base config from named columns
   const cfg = {
     startDate: data.start_date || '2021-06-01',
     title: data.title || 'Our World',
@@ -194,7 +184,6 @@ export async function loadConfig() {
     partnerName: data.partner_name || 'Rosie Posie',
   }
 
-  // Merge in complex fields from metadata JSONB column
   if (data.metadata && typeof data.metadata === 'object') {
     if (Array.isArray(data.metadata.loveLetters))       cfg.loveLetters = data.metadata.loveLetters
     if (Array.isArray(data.metadata.dreamDestinations))  cfg.dreamDestinations = data.metadata.dreamDestinations
@@ -206,7 +195,6 @@ export async function loadConfig() {
 }
 
 export async function saveConfig(config) {
-  // Basic fields in named columns
   const row = {
     id: 'main',
     start_date: config.startDate,
@@ -215,7 +203,6 @@ export async function saveConfig(config) {
     love_letter: config.loveLetter || '',
     you_name: config.youName,
     partner_name: config.partnerName,
-    // Complex fields packed into metadata JSONB
     metadata: {
       loveLetters: config.loveLetters || [],
       dreamDestinations: config.dreamDestinations || [],
@@ -226,7 +213,6 @@ export async function saveConfig(config) {
 
   const { error } = await supabase.from('config').upsert(row, { onConflict: 'id' })
   if (error) {
-    // If metadata column doesn't exist yet, retry without it
     if (error.message?.includes('metadata') || error.code === '42703') {
       console.warn('[saveConfig] metadata column missing — saving basic fields only. Run migration SQL.')
       const { metadata, ...basic } = row
