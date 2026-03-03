@@ -1,4 +1,4 @@
-/* geocode.js — OpenStreetMap Nominatim geocoding v7.9.4 */
+/* geocode.js — OpenStreetMap Nominatim geocoding v7.9.5 */
 const NOMINATIM = 'https://nominatim.openstreetmap.org/search'
 let debounceTimer = null
 let lastFetch = 0
