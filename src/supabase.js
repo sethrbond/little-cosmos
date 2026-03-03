@@ -53,7 +53,7 @@ export async function uploadPhoto(file, entryId) {
 export async function deletePhoto(publicUrl) {
   try {
     const match = publicUrl.match(/\/photos\/(.+)$/)
-    if (!match) return false
+    if (!match) { console.warn("[deletePhoto] could not parse path from URL:", publicUrl); return false }
 
     const { error } = await supabase.storage
       .from('photos')
