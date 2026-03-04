@@ -5,7 +5,7 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 
 export const supabase = createClient(supabaseUrl, supabaseKey)
 
-/* supabase.js v8.1 — safe array serialization for TEXT columns + JSONB compat */
+/* supabase.js v8.2 — JSONB arrays (no JSON.stringify, columns are JSONB now) */
 
 // ---- Helpers ----
 async function withRetry(fn, retries = 2) {
@@ -19,8 +19,7 @@ async function withRetry(fn, retries = 2) {
   }
 }
 
-// Safe array parser: handles string, array, null, undefined
-// Works with both TEXT columns (returns string) and JSONB columns (returns array)
+// Safe array parser: handles string (legacy TEXT), array (JSONB), null, undefined
 function safeArray(v) {
   if (Array.isArray(v)) return v
   if (typeof v === 'string' && v.length > 0) {
@@ -137,6 +136,7 @@ export async function loadEntries() {
 }
 
 export async function saveEntry(entry) {
+  // JSONB columns accept raw arrays directly — do NOT JSON.stringify
   const row = {
     id: entry.id,
     city: entry.city,
@@ -149,12 +149,12 @@ export async function saveEntry(entry) {
     who: entry.who,
     zoom_level: entry.zoomLevel || 1,
     notes: entry.notes || '',
-    memories: JSON.stringify(entry.memories || []),
-    museums: JSON.stringify(entry.museums || []),
-    restaurants: JSON.stringify(entry.restaurants || []),
-    highlights: JSON.stringify(entry.highlights || []),
-    photos: JSON.stringify(entry.photos || []),
-    stops: JSON.stringify(entry.stops || []),
+    memories: entry.memories || [],
+    museums: entry.museums || [],
+    restaurants: entry.restaurants || [],
+    highlights: entry.highlights || [],
+    photos: entry.photos || [],
+    stops: entry.stops || [],
     music_url: entry.musicUrl || null,
     favorite: entry.favorite || false,
     love_note: entry.loveNote || '',
@@ -162,7 +162,6 @@ export async function saveEntry(entry) {
   return withRetry(async () => {
     const { error } = await supabase.from('entries').upsert(row, { onConflict: 'id' })
     if (error) {
-      // If a column doesn't exist yet, retry without the newer columns
       if (error.message?.includes('love_note') || error.message?.includes('favorite') || error.code === '42703') {
         console.warn('[saveEntry] column missing — retrying without love_note/favorite. Run the SQL migration.')
         const { love_note, favorite, ...safeRow } = row
@@ -184,7 +183,7 @@ export async function deleteEntry(id) {
 }
 
 // ============================================================
-//  CONFIG — persists ALL settings including complex arrays
+//  CONFIG
 // ============================================================
 
 export async function loadConfig() {
@@ -235,7 +234,7 @@ export async function saveConfig(config) {
   const { error } = await supabase.from('config').upsert(row, { onConflict: 'id' })
   if (error) {
     if (error.message?.includes('metadata') || error.code === '42703') {
-      console.warn('[saveConfig] metadata column missing — saving basic fields only. Run migration SQL.')
+      console.warn('[saveConfig] metadata column missing — saving basic fields only.')
       const { metadata, ...basic } = row
       const { error: e2 } = await supabase.from('config').upsert(basic, { onConflict: 'id' })
       if (e2) console.error('[saveConfig] fallback error:', e2)
