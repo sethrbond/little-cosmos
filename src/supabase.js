@@ -5,9 +5,9 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 
 export const supabase = createClient(supabaseUrl, supabaseKey)
 
-/* supabase.js v7.9.5 — resilient saves + love_note persistence */
+/* supabase.js v8.1 — safe array serialization for TEXT columns + JSONB compat */
 
-// ---- Retry helper ----
+// ---- Helpers ----
 async function withRetry(fn, retries = 2) {
   for (let i = 0; i <= retries; i++) {
     try {
@@ -17,6 +17,17 @@ async function withRetry(fn, retries = 2) {
       await new Promise(r => setTimeout(r, 1000 * (i + 1)))
     }
   }
+}
+
+// Safe array parser: handles string, array, null, undefined
+// Works with both TEXT columns (returns string) and JSONB columns (returns array)
+function safeArray(v) {
+  if (Array.isArray(v)) return v
+  if (typeof v === 'string' && v.length > 0) {
+    try { const p = JSON.parse(v); return Array.isArray(p) ? p : [] }
+    catch { return [] }
+  }
+  return []
 }
 
 // ============================================================
@@ -113,12 +124,12 @@ export async function loadEntries() {
     who: row.who,
     zoomLevel: row.zoom_level || 1,
     notes: row.notes || '',
-    memories: row.memories || [],
-    museums: row.museums || [],
-    restaurants: row.restaurants || [],
-    highlights: row.highlights || [],
-    photos: row.photos || [],
-    stops: row.stops || [],
+    memories: safeArray(row.memories),
+    museums: safeArray(row.museums),
+    restaurants: safeArray(row.restaurants),
+    highlights: safeArray(row.highlights),
+    photos: safeArray(row.photos),
+    stops: safeArray(row.stops),
     musicUrl: row.music_url || null,
     favorite: row.favorite || false,
     loveNote: row.love_note || '',
@@ -138,12 +149,12 @@ export async function saveEntry(entry) {
     who: entry.who,
     zoom_level: entry.zoomLevel || 1,
     notes: entry.notes || '',
-    memories: entry.memories || [],
-    museums: entry.museums || [],
-    restaurants: entry.restaurants || [],
-    highlights: entry.highlights || [],
-    photos: entry.photos || [],
-    stops: entry.stops || [],
+    memories: JSON.stringify(entry.memories || []),
+    museums: JSON.stringify(entry.museums || []),
+    restaurants: JSON.stringify(entry.restaurants || []),
+    highlights: JSON.stringify(entry.highlights || []),
+    photos: JSON.stringify(entry.photos || []),
+    stops: JSON.stringify(entry.stops || []),
     music_url: entry.musicUrl || null,
     favorite: entry.favorite || false,
     love_note: entry.loveNote || '',
