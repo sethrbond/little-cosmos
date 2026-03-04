@@ -137,6 +137,30 @@ export async function saveEntry(entry) {
   })
 }
 
+// Direct photo persistence — bypasses saveEntry entirely
+export async function savePhotos(entryId, photos) {
+  const arr = Array.isArray(photos) ? photos : []
+  const { error } = await supabase
+    .from('entries')
+    .update({ photos: arr })
+    .eq('id', entryId)
+  if (error) {
+    return { ok: false, error: error.message }
+  }
+  return { ok: true, count: arr.length }
+}
+
+export async function readPhotos(entryId) {
+  const { data, error } = await supabase
+    .from('entries')
+    .select('photos')
+    .eq('id', entryId)
+    .single()
+  if (error) return { ok: false, error: error.message }
+  const arr = safeArray(data?.photos)
+  return { ok: true, photos: arr, count: arr.length }
+}
+
 export async function deleteEntry(id) {
   await deleteEntryPhotos(id)
   const { error } = await supabase.from('entries').delete().eq('id', id)
