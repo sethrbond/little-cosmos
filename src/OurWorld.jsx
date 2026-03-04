@@ -6,7 +6,7 @@ import { geocodeSearch } from "./geocode.js";
 /* =================================================================
    🌍 OUR WORLD — Seth & Rosie Posie
    "every moment, every adventure"
-   v8.2 — unique symbol markers, photo persistence fix, correct flyTo
+   v8.2 — symbol markers, photo fix, correct flyTo
    ================================================================= */
 
 const DEFAULT_CONFIG = {
@@ -1851,7 +1851,7 @@ function OurWorldInner() {
       // Symbol marker: canvas texture on a plane
       const tex = makeSymbolTexture(symbolType, color);
       const sz = size * 4.5;
-      const dot = new THREE.Mesh(new THREE.PlaneGeometry(sz, sz), new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: faint ? 0.35 : 0.95, side: THREE.DoubleSide, depthTest: true }));
+      const dot = new THREE.Mesh(new THREE.PlaneGeometry(sz, sz), new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.02, side: THREE.DoubleSide, depthTest: true }));
       dot.position.copy(p); dot.lookAt(p.clone().multiplyScalar(2)); dot.userData = { entryId: id }; dot.renderOrder = 2; group.add(dot);
       return { entryId: id, dot, ring: null, glow: null };
     }
