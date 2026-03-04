@@ -6,7 +6,7 @@ import { geocodeSearch } from "./geocode.js";
 /* =================================================================
    🌍 OUR WORLD — Seth & Rosie Posie
    "every moment, every adventure"
-   v8.1 — correct Three.js XYZ Euler flyTo, shortest-path, all pre-beta fixes
+   v8.2 — unique symbol markers, photo persistence fix, correct flyTo
    ================================================================= */
 
 const DEFAULT_CONFIG = {
@@ -45,6 +45,121 @@ const TYPES = {
 };
 
 // ---- UTILS ----
+// ---- SYMBOL TEXTURES — unique marker shapes per entry type ----
+const _symbolCache = {};
+function makeSymbolTexture(type, color) {
+  const key = `${type}-${color}`;
+  if (_symbolCache[key]) return _symbolCache[key];
+  const s = 128, c = document.createElement("canvas");
+  c.width = s; c.height = s;
+  const ctx = c.getContext("2d");
+  ctx.clearRect(0, 0, s, s);
+  const cx = s / 2, cy = s / 2;
+
+  // Outer glow for all symbols
+  const grad = ctx.createRadialGradient(cx, cy, s * 0.12, cx, cy, s * 0.48);
+  grad.addColorStop(0, color + "40");
+  grad.addColorStop(0.6, color + "12");
+  grad.addColorStop(1, color + "00");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, s, s);
+
+  ctx.fillStyle = color;
+  ctx.strokeStyle = color;
+
+  if (type === "together") {
+    // Heart shape
+    ctx.beginPath();
+    ctx.moveTo(cx, cy + 16);
+    ctx.bezierCurveTo(cx - 30, cy - 4, cx - 30, cy - 28, cx, cy - 14);
+    ctx.bezierCurveTo(cx + 30, cy - 28, cx + 30, cy - 4, cx, cy + 16);
+    ctx.globalAlpha = 0.92; ctx.fill();
+  } else if (type === "special") {
+    // 4-point sparkle star
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const a = (i * Math.PI) / 4 - Math.PI / 2;
+      const r = i % 2 === 0 ? 26 : 9;
+      ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+    }
+    ctx.closePath(); ctx.globalAlpha = 0.9; ctx.fill();
+  } else if (type === "home-seth") {
+    // House: triangle roof + square body
+    ctx.globalAlpha = 0.88;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - 22); ctx.lineTo(cx + 18, cy - 4); ctx.lineTo(cx - 18, cy - 4);
+    ctx.closePath(); ctx.fill();
+    ctx.fillRect(cx - 13, cy - 4, 26, 20);
+    // Door
+    ctx.fillStyle = "#161028"; ctx.globalAlpha = 0.6;
+    ctx.fillRect(cx - 5, cy + 4, 10, 12);
+  } else if (type === "home-rosie") {
+    // Rose/flower: 5 round petals around center
+    ctx.globalAlpha = 0.85;
+    for (let i = 0; i < 5; i++) {
+      const a = (i * Math.PI * 2) / 5 - Math.PI / 2;
+      ctx.beginPath();
+      ctx.arc(cx + Math.cos(a) * 12, cy + Math.sin(a) * 12, 10, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = "#fff8f0"; ctx.globalAlpha = 0.7;
+    ctx.beginPath(); ctx.arc(cx, cy, 7, 0, Math.PI * 2); ctx.fill();
+  } else if (type === "seth-solo") {
+    // Compass diamond
+    ctx.globalAlpha = 0.85;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - 24); ctx.lineTo(cx + 14, cy);
+    ctx.lineTo(cx, cy + 24); ctx.lineTo(cx - 14, cy);
+    ctx.closePath(); ctx.fill();
+    // Inner line cross
+    ctx.strokeStyle = "#fff8"; ctx.lineWidth = 1; ctx.globalAlpha = 0.5;
+    ctx.beginPath(); ctx.moveTo(cx, cy - 18); ctx.lineTo(cx, cy + 18); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx - 10, cy); ctx.lineTo(cx + 10, cy); ctx.stroke();
+  } else if (type === "rosie-solo") {
+    // Crescent moon
+    ctx.globalAlpha = 0.85;
+    ctx.beginPath(); ctx.arc(cx, cy, 20, 0, Math.PI * 2); ctx.fill();
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.beginPath(); ctx.arc(cx + 11, cy - 4, 17, 0, Math.PI * 2); ctx.fill();
+    ctx.globalCompositeOperation = "source-over";
+  } else if (type === "dream") {
+    // Hollow star with ethereal glow — wispy, ghostly
+    ctx.globalAlpha = 0.5; ctx.lineWidth = 2;
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const a = (i * Math.PI) / 5 - Math.PI / 2;
+      const r = i % 2 === 0 ? 24 : 10;
+      ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+    }
+    ctx.closePath(); ctx.stroke();
+    ctx.setLineDash([]);
+    // Tiny center sparkle
+    ctx.globalAlpha = 0.35; ctx.fillStyle = color;
+    ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI * 2); ctx.fill();
+  } else if (type === "love-letter") {
+    // Delicate 6-petal flower with layered petals
+    ctx.globalAlpha = 0.75;
+    for (let i = 0; i < 6; i++) {
+      const a = (i * Math.PI) / 3;
+      ctx.beginPath();
+      ctx.ellipse(cx + Math.cos(a) * 10, cy + Math.sin(a) * 10, 11, 6, a, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = "#fff4e8"; ctx.globalAlpha = 0.6;
+    ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2); ctx.fill();
+  } else {
+    // Fallback: simple circle
+    ctx.globalAlpha = 0.85;
+    ctx.beginPath(); ctx.arc(cx, cy, 14, 0, Math.PI * 2); ctx.fill();
+  }
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.needsUpdate = true;
+  _symbolCache[key] = tex;
+  return tex;
+}
+
 const ll2v = (lat, lng, r) => {
   const phi = (90 - lat) * Math.PI / 180, theta = (lng + 180) * Math.PI / 180;
   return new THREE.Vector3(-(r * Math.sin(phi) * Math.cos(theta)), r * Math.cos(phi), r * Math.sin(phi) * Math.sin(theta));
@@ -1626,7 +1741,7 @@ function OurWorldInner() {
       const types = loc.entries.map(e => e.type);
       let color = P.textFaint;
       let icon = "together";
-      if (types.includes("together") || types.includes("special")) { color = types.includes("special") ? P.special : P.together; icon = "together"; }
+      if (types.includes("together") || types.includes("special")) { color = types.includes("special") ? P.special : P.together; icon = types.includes("special") ? "special" : "together"; }
       else if (types.includes("home-seth")) { color = P.sky; icon = "home-seth"; }
       else if (types.includes("home-rosie")) { color = P.rose; icon = "home-rosie"; }
       else if (types.includes("seth-solo")) { color = P.skySoft; icon = "seth-solo"; }
@@ -1636,7 +1751,7 @@ function OurWorldInner() {
       const size = isMulti ? 0.02 : 0.014;
       const entryId = isMulti ? `group-${loc.city}` : loc.entries[0].id;
 
-      mkRef.current.push(makeDot(g, loc.lat, loc.lng, color, size, entryId, false));
+      mkRef.current.push(makeDot(g, loc.lat, loc.lng, color, size, entryId, false, icon));
     });
 
     // ---- Seth position dot (from slider) ----
@@ -1719,36 +1834,28 @@ function OurWorldInner() {
       });
     }
 
-    // ---- DREAM DESTINATIONS — ghost markers ----
+    // ---- DREAM DESTINATIONS — ethereal ghost markers ----
     (config.dreamDestinations || []).forEach(dream => {
-      const p = ll2v(dream.lat, dream.lng, RAD * 1.012);
-      const dot = new THREE.Mesh(new THREE.CircleGeometry(0.012, 20), new THREE.MeshBasicMaterial({ color: P.goldWarm, transparent: true, opacity: 0.3, side: THREE.DoubleSide, depthTest: true }));
-      dot.position.copy(p); dot.lookAt(p.clone().multiplyScalar(2)); dot.userData = { entryId: `dream-${dream.id}` }; dot.renderOrder = 2;
-      g.add(dot);
-      // Dashed ring around dream marker
-      const ring = new THREE.Mesh(new THREE.RingGeometry(0.016, 0.02, 20), new THREE.MeshBasicMaterial({ color: P.goldWarm, transparent: true, opacity: 0.15, side: THREE.DoubleSide, depthTest: true }));
-      ring.position.copy(p); ring.lookAt(p.clone().multiplyScalar(2)); ring.renderOrder = 2;
-      g.add(ring);
-      mkRef.current.push({ entryId: `dream-${dream.id}`, dot, ring, glow: null });
+      mkRef.current.push(makeDot(g, dream.lat, dream.lng, P.goldWarm, 0.016, `dream-${dream.id}`, true, "dream"));
     });
 
-    // ---- LOVE LETTERS — easter egg ❀ markers scattered on globe ----
+    // ---- LOVE LETTERS — hidden flower markers scattered on globe ----
     (config.loveLetters || []).forEach(letter => {
-      const p = ll2v(letter.lat, letter.lng, RAD * 1.014);
-      // Lavender flower marker — sized to be discoverable but not overwhelming
-      const dot = new THREE.Mesh(new THREE.CircleGeometry(0.025, 16), new THREE.MeshBasicMaterial({ color: "#e8a878", transparent: true, opacity: 0.65, side: THREE.DoubleSide, depthTest: true }));
-      dot.position.copy(p); dot.lookAt(p.clone().multiplyScalar(2)); dot.userData = { entryId: `love-${letter.id}` }; dot.renderOrder = 3;
-      g.add(dot);
-      // Outer glow ring — static soft halo
-      const glow = new THREE.Mesh(new THREE.RingGeometry(0.030, 0.045, 20), new THREE.MeshBasicMaterial({ color: "#f0c098", transparent: true, opacity: 0.25, side: THREE.DoubleSide, depthTest: true }));
-      glow.position.copy(p); glow.lookAt(p.clone().multiplyScalar(2)); glow.renderOrder = 2;
-      g.add(glow);
-      mkRef.current.push({ entryId: `love-${letter.id}`, dot, ring: glow, glow });
+      mkRef.current.push(makeDot(g, letter.lat, letter.lng, "#e8a878", 0.018, `love-${letter.id}`, false, "love-letter"));
     });
   }, [sliderDate, data, getPositions, areTogether, locationGroups, selected, sceneReady, showLoveThread, loveThreadData, showConstellation, constellationData, config.dreamDestinations, config.loveLetters]);
 
-  function makeDot(group, lat, lng, color, size, id, faint = false) {
+  function makeDot(group, lat, lng, color, size, id, faint = false, symbolType = null) {
     const p = ll2v(lat, lng, RAD * 1.012);
+    if (symbolType) {
+      // Symbol marker: canvas texture on a plane
+      const tex = makeSymbolTexture(symbolType, color);
+      const sz = size * 4.5;
+      const dot = new THREE.Mesh(new THREE.PlaneGeometry(sz, sz), new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: faint ? 0.35 : 0.95, side: THREE.DoubleSide, depthTest: true }));
+      dot.position.copy(p); dot.lookAt(p.clone().multiplyScalar(2)); dot.userData = { entryId: id }; dot.renderOrder = 2; group.add(dot);
+      return { entryId: id, dot, ring: null, glow: null };
+    }
+    // Fallback: simple circle (for position dots)
     const dot = new THREE.Mesh(new THREE.CircleGeometry(size, 20), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: faint ? 0.28 : 0.85, side: THREE.DoubleSide, depthTest: true }));
     dot.position.copy(p); dot.lookAt(p.clone().multiplyScalar(2)); dot.userData = { entryId: id }; dot.renderOrder = 2; group.add(dot);
     const glow = new THREE.Mesh(new THREE.CircleGeometry(size * (faint ? 1.4 : 2.0), 24), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: faint ? 0.04 : 0.10, side: THREE.DoubleSide, depthTest: true }));
@@ -1876,7 +1983,7 @@ function OurWorldInner() {
   if (loading) return <div style={{ width: "100%", height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#161028", fontFamily: "Georgia,serif", color: P.textFaint }}>
     <div style={{ fontSize: 48, animation: "heartPulse 2s ease infinite", marginBottom: 16 }}>🌍</div>
     <div style={{ fontSize: 14, letterSpacing: ".2em", opacity: 0.7 }}>Loading your world<span style={{ animation: "ellipsis 1.5s infinite" }}>...</span></div>
-    <div style={{ fontSize: 10, opacity: 0.6, marginTop: 12, letterSpacing: ".15em" }}>v8.1</div>
+    <div style={{ fontSize: 10, opacity: 0.6, marginTop: 12, letterSpacing: ".15em" }}>v8.2</div>
     <style>{`@keyframes heartPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}} @keyframes ellipsis{0%{opacity:0}50%{opacity:1}100%{opacity:0}}`}</style>
   </div>;
 
