@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef, useCallback, useMemo, useReducer, Component } from "react";
 import * as THREE from "three";
-import { loadEntries, saveEntry, deleteEntry, loadConfig as loadCfg, saveConfig as saveCfg, uploadPhoto, deletePhoto } from "./supabase.js";
+import { loadEntries, saveEntry, deleteEntry, loadConfig as loadCfg, saveConfig as saveCfg, uploadPhoto, deletePhoto, verifyEntry } from "./supabase.js";
 import { geocodeSearch } from "./geocode.js";
 
 /* =================================================================
    🌍 OUR WORLD — Seth & Rosie Posie
    "every moment, every adventure"
-   v8.2 — symbol markers, photo fix, correct flyTo
+   v8.2.1 — clean symbols, photo save verification
    ================================================================= */
 
 const DEFAULT_CONFIG = {
@@ -50,108 +50,83 @@ const _symbolCache = {};
 function makeSymbolTexture(type, color) {
   const key = `${type}-${color}`;
   if (_symbolCache[key]) return _symbolCache[key];
-  const s = 128, c = document.createElement("canvas");
+  const s = 64, c = document.createElement("canvas");
   c.width = s; c.height = s;
   const ctx = c.getContext("2d");
   ctx.clearRect(0, 0, s, s);
   const cx = s / 2, cy = s / 2;
-
-  // Outer glow for all symbols
-  const grad = ctx.createRadialGradient(cx, cy, s * 0.12, cx, cy, s * 0.48);
-  grad.addColorStop(0, color + "40");
-  grad.addColorStop(0.6, color + "12");
-  grad.addColorStop(1, color + "00");
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, s, s);
-
   ctx.fillStyle = color;
-  ctx.strokeStyle = color;
 
   if (type === "together") {
-    // Heart shape
+    // Heart
     ctx.beginPath();
-    ctx.moveTo(cx, cy + 16);
-    ctx.bezierCurveTo(cx - 30, cy - 4, cx - 30, cy - 28, cx, cy - 14);
-    ctx.bezierCurveTo(cx + 30, cy - 28, cx + 30, cy - 4, cx, cy + 16);
-    ctx.globalAlpha = 0.92; ctx.fill();
+    ctx.moveTo(cx, cy + 10);
+    ctx.bezierCurveTo(cx - 18, cy - 2, cx - 18, cy - 18, cx, cy - 8);
+    ctx.bezierCurveTo(cx + 18, cy - 18, cx + 18, cy - 2, cx, cy + 10);
+    ctx.fill();
   } else if (type === "special") {
-    // 4-point sparkle star
+    // 4-point sparkle
     ctx.beginPath();
     for (let i = 0; i < 8; i++) {
       const a = (i * Math.PI) / 4 - Math.PI / 2;
-      const r = i % 2 === 0 ? 26 : 9;
+      const r = i % 2 === 0 ? 18 : 5;
       ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
     }
-    ctx.closePath(); ctx.globalAlpha = 0.9; ctx.fill();
-  } else if (type === "home-seth") {
-    // House: triangle roof + square body
-    ctx.globalAlpha = 0.88;
-    ctx.beginPath();
-    ctx.moveTo(cx, cy - 22); ctx.lineTo(cx + 18, cy - 4); ctx.lineTo(cx - 18, cy - 4);
     ctx.closePath(); ctx.fill();
-    ctx.fillRect(cx - 13, cy - 4, 26, 20);
-    // Door
-    ctx.fillStyle = "#161028"; ctx.globalAlpha = 0.6;
-    ctx.fillRect(cx - 5, cy + 4, 10, 12);
+  } else if (type === "home-seth") {
+    // House
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - 16); ctx.lineTo(cx + 14, cy - 2); ctx.lineTo(cx - 14, cy - 2);
+    ctx.closePath(); ctx.fill();
+    ctx.fillRect(cx - 10, cy - 2, 20, 15);
+    ctx.fillStyle = "#161028"; ctx.globalAlpha = 0.5;
+    ctx.fillRect(cx - 3, cy + 3, 6, 10);
   } else if (type === "home-rosie") {
-    // Rose/flower: 5 round petals around center
-    ctx.globalAlpha = 0.85;
+    // 5-petal flower
     for (let i = 0; i < 5; i++) {
       const a = (i * Math.PI * 2) / 5 - Math.PI / 2;
       ctx.beginPath();
-      ctx.arc(cx + Math.cos(a) * 12, cy + Math.sin(a) * 12, 10, 0, Math.PI * 2);
+      ctx.arc(cx + Math.cos(a) * 8, cy + Math.sin(a) * 8, 7, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.fillStyle = "#fff8f0"; ctx.globalAlpha = 0.7;
-    ctx.beginPath(); ctx.arc(cx, cy, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2); ctx.fill();
   } else if (type === "seth-solo") {
-    // Compass diamond
-    ctx.globalAlpha = 0.85;
+    // Diamond
     ctx.beginPath();
-    ctx.moveTo(cx, cy - 24); ctx.lineTo(cx + 14, cy);
-    ctx.lineTo(cx, cy + 24); ctx.lineTo(cx - 14, cy);
+    ctx.moveTo(cx, cy - 16); ctx.lineTo(cx + 10, cy);
+    ctx.lineTo(cx, cy + 16); ctx.lineTo(cx - 10, cy);
     ctx.closePath(); ctx.fill();
-    // Inner line cross
-    ctx.strokeStyle = "#fff8"; ctx.lineWidth = 1; ctx.globalAlpha = 0.5;
-    ctx.beginPath(); ctx.moveTo(cx, cy - 18); ctx.lineTo(cx, cy + 18); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(cx - 10, cy); ctx.lineTo(cx + 10, cy); ctx.stroke();
   } else if (type === "rosie-solo") {
     // Crescent moon
-    ctx.globalAlpha = 0.85;
-    ctx.beginPath(); ctx.arc(cx, cy, 20, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx - 2, cy, 14, 0, Math.PI * 2); ctx.fill();
     ctx.globalCompositeOperation = "destination-out";
-    ctx.beginPath(); ctx.arc(cx + 11, cy - 4, 17, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx + 6, cy - 3, 12, 0, Math.PI * 2); ctx.fill();
     ctx.globalCompositeOperation = "source-over";
   } else if (type === "dream") {
-    // Hollow star with ethereal glow — wispy, ghostly
-    ctx.globalAlpha = 0.5; ctx.lineWidth = 2;
-    ctx.setLineDash([4, 3]);
+    // Dashed hollow star
+    ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.6;
+    ctx.setLineDash([3, 2]);
     ctx.beginPath();
     for (let i = 0; i < 10; i++) {
       const a = (i * Math.PI) / 5 - Math.PI / 2;
-      const r = i % 2 === 0 ? 24 : 10;
+      const r = i % 2 === 0 ? 16 : 7;
       ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
     }
     ctx.closePath(); ctx.stroke();
-    ctx.setLineDash([]);
-    // Tiny center sparkle
-    ctx.globalAlpha = 0.35; ctx.fillStyle = color;
-    ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI * 2); ctx.fill();
   } else if (type === "love-letter") {
-    // Delicate 6-petal flower with layered petals
-    ctx.globalAlpha = 0.75;
+    // 6-petal flower
+    ctx.globalAlpha = 0.8;
     for (let i = 0; i < 6; i++) {
       const a = (i * Math.PI) / 3;
       ctx.beginPath();
-      ctx.ellipse(cx + Math.cos(a) * 10, cy + Math.sin(a) * 10, 11, 6, a, 0, Math.PI * 2);
+      ctx.ellipse(cx + Math.cos(a) * 7, cy + Math.sin(a) * 7, 8, 4, a, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.fillStyle = "#fff4e8"; ctx.globalAlpha = 0.6;
-    ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI * 2); ctx.fill();
   } else {
-    // Fallback: simple circle
-    ctx.globalAlpha = 0.85;
-    ctx.beginPath(); ctx.arc(cx, cy, 14, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx, cy, 10, 0, Math.PI * 2); ctx.fill();
   }
 
   const tex = new THREE.CanvasTexture(c);
@@ -698,12 +673,8 @@ function reducer(st, a) {
       deleteEntry(a.id);
       break;
     case "ADD_PHOTOS":
-      console.log('[DIAG] ADD_PHOTOS dispatch:', { id: a.id, urlCount: a.urls?.length, urls: a.urls });
       next = { ...st, entries: st.entries.map(e => e.id === a.id ? { ...e, photos: [...(e.photos || []), ...a.urls] } : e) };
-      { const updated = next.entries.find(e => e.id === a.id);
-        console.log('[DIAG] Entry after update:', { id: updated?.id, photoCount: updated?.photos?.length, photosType: typeof updated?.photos, isArray: Array.isArray(updated?.photos) });
-        if (updated) saveEntry(updated);
-      }
+      { const updated = next.entries.find(e => e.id === a.id); if (updated) saveEntry(updated); }
       break;
     case "REMOVE_PHOTO":
       { const photoUrl = (st.entries.find(e => e.id === a.id)?.photos || [])[a.photoIndex];
@@ -1960,6 +1931,17 @@ function OurWorldInner() {
       if (urls.length > 0) {
         dispatch({ type: "ADD_PHOTOS", id, urls });
         setToast({ message: `${urls.length} photo${urls.length > 1 ? "s" : ""} uploaded`, icon: "📷", duration: 2500, key: Date.now() });
+        // Verify save: wait for fire-and-forget save, then read back
+        setTimeout(async () => {
+          const v = await verifyEntry(id);
+          if (v.error) {
+            setToast({ message: `⚠️ DB verify error: ${v.error}`, icon: "❌", duration: 8000, key: Date.now() });
+          } else if (v.length === 0) {
+            setToast({ message: `⚠️ DB shows 0 photos! type=${v.type} isArray=${v.isArray}`, icon: "❌", duration: 8000, key: Date.now() });
+          } else {
+            setToast({ message: `✅ DB verified: ${v.length} photo(s) saved`, icon: "✅", duration: 4000, key: Date.now() });
+          }
+        }, 3000);
       }
       setUploading(false);
       input.value = ""; // reset for next use
@@ -2282,7 +2264,10 @@ function OurWorldInner() {
               setUploading(true);
               const urls = [];
               for (const file of files) { const url = await uploadPhoto(file, cur.id); if (url) urls.push(url); }
-              if (urls.length > 0) { dispatch({ type: "ADD_PHOTOS", id: cur.id, urls }); showToast(`${urls.length} photo${urls.length > 1 ? "s" : ""} uploaded`, "📷", 2500); }
+              if (urls.length > 0) {
+                dispatch({ type: "ADD_PHOTOS", id: cur.id, urls }); showToast(`${urls.length} photo${urls.length > 1 ? "s" : ""} uploaded`, "📷", 2500);
+                const cid = cur.id; setTimeout(async () => { const v = await verifyEntry(cid); if (v.length === 0) showToast(`⚠️ DB shows 0 photos! type=${v.type}`, "❌", 8000); else showToast(`✅ DB verified: ${v.length} photo(s)`, "✅", 4000); }, 3000);
+              }
               setUploading(false);
             }}
             onClick={() => handlePhotos(cur.id)}
