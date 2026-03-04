@@ -74,7 +74,12 @@ export async function deleteEntryPhotos(entryId) {
 export async function loadEntries() {
   const { data, error } = await supabase.from('entries').select('*').order('date_start', { ascending: true })
   if (error) { console.error('[loadEntries] error:', error); return [] }
-  return (data || []).map(row => ({
+  return (data || []).map(row => {
+    const photos = safeArray(row.photos)
+    if (row.photos !== undefined && (row.photos !== null)) {
+      console.log('[DIAG] loadEntries', row.city, '| raw photos:', typeof row.photos, Array.isArray(row.photos) ? 'array' : 'not-array', '| raw value:', JSON.stringify(row.photos)?.slice(0, 120), '| parsed:', photos.length, 'items')
+    }
+    return {
     id: row.id,
     city: row.city,
     country: row.country || '',
@@ -95,10 +100,11 @@ export async function loadEntries() {
     musicUrl: row.music_url || null,
     favorite: row.favorite || false,
     loveNote: row.love_note || '',
-  }))
+  }})
 }
 
 export async function saveEntry(entry) {
+  console.log('[DIAG] saveEntry called:', entry.city, '| photos:', Array.isArray(entry.photos) ? 'array' : typeof entry.photos, '| count:', (entry.photos || []).length, '| cleaned:', JSON.stringify(cleanArray(entry.photos))?.slice(0, 150))
   const row = {
     id: entry.id,
     city: entry.city,
@@ -124,7 +130,7 @@ export async function saveEntry(entry) {
   return withRetry(async () => {
     const { error } = await supabase.from('entries').upsert(row, { onConflict: 'id' })
     if (error) {
-      console.error('[saveEntry] FAILED:', error.message, '| photos count:', (row.photos || []).length)
+      console.error('[DIAG] saveEntry FAILED:', error.message, '| code:', error.code, '| photos in row:', JSON.stringify(row.photos)?.slice(0, 100))
       if (error.message?.includes('love_note') || error.message?.includes('favorite') || error.code === '42703') {
         const { love_note, favorite, ...safeRow } = row
         const { error: e2 } = await supabase.from('entries').upsert(safeRow, { onConflict: 'id' })
@@ -133,6 +139,7 @@ export async function saveEntry(entry) {
       }
       throw error
     }
+    console.log('[DIAG] saveEntry SUCCESS:', entry.city, '| photos saved:', row.photos?.length)
     return true
   })
 }
