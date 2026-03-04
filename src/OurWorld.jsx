@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef, useCallback, useMemo, useReducer, Component } from "react";
 import * as THREE from "three";
-import { loadEntries, saveEntry, deleteEntry, loadConfig as loadCfg, saveConfig as saveCfg, uploadPhoto, deletePhoto, verifyEntry } from "./supabase.js";
+import { loadEntries, saveEntry, deleteEntry, loadConfig as loadCfg, saveConfig as saveCfg, uploadPhoto, deletePhoto, savePhotos, readPhotos } from "./supabase.js";
 import { geocodeSearch } from "./geocode.js";
 
 /* =================================================================
    🌍 OUR WORLD — Seth & Rosie Posie
    "every moment, every adventure"
-   v8.2.1 — clean symbols, photo save verification
+   v8.2.1 — direct photo save, breathing symbols, clean shapes
    ================================================================= */
 
 const DEFAULT_CONFIG = {
@@ -673,14 +673,16 @@ function reducer(st, a) {
       deleteEntry(a.id);
       break;
     case "ADD_PHOTOS":
+      // Pure state update only — save handled explicitly by upload handler
       next = { ...st, entries: st.entries.map(e => e.id === a.id ? { ...e, photos: [...(e.photos || []), ...a.urls] } : e) };
-      { const updated = next.entries.find(e => e.id === a.id); if (updated) saveEntry(updated); }
       break;
     case "REMOVE_PHOTO":
       { const photoUrl = (st.entries.find(e => e.id === a.id)?.photos || [])[a.photoIndex];
-        if (photoUrl) deletePhoto(photoUrl); } // delete from Supabase storage
+        if (photoUrl) deletePhoto(photoUrl); }
       next = { ...st, entries: st.entries.map(e => e.id === a.id ? { ...e, photos: (e.photos || []).filter((_, i) => i !== a.photoIndex) } : e) };
-      { const updated = next.entries.find(e => e.id === a.id); if (updated) saveEntry(updated); }
+      // Save remaining photos directly to DB
+      { const remaining = next.entries.find(e => e.id === a.id);
+        if (remaining) savePhotos(a.id, remaining.photos || []); }
       break;
     default: return st;
   }
@@ -1586,11 +1588,12 @@ function OurWorldInner() {
       zmR.current = lerp(zmR.current, tZm.current, 0.03);
       cam.position.z = zmR.current;
 
-      // Zoom-based marker scaling (no pulsing — clean static glow)
+      // Zoom-based marker scaling with gentle breathing
       const mkScale = Math.min(1.2, Math.max(0.35, zmR.current / 3.5));
+      const breathe = 1 + Math.sin(Date.now() * 0.0008) * 0.07;
       mkRef.current.forEach((m) => {
-        if (m.dot) m.dot.scale.setScalar(mkScale);
-        if (m.glow) m.glow.scale.setScalar(mkScale);
+        if (m.dot) m.dot.scale.setScalar(mkScale * breathe);
+        if (m.glow) m.glow.scale.setScalar(mkScale * breathe);
       });
 
       if (hMesh.visible) {
@@ -1825,7 +1828,7 @@ function OurWorldInner() {
     if (symbolType) {
       // Symbol marker: canvas texture on a plane
       const tex = makeSymbolTexture(symbolType, color);
-      const sz = size * 4.5;
+      const sz = size * 7;
       const dot = new THREE.Mesh(new THREE.PlaneGeometry(sz, sz), new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.02, side: THREE.DoubleSide, depthTest: true }));
       dot.position.copy(p); dot.lookAt(p.clone().multiplyScalar(2)); dot.userData = { entryId: id }; dot.renderOrder = 2; group.add(dot);
       return { entryId: id, dot, ring: null, glow: null };
@@ -1919,32 +1922,37 @@ function OurWorldInner() {
       const id = photoEntryIdRef.current;
       if (files.length === 0 || !id) return;
       setUploading(true);
+
+      // Step 1: Upload files to Supabase storage
       const urls = [];
       for (const file of files) {
         try {
           const url = await uploadPhoto(file, id);
           if (url) urls.push(url);
-        } catch (err) {
-          console.error("Upload error:", err);
-        }
+        } catch (err) { /* skip failed uploads */ }
       }
-      if (urls.length > 0) {
-        dispatch({ type: "ADD_PHOTOS", id, urls });
-        setToast({ message: `${urls.length} photo${urls.length > 1 ? "s" : ""} uploaded`, icon: "📷", duration: 2500, key: Date.now() });
-        // Verify save: wait for fire-and-forget save, then read back
-        setTimeout(async () => {
-          const v = await verifyEntry(id);
-          if (v.error) {
-            setToast({ message: `⚠️ DB verify error: ${v.error}`, icon: "❌", duration: 8000, key: Date.now() });
-          } else if (v.length === 0) {
-            setToast({ message: `⚠️ DB shows 0 photos! type=${v.type} isArray=${v.isArray}`, icon: "❌", duration: 8000, key: Date.now() });
-          } else {
-            setToast({ message: `✅ DB verified: ${v.length} photo(s) saved`, icon: "✅", duration: 4000, key: Date.now() });
-          }
-        }, 3000);
+      if (urls.length === 0) { setUploading(false); input.value = ""; return; }
+
+      // Step 2: Read current photos from DB
+      const current = await readPhotos(id);
+      const existing = current.ok ? current.photos : [];
+
+      // Step 3: Merge and save directly to DB
+      const merged = [...existing, ...urls];
+      const saveResult = await savePhotos(id, merged);
+
+      // Step 4: Update local state
+      dispatch({ type: "ADD_PHOTOS", id, urls });
+
+      // Step 5: Show result
+      if (saveResult.ok) {
+        setToast({ message: `📷 ${urls.length} photo${urls.length > 1 ? "s" : ""} saved (${merged.length} total)`, icon: "✅", duration: 3000, key: Date.now() });
+      } else {
+        setToast({ message: `❌ Photo save failed: ${saveResult.error}`, icon: "⚠️", duration: 8000, key: Date.now() });
       }
+
       setUploading(false);
-      input.value = ""; // reset for next use
+      input.value = "";
     };
 
     input.addEventListener("change", handler);
@@ -2262,11 +2270,16 @@ function OurWorldInner() {
               const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/"));
               if (files.length === 0) return;
               setUploading(true);
+              const cid = cur.id;
               const urls = [];
-              for (const file of files) { const url = await uploadPhoto(file, cur.id); if (url) urls.push(url); }
+              for (const file of files) { const url = await uploadPhoto(file, cid); if (url) urls.push(url); }
               if (urls.length > 0) {
-                dispatch({ type: "ADD_PHOTOS", id: cur.id, urls }); showToast(`${urls.length} photo${urls.length > 1 ? "s" : ""} uploaded`, "📷", 2500);
-                const cid = cur.id; setTimeout(async () => { const v = await verifyEntry(cid); if (v.length === 0) showToast(`⚠️ DB shows 0 photos! type=${v.type}`, "❌", 8000); else showToast(`✅ DB verified: ${v.length} photo(s)`, "✅", 4000); }, 3000);
+                const current = await readPhotos(cid);
+                const merged = [...(current.ok ? current.photos : []), ...urls];
+                const result = await savePhotos(cid, merged);
+                dispatch({ type: "ADD_PHOTOS", id: cid, urls });
+                if (result.ok) showToast(`📷 ${urls.length} photo${urls.length > 1 ? "s" : ""} saved (${merged.length} total)`, "✅", 3000);
+                else showToast(`❌ Photo save failed: ${result.error}`, "⚠️", 8000);
               }
               setUploading(false);
             }}
