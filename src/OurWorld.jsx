@@ -698,8 +698,12 @@ function reducer(st, a) {
       deleteEntry(a.id);
       break;
     case "ADD_PHOTOS":
+      console.log('[DIAG] ADD_PHOTOS dispatch:', { id: a.id, urlCount: a.urls?.length, urls: a.urls });
       next = { ...st, entries: st.entries.map(e => e.id === a.id ? { ...e, photos: [...(e.photos || []), ...a.urls] } : e) };
-      { const updated = next.entries.find(e => e.id === a.id); if (updated) saveEntry(updated); }
+      { const updated = next.entries.find(e => e.id === a.id);
+        console.log('[DIAG] Entry after update:', { id: updated?.id, photoCount: updated?.photos?.length, photosType: typeof updated?.photos, isArray: Array.isArray(updated?.photos) });
+        if (updated) saveEntry(updated);
+      }
       break;
     case "REMOVE_PHOTO":
       { const photoUrl = (st.entries.find(e => e.id === a.id)?.photos || [])[a.photoIndex];
