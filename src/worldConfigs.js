@@ -48,40 +48,40 @@ export const OUR_WORLD_FIELDS = {
 };
 
 // ============================================================
-//  MY WORLD — warm earth / leather / campfire / pine dusk
-//  NOT swamp green. Think: worn leather journal, sandstone,
-//  warm slate, amber firelight, deep forest at golden hour.
+//  MY WORLD — blue-slate sky / earthy ground / pine coast
+//  Orb is blue-ish. Globe scene is warm earth tones with
+//  tan/sandstone land, green coastlines, blue-tinged space.
 // ============================================================
 
 export const MY_WORLD_PALETTE = {
-  cream: "#f4f0e8", warm: "#f6f0e4", parchment: "#eae4d8",
-  blush: "#ede6da", lavMist: "#e4ddd0",
-  text: "#2c2822", textMid: "#5c5448", textMuted: "#8a7e6c", textFaint: "#b0a690",
-  rose: "#c4a068",       // warm amber
+  cream: "#f2f0ec", warm: "#f4f0e8", parchment: "#e8e4dc",
+  blush: "#e8e4de", lavMist: "#e0dcd4",
+  text: "#282830", textMid: "#504c58", textMuted: "#807888", textFaint: "#a8a0b0",
+  rose: "#c0a068",       // warm amber accent
   roseLight: "#d8c498", roseSoft: "#ccb480",
-  sky: "#8a9a78",        // sage (muted, not vivid)
-  skyLight: "#a8b498", skySoft: "#96a688",
-  sage: "#8a9a78", gold: "#c4a048", goldWarm: "#d8b460", lavender: "#a89480",
-  together: "#98a880", togetherSoft: "#b0be98", togetherLight: "#c8d4b0",
-  heart: "#b88850", heartSoft: "#c8a068",
+  sky: "#7090a8",        // slate blue
+  skyLight: "#90acc0", skySoft: "#80a0b8",
+  sage: "#7a9a70", gold: "#c4a048", goldWarm: "#d8b460", lavender: "#908098",
+  together: "#88a098", togetherSoft: "#a0b8b0", togetherLight: "#b8ccc4",
+  heart: "#b08040", heartSoft: "#c8a060",
   special: "#c8a040", specialSoft: "#d8b868",
-  card: "rgba(244,240,232,0.96)", glass: "rgba(240,236,228,0.92)",
-  warmMist: "#e0d8c8",
+  card: "rgba(242,238,232,0.96)", glass: "rgba(238,234,228,0.92)",
+  warmMist: "#dcd4c8",
 };
 
 export const MY_WORLD_TYPES = {
-  adventure:  { label: "Adventure",       icon: "\u26F0\uFE0F",  color: "sage",     who: "solo", symbol: "compass" },
-  "road-trip":{ label: "Road Trip",       icon: "\u{1F697}",     color: "gold",     who: "solo", symbol: "diamond" },
-  city:       { label: "City Break",      icon: "\u{1F3D9}\uFE0F",color: "sky",     who: "solo", symbol: "burst" },
-  beach:      { label: "Beach & Coast",   icon: "\u{1F3D6}\uFE0F",color: "skyLight",who: "solo", symbol: "compass" },
-  cruise:     { label: "Cruise & Sailing",icon: "\u26F5",         color: "skySoft",  who: "solo", symbol: "diamond" },
-  backpacking:{ label: "Backpacking",     icon: "\u{1F392}",     color: "together", who: "solo", symbol: "triangle-group" },
-  friends:    { label: "With Friends",    icon: "\u{1F46B}",     color: "together", who: "solo", symbol: "triangle-group" },
-  family:     { label: "With Family",     icon: "\u{1F46A}",     color: "heart",    who: "solo", symbol: "house" },
-  event:      { label: "Event & Festival",icon: "\u{1F3AA}",     color: "special",  who: "solo", symbol: "burst" },
-  nature:     { label: "Nature & Wildlife",icon: "\u{1F332}",    color: "sage",     who: "solo", symbol: "compass" },
-  work:       { label: "Work & Business", icon: "\u{1F4BC}",     color: "gold",     who: "solo", symbol: "briefcase" },
-  home:       { label: "Home Base",       icon: "\u{1F3E0}",     color: "rose",     who: "solo", symbol: "house" },
+  adventure:  { label: "Adventure",        icon: "\u26F0\uFE0F",  color: "sage",     who: "solo", symbol: "compass" },
+  "road-trip":{ label: "Road Trip",        icon: "\u{1F697}",     color: "gold",     who: "solo", symbol: "diamond" },
+  city:       { label: "City Break",       icon: "\u{1F3D9}\uFE0F",color: "sky",     who: "solo", symbol: "burst" },
+  beach:      { label: "Beach & Coast",    icon: "\u{1F3D6}\uFE0F",color: "skyLight",who: "solo", symbol: "compass" },
+  cruise:     { label: "Cruise & Sailing", icon: "\u26F5",         color: "skySoft",  who: "solo", symbol: "diamond" },
+  backpacking:{ label: "Backpacking",      icon: "\u{1F392}",     color: "together", who: "solo", symbol: "triangle-group" },
+  friends:    { label: "With Friends",     icon: "\u{1F46B}",     color: "together", who: "solo", symbol: "triangle-group" },
+  family:     { label: "With Family",      icon: "\u{1F46A}",     color: "heart",    who: "solo", symbol: "house" },
+  event:      { label: "Event & Festival", icon: "\u{1F3AA}",     color: "special",  who: "solo", symbol: "burst" },
+  nature:     { label: "Nature & Wildlife",icon: "\u{1F332}",     color: "sage",     who: "solo", symbol: "compass" },
+  work:       { label: "Work & Business",  icon: "\u{1F4BC}",     color: "gold",     who: "solo", symbol: "briefcase" },
+  home:       { label: "Home Base",        icon: "\u{1F3E0}",     color: "rose",     who: "solo", symbol: "house" },
 };
 
 export const MY_WORLD_DEFAULT_CONFIG = {
@@ -123,23 +123,23 @@ export const OUR_WORLD_SCENE = {
   coastColor: "#70b850",
 };
 
-// Warm earth — dark charcoal-brown space, sandstone globe, amber glow
+// Blue-tinged space, earthy/sandstone globe, green coasts
 export const MY_WORLD_SCENE = {
-  bg: "#120e0a",
-  fog: "#120e0a",
+  bg: "#0c0e16",
+  fog: "#0c0e16",
   sphereColor: "#c8b898",
-  sphereEmissive: "#2a1e10",
-  ambientColor: "#f0e8d8",
-  sunColor: "#f8e8d0",
-  fillColor: "#e0d4c0",
-  rimColor: "#c8a060",
-  bottomColor: "#a09070",
-  glowColors: ["#c8a870", "#d0b480", "#d8c090", "#e0c8a0", "#e4d0a8", "#e8d4b0", "#ecd8b8", "#f0dcc0"],
-  landColors: ["#a09878", "#988e70", "#a8a080", "#9c9478", "#948c68"],
-  particleColor: "#c8a868",
-  particleColor2: "#b09858",
-  starTint: "#e8d8b0",
-  coastColor: "#6a8850",
+  sphereEmissive: "#1c2030",
+  ambientColor: "#e8e4e0",
+  sunColor: "#f0e8d8",
+  fillColor: "#d8d4cc",
+  rimColor: "#90a8c8",
+  bottomColor: "#7890a8",
+  glowColors: ["#6880a8", "#7890b0", "#88a0b8", "#98acc0", "#a0b4c8", "#a8bcd0", "#b0c4d8", "#b8cce0"],
+  landColors: ["#b8a888", "#a89878", "#c0b098", "#b0a080", "#a89870"],
+  particleColor: "#90a0b8",
+  particleColor2: "#a8b0a0",
+  starTint: "#c8d0e0",
+  coastColor: "#5a9848",
 };
 
 // ============================================================
@@ -148,16 +148,16 @@ export const MY_WORLD_SCENE = {
 
 export function getSeasonalHue(dateStr, isMyWorld) {
   if (!dateStr) return isMyWorld
-    ? { glow: "#c8a868", particle: "#b09850" }
+    ? { glow: "#8098b8", particle: "#7088a8" }
     : { glow: "#f0c8e0", particle: "#f0a0c0" };
 
   const m = new Date(dateStr + "T12:00:00").getMonth();
 
   if (isMyWorld) {
-    if (m >= 4 && m <= 7)  return { glow: "#a8b070", particle: "#90a058" }; // summer: warm sage
-    if (m >= 8 && m <= 10) return { glow: "#c8a050", particle: "#b89040" }; // autumn: amber gold
-    if (m >= 11 || m <= 1) return { glow: "#988870", particle: "#887868" }; // winter: warm slate
-    return { glow: "#a0a868", particle: "#909858" };                        // spring: fresh sage
+    if (m >= 4 && m <= 7)  return { glow: "#88a890", particle: "#789880" }; // summer: sage-green warmth
+    if (m >= 8 && m <= 10) return { glow: "#c0a058", particle: "#b09048" }; // autumn: amber gold
+    if (m >= 11 || m <= 1) return { glow: "#7888a0", particle: "#687890" }; // winter: cool slate
+    return { glow: "#88a078", particle: "#789068" };                        // spring: fresh sage
   }
 
   if (m >= 4 && m <= 7)  return { glow: "#f0c8e0", particle: "#f0a0c0" };
