@@ -101,7 +101,7 @@ function makeSymbolTexture(type, color) {
     }
     ctx.fillStyle = "#fff8f0"; ctx.globalAlpha = 0.7;
     ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2); ctx.fill();
-  } else if (type === "seth-solo") {
+  } else if (type === "seth-solo" || type === "diamond") {
     // Diamond
     ctx.beginPath();
     ctx.moveTo(cx, cy - 16); ctx.lineTo(cx + 10, cy);
@@ -2643,7 +2643,7 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
 
             {(config.dreamDestinations || []).length === 0 && <div style={{ textAlign: "center", padding: "24px 0", color: P.textFaint, fontSize: 11 }}>{isMyWorld ? "No bucket list items yet" : "No dream destinations yet"}</div>}
 
-            {<DreamAddForm onAdd={dream => {
+            {<DreamAddForm isMyWorld={isMyWorld} onAdd={dream => {
               setConfig({ dreamDestinations: [...(config.dreamDestinations || []), { ...dream, id: `d${Date.now()}` }] });
               showToast(isMyWorld ? `${dream.city} added to bucket list 🗺` : `${dream.city} added to dreams ✦`, "✦", 2000);
             }} />}
@@ -2981,7 +2981,7 @@ function QuickAddForm({ types, onAdd, onClose }) {
   );
 }
 
-function DreamAddForm({ onAdd }) {
+function DreamAddForm({ onAdd, isMyWorld }) {
   const [f, sf] = useState({ city: "", country: "", lat: "", lng: "", notes: "" });
   const [sugg, setSugg] = useState([]);
   const [showSugg, setShowSugg] = useState(false);
@@ -2995,7 +2995,7 @@ function DreamAddForm({ onAdd }) {
   const ok = f.city && f.lat && f.lng;
   return (
     <div style={{ marginTop: 12, padding: 12, background: `${P.gold}06`, borderRadius: 10, border: `1px dashed ${P.goldWarm}30` }}>
-      <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 6 }}>Add a Dream</div>
+      <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 6 }}>{isMyWorld ? "Add to Bucket List" : "Add a Dream"}</div>
       <div style={{ position: "relative", marginBottom: 6 }}>
         <input placeholder="Start typing a city..." value={f.city} onChange={e => onInput(e.target.value)} onFocus={() => { if (sugg.length > 0) setShowSugg(true); }} style={{ ...inpSt, fontSize: 11 }} />
         {showSugg && sugg.length > 0 && (
@@ -3014,7 +3014,7 @@ function DreamAddForm({ onAdd }) {
       <input placeholder="Why this place?" value={f.notes} onChange={e => sf(p => ({ ...p, notes: e.target.value }))} style={{ ...inpSt, fontSize: 10, marginBottom: 6 }} />
       <button disabled={!ok} onClick={() => { onAdd({ city: f.city, country: f.country, lat: parseFloat(f.lat), lng: parseFloat(f.lng), notes: f.notes }); sf({ city: "", country: "", lat: "", lng: "", notes: "" }); }}
         style={{ width: "100%", padding: "7px", background: ok ? P.goldWarm : "#e8d8e4", color: "#fff", border: "none", borderRadius: 6, cursor: ok ? "pointer" : "default", fontSize: 10, fontFamily: "inherit" }}>
-        ✦ Add Dream
+        {isMyWorld ? "🗺 Add to List" : "✦ Add Dream"}
       </button>
     </div>
   );
