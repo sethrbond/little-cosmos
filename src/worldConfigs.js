@@ -40,7 +40,6 @@ export const OUR_WORLD_DEFAULT_CONFIG = {
   darkMode: false,
 };
 
-// Our World sub-field labels for detail card
 export const OUR_WORLD_FIELDS = {
   memories:    { label: "Memories",          icon: "\u{1F4AB}" },
   highlights:  { label: "Highlights",        icon: "\u2728" },
@@ -49,32 +48,40 @@ export const OUR_WORLD_FIELDS = {
 };
 
 // ============================================================
-//  MY WORLD — sage / amber / earth tones / natural
+//  MY WORLD — warm earth / leather / campfire / pine dusk
+//  NOT swamp green. Think: worn leather journal, sandstone,
+//  warm slate, amber firelight, deep forest at golden hour.
 // ============================================================
 
 export const MY_WORLD_PALETTE = {
-  cream: "#f5f2eb", warm: "#f8f4ec", parchment: "#ede8dd",
-  blush: "#f0ebe0", lavMist: "#e8e5d4",
-  text: "#2e2c22", textMid: "#5c5840", textMuted: "#8a8468", textFaint: "#b5af94",
-  rose: "#c4a46c",       // amber as primary accent
-  roseLight: "#dccca0", roseSoft: "#d0b888",
-  sky: "#7a9a6e",        // moss-sage as secondary
-  skyLight: "#a4c098", skySoft: "#8cb080",
-  sage: "#7a9a6e", gold: "#c4a048", goldWarm: "#d8b460", lavender: "#a89878",
-  together: "#8aaa6e", togetherSoft: "#a8c490", togetherLight: "#c8dab0",
-  heart: "#c09050", heartSoft: "#d0a868",
-  special: "#c8a848", specialSoft: "#d8c078",
-  card: "rgba(248,244,236,0.96)", glass: "rgba(244,240,232,0.92)",
-  warmMist: "#e8e0d0",
+  cream: "#f4f0e8", warm: "#f6f0e4", parchment: "#eae4d8",
+  blush: "#ede6da", lavMist: "#e4ddd0",
+  text: "#2c2822", textMid: "#5c5448", textMuted: "#8a7e6c", textFaint: "#b0a690",
+  rose: "#c4a068",       // warm amber
+  roseLight: "#d8c498", roseSoft: "#ccb480",
+  sky: "#8a9a78",        // sage (muted, not vivid)
+  skyLight: "#a8b498", skySoft: "#96a688",
+  sage: "#8a9a78", gold: "#c4a048", goldWarm: "#d8b460", lavender: "#a89480",
+  together: "#98a880", togetherSoft: "#b0be98", togetherLight: "#c8d4b0",
+  heart: "#b88850", heartSoft: "#c8a068",
+  special: "#c8a040", specialSoft: "#d8b868",
+  card: "rgba(244,240,232,0.96)", glass: "rgba(240,236,228,0.92)",
+  warmMist: "#e0d8c8",
 };
 
 export const MY_WORLD_TYPES = {
-  travel:   { label: "Travel",       icon: "\u2708\uFE0F", color: "sky",      who: "solo", symbol: "compass" },
-  solo:     { label: "Solo",         icon: "\u{1F9ED}",    color: "sage",     who: "solo", symbol: "diamond" },
-  friends:  { label: "With Friends", icon: "\u{1F46B}",    color: "together", who: "solo", symbol: "triangle-group" },
-  event:    { label: "Event",        icon: "\u{1F3AA}",    color: "special",  who: "solo", symbol: "burst" },
-  work:     { label: "Work",         icon: "\u{1F4BC}",    color: "gold",     who: "solo", symbol: "briefcase" },
-  home:     { label: "Home Base",    icon: "\u{1F3E0}",    color: "rose",     who: "solo", symbol: "house" },
+  adventure:  { label: "Adventure",       icon: "\u26F0\uFE0F",  color: "sage",     who: "solo", symbol: "compass" },
+  "road-trip":{ label: "Road Trip",       icon: "\u{1F697}",     color: "gold",     who: "solo", symbol: "diamond" },
+  city:       { label: "City Break",      icon: "\u{1F3D9}\uFE0F",color: "sky",     who: "solo", symbol: "burst" },
+  beach:      { label: "Beach & Coast",   icon: "\u{1F3D6}\uFE0F",color: "skyLight",who: "solo", symbol: "compass" },
+  cruise:     { label: "Cruise & Sailing",icon: "\u26F5",         color: "skySoft",  who: "solo", symbol: "diamond" },
+  backpacking:{ label: "Backpacking",     icon: "\u{1F392}",     color: "together", who: "solo", symbol: "triangle-group" },
+  friends:    { label: "With Friends",    icon: "\u{1F46B}",     color: "together", who: "solo", symbol: "triangle-group" },
+  family:     { label: "With Family",     icon: "\u{1F46A}",     color: "heart",    who: "solo", symbol: "house" },
+  event:      { label: "Event & Festival",icon: "\u{1F3AA}",     color: "special",  who: "solo", symbol: "burst" },
+  nature:     { label: "Nature & Wildlife",icon: "\u{1F332}",    color: "sage",     who: "solo", symbol: "compass" },
+  work:       { label: "Work & Business", icon: "\u{1F4BC}",     color: "gold",     who: "solo", symbol: "briefcase" },
+  home:       { label: "Home Base",       icon: "\u{1F3E0}",     color: "rose",     who: "solo", symbol: "house" },
 };
 
 export const MY_WORLD_DEFAULT_CONFIG = {
@@ -87,12 +94,11 @@ export const MY_WORLD_DEFAULT_CONFIG = {
   darkMode: false,
 };
 
-// My World sub-field labels for detail card
 export const MY_WORLD_FIELDS = {
   memories:    { label: "Adventures",        icon: "\u26F0\uFE0F" },
-  highlights:  { label: "Nature",            icon: "\u{1F33F}" },
+  highlights:  { label: "Nature & Outdoors", icon: "\u{1F33F}" },
   museums:     { label: "Culture",           icon: "\u{1F3DB}" },
-  restaurants: { label: "Food & Drink",      icon: "\u{1F37C}" },
+  restaurants: { label: "Food & Drink",      icon: "\u{1F37A}" },
 };
 
 // ============================================================
@@ -117,22 +123,23 @@ export const OUR_WORLD_SCENE = {
   coastColor: "#70b850",
 };
 
+// Warm earth — dark charcoal-brown space, sandstone globe, amber glow
 export const MY_WORLD_SCENE = {
-  bg: "#0c1a08",
-  fog: "#0c1a08",
-  sphereColor: "#c8d8b0",
-  sphereEmissive: "#1a3010",
-  ambientColor: "#f8f0e0",
+  bg: "#120e0a",
+  fog: "#120e0a",
+  sphereColor: "#c8b898",
+  sphereEmissive: "#2a1e10",
+  ambientColor: "#f0e8d8",
   sunColor: "#f8e8d0",
-  fillColor: "#d8e0c0",
-  rimColor: "#c0a868",
-  bottomColor: "#a8c090",
-  glowColors: ["#90b868", "#a0c478", "#b0d088", "#c0d898", "#c8e0a8", "#d0e4b0", "#d8e8b8", "#e0ecc0"],
-  landColors: ["#a0b878", "#90a868", "#b0c090", "#a8b480", "#98a870"],
-  particleColor: "#b0c070",
-  particleColor2: "#c8b060",
-  starTint: "#e0d8a0",
-  coastColor: "#6aaa48",
+  fillColor: "#e0d4c0",
+  rimColor: "#c8a060",
+  bottomColor: "#a09070",
+  glowColors: ["#c8a870", "#d0b480", "#d8c090", "#e0c8a0", "#e4d0a8", "#e8d4b0", "#ecd8b8", "#f0dcc0"],
+  landColors: ["#a09878", "#988e70", "#a8a080", "#9c9478", "#948c68"],
+  particleColor: "#c8a868",
+  particleColor2: "#b09858",
+  starTint: "#e8d8b0",
+  coastColor: "#6a8850",
 };
 
 // ============================================================
@@ -141,30 +148,27 @@ export const MY_WORLD_SCENE = {
 
 export function getSeasonalHue(dateStr, isMyWorld) {
   if (!dateStr) return isMyWorld
-    ? { glow: "#a0b868", particle: "#90a050" }
+    ? { glow: "#c8a868", particle: "#b09850" }
     : { glow: "#f0c8e0", particle: "#f0a0c0" };
 
   const m = new Date(dateStr + "T12:00:00").getMonth();
 
   if (isMyWorld) {
-    // Earth-tone seasons
-    if (m >= 4 && m <= 7)  return { glow: "#90c060", particle: "#80a848" }; // summer: lush green
-    if (m >= 8 && m <= 10) return { glow: "#c8a050", particle: "#b89040" }; // autumn: amber
-    if (m >= 11 || m <= 1) return { glow: "#88a878", particle: "#789868" }; // winter: muted sage
-    return { glow: "#a0c468", particle: "#90b458" };                        // spring: fresh green
+    if (m >= 4 && m <= 7)  return { glow: "#a8b070", particle: "#90a058" }; // summer: warm sage
+    if (m >= 8 && m <= 10) return { glow: "#c8a050", particle: "#b89040" }; // autumn: amber gold
+    if (m >= 11 || m <= 1) return { glow: "#988870", particle: "#887868" }; // winter: warm slate
+    return { glow: "#a0a868", particle: "#909858" };                        // spring: fresh sage
   }
 
-  // Our World: rose/lavender seasons (original)
-  if (m >= 4 && m <= 7)  return { glow: "#f0c8e0", particle: "#f0a0c0" }; // summer: warm rose
-  if (m >= 8 && m <= 0)  return { glow: "#d0c0f0", particle: "#c0a8e0" }; // winter: lavender frost
-  return { glow: "#f0d0e8", particle: "#e8b0d0" };                        // spring/fall: blush
+  if (m >= 4 && m <= 7)  return { glow: "#f0c8e0", particle: "#f0a0c0" };
+  if (m >= 8 && m <= 0)  return { glow: "#d0c0f0", particle: "#c0a8e0" };
+  return { glow: "#f0d0e8", particle: "#e8b0d0" };
 }
 
 // ============================================================
 //  HELPERS
 // ============================================================
 
-// Resolve type color keys to actual hex from palette
 export function resolveTypes(types, palette) {
   const resolved = {};
   for (const [k, v] of Object.entries(types)) {
