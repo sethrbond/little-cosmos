@@ -801,7 +801,7 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
   const isMyWorld = worldMode === "my";
   const P = isMyWorld ? MY_WORLD_PALETTE : OUR_WORLD_PALETTE;
   const TYPES = useMemo(() => resolveTypes(isMyWorld ? MY_WORLD_TYPES : OUR_WORLD_TYPES, P), [isMyWorld]);
-  const DEFAULT_TYPE = isMyWorld ? TYPES.travel : TYPES.together;
+  const DEFAULT_TYPE = isMyWorld ? TYPES.adventure : TYPES.together;
   const DEFAULT_CONFIG = isMyWorld ? MY_WORLD_DEFAULT_CONFIG : OUR_WORLD_DEFAULT_CONFIG;
   const FIELD_LABELS = isMyWorld ? MY_WORLD_FIELDS : OUR_WORLD_FIELDS;
   const SC = isMyWorld ? MY_WORLD_SCENE : OUR_WORLD_SCENE;
@@ -2463,7 +2463,7 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
       )}
 
       {/* ADD / EDIT / SETTINGS / LETTER overlays */}
-      {showAdd && <AddForm types={TYPES} defaultType={isMyWorld ? "travel" : "together"} defaultWho={isMyWorld ? "solo" : "both"} fieldLabels={FIELD_LABELS} isMyWorld={isMyWorld} onAdd={entry => { dispatch({ type: "ADD", entry }); setShowAdd(false); showToast(`${entry.city} added to your world`, "🌍", 2500); flyTo(entry.lat, entry.lng, 2.6); setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400); }} onClose={() => setShowAdd(false)} />}
+      {showAdd && <AddForm types={TYPES} defaultType={isMyWorld ? "adventure" : "together"} defaultWho={isMyWorld ? "solo" : "both"} fieldLabels={FIELD_LABELS} isMyWorld={isMyWorld} onAdd={entry => { dispatch({ type: "ADD", entry }); setShowAdd(false); showToast(`${entry.city} added to your world`, "🌍", 2500); flyTo(entry.lat, entry.lng, 2.6); setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400); }} onClose={() => setShowAdd(false)} />}
       {quickAddMode && <QuickAddForm types={TYPES} onAdd={entry => { dispatch({ type: "ADD", entry }); setQuickAddMode(false); showToast(`${entry.city} added to your world ⚡`, "⚡", 2500); flyTo(entry.lat, entry.lng, 2.6); setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400); }} onClose={() => setQuickAddMode(false)} />}
 
       {editing && <EditForm entry={editing} types={TYPES} fieldLabels={FIELD_LABELS} onChange={setEditing}
@@ -2628,7 +2628,7 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
                 </div>
                 {(<>
                   <button onClick={() => {
-                    const entry = { id: `e${Date.now()}`, city: dream.city, country: dream.country, lat: dream.lat, lng: dream.lng, dateStart: todayStr(), type: isMyWorld ? "travel" : "together", who: isMyWorld ? "solo" : "both", notes: dream.notes || "", memories: [], museums: [], restaurants: [], highlights: [], photos: [], stops: [] };
+                    const entry = { id: `e${Date.now()}`, city: dream.city, country: dream.country, lat: dream.lat, lng: dream.lng, dateStart: todayStr(), type: isMyWorld ? "adventure" : "together", who: isMyWorld ? "solo" : "both", notes: dream.notes || "", memories: [], museums: [], restaurants: [], highlights: [], photos: [], stops: [] };
                     dispatch({ type: "ADD", entry });
                     setConfig({ dreamDestinations: (config.dreamDestinations || []).filter(d => d.id !== dream.id) });
                     showToast(`${dream.city} is now real! ✨`, "🎉", 3000);
