@@ -1,12 +1,20 @@
 import { useState, useEffect, useRef, useCallback, useMemo, useReducer, Component } from "react";
 import * as THREE from "three";
-import { loadEntries, saveEntry, deleteEntry, loadConfig as loadCfg, saveConfig as saveCfg, uploadPhoto, deletePhoto, savePhotos, readPhotos } from "./supabase.js";
+import { loadEntries as loadOurEntries, saveEntry as saveOurEntry, deleteEntry as deleteOurEntry, loadConfig as loadOurCfg, saveConfig as saveOurCfg, uploadPhoto as uploadOurPhoto, deletePhoto as deleteOurPhoto, savePhotos as saveOurPhotos, readPhotos as readOurPhotos } from "./supabase.js";
+import { loadEntries as loadMyEntries, saveEntry as saveMyEntry, deleteEntry as deleteMyEntry, loadConfig as loadMyCfg, saveConfig as saveMyCfg, uploadPhoto as uploadMyPhoto, deletePhoto as deleteMyPhoto, savePhotos as saveMyPhotos, readPhotos as readMyPhotos } from "./supabaseMyWorld.js";
 import { geocodeSearch } from "./geocode.js";
+import {
+  OUR_WORLD_PALETTE, MY_WORLD_PALETTE,
+  OUR_WORLD_TYPES, MY_WORLD_TYPES,
+  OUR_WORLD_DEFAULT_CONFIG, MY_WORLD_DEFAULT_CONFIG,
+  OUR_WORLD_FIELDS, MY_WORLD_FIELDS,
+  OUR_WORLD_SCENE, MY_WORLD_SCENE,
+  getSeasonalHue, resolveTypes,
+} from "./worldConfigs.js";
 
 /* =================================================================
-   🌍 OUR WORLD — Seth & Rosie Posie
-   "every moment, every adventure"
-   v8.2.1 — direct photo save, breathing symbols, clean shapes
+   🌍 OUR WORLD / MY WORLD — Multi-World Globe Engine
+   v9.0 — dual world support, earth-tone My World palette
    ================================================================= */
 
 const DEFAULT_CONFIG = {
@@ -22,6 +30,7 @@ const DEFAULT_CONFIG = {
   darkMode: false,
 };
 
+// Module-level palette (Our World default; shadowed per-mode inside component)
 const P = {
   cream: "#faf8f4", warm: "#fef9f4", parchment: "#f5f1ea",
   blush: "#fdf2f4", lavMist: "#f3f0ff",
@@ -35,7 +44,8 @@ const P = {
   card: "rgba(253,251,247,0.96)", glass: "rgba(250,248,244,0.92)",
 };
 
-const TYPES = {
+// Module-level types fallback (overridden per-mode inside component)
+const TYPES_DEFAULT = {
   "home-seth": { label: "Seth's Home", icon: "🏡", color: P.sky, who: "seth" },
   "home-rosie": { label: "Rosie's Home", icon: "🌹", color: P.rose, who: "rosie" },
   "seth-solo": { label: "Seth Traveling", icon: "🧭", color: P.skySoft, who: "seth" },
@@ -125,6 +135,47 @@ function makeSymbolTexture(type, color) {
     }
     ctx.fillStyle = "#fff4e8"; ctx.globalAlpha = 0.6;
     ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI * 2); ctx.fill();
+  } else if (type === "compass") {
+    // Compass rose — 4-point star with center circle
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const a = (i * Math.PI) / 4 - Math.PI / 2;
+      const r = i % 2 === 0 ? 16 : 6;
+      ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+    }
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#fff8f0"; ctx.globalAlpha = 0.5;
+    ctx.beginPath(); ctx.arc(cx, cy, 3.5, 0, Math.PI * 2); ctx.fill();
+  } else if (type === "triangle-group") {
+    // Three overlapping triangles (friends)
+    const offsets = [[-5, 2], [5, 2], [0, -5]];
+    offsets.forEach(([ox, oy]) => {
+      ctx.beginPath();
+      ctx.moveTo(cx + ox, cy + oy - 10); ctx.lineTo(cx + ox + 7, cy + oy + 6); ctx.lineTo(cx + ox - 7, cy + oy + 6);
+      ctx.closePath(); ctx.fill();
+    });
+  } else if (type === "burst") {
+    // 6-point starburst (event)
+    ctx.beginPath();
+    for (let i = 0; i < 12; i++) {
+      const a = (i * Math.PI) / 6 - Math.PI / 2;
+      const r = i % 2 === 0 ? 16 : 8;
+      ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+    }
+    ctx.closePath(); ctx.fill();
+  } else if (type === "briefcase") {
+    // Briefcase (work)
+    ctx.fillRect(cx - 12, cy - 6, 24, 16);
+    ctx.fillStyle = "#fff8f0"; ctx.globalAlpha = 0.4;
+    ctx.fillRect(cx - 5, cy - 10, 10, 6);
+  } else if (type === "house") {
+    // House (reused for My World home)
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - 16); ctx.lineTo(cx + 14, cy - 2); ctx.lineTo(cx - 14, cy - 2);
+    ctx.closePath(); ctx.fill();
+    ctx.fillRect(cx - 10, cy - 2, 20, 15);
+    ctx.fillStyle = "#161028"; ctx.globalAlpha = 0.5;
+    ctx.fillRect(cx - 3, cy + 3, 6, 10);
   } else {
     ctx.beginPath(); ctx.arc(cx, cy, 10, 0, Math.PI * 2); ctx.fill();
   }
@@ -655,46 +706,46 @@ const COAST_DATA = [
 // ---- REDUCER (with Supabase persistence) ----
 function reducer(st, a) {
   let next = st;
+  // DB functions passed via a.db from dispatch calls
+  const _saveEntry = a.db?.saveEntry || saveOurEntry;
+  const _deleteEntry = a.db?.deleteEntry || deleteOurEntry;
+  const _deletePhoto = a.db?.deletePhoto || deleteOurPhoto;
+  const _savePhotos = a.db?.savePhotos || saveOurPhotos;
   switch (a.type) {
     case "LOAD": return { ...st, entries: a.entries };
     case "ADD":
       next = { ...st, entries: [...st.entries, a.entry] };
-      saveEntry(a.entry);
+      _saveEntry(a.entry);
       break;
     case "UPDATE":
       next = { ...st, entries: st.entries.map(e => e.id === a.id ? { ...e, ...a.data } : e) };
-      { const updated = next.entries.find(e => e.id === a.id); if (updated) saveEntry(updated); }
+      { const updated = next.entries.find(e => e.id === a.id); if (updated) _saveEntry(updated); }
       break;
     case "DELETE":
       { const doomed = st.entries.find(e => e.id === a.id);
-        if (doomed?.photos?.length) doomed.photos.forEach(url => deletePhoto(url));
+        if (doomed?.photos?.length) doomed.photos.forEach(url => _deletePhoto(url));
       }
       next = { ...st, entries: st.entries.filter(e => e.id !== a.id) };
-      deleteEntry(a.id);
+      _deleteEntry(a.id);
       break;
     case "ADD_PHOTOS":
-      // Pure state update only — save handled explicitly by upload handler
       next = { ...st, entries: st.entries.map(e => e.id === a.id ? { ...e, photos: [...(e.photos || []), ...a.urls] } : e) };
       break;
     case "REMOVE_PHOTO":
       { const photoUrl = (st.entries.find(e => e.id === a.id)?.photos || [])[a.photoIndex];
-        if (photoUrl) deletePhoto(photoUrl); }
+        if (photoUrl) _deletePhoto(photoUrl); }
       next = { ...st, entries: st.entries.map(e => e.id === a.id ? { ...e, photos: (e.photos || []).filter((_, i) => i !== a.photoIndex) } : e) };
-      // Save remaining photos directly to DB
       { const remaining = next.entries.find(e => e.id === a.id);
-        if (remaining) savePhotos(a.id, remaining.photos || []); }
+        if (remaining) _savePhotos(a.id, remaining.photos || []); }
       break;
     default: return st;
   }
   return next;
 }
 
-// ---- SEASONAL TINT ----
-function seasonalHue(dateStr) {
-  const m = new Date(dateStr + "T12:00:00").getMonth();
-  if (m >= 4 && m <= 8) return { glow: "#f5c8d8", particle: "#e8a0b8" }; // summer — warm rose
-  if (m >= 9 || m <= 1) return { glow: "#d8c8f0", particle: "#b0a0d8" }; // winter — lavender frost
-  return { glow: "#f0d0e0", particle: "#d0a8c8" }; // spring/fall — blush pink
+// ---- SEASONAL TINT (delegates to worldConfigs.js) ----
+function seasonalHue(dateStr, isMyWorld) {
+  return getSeasonalHue(dateStr, isMyWorld);
 }
 
 // ---- FIRST BADGES ----
@@ -745,8 +796,25 @@ class OurWorldErrorBoundary extends Component {
 // ================================================================
 // MAIN
 // ================================================================
-function OurWorldInner() {
-  const [data, dispatch] = useReducer(reducer, { entries: [] });
+function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
+  // ---- WORLD MODE CONFIG ----
+  const isMyWorld = worldMode === "my";
+  const P = isMyWorld ? MY_WORLD_PALETTE : OUR_WORLD_PALETTE;
+  const TYPES = useMemo(() => resolveTypes(isMyWorld ? MY_WORLD_TYPES : OUR_WORLD_TYPES, P), [isMyWorld]);
+  const DEFAULT_TYPE = isMyWorld ? TYPES.travel : TYPES.together;
+  const DEFAULT_CONFIG = isMyWorld ? MY_WORLD_DEFAULT_CONFIG : OUR_WORLD_DEFAULT_CONFIG;
+  const FIELD_LABELS = isMyWorld ? MY_WORLD_FIELDS : OUR_WORLD_FIELDS;
+  const SC = isMyWorld ? MY_WORLD_SCENE : OUR_WORLD_SCENE;
+
+  // DB functions selected by mode
+  const db = useMemo(() => isMyWorld
+    ? { loadEntries: loadMyEntries, saveEntry: saveMyEntry, deleteEntry: deleteMyEntry, loadConfig: loadMyCfg, saveConfig: saveMyCfg, uploadPhoto: uploadMyPhoto, deletePhoto: deleteMyPhoto, savePhotos: saveMyPhotos, readPhotos: readMyPhotos }
+    : { loadEntries: loadOurEntries, saveEntry: saveOurEntry, deleteEntry: deleteOurEntry, loadConfig: loadOurCfg, saveConfig: saveOurCfg, uploadPhoto: uploadOurPhoto, deletePhoto: deleteOurPhoto, savePhotos: saveOurPhotos, readPhotos: readOurPhotos }
+  , [isMyWorld]);
+
+  const [data, _dispatch] = useReducer(reducer, { entries: [] });
+  // Auto-inject db functions into every dispatch action
+  const dispatch = useCallback(action => _dispatch({ ...action, db }), [db]);
   const [config, setConfigState] = useState(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(true);
   const [sceneReady, setSceneReady] = useState(false);
@@ -754,12 +822,12 @@ function OurWorldInner() {
   useEffect(() => {
     (async () => {
       try {
-        const [entries, cfg] = await Promise.all([loadEntries(), loadCfg()]);
+        const [entries, cfg] = await Promise.all([db.loadEntries(), db.loadConfig()]);
         dispatch({ type: "LOAD", entries: entries || [] });
         if (cfg) {
           const merged = { ...DEFAULT_CONFIG, ...cfg };
-          // Migrate legacy single loveLetter to loveLetters array
-          if (merged.loveLetter && (!merged.loveLetters || merged.loveLetters.length === 0)) {
+          // Migrate legacy single loveLetter to loveLetters array (Our World only)
+          if (!isMyWorld && merged.loveLetter && (!merged.loveLetters || merged.loveLetters.length === 0)) {
             merged.loveLetters = [{ id: `ll-legacy`, text: merged.loveLetter, lat: 48.8566, lng: 2.3522, city: "Paris" }];
             merged.loveLetter = "";
           }
@@ -771,7 +839,7 @@ function OurWorldInner() {
       }
       setLoading(false);
     })();
-  }, []);
+  }, [db]);
 
   // Mobile detection
   const [isMobile, setIsMobile] = useState(window.innerWidth < 600);
@@ -784,10 +852,10 @@ function OurWorldInner() {
   const setConfig = useCallback(partial => {
     setConfigState(prev => {
       const next = { ...prev, ...partial };
-      saveCfg(next);
+      db.saveConfig(next);
       return next;
     });
-  }, []);
+  }, [db]);
 
   // THREE refs
   const mountRef = useRef(null);
@@ -913,7 +981,7 @@ function OurWorldInner() {
   }, [data.entries]);
   const togetherList = useMemo(() => sorted.filter(e => e.who === "both"), [sorted]);
   const firstBadges = useMemo(() => getFirstBadges(data.entries), [data.entries]);
-  const season = useMemo(() => seasonalHue(sliderDate), [sliderDate]);
+  const season = useMemo(() => seasonalHue(sliderDate, isMyWorld), [sliderDate, isMyWorld]);
 
   // Auto-hide zoom hint after 4 seconds
   useEffect(() => {
@@ -1017,7 +1085,7 @@ function OurWorldInner() {
     if (onThisDay.length > 0 && introComplete) {
       const mem = onThisDay[0];
       const label = mem.yearsAgo === 1 ? "1 year ago today" : `${mem.yearsAgo} years ago today`;
-      showToast(`${label}: ${mem.city} ${(TYPES[mem.type] || TYPES.together).icon}`, "💫", 5000);
+      showToast(`${label}: ${mem.city} ${(TYPES[mem.type] || DEFAULT_TYPE).icon}`, "💫", 5000);
     }
   }, [onThisDay, introComplete, showToast]);
 
@@ -1234,15 +1302,16 @@ function OurWorldInner() {
   }, []);
 
   const playStory = useCallback(() => {
-    if (togetherList.length === 0 || isPlaying) return;
+    const playList = isMyWorld ? sorted : togetherList;
+    if (playList.length === 0 || isPlaying) return;
     setIsPlaying(true);
     setSelected(null);
     setShowGallery(false);
     let idx = 0;
 
     const step = () => {
-      if (idx >= togetherList.length) { stopPlay(); return; }
-      const entry = togetherList[idx];
+      if (idx >= playList.length) { stopPlay(); return; }
+      const entry = playList[idx];
       setSliderDate(entry.dateStart);
 
       // Fly to
@@ -1349,7 +1418,7 @@ function OurWorldInner() {
           if (parsed.data?.entries) {
             dispatch({ type: "LOAD", entries: parsed.data.entries });
             // Save each entry to Supabase
-            parsed.data.entries.forEach(e => saveEntry(e));
+            parsed.data.entries.forEach(e => db.saveEntry(e));
           }
           if (parsed.config) { setConfig(parsed.config); }
         } catch (err) { console.error("Import failed:", err); }
@@ -1379,12 +1448,12 @@ function OurWorldInner() {
     const w = el.clientWidth, h = el.clientHeight;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color("#161028"); // warm deep plum
-    scene.fog = new THREE.FogExp2("#161028", 0.008); // very gentle — lets stars shine through
+    scene.background = new THREE.Color(SC.bg);
+    scene.fog = new THREE.FogExp2(SC.fog, 0.008);
     scnRef.current = scene;
 
     const cam = new THREE.PerspectiveCamera(45, w / h, 0.1, 100);
-    cam.position.z = 8; // start far for fly-in
+    cam.position.z = 8;
     camRef.current = cam;
 
     const rend = new THREE.WebGLRenderer({ antialias: true });
@@ -1392,37 +1461,30 @@ function OurWorldInner() {
     el.appendChild(rend.domElement);
     rendRef.current = rend;
 
-    scene.add(new THREE.AmbientLight("#fff0f8", 0.9)); // pink-warm ambient
-    const sun = new THREE.DirectionalLight("#fff4f0", 1.0);
+    scene.add(new THREE.AmbientLight(SC.ambientColor, 0.9));
+    const sun = new THREE.DirectionalLight(SC.sunColor, 1.0);
     sun.position.set(4, 3, 5); scene.add(sun);
-    const fill = new THREE.DirectionalLight("#f0d8f5", 0.5); // lavender fill
+    const fill = new THREE.DirectionalLight(SC.fillColor, 0.5);
     fill.position.set(-4, -2, -4); scene.add(fill);
-    const rim = new THREE.PointLight("#fce4ec", 0.6, 12); // rose rim
+    const rim = new THREE.PointLight(SC.rimColor, 0.6, 12);
     rim.position.set(0, 4, 2); scene.add(rim);
-    const bottomGlow = new THREE.PointLight("#d8b0e8", 0.3, 8); // lavender underglow
+    const bottomGlow = new THREE.PointLight(SC.bottomColor, 0.3, 8);
     bottomGlow.position.set(0, -3, 1); scene.add(bottomGlow);
 
     const globe = new THREE.Group();
     scene.add(globe);
     globeRef.current = globe;
 
-    // Main sphere — soft lavender-pink surface with deep purple inner glow
+    // Main sphere — themed per world mode
     globe.add(new THREE.Mesh(
       new THREE.SphereGeometry(RAD, 96, 96),
-      new THREE.MeshPhongMaterial({ color: "#e8d8f0", emissive: "#5a2878", emissiveIntensity: 0.08, shininess: 18, transparent: false })
+      new THREE.MeshPhongMaterial({ color: SC.sphereColor, emissive: SC.sphereEmissive, emissiveIntensity: 0.08, shininess: 18, transparent: false })
     ));
 
-    // Glow layers — 8-layer ethereal rose-lavender halo
-    const glows = [
-      { r: 1.015, color: "#d8a0f0", op: 0.30 },  // inner: bright lavender
-      { r: 1.035, color: "#e8a0d8", op: 0.24 },  // rose-lavender
-      { r: 1.06, color: "#f0b8d8", op: 0.18 },   // warm pink
-      { r: 1.09, color: "#e8c0e8", op: 0.14 },   // orchid
-      { r: 1.12, color: "#f0c0e8", op: 0.10 },   // soft pink-lavender
-      { r: 1.18, color: "#f4d0f0", op: 0.07 },   // outer pink mist
-      { r: 1.28, color: "#f8e0f8", op: 0.04 },   // faint blush
-      { r: 1.42, color: "#f8e8f8", op: 0.02 },   // outermost whisper
-    ].map(({ r, color, op }) => {
+    // Glow layers — 8-layer halo themed per world
+    const glowRadii = [1.015, 1.035, 1.06, 1.09, 1.12, 1.18, 1.28, 1.42];
+    const glowOpacities = [0.30, 0.24, 0.18, 0.14, 0.10, 0.07, 0.04, 0.02];
+    const glows = glowRadii.map((r, i) => ({ r, color: SC.glowColors[i] || SC.glowColors[0], op: glowOpacities[i] })).map(({ r, color, op }) => {
       const m = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: op, side: THREE.BackSide });
       const mesh = new THREE.Mesh(new THREE.SphereGeometry(RAD * r, 48, 48), m);
       globe.add(mesh);
@@ -1437,7 +1499,7 @@ function OurWorldInner() {
       const p = ll2v(lat, lng, RAD * 1.002);
       const sz = 0.002 + Math.random() * 0.003;
       const op = 0.18 + Math.random() * 0.25;
-      const colors = ["#e0b0d0", "#d8b0e0", "#e0c0d8", "#d0b8d8", "#e8c0e0"]; // rose, lavender, pink, mauve, blush
+      const colors = SC.landColors;
       const c = colors[Math.floor(Math.random() * colors.length)];
       const d = new THREE.Mesh(new THREE.CircleGeometry(sz, 5), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: op, side: THREE.DoubleSide }));
       d.position.copy(p); d.lookAt(p.clone().multiplyScalar(2)); globe.add(d);
@@ -1449,7 +1511,7 @@ function OurWorldInner() {
       const pts = ring.map(c => ll2v(c[0], c[1], RAD * 1.003));
       const geom = new THREE.BufferGeometry().setFromPoints(pts);
       const mat = new THREE.LineBasicMaterial({
-        color: "#70b850", // vivid earthy green — pops against rose/lavender globe
+        color: SC.coastColor,
         transparent: true,
         opacity: 0.55, // always clearly visible
         linewidth: 1,
@@ -1467,7 +1529,7 @@ function OurWorldInner() {
     const pP = new Float32Array(pN * 3);
     for (let i = 0; i < pN; i++) { pP[i * 3] = (Math.random() - 0.5) * 16; pP[i * 3 + 1] = (Math.random() - 0.5) * 16; pP[i * 3 + 2] = (Math.random() - 0.5) * 16; }
     pG.setAttribute("position", new THREE.BufferAttribute(pP, 3));
-    const pMat = new THREE.PointsMaterial({ color: "#f0a0c8", size: 0.010, transparent: true, opacity: 0.32 });
+    const pMat = new THREE.PointsMaterial({ color: SC.particleColor, size: 0.010, transparent: true, opacity: 0.32 });
     const particles = new THREE.Points(pG, pMat);
     scene.add(particles);
     particlesRef.current = particles;
@@ -1478,7 +1540,7 @@ function OurWorldInner() {
     const p2P = new Float32Array(p2N * 3);
     for (let i = 0; i < p2N; i++) { p2P[i * 3] = (Math.random() - 0.5) * 13; p2P[i * 3 + 1] = (Math.random() - 0.5) * 13; p2P[i * 3 + 2] = (Math.random() - 0.5) * 13; }
     p2G.setAttribute("position", new THREE.BufferAttribute(p2P, 3));
-    const p2Mat = new THREE.PointsMaterial({ color: "#d0a0f0", size: 0.007, transparent: true, opacity: 0.20 });
+    const p2Mat = new THREE.PointsMaterial({ color: SC.particleColor2, size: 0.007, transparent: true, opacity: 0.20 });
     const particles2 = new THREE.Points(p2G, p2Mat);
     scene.add(particles2);
 
@@ -1684,8 +1746,8 @@ function OurWorldInner() {
     glowLayersRef.current.forEach((mesh, i) => {
       mesh.material.color.set(i < 2 ? s.glow : P.cream);
     });
-    if (particlesRef.current) particlesRef.current.material.color.set(isAnniversary ? P.heart : s.particle);
-    if (isAnniversary && particlesRef.current) particlesRef.current.material.opacity = 0.35;
+    if (particlesRef.current) particlesRef.current.material.color.set(!isMyWorld && isAnniversary ? P.heart : s.particle);
+    if (!isMyWorld && isAnniversary && particlesRef.current) particlesRef.current.material.opacity = 0.35;
     else if (particlesRef.current) particlesRef.current.material.opacity = 0.18;
   }, [season, isAnniversary]);
 
@@ -1732,26 +1794,28 @@ function OurWorldInner() {
       mkRef.current.push(makeDot(g, loc.lat, loc.lng, color, size, entryId, false, icon));
     });
 
-    // ---- Seth position dot (from slider) ----
-    if (positions.seth && !areTogether) {
+    // ---- Seth position dot (from slider) ---- (Our World only)
+    if (!isMyWorld && positions.seth && !areTogether) {
       mkRef.current.push(makeDot(g, positions.seth.lat, positions.seth.lng, P.sky, 0.022, "seth-pos", false));
     }
-    // ---- Rosie position dot (from slider) ----
-    if (positions.rosie && !areTogether) {
+    // ---- Rosie position dot (from slider) ---- (Our World only)
+    if (!isMyWorld && positions.rosie && !areTogether) {
       mkRef.current.push(makeDot(g, positions.rosie.lat, positions.rosie.lng, P.rose, 0.022, "rosie-pos", false));
     }
 
-    // ---- Heart on together location ----
-    if (areTogether && positions.together) {
-      if (heartRef.current) {
-        const hp = ll2v(positions.together.lat, positions.together.lng, RAD * 1.05);
-        heartRef.current.position.copy(hp);
-        heartRef.current.visible = true;
-      }
+    // ---- Heart on together location ---- (Our World only)
+    if (!isMyWorld) {
+      if (areTogether && positions.together) {
+        if (heartRef.current) {
+          const hp = ll2v(positions.together.lat, positions.together.lng, RAD * 1.05);
+          heartRef.current.position.copy(hp);
+          heartRef.current.visible = true;
+        }
+      } else if (heartRef.current) { heartRef.current.visible = false; }
     } else if (heartRef.current) { heartRef.current.visible = false; }
 
-    // ---- Distance line when apart ----
-    if (positions.seth && positions.rosie && !areTogether) {
+    // ---- Distance line when apart ---- (Our World only)
+    if (!isMyWorld && positions.seth && positions.rosie && !areTogether) {
       const from = ll2v(positions.seth.lat, positions.seth.lng, RAD * 1.08);
       const to = ll2v(positions.rosie.lat, positions.rosie.lng, RAD * 1.08);
       const mid = from.clone().add(to).multiplyScalar(0.5);
@@ -1779,10 +1843,10 @@ function OurWorldInner() {
       }
     }
 
-    // ---- LOVE THREAD — golden arcs connecting all together entries ----
+    // ---- LOVE THREAD — golden arcs connecting all together entries ---- (Our World only)
     loveThreadRef.current.forEach(l => g.remove(l));
     loveThreadRef.current = [];
-    if (showLoveThread) {
+    if (!isMyWorld && showLoveThread) {
       loveThreadData.forEach(({ from, to }) => {
         const f = ll2v(from.lat, from.lng, RAD * 1.03);
         const t = ll2v(to.lat, to.lng, RAD * 1.03);
@@ -1805,7 +1869,7 @@ function OurWorldInner() {
         const f = ll2v(from.lat, from.lng, RAD * 1.035);
         const t = ll2v(to.lat, to.lng, RAD * 1.035);
         const geom = new THREE.BufferGeometry().setFromPoints([f, t]);
-        const mat = new THREE.LineBasicMaterial({ color: "#b8c8f0", transparent: true, opacity: 0.70, depthTest: false });
+        const mat = new THREE.LineBasicMaterial({ color: isMyWorld ? "#d4a87c" : "#b8c8f0", transparent: true, opacity: 0.70, depthTest: false });
         const line = new THREE.Line(geom, mat); line.renderOrder = 1;
         g.add(line);
         constellationRef.current.push(line);
@@ -1817,10 +1881,12 @@ function OurWorldInner() {
       mkRef.current.push(makeDot(g, dream.lat, dream.lng, P.goldWarm, 0.016, `dream-${dream.id}`, true, "dream"));
     });
 
-    // ---- LOVE LETTERS — hidden flower markers scattered on globe ----
-    (config.loveLetters || []).forEach(letter => {
-      mkRef.current.push(makeDot(g, letter.lat, letter.lng, "#e8a878", 0.018, `love-${letter.id}`, false, "love-letter"));
-    });
+    // ---- LOVE LETTERS — hidden flower markers scattered on globe ---- (Our World only)
+    if (!isMyWorld) {
+      (config.loveLetters || []).forEach(letter => {
+        mkRef.current.push(makeDot(g, letter.lat, letter.lng, "#e8a878", 0.018, `love-${letter.id}`, false, "love-letter"));
+      });
+    }
   }, [sliderDate, data, getPositions, areTogether, locationGroups, selected, sceneReady, showLoveThread, loveThreadData, showConstellation, constellationData, config.dreamDestinations, config.loveLetters]);
 
   function makeDot(group, lat, lng, color, size, id, faint = false, symbolType = null) {
@@ -1927,19 +1993,19 @@ function OurWorldInner() {
       const urls = [];
       for (const file of files) {
         try {
-          const url = await uploadPhoto(file, id);
+          const url = await db.uploadPhoto(file, id);
           if (url) urls.push(url);
         } catch (err) { /* skip failed uploads */ }
       }
       if (urls.length === 0) { setUploading(false); input.value = ""; return; }
 
       // Step 2: Read current photos from DB
-      const current = await readPhotos(id);
+      const current = await db.readPhotos(id);
       const existing = current.ok ? current.photos : [];
 
       // Step 3: Merge and save directly to DB
       const merged = [...existing, ...urls];
-      const saveResult = await savePhotos(id, merged);
+      const saveResult = await db.savePhotos(id, merged);
 
       // Step 4: Update local state
       dispatch({ type: "ADD_PHOTOS", id, urls });
@@ -1974,7 +2040,7 @@ function OurWorldInner() {
   const totalDays = Math.max(1, daysBetween(config.startDate, todayStr()));
   const sliderVal = daysBetween(config.startDate, sliderDate);
 
-  if (loading) return <div style={{ width: "100%", height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#161028", fontFamily: "Georgia,serif", color: P.textFaint }}>
+  if (loading) return <div style={{ width: "100%", height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: SC.bg, fontFamily: "Georgia,serif", color: P.textFaint }}>
     <div style={{ fontSize: 48, animation: "heartPulse 2s ease infinite", marginBottom: 16 }}>🌍</div>
     <div style={{ fontSize: 14, letterSpacing: ".2em", opacity: 0.7 }}>Loading your world<span style={{ animation: "ellipsis 1.5s infinite" }}>...</span></div>
     <div style={{ fontSize: 10, opacity: 0.6, marginTop: 12, letterSpacing: ".15em" }}>v8.2</div>
@@ -1992,7 +2058,7 @@ function OurWorldInner() {
       <div style={{ position: "absolute", top: 22, left: 0, right: 0, textAlign: "center", zIndex: 10, pointerEvents: "none", opacity: ready ? 1 : 0, transform: ready ? "none" : "translateY(-12px)", transition: "all 1.8s cubic-bezier(.23,1,.32,1)" }}>
         <h1 style={{ fontSize: 28, fontWeight: 400, margin: 0, letterSpacing: ".2em", textTransform: "uppercase" }}>{config.title}</h1>
         <p style={{ fontSize: 11, color: P.textMuted, marginTop: 3, letterSpacing: ".35em", fontStyle: "italic" }}>{config.subtitle}</p>
-        {isAnniversary && <div style={{ fontSize: 11, color: P.heart, marginTop: 6, letterSpacing: ".15em", animation: "heartPulse 2s ease infinite" }}>✨ Happy Anniversary ✨</div>}
+        {!isMyWorld && isAnniversary && <div style={{ fontSize: 11, color: P.heart, marginTop: 6, letterSpacing: ".15em", animation: "heartPulse 2s ease infinite" }}>✨ Happy Anniversary ✨</div>}
       </div>
 
       {/* ZOOM HINT — fades after 4 seconds */}
@@ -2006,19 +2072,22 @@ function OurWorldInner() {
 
       {/* RIGHT PANEL — distance + stats */}
       <div style={{ position: "absolute", top: isMobile ? 14 : 22, right: isMobile ? 12 : 22, zIndex: 10, textAlign: "right", opacity: introComplete ? .8 : 0, transition: "opacity 1s ease", maxWidth: isMobile ? 130 : 180 }}>
-        {dist !== null && (
+        {!isMyWorld && dist !== null && (
           <div style={{ marginBottom: 4 }}>
             {areTogether ? <div style={{ fontSize: 16, color: P.heart, animation: "heartPulse 1.5s ease infinite" }}>💕 Together</div>
               : <div style={{ fontSize: 13, color: P.textMid }}><span style={{ color: P.rose }}>♥</span> {dist.toLocaleString()} mi apart</div>}
           </div>
         )}
-        {nextTogether && !areTogether && (
+        {!isMyWorld && nextTogether && !areTogether && (
           <div style={{ fontSize: 10, color: P.goldWarm, letterSpacing: ".08em", marginBottom: 4, fontWeight: 500, textShadow: "0 1px 3px rgba(0,0,0,.15)" }}>
             {daysBetween(todayStr(), nextTogether.dateStart)} days until together 💛
           </div>
         )}
         {!isMobile && <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".08em", lineHeight: 1.6 }}>
-          {stats.daysTog} days together<br />{stats.trips} adventures · {stats.countries} countries<br />{stats.totalMiles.toLocaleString()} miles traveled
+          {isMyWorld
+            ? <>{data.entries.length} trips · {stats.countries} countries<br />{stats.totalMiles.toLocaleString()} miles explored</>
+            : <>{stats.daysTog} days together<br />{stats.trips} adventures · {stats.countries} countries<br />{stats.totalMiles.toLocaleString()} miles traveled</>
+          }
         </div>}
         {/* Entry type filter + scrollable entry list */}
         {data.entries.length > 0 && (
@@ -2084,11 +2153,12 @@ function OurWorldInner() {
         {allPhotos.length > 0 && <TBtn a={showGallery} onClick={() => setShowGallery(v => !v)} tip="Photo Gallery">📷</TBtn>}
         {data.entries.length > 0 && <TBtn a={showStats} onClick={() => setShowStats(v => !v)} tip="Stats & Insights">📊</TBtn>}
         {data.entries.length > 0 && <TBtn a={showSearch} onClick={() => setShowSearch(v => !v)} tip="Search Entries">🔍</TBtn>}
-        {togetherList.length > 1 && <TBtn a={showLoveThread} onClick={() => setShowLoveThread(v => !v)} tip="Love Thread">🧵</TBtn>}
+        {!isMyWorld && togetherList.length > 1 && <TBtn a={showLoveThread} onClick={() => setShowLoveThread(v => !v)} tip="Love Thread">🧵</TBtn>}
         {data.entries.length > 2 && <TBtn a={showConstellation} onClick={() => setShowConstellation(v => !v)} tip="Constellation">⭐</TBtn>}
-        {<TBtn a={showDreams} onClick={() => setShowDreams(v => !v)} tip="Dream Destinations">✦</TBtn>}
-        {togetherList.length > 0 && !isPlaying && <TBtn onClick={playStory} tip="Play Our Story">▶</TBtn>}
+        {<TBtn a={showDreams} onClick={() => setShowDreams(v => !v)} tip={isMyWorld ? "Bucket List" : "Dream Destinations"}>{isMyWorld ? "🗺" : "✦"}</TBtn>}
+        {(isMyWorld ? data.entries.length > 0 : togetherList.length > 0) && !isPlaying && <TBtn onClick={playStory} tip={isMyWorld ? "Play My Story" : "Play Our Story"}>▶</TBtn>}
         {isPlaying && <TBtn onClick={stopPlay} a tip="Stop Playback">⏹</TBtn>}
+        {onSwitchWorld && <TBtn onClick={onSwitchWorld} tip="Switch World">🔄</TBtn>}
       </div>
 
       {/* SEARCH PANEL */}
@@ -2103,7 +2173,7 @@ function OurWorldInner() {
                 <div style={{ padding: "14px 16px", fontSize: 10, color: P.textFaint, textAlign: "center" }}>No entries found</div>
               )}
               {searchResults.map(e => {
-                const t = TYPES[e.type] || TYPES.together;
+                const t = TYPES[e.type] || DEFAULT_TYPE;
                 return (
                   <button key={e.id} onClick={() => {
                     setSelected(e); setPhotoIdx(0); setCardTab("overview"); setShowSearch(false); setSearchQuery("");
@@ -2126,8 +2196,8 @@ function OurWorldInner() {
         </div>
       )}
 
-      {/* LOVE LETTER TRIGGERS — small ❀ markers in bottom-right */}
-      {(config.loveLetters || []).length > 0 && (
+      {/* LOVE LETTER TRIGGERS — small ❀ markers in bottom-right (Our World only) */}
+      {!isMyWorld && (config.loveLetters || []).length > 0 && (
         <div style={{ position: "absolute", bottom: 118, right: 22, zIndex: 12, display: "flex", flexDirection: "column", gap: 4 }}>
           {(config.loveLetters || []).map((lt, i) => (
             <button key={lt.id} onClick={() => setShowLetter(lt.id)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, opacity: 0.22, transition: "opacity .5s", padding: 2 }}
@@ -2136,23 +2206,26 @@ function OurWorldInner() {
           ))}
         </div>
       )}
-      {(
+      {!isMyWorld && (
         <button onClick={() => { setEditLetter(true); setLetterDraft(""); setLetterEditId(null); setLetterCity(""); setLetterLat(""); setLetterLng(""); }} style={{ position: "absolute", bottom: 118, right: 22, zIndex: 12, background: P.glass, border: `1px dashed ${P.rose}40`, borderRadius: 7, cursor: "pointer", fontSize: 9, color: P.textMuted, padding: "3px 9px", fontFamily: "inherit" }}>+ Love Letter</button>
       )}
 
       {/* SLIDER */}
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 105, background: P.glass, backdropFilter: "blur(16px)", borderTop: `1px solid ${P.rose}10`, zIndex: 15, display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 22px" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 6 }}>
-          <button onClick={() => jumpNext(-1)} disabled={isAnimating} style={navSt} title="Previous together">💕◂</button>
+          {!isMyWorld && <button onClick={() => jumpNext(-1)} disabled={isAnimating} style={navSt} title="Previous together">💕◂</button>}
           <button onClick={() => stepDay(-1)} disabled={isAnimating} style={navSt}>◂</button>
           <div style={{ minWidth: 150, textAlign: "center" }}>
             <div style={{ fontSize: 15, color: P.text, fontWeight: 400 }}>{fmtDate(sliderDate)}</div>
-            <div style={{ fontSize: 9, color: areTogether ? P.heart : P.textFaint, letterSpacing: ".1em", marginTop: 1 }}>
-              {areTogether ? `✨ ${pos.together?.city || "Together"} ✨` : pos.seth && pos.rosie ? `${pos.seth.entry?.city || "?"} ↔ ${pos.rosie.entry?.city || "?"}` : "Add entries to begin"}
+            <div style={{ fontSize: 9, color: isMyWorld ? P.textMid : (areTogether ? P.heart : P.textFaint), letterSpacing: ".1em", marginTop: 1 }}>
+              {isMyWorld
+                ? (pos.seth?.entry?.city ? `📍 ${pos.seth.entry.city}` : "Add entries to begin")
+                : (areTogether ? `✨ ${pos.together?.city || "Together"} ✨` : pos.seth && pos.rosie ? `${pos.seth.entry?.city || "?"} ↔ ${pos.rosie.entry?.city || "?"}` : "Add entries to begin")
+              }
             </div>
           </div>
           <button onClick={() => stepDay(1)} disabled={isAnimating} style={navSt}>▸</button>
-          <button onClick={() => jumpNext(1)} disabled={isAnimating} style={navSt} title="Next together">▸💕</button>
+          {!isMyWorld && <button onClick={() => jumpNext(1)} disabled={isAnimating} style={navSt} title="Next together">▸💕</button>}
         </div>
         <div style={{ position: "relative", width: "100%", height: 24, display: "flex", alignItems: "center" }}>
           <input type="range" min={0} max={totalDays} value={clamp(sliderVal, 0, totalDays)}
@@ -2162,8 +2235,9 @@ function OurWorldInner() {
             const d = daysBetween(config.startDate, e.dateStart);
             const pct = totalDays > 0 ? (d / totalDays) * 100 : 0;
             if (pct < 0 || pct > 100) return null;
-            const typeColor = (TYPES[e.type] || TYPES.together).color;
-            return <div key={e.id} style={{ position: "absolute", left: `${pct}%`, top: 5, width: e.who === "both" ? 5 : 3, height: e.who === "both" ? 5 : 3, borderRadius: "50%", background: typeColor, transform: "translateX(-50%)", pointerEvents: "none", boxShadow: `0 0 4px ${typeColor}40`, opacity: e.who === "both" ? 1 : 0.6 }} />;
+            const typeColor = (TYPES[e.type] || DEFAULT_TYPE).color;
+            const isBig = isMyWorld ? true : e.who === "both";
+            return <div key={e.id} style={{ position: "absolute", left: `${pct}%`, top: 5, width: isBig ? 5 : 3, height: isBig ? 5 : 3, borderRadius: "50%", background: typeColor, transform: "translateX(-50%)", pointerEvents: "none", boxShadow: `0 0 4px ${typeColor}40`, opacity: isBig ? 1 : 0.6 }} />;
           })}
           {milestones.map(m => (
             <div key={m.days} style={{ position: "absolute", left: `${m.pct}%`, top: 2, transform: "translateX(-50%)", pointerEvents: "none", display: "flex", flexDirection: "column", alignItems: "center" }}>
@@ -2201,7 +2275,7 @@ function OurWorldInner() {
           </div>
           <div style={{ padding: "0 14px 14px", maxHeight: 280, overflowY: "auto" }}>
             {locationList.entries.sort((a, b) => a.dateStart.localeCompare(b.dateStart)).map(e => {
-              const t = TYPES[e.type] || TYPES.together;
+              const t = TYPES[e.type] || DEFAULT_TYPE;
               return (
                 <button key={e.id} onClick={() => {
                   setSelected(e); setPhotoIdx(0); setCardTab("overview"); setLocationList(null); setCardGallery(false);
@@ -2272,11 +2346,11 @@ function OurWorldInner() {
               setUploading(true);
               const cid = cur.id;
               const urls = [];
-              for (const file of files) { const url = await uploadPhoto(file, cid); if (url) urls.push(url); }
+              for (const file of files) { const url = await db.uploadPhoto(file, cid); if (url) urls.push(url); }
               if (urls.length > 0) {
-                const current = await readPhotos(cid);
+                const current = await db.readPhotos(cid);
                 const merged = [...(current.ok ? current.photos : []), ...urls];
-                const result = await savePhotos(cid, merged);
+                const result = await db.savePhotos(cid, merged);
                 dispatch({ type: "ADD_PHOTOS", id: cid, urls });
                 if (result.ok) showToast(`📷 ${urls.length} photo${urls.length > 1 ? "s" : ""} saved (${merged.length} total)`, "✅", 3000);
                 else showToast(`❌ Photo save failed: ${result.error}`, "⚠️", 8000);
@@ -2297,10 +2371,10 @@ function OurWorldInner() {
             </div>
 
             {firstBadges[cur.id] && <div style={{ fontSize: 8, color: P.gold, letterSpacing: ".12em", marginBottom: 4 }}>🏅 {firstBadges[cur.id]}</div>}
-            {togetherIndex(cur.id) && <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".1em", marginBottom: 4 }}>Trip #{togetherIndex(cur.id)}</div>}
+            {!isMyWorld && togetherIndex(cur.id) && <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".1em", marginBottom: 4 }}>Trip #{togetherIndex(cur.id)}</div>}
 
-            <div style={{ display: "inline-block", padding: "2px 7px", borderRadius: 14, fontSize: 7, letterSpacing: ".08em", color: (TYPES[cur.type] || TYPES.together).color, border: `1px solid ${(TYPES[cur.type] || TYPES.together).color}28`, marginBottom: 5 }}>
-              {(TYPES[cur.type] || TYPES.together).icon} {(TYPES[cur.type] || TYPES.together).label}
+            <div style={{ display: "inline-block", padding: "2px 7px", borderRadius: 14, fontSize: 7, letterSpacing: ".08em", color: (TYPES[cur.type] || DEFAULT_TYPE).color, border: `1px solid ${(TYPES[cur.type] || DEFAULT_TYPE).color}28`, marginBottom: 5 }}>
+              {(TYPES[cur.type] || DEFAULT_TYPE).icon} {(TYPES[cur.type] || DEFAULT_TYPE).label}
             </div>
 
             <h2 style={{ margin: 0, fontSize: 19, fontWeight: 400, lineHeight: 1.2 }}>{cur.city}</h2>
@@ -2311,8 +2385,8 @@ function OurWorldInner() {
             <div style={{ display: "flex", gap: 0, marginTop: 10, borderBottom: `1px solid ${P.rose}12` }}>
               {[
                 { key: "overview", label: "Overview" },
-                { key: "memories", label: "Memories" },
-                { key: "places", label: "Places" },
+                { key: "memories", label: isMyWorld ? "Highlights" : "Memories" },
+                { key: "places", label: isMyWorld ? "Details" : "Places" },
                 ...(cur.photos?.length > 0 ? [{ key: "photos", label: `📷 ${cur.photos.length}` }] : []),
               ].map(tab => (
                 <button key={tab.key} onClick={() => setCardTab(tab.key)}
@@ -2327,28 +2401,28 @@ function OurWorldInner() {
               {cardTab === "overview" && (<>
                 {cur.notes && <p style={{ fontSize: 12, lineHeight: 1.6, margin: "0 0 8px", opacity: .85 }}>{cur.notes}</p>}
                 {(cur.stops || []).length > 0 && (<div style={{ marginTop: 8 }}><div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".16em", textTransform: "uppercase", marginBottom: 4 }}>Trip Route</div>{cur.stops.map(s => <div key={s.sid} style={{ padding: "5px 8px", background: `${P.rose}08`, borderRadius: 6, marginBottom: 4, borderLeft: `2px solid ${P.rose}30` }}><div style={{ fontSize: 11, fontWeight: 500 }}>{s.city}</div>{s.dateStart && <div style={{ fontSize: 9, color: P.textFaint }}>{fmtDate(s.dateStart)}{s.dateEnd ? ` → ${fmtDate(s.dateEnd)}` : ""}</div>}{s.notes && <p style={{ fontSize: 10, color: P.textMid, margin: "2px 0 0" }}>{s.notes}</p>}</div>)}</div>)}
-                {cur.musicUrl && <div style={{ marginTop: 8, padding: "6px 8px", background: `${P.lavender}0a`, borderRadius: 6 }}><div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 3 }}>Our Song</div><audio controls src={cur.musicUrl} style={{ width: "100%", height: 26 }} /></div>}
-                {/* Love Note */}
-                <div style={{ marginTop: 10, padding: "10px 12px", background: `${P.heart}06`, borderRadius: 8, borderLeft: `2px solid ${P.heart}20` }}>
+                {cur.musicUrl && <div style={{ marginTop: 8, padding: "6px 8px", background: `${P.lavender}0a`, borderRadius: 6 }}><div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 3 }}>{isMyWorld ? "Music" : "Our Song"}</div><audio controls src={cur.musicUrl} style={{ width: "100%", height: 26 }} /></div>}
+                {/* Love Note — Our World only */}
+                {!isMyWorld && <div style={{ marginTop: 10, padding: "10px 12px", background: `${P.heart}06`, borderRadius: 8, borderLeft: `2px solid ${P.heart}20` }}>
                   <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 4 }}>💌 Love Note</div>
                   {cur.loveNote ? <p style={{ fontSize: 11, lineHeight: 1.6, color: P.textMid, margin: 0, fontStyle: "italic" }}>{cur.loveNote}</p>
                   : true ? <input placeholder="Write a note about this memory..." onBlur={e => { if (e.target.value.trim()) dispatch({ type: "UPDATE", id: cur.id, data: { loveNote: e.target.value.trim() } }); }}
                       style={{ width: "100%", border: "none", background: "none", fontSize: 10, fontFamily: "inherit", color: P.textMid, fontStyle: "italic", outline: "none", padding: 0 }} />
                   : <div style={{ fontSize: 9, color: P.textFaint, fontStyle: "italic" }}>No note yet</div>}
                   {cur.loveNote && <button onClick={() => dispatch({ type: "UPDATE", id: cur.id, data: { loveNote: "" } })} style={{ marginTop: 4, background: "none", border: "none", fontSize: 8, color: P.textFaint, cursor: "pointer", padding: 0 }}>Clear</button>}
-                </div>
+                </div>}
               </>)}
 
               {cardTab === "memories" && (<>
-                {renderList("Memories", cur.memories, "♥", P.rose)}
-                {renderList("Highlights", cur.highlights, "⭐", P.gold)}
-                {!(cur.memories?.length) && !(cur.highlights?.length) && <div style={{ fontSize: 10, color: P.textFaint, textAlign: "center", padding: 20 }}>No memories added yet</div>}
+                {renderList(FIELD_LABELS.memories.label, cur.memories, FIELD_LABELS.memories.icon, P.rose)}
+                {renderList(FIELD_LABELS.highlights.label, cur.highlights, FIELD_LABELS.highlights.icon, P.gold)}
+                {!(cur.memories?.length) && !(cur.highlights?.length) && <div style={{ fontSize: 10, color: P.textFaint, textAlign: "center", padding: 20 }}>{isMyWorld ? "No highlights added yet" : "No memories added yet"}</div>}
               </>)}
 
               {cardTab === "places" && (<>
-                {renderList("Museums & Culture", cur.museums, "🏛", P.sky)}
-                {renderList("Restaurants & Food", cur.restaurants, "🍽", P.roseSoft)}
-                {!(cur.museums?.length) && !(cur.restaurants?.length) && <div style={{ fontSize: 10, color: P.textFaint, textAlign: "center", padding: 20 }}>No places added yet</div>}
+                {renderList(FIELD_LABELS.museums.label, cur.museums, FIELD_LABELS.museums.icon, P.sky)}
+                {renderList(FIELD_LABELS.restaurants.label, cur.restaurants, FIELD_LABELS.restaurants.icon, P.roseSoft)}
+                {!(cur.museums?.length) && !(cur.restaurants?.length) && <div style={{ fontSize: 10, color: P.textFaint, textAlign: "center", padding: 20 }}>{isMyWorld ? "No details added yet" : "No places added yet"}</div>}
               </>)}
 
               {cardTab === "photos" && (<>
@@ -2389,10 +2463,10 @@ function OurWorldInner() {
       )}
 
       {/* ADD / EDIT / SETTINGS / LETTER overlays */}
-      {showAdd && <AddForm types={TYPES} onAdd={entry => { dispatch({ type: "ADD", entry }); setShowAdd(false); showToast(`${entry.city} added to your world`, "🌍", 2500); flyTo(entry.lat, entry.lng, 2.6); setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400); }} onClose={() => setShowAdd(false)} />}
+      {showAdd && <AddForm types={TYPES} defaultType={isMyWorld ? "travel" : "together"} defaultWho={isMyWorld ? "solo" : "both"} fieldLabels={FIELD_LABELS} isMyWorld={isMyWorld} onAdd={entry => { dispatch({ type: "ADD", entry }); setShowAdd(false); showToast(`${entry.city} added to your world`, "🌍", 2500); flyTo(entry.lat, entry.lng, 2.6); setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400); }} onClose={() => setShowAdd(false)} />}
       {quickAddMode && <QuickAddForm types={TYPES} onAdd={entry => { dispatch({ type: "ADD", entry }); setQuickAddMode(false); showToast(`${entry.city} added to your world ⚡`, "⚡", 2500); flyTo(entry.lat, entry.lng, 2.6); setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400); }} onClose={() => setQuickAddMode(false)} />}
 
-      {editing && <EditForm entry={editing} types={TYPES} onChange={setEditing}
+      {editing && <EditForm entry={editing} types={TYPES} fieldLabels={FIELD_LABELS} onChange={setEditing}
         onSave={() => { dispatch({ type: "UPDATE", id: editing.id, data: editing }); setSelected(editing); setCardTab("overview"); setEditing(null); showToast("Entry saved", "✓", 2000); }}
         onClose={() => setEditing(null)}
         onDelete={() => setConfirmDelete(editing.id)}
@@ -2420,7 +2494,7 @@ function OurWorldInner() {
         </div>
       )}
 
-      {showLetter && (() => {
+      {!isMyWorld && showLetter && (() => {
         const letter = (config.loveLetters || []).find(l => l.id === showLetter);
         if (!letter) return null;
         return (
@@ -2438,7 +2512,7 @@ function OurWorldInner() {
         </div>);
       })()}
 
-      {editLetter && (
+      {!isMyWorld && editLetter && (
         <div style={{ position: "absolute", inset: 0, zIndex: 55, background: "rgba(253,251,247,.95)", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ width: 420, padding: 28, background: P.card, borderRadius: 16, boxShadow: "0 14px 48px rgba(61,53,82,.1)" }}>
             <h3 style={{ margin: "0 0 10px", fontSize: 16, fontWeight: 400 }}>💌 {letterEditId ? "Edit" : "New"} Love Letter</h3>
@@ -2540,10 +2614,10 @@ function OurWorldInner() {
         <div style={{ position: "absolute", inset: 0, zIndex: 45, background: "rgba(22,16,40,.88)", backdropFilter: "blur(20px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .4s ease" }}>
           <div style={{ width: 420, maxWidth: "92vw", maxHeight: "85vh", overflowY: "auto", padding: 28, background: P.card, borderRadius: 18, boxShadow: "0 24px 64px rgba(0,0,0,.2)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 400, letterSpacing: ".08em" }}>✦ Dream Destinations</h2>
+              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 400, letterSpacing: ".08em" }}>{isMyWorld ? "🗺 Bucket List" : "✦ Dream Destinations"}</h2>
               <button onClick={() => setShowDreams(false)} style={{ background: "none", border: "none", fontSize: 18, color: P.textFaint, cursor: "pointer" }}>×</button>
             </div>
-            <p style={{ fontSize: 10, color: P.textFaint, marginBottom: 14, fontStyle: "italic" }}>Places you dream of visiting together. They appear as golden ghost markers on the globe.</p>
+            <p style={{ fontSize: 10, color: P.textFaint, marginBottom: 14, fontStyle: "italic" }}>{isMyWorld ? "Places on your bucket list. They appear as golden ghost markers on the globe." : "Places you dream of visiting together. They appear as golden ghost markers on the globe."}</p>
 
             {(config.dreamDestinations || []).map((dream, i) => (
               <div key={dream.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: `${P.gold}08`, borderRadius: 8, marginBottom: 6, borderLeft: `3px solid ${P.goldWarm}40` }}>
@@ -2554,7 +2628,7 @@ function OurWorldInner() {
                 </div>
                 {(<>
                   <button onClick={() => {
-                    const entry = { id: `e${Date.now()}`, city: dream.city, country: dream.country, lat: dream.lat, lng: dream.lng, dateStart: todayStr(), type: "together", who: "both", notes: dream.notes || "", memories: [], museums: [], restaurants: [], highlights: [], photos: [], stops: [] };
+                    const entry = { id: `e${Date.now()}`, city: dream.city, country: dream.country, lat: dream.lat, lng: dream.lng, dateStart: todayStr(), type: isMyWorld ? "travel" : "together", who: isMyWorld ? "solo" : "both", notes: dream.notes || "", memories: [], museums: [], restaurants: [], highlights: [], photos: [], stops: [] };
                     dispatch({ type: "ADD", entry });
                     setConfig({ dreamDestinations: (config.dreamDestinations || []).filter(d => d.id !== dream.id) });
                     showToast(`${dream.city} is now real! ✨`, "🎉", 3000);
@@ -2567,11 +2641,11 @@ function OurWorldInner() {
               </div>
             ))}
 
-            {(config.dreamDestinations || []).length === 0 && <div style={{ textAlign: "center", padding: "24px 0", color: P.textFaint, fontSize: 11 }}>No dream destinations yet</div>}
+            {(config.dreamDestinations || []).length === 0 && <div style={{ textAlign: "center", padding: "24px 0", color: P.textFaint, fontSize: 11 }}>{isMyWorld ? "No bucket list items yet" : "No dream destinations yet"}</div>}
 
             {<DreamAddForm onAdd={dream => {
               setConfig({ dreamDestinations: [...(config.dreamDestinations || []), { ...dream, id: `d${Date.now()}` }] });
-              showToast(`${dream.city} added to dreams ✦`, "✦", 2000);
+              showToast(isMyWorld ? `${dream.city} added to bucket list 🗺` : `${dream.city} added to dreams ✦`, "✦", 2000);
             }} />}
           </div>
         </div>
@@ -2581,15 +2655,20 @@ function OurWorldInner() {
         <div style={{ position: "absolute", inset: 0, zIndex: 45, background: "rgba(22,16,40,.88)", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ width: 360, padding: 26, background: P.card, borderRadius: 16, boxShadow: "0 14px 48px rgba(61,53,82,.1)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 14 }}><h3 style={{ margin: 0, fontSize: 15, fontWeight: 400 }}>Settings</h3><button onClick={() => setShowSettings(false)} style={{ background: "none", border: "none", fontSize: 17, color: P.textFaint, cursor: "pointer" }}>×</button></div>
-            <Fld l="Date You Met" v={config.startDate} t="date" set={v => setConfig({ startDate: v })} />
+            <Fld l={isMyWorld ? "First Trip Date" : "Date You Met"} v={config.startDate} t="date" set={v => setConfig({ startDate: v })} />
             <Fld l="Title" v={config.title} set={v => setConfig({ title: v })} />
             <Fld l="Subtitle" v={config.subtitle} set={v => setConfig({ subtitle: v })} />
-            <Fld l="Your Name" v={config.youName} set={v => setConfig({ youName: v })} />
-            <Fld l="Partner Name" v={config.partnerName} set={v => setConfig({ partnerName: v })} />
+            {isMyWorld
+              ? <Fld l="Traveler Name" v={config.travelerName || ''} set={v => setConfig({ travelerName: v })} />
+              : <>
+                  <Fld l="Your Name" v={config.youName} set={v => setConfig({ youName: v })} />
+                  <Fld l="Partner Name" v={config.partnerName} set={v => setConfig({ partnerName: v })} />
+                </>
+            }
 
             <div style={{ margin: "10px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
             <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 6 }}>Timeline Chapters</div>
-            <p style={{ fontSize: 8, color: P.textFaint, fontStyle: "italic", marginBottom: 8 }}>Name the eras of your relationship</p>
+            <p style={{ fontSize: 8, color: P.textFaint, fontStyle: "italic", marginBottom: 8 }}>{isMyWorld ? "Name the eras of your travels" : "Name the eras of your relationship"}</p>
             {(config.chapters || []).map((ch, i) => (
               <div key={i} style={{ display: "flex", gap: 4, alignItems: "center", marginBottom: 4 }}>
                 <input value={ch.label} onChange={e => { const chs = [...(config.chapters || [])]; chs[i] = { ...chs[i], label: e.target.value }; setConfig({ chapters: chs }); }} style={{ ...inpSt, flex: 1, fontSize: 10 }} placeholder="Chapter name" />
@@ -2626,18 +2705,18 @@ function OurWorldInner() {
         <div style={{ position: "absolute", inset: 0, zIndex: 45, background: "rgba(22,16,40,.88)", backdropFilter: "blur(20px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .4s ease" }}>
           <div style={{ width: 420, maxWidth: "92vw", maxHeight: "85vh", overflowY: "auto", padding: 28, background: P.card, borderRadius: 18, boxShadow: "0 24px 64px rgba(0,0,0,.2)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 400, letterSpacing: ".08em" }}>📊 Our Story in Numbers</h2>
+              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 400, letterSpacing: ".08em" }}>{isMyWorld ? "📊 My Travel Stats" : "📊 Our Story in Numbers"}</h2>
               <button onClick={() => setShowStats(false)} style={{ background: "none", border: "none", fontSize: 18, color: P.textFaint, cursor: "pointer" }}>×</button>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
               {[
-                { label: "Days Together", value: stats.daysTog, icon: "💕" },
-                { label: "Adventures", value: stats.trips, icon: "🗺" },
+                isMyWorld ? { label: "Days Exploring", value: stats.daysTog, icon: "🧭" } : { label: "Days Together", value: stats.daysTog, icon: "💕" },
+                { label: isMyWorld ? "Trips" : "Adventures", value: stats.trips, icon: "🗺" },
                 { label: "Countries", value: stats.countries, icon: "🌍" },
                 { label: "Photos", value: stats.photos, icon: "📷" },
                 { label: "Miles Traveled", value: stats.totalMiles.toLocaleString(), icon: "✈️" },
-                { label: "Reunions", value: reunionStats.reunions, icon: "🫂" },
+                ...(!isMyWorld ? [{ label: "Reunions", value: reunionStats.reunions, icon: "🫂" }] : [{ label: "Cities", value: expandedStats.countryList.length, icon: "🏙" }]),
               ].map((s, i) => (
                 <div key={i} style={{ padding: "12px 14px", background: P.parchment, borderRadius: 10, textAlign: "center" }}>
                   <div style={{ fontSize: 20, marginBottom: 2 }}>{s.icon}</div>
@@ -2648,7 +2727,7 @@ function OurWorldInner() {
             </div>
 
             {/* Distance Scoreboard */}
-            <div style={{ padding: "12px 16px", background: `linear-gradient(135deg,${P.blush},${P.lavMist})`, borderRadius: 10, marginBottom: 14, textAlign: "center" }}>
+            {!isMyWorld && <div style={{ padding: "12px 16px", background: `linear-gradient(135deg,${P.blush},${P.lavMist})`, borderRadius: 10, marginBottom: 14, textAlign: "center" }}>
               <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 6 }}>The Scoreboard</div>
               <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 12 }}>
                 <div><span style={{ fontSize: 16, color: P.heart }}>💕</span><div style={{ fontSize: 18, fontWeight: 400 }}>{reunionStats.daysTogether}</div><div style={{ fontSize: 7, color: P.textFaint }}>days together</div></div>
@@ -2658,7 +2737,7 @@ function OurWorldInner() {
               <div style={{ fontSize: 10, color: reunionStats.togetherWinning ? P.heart : P.sky, marginTop: 6, fontStyle: "italic" }}>
                 {reunionStats.togetherWinning ? "Together is winning 💕" : "Distance makes the heart grow fonder 💙"}
               </div>
-            </div>
+            </div>}
 
             <div style={{ margin: "14px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}20,transparent)` }} />
 
@@ -2666,11 +2745,11 @@ function OurWorldInner() {
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {expandedStats.longestTrip.entry && (
                 <div style={{ padding: "10px 12px", background: `${P.together}08`, borderRadius: 8, borderLeft: `3px solid ${P.together}` }}>
-                  <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>Longest Trip Together</div>
+                  <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>{isMyWorld ? "Longest Trip" : "Longest Trip Together"}</div>
                   <div style={{ fontSize: 13, marginTop: 2 }}>{expandedStats.longestTrip.entry.city} — {expandedStats.longestTrip.days} days</div>
                 </div>
               )}
-              {expandedStats.farthestApart.dist > 0 && (
+              {!isMyWorld && expandedStats.farthestApart.dist > 0 && (
                 <div style={{ padding: "10px 12px", background: `${P.sky}08`, borderRadius: 8, borderLeft: `3px solid ${P.sky}` }}>
                   <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>Farthest Apart</div>
                   <div style={{ fontSize: 13, marginTop: 2 }}>{expandedStats.farthestApart.dist.toLocaleString()} miles</div>
@@ -2678,11 +2757,11 @@ function OurWorldInner() {
               )}
               {expandedStats.topCity && (
                 <div style={{ padding: "10px 12px", background: `${P.rose}08`, borderRadius: 8, borderLeft: `3px solid ${P.rose}` }}>
-                  <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>Most Visited Together</div>
+                  <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>{isMyWorld ? "Most Visited" : "Most Visited Together"}</div>
                   <div style={{ fontSize: 13, marginTop: 2 }}>{expandedStats.topCity[0]} — {expandedStats.topCity[1]} times</div>
                 </div>
               )}
-              {expandedStats.longestApart > 0 && (
+              {!isMyWorld && expandedStats.longestApart > 0 && (
                 <div style={{ padding: "10px 12px", background: `${P.lavender}08`, borderRadius: 8, borderLeft: `3px solid ${P.lavender}` }}>
                   <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>Longest Apart</div>
                   <div style={{ fontSize: 13, marginTop: 2 }}>{expandedStats.longestApart} days</div>
@@ -2745,7 +2824,7 @@ function OurWorldInner() {
             </div>
             {(() => {
               const e = recapEntries[recapIdx];
-              const t = TYPES[e.type] || TYPES.together;
+              const t = TYPES[e.type] || DEFAULT_TYPE;
               return (
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
@@ -2942,8 +3021,8 @@ function DreamAddForm({ onAdd }) {
 }
 
 // ---- ADD FORM ----
-function AddForm({ types, onAdd, onClose }) {
-  const [f, sf] = useState({ city: "", country: "", lat: "", lng: "", dateStart: "", dateEnd: "", type: "together", who: "both", zoomLevel: 1, notes: "", memories: "", museums: "", restaurants: "", highlights: "", musicUrl: "", stops: [] });
+function AddForm({ types, defaultType = "together", defaultWho = "both", fieldLabels, isMyWorld, onAdd, onClose }) {
+  const [f, sf] = useState({ city: "", country: "", lat: "", lng: "", dateStart: "", dateEnd: "", type: defaultType, who: defaultWho, zoomLevel: 1, notes: "", memories: "", museums: "", restaurants: "", highlights: "", musicUrl: "", stops: [] });
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [ns, setNs] = useState({ city: "", lat: "", lng: "", notes: "", dateStart: "", dateEnd: "" });
@@ -2995,7 +3074,7 @@ function AddForm({ types, onAdd, onClose }) {
   return (
     <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", zIndex: 40, background: P.card, backdropFilter: "blur(24px)", borderRadius: 18, padding: 24, width: 370, maxHeight: "88vh", overflowY: "auto", boxShadow: "0 18px 56px rgba(61,53,82,.14)", border: `1px solid ${P.rose}18`, fontFamily: "'Palatino Linotype',Palatino,Georgia,serif", color: P.text }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}><h3 style={{ margin: 0, fontSize: 16, fontWeight: 400 }}>Add a New Chapter</h3><button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, color: P.textFaint, cursor: "pointer" }}>×</button></div>
-      <p style={{ fontSize: 9, color: P.textMuted, marginBottom: 12, fontStyle: "italic" }}>Another page in your story ✨</p>
+      <p style={{ fontSize: 9, color: P.textMuted, marginBottom: 12, fontStyle: "italic" }}>{isMyWorld ? "Add a new adventure 🧭" : "Another page in your story ✨"}</p>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
         <div style={{ flex: 1 }}>
@@ -3060,10 +3139,10 @@ function AddForm({ types, onAdd, onClose }) {
       <div style={{ margin: "10px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
 
       <div style={{ marginBottom: 8 }}><RLbl req>Notes</RLbl><textarea ref={notesRef} value={f.notes} onChange={e => sf(p => ({ ...p, notes: e.target.value }))} rows={2} placeholder="What made this place special?" style={{ ...inpSt, resize: "vertical" }} /></div>
-      <div style={{ marginBottom: 8 }}><Lbl>Memories (one per line)</Lbl><textarea value={f.memories} onChange={e => sf(p => ({ ...p, memories: e.target.value }))} rows={2} placeholder={"The sunset was perfect\nDancing until midnight"} style={{ ...inpSt, resize: "vertical" }} /></div>
-      <div style={{ marginBottom: 8 }}><Lbl>Museums & Culture</Lbl><textarea value={f.museums} onChange={e => sf(p => ({ ...p, museums: e.target.value }))} rows={1} style={{ ...inpSt, resize: "vertical" }} /></div>
-      <div style={{ marginBottom: 8 }}><Lbl>Restaurants & Food</Lbl><textarea value={f.restaurants} onChange={e => sf(p => ({ ...p, restaurants: e.target.value }))} rows={1} style={{ ...inpSt, resize: "vertical" }} /></div>
-      <div style={{ marginBottom: 8 }}><Lbl>Highlights</Lbl><textarea value={f.highlights} onChange={e => sf(p => ({ ...p, highlights: e.target.value }))} rows={1} style={{ ...inpSt, resize: "vertical" }} /></div>
+      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.memories?.label || "Memories"} (one per line)</Lbl><textarea value={f.memories} onChange={e => sf(p => ({ ...p, memories: e.target.value }))} rows={2} placeholder={isMyWorld ? "Hiked the summit trail\nSunrise over the valley" : "The sunset was perfect\nDancing until midnight"} style={{ ...inpSt, resize: "vertical" }} /></div>
+      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.museums?.label || "Museums & Culture"}</Lbl><textarea value={f.museums} onChange={e => sf(p => ({ ...p, museums: e.target.value }))} rows={1} style={{ ...inpSt, resize: "vertical" }} /></div>
+      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.restaurants?.label || "Restaurants & Food"}</Lbl><textarea value={f.restaurants} onChange={e => sf(p => ({ ...p, restaurants: e.target.value }))} rows={1} style={{ ...inpSt, resize: "vertical" }} /></div>
+      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.highlights?.label || "Highlights"}</Lbl><textarea value={f.highlights} onChange={e => sf(p => ({ ...p, highlights: e.target.value }))} rows={1} style={{ ...inpSt, resize: "vertical" }} /></div>
       <div style={{ marginBottom: 8 }}><Lbl>Music URL</Lbl><input value={f.musicUrl} onChange={e => sf(p => ({ ...p, musicUrl: e.target.value }))} placeholder="Paste audio URL (optional)" style={inpSt} /></div>
 
       <div style={{ margin: "6px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
@@ -3101,7 +3180,7 @@ function AddForm({ types, onAdd, onClose }) {
         restaurants: f.restaurants.split("\n").filter(Boolean), highlights: f.highlights.split("\n").filter(Boolean),
         photos: [], stops: f.stops, musicUrl: f.musicUrl || null,
       }); }} style={{ width: "100%", padding: "10px 0", background: ok ? P.rose : "#e8d8e4", color: "#fff", border: "none", borderRadius: 9, cursor: ok ? "pointer" : "default", fontSize: 12, letterSpacing: ".1em", fontFamily: "inherit", transition: "all .3s" }}>
-        {ok ? "Add to Our World 💕" : "Fill required fields to continue"}
+        {ok ? (isMyWorld ? "Add to My World 🌍" : "Add to Our World 💕") : "Fill required fields to continue"}
       </button>
       {!ok && <p style={{ fontSize: 8, color: validationMsg.includes("must be") ? "#c9777a" : P.textFaint, textAlign: "center", marginTop: 5, letterSpacing: ".08em" }}>
         {validationMsg || "Fill required fields to continue"}
@@ -3123,7 +3202,7 @@ function FldR({ l, v, set, t = "text", ph = "", req }) {
 }
 
 // ---- EDIT FORM ----
-function EditForm({ entry, types, onChange, onSave, onClose, onDelete, onAddStop }) {
+function EditForm({ entry, types, fieldLabels, onChange, onSave, onClose, onDelete, onAddStop }) {
   const [ns, setNs] = useState({ city: "", lat: "", lng: "", notes: "", dateStart: "", dateEnd: "" });
   const [stopSugg, setStopSugg] = useState([]);
   const [showStopSugg, setShowStopSugg] = useState(false);
@@ -3186,10 +3265,10 @@ function EditForm({ entry, types, onChange, onSave, onClose, onDelete, onAddStop
       <div style={{ display: "flex", gap: 6 }}><div style={{ flex: 1, marginBottom: 9 }}><Lbl>Start</Lbl><input type="date" value={entry.dateStart || ""} onChange={e => { onChange(p => ({ ...p, dateStart: e.target.value })); setTimeout(() => { if (editDateEndRef.current) { editDateEndRef.current.showPicker?.(); editDateEndRef.current.focus(); } }, 50); }} style={inpSt} /></div><div style={{ flex: 1, marginBottom: 9 }}><Lbl>End</Lbl><input ref={editDateEndRef} type="date" value={entry.dateEnd || ""} onChange={e => { onChange(p => ({ ...p, dateEnd: e.target.value || null })); setTimeout(() => { if (editNotesRef.current) editNotesRef.current.focus(); }, 50); }} style={inpSt} /></div></div>
       <div style={{ marginBottom: 8 }}><Lbl>Type</Lbl><select value={entry.type} onChange={e => { const t = e.target.value; onChange(p => ({ ...p, type: t, who: types[t]?.who || "both" })); }} style={inpSt}>{Object.entries(types).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}</select></div>
       <div style={{ marginBottom: 8 }}><Lbl>Notes</Lbl><textarea ref={editNotesRef} value={entry.notes || ""} onChange={e => onChange(p => ({ ...p, notes: e.target.value }))} rows={2} style={{ ...inpSt, resize: "vertical" }} /></div>
-      <div style={{ marginBottom: 8 }}><Lbl>Memories</Lbl><textarea value={(entry.memories || []).join("\n")} onChange={e => onChange(p => ({ ...p, memories: e.target.value.split("\n").filter(Boolean) }))} rows={2} style={{ ...inpSt, resize: "vertical" }} /></div>
-      <div style={{ marginBottom: 8 }}><Lbl>Museums</Lbl><textarea value={(entry.museums || []).join("\n")} onChange={e => onChange(p => ({ ...p, museums: e.target.value.split("\n").filter(Boolean) }))} rows={1} style={{ ...inpSt, resize: "vertical" }} /></div>
-      <div style={{ marginBottom: 8 }}><Lbl>Restaurants</Lbl><textarea value={(entry.restaurants || []).join("\n")} onChange={e => onChange(p => ({ ...p, restaurants: e.target.value.split("\n").filter(Boolean) }))} rows={1} style={{ ...inpSt, resize: "vertical" }} /></div>
-      <div style={{ marginBottom: 8 }}><Lbl>Highlights</Lbl><textarea value={(entry.highlights || []).join("\n")} onChange={e => onChange(p => ({ ...p, highlights: e.target.value.split("\n").filter(Boolean) }))} rows={1} style={{ ...inpSt, resize: "vertical" }} /></div>
+      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.memories?.label || "Memories"}</Lbl><textarea value={(entry.memories || []).join("\n")} onChange={e => onChange(p => ({ ...p, memories: e.target.value.split("\n").filter(Boolean) }))} rows={2} style={{ ...inpSt, resize: "vertical" }} /></div>
+      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.museums?.label || "Museums"}</Lbl><textarea value={(entry.museums || []).join("\n")} onChange={e => onChange(p => ({ ...p, museums: e.target.value.split("\n").filter(Boolean) }))} rows={1} style={{ ...inpSt, resize: "vertical" }} /></div>
+      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.restaurants?.label || "Restaurants"}</Lbl><textarea value={(entry.restaurants || []).join("\n")} onChange={e => onChange(p => ({ ...p, restaurants: e.target.value.split("\n").filter(Boolean) }))} rows={1} style={{ ...inpSt, resize: "vertical" }} /></div>
+      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.highlights?.label || "Highlights"}</Lbl><textarea value={(entry.highlights || []).join("\n")} onChange={e => onChange(p => ({ ...p, highlights: e.target.value.split("\n").filter(Boolean) }))} rows={1} style={{ ...inpSt, resize: "vertical" }} /></div>
       <div style={{ marginBottom: 8 }}><Lbl>Music URL</Lbl><input value={entry.musicUrl || ""} onChange={e => onChange(p => ({ ...p, musicUrl: e.target.value || null }))} placeholder="paste audio URL" style={inpSt} /></div>
 
       <div style={{ margin: "8px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
@@ -3231,6 +3310,6 @@ function EditForm({ entry, types, onChange, onSave, onClose, onDelete, onAddStop
 }
 
 // ---- WRAPPED EXPORT WITH ERROR BOUNDARY ----
-export default function OurWorld() {
-  return <OurWorldErrorBoundary><OurWorldInner /></OurWorldErrorBoundary>;
+export default function OurWorld({ worldMode, onSwitchWorld }) {
+  return <OurWorldErrorBoundary><OurWorldInner worldMode={worldMode} onSwitchWorld={onSwitchWorld} /></OurWorldErrorBoundary>;
 }
