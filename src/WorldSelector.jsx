@@ -54,7 +54,9 @@ export default function WorldSelector({ onSelect }) {
     scene.add(new THREE.AmbientLight("#e8e0d8", 0.5));
     const sun = new THREE.DirectionalLight("#fff4e8", 0.9);
     sun.position.set(3, 3, 4); scene.add(sun);
-    scene.add(Object.assign(new THREE.PointLight("#d8c8b0", 0.4, 15), { position: new THREE.Vector3(-3, -1, 2) }));
+    const rim = new THREE.PointLight("#d8c8b0", 0.4, 15);
+    rim.position.set(-3, -1, 2);
+    scene.add(rim);
 
     // Stars
     const sP = new Float32Array(500 * 3);
