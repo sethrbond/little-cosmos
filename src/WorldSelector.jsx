@@ -23,7 +23,7 @@ const WORLDS = [
 const CENTER = {
   id: "my",
   label: "My World",
-  sub: "Solo Adventures",
+  sub: "Travel Diary",
   color: "#7090c0",
   glowColor: "#a0b8e0",
   emissive: "#182840",
@@ -123,7 +123,7 @@ export default function WorldSelector({ onSelect }) {
         const sx = (v.x * 0.5 + 0.5) * W;
         const sy = (-v.y * 0.5 + 0.5) * H;
         el.style.left = sx + "px";
-        el.style.top = (below ? sy + 55 : sy - 50) + "px";
+        el.style.top = sy + "px";
         el.style.opacity = v.z < 1 ? (el.dataset.hov === "true" ? "1" : "0.8") : "0";
       });
 
@@ -214,24 +214,24 @@ export default function WorldSelector({ onSelect }) {
 
       {/* Title */}
       <div style={{ position: "absolute", top: "4%", left: 0, right: 0, textAlign: "center", opacity: ready ? 1 : 0, transition: "opacity 1.2s", pointerEvents: "none" }}>
-        <div style={{ fontSize: 13, letterSpacing: "4px", color: "#b0a8c0", textTransform: "uppercase", fontWeight: 500 }}>My Constellation</div>
+        <div style={{ fontSize: 13, letterSpacing: "4px", color: "#d0c8e0", textTransform: "uppercase", fontWeight: 500, textShadow: "0 1px 8px rgba(0,0,0,0.4)" }}>My Constellation</div>
       </div>
 
       {/* Center label — My World (positioned by animation loop) */}
       <div ref={makeLabelRef("my")} data-hov="false" style={{
-        position: "absolute", left: 0, top: 0, transform: "translate(-50%, 0)", textAlign: "center", pointerEvents: "none", transition: "opacity .15s", opacity: 0,
+        position: "absolute", left: 0, top: 0, transform: "translate(-50%, -50%)", textAlign: "center", pointerEvents: "none", transition: "opacity .15s", opacity: 0,
       }}>
-        <div style={{ fontSize: hovered === "my" ? 24 : 20, fontWeight: 600, color: "#c0d0f0", letterSpacing: "1.5px", textShadow: "0 0 28px rgba(112,144,192,0.5), 0 2px 8px rgba(0,0,0,0.4)", transition: "font-size .2s" }}>My World</div>
-        <div style={{ fontSize: 11, color: "#90a0b8", marginTop: 3, letterSpacing: "1.2px", fontWeight: 400 }}>Solo Adventures</div>
+        <div style={{ fontSize: hovered === "my" ? 26 : 22, fontWeight: 600, color: "#e0eaff", letterSpacing: "1.5px", textShadow: "0 0 30px rgba(120,160,240,0.6), 0 2px 10px rgba(0,0,0,0.6)", transition: "font-size .2s" }}>My World</div>
+        <div style={{ fontSize: 12, color: "#b8c8e0", marginTop: 3, letterSpacing: "1.2px", fontWeight: 400, textShadow: "0 1px 6px rgba(0,0,0,0.5)" }}>Travel Diary</div>
       </div>
 
       {/* Orbiting world labels (positioned by animation loop) */}
       {WORLDS.map(w => (
         <div key={w.id} ref={makeLabelRef(w.id)} data-hov="false" style={{
-          position: "absolute", left: 0, top: 0, transform: "translate(-50%, -100%)", textAlign: "center", pointerEvents: "none", transition: "opacity .15s", opacity: 0,
+          position: "absolute", left: 0, top: 0, transform: "translate(-50%, -50%)", textAlign: "center", pointerEvents: "none", transition: "opacity .15s", opacity: 0,
         }}>
-          <div style={{ fontSize: hovered === w.id ? 20 : 16, fontWeight: 600, color: w.glowColor, letterSpacing: "0.8px", textShadow: `0 0 22px ${w.color}70, 0 2px 8px rgba(0,0,0,0.4)`, transition: "font-size .2s" }}>{w.label}</div>
-          <div style={{ fontSize: 10, color: "#c0b0c8", marginTop: 2, letterSpacing: "0.8px" }}>{w.sub}</div>
+          <div style={{ fontSize: hovered === w.id ? 22 : 17, fontWeight: 600, color: "#f0d8e8", letterSpacing: "0.8px", textShadow: `0 0 24px ${w.color}90, 0 2px 10px rgba(0,0,0,0.6)`, transition: "font-size .2s" }}>{w.label}</div>
+          <div style={{ fontSize: 11, color: "#e0c8d8", marginTop: 2, letterSpacing: "0.8px", textShadow: "0 1px 6px rgba(0,0,0,0.5)" }}>{w.sub}</div>
         </div>
       ))}
 
@@ -243,7 +243,7 @@ export default function WorldSelector({ onSelect }) {
           onMouseLeave={e => { e.target.style.borderColor = "rgba(255,255,255,0.12)"; e.target.style.color = "#908898"; }}>
           + Add a World
         </button>
-        <div style={{ fontSize: 10, color: "#686070", marginTop: 8, letterSpacing: "0.8px" }}>drag to orbit · scroll to zoom</div>
+        <div style={{ fontSize: 10, color: "#807888", marginTop: 8, letterSpacing: "0.8px" }}>drag to orbit · scroll to zoom</div>
       </div>
     </div>
   );
