@@ -2056,15 +2056,15 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
 
       {/* TITLE */}
       <div style={{ position: "absolute", top: 22, left: 0, right: 0, textAlign: "center", zIndex: 10, pointerEvents: "none", opacity: ready ? 1 : 0, transform: ready ? "none" : "translateY(-12px)", transition: "all 1.8s cubic-bezier(.23,1,.32,1)" }}>
-        <h1 style={{ fontSize: 28, fontWeight: 400, margin: 0, letterSpacing: ".2em", textTransform: "uppercase" }}>{config.title}</h1>
-        <p style={{ fontSize: 11, color: P.textMuted, marginTop: 3, letterSpacing: ".35em", fontStyle: "italic" }}>{config.subtitle}</p>
+        <h1 style={{ fontSize: 28, fontWeight: 400, margin: 0, letterSpacing: ".2em", textTransform: "uppercase", color: darkMode ? "#e8e0f0" : "#2a2038", textShadow: "0 1px 12px rgba(0,0,0,0.3), 0 0 40px rgba(255,255,255,0.15)" }}>{config.title}</h1>
+        <p style={{ fontSize: 11, color: darkMode ? "#b0a0c8" : "#5a4868", marginTop: 3, letterSpacing: ".35em", fontStyle: "italic", textShadow: "0 1px 8px rgba(0,0,0,0.2)" }}>{config.subtitle}</p>
         {!isMyWorld && isAnniversary && <div style={{ fontSize: 11, color: P.heart, marginTop: 6, letterSpacing: ".15em", animation: "heartPulse 2s ease infinite" }}>✨ Happy Anniversary ✨</div>}
       </div>
 
       {/* ZOOM HINT — fades after 4 seconds */}
       {showZoomHint && introComplete && !selected && (
         <div style={{ position: "absolute", bottom: isMobile ? 115 : 130, left: "50%", transform: "translateX(-50%)", zIndex: 10, pointerEvents: "none", opacity: 0.8, animation: "fadeIn .6s ease", transition: "opacity 1s ease" }}>
-          <div style={{ fontSize: 11, color: P.textMid, letterSpacing: ".12em", textAlign: "center", background: "rgba(250,248,244,0.7)", backdropFilter: "blur(8px)", borderRadius: 16, padding: "5px 14px" }}>
+          <div style={{ fontSize: 11, color: P.text, letterSpacing: ".12em", textAlign: "center", background: "rgba(250,248,244,0.8)", backdropFilter: "blur(8px)", borderRadius: 16, padding: "5px 14px", textShadow: "0 1px 4px rgba(0,0,0,0.1)" }}>
             {isMobile ? "Pinch to zoom · Double-tap to zoom in" : "Scroll to zoom · Click markers to explore"}
           </div>
         </div>
@@ -2083,7 +2083,7 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
             {daysBetween(todayStr(), nextTogether.dateStart)} days until together 💛
           </div>
         )}
-        {!isMobile && <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".08em", lineHeight: 1.6 }}>
+        {!isMobile && <div style={{ fontSize: 8, color: P.textMid, letterSpacing: ".08em", lineHeight: 1.6, textShadow: "0 1px 6px rgba(0,0,0,0.2)" }}>
           {isMyWorld
             ? <>{data.entries.length} trips · {stats.countries} countries<br />{stats.totalMiles.toLocaleString()} miles explored</>
             : <>{stats.daysTog} days together<br />{stats.trips} adventures · {stats.countries} countries<br />{stats.totalMiles.toLocaleString()} miles traveled</>
