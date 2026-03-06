@@ -1017,7 +1017,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, on
   // zoom tracked via zmR ref (used in animation loop directly)
   const [ready, setReady] = useState(false);
   const [introComplete, setIntroComplete] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem("cosmos_onboarded"));
+  const onboardKey = isSharedWorld ? `cosmos_onboarded_${worldId}` : isMyWorld ? "cosmos_onboarded_my" : "cosmos_onboarded";
+  const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem(onboardKey));
   const [onboardStep, setOnboardStep] = useState(0);
   const [showPhotoJourney, setShowPhotoJourney] = useState(false);
   const [pjIndex, setPjIndex] = useState(0);
@@ -1208,13 +1209,13 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, on
   // ---- GUIDED FIRST VISIT TOASTS ----
   useEffect(() => {
     if (!introComplete || showOnboarding || data.entries.length === 0) return;
-    const guided = localStorage.getItem("cosmos_guided");
-    if (guided) return;
+    const guidedKey = isSharedWorld ? `cosmos_guided_${worldId}` : isMyWorld ? "cosmos_guided_my" : "cosmos_guided";
+    if (localStorage.getItem(guidedKey)) return;
     const msgs = isMyWorld
       ? [["This is everywhere you've been", "🌍"], ["Click any marker to explore a memory", "📍"], ["Press ▶ to watch your story unfold", "▶"]]
       : [["This is everywhere you've been together", "💕"], ["Click any heart to explore a memory", "💜"], ["Press ▶ to watch your story unfold", "▶"]];
     const timers = msgs.map((m, i) => setTimeout(() => showToast(m[0], m[1], 3000), 2000 + i * 3500));
-    localStorage.setItem("cosmos_guided", "1");
+    localStorage.setItem(guidedKey, "1");
     return () => timers.forEach(clearTimeout);
   }, [introComplete, showOnboarding, data.entries.length, isMyWorld, showToast]);
 
@@ -3126,11 +3127,29 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, on
 
       {/* ONBOARDING OVERLAY */}
       {showOnboarding && introComplete && data.entries.length === 0 && (() => {
-        const steps = [
-          { title: isMyWorld ? "Welcome to My World" : "Welcome to Our World",
-            body: isMyWorld
-              ? "This is your personal travel globe. Every trip you add becomes a glowing marker on your map."
-              : "This is your shared travel globe. Every adventure you add together lights up your world.",
+        const steps = isSharedWorld ? [
+          { title: `Welcome to ${worldName || "Your Shared World"}`,
+            body: "This is a shared travel globe. Every adventure you add together lights up your world. Both of you can add entries, photos, and memories.",
+            icon: "🌍" },
+          { title: "What's Different Here",
+            body: "Shared worlds have love letters, love notes on entries, a love thread connecting your journeys, and constellation view. Find these in the toolbar.",
+            icon: "💕" },
+          { title: "Navigate & Add",
+            body: "Drag to spin, scroll to zoom. Click + to add your first trip together. Click any marker for details. Press play to watch your story unfold.",
+            icon: "✨" },
+        ] : isMyWorld ? [
+          { title: "Welcome to My World",
+            body: "This is your personal travel globe. Every trip you add becomes a glowing marker on your map.",
+            icon: "🌍" },
+          { title: "Navigate Your Globe",
+            body: "Drag to spin the globe. Scroll to zoom in and out. Click any marker to see its details.",
+            icon: "🖱" },
+          { title: "Add Your First Trip",
+            body: "Click the + button in the toolbar on the left to add your first entry. You can add photos, notes, and memories.",
+            icon: "✨" },
+        ] : [
+          { title: "Welcome to Our World",
+            body: "This is your shared travel globe. Every adventure you add together lights up your world.",
             icon: "🌍" },
           { title: "Navigate Your Globe",
             body: "Drag to spin the globe. Scroll to zoom in and out. Click any marker to see its details.",
@@ -3160,14 +3179,14 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, on
                 )}
                 <button onClick={() => {
                   if (onboardStep < steps.length - 1) { setOnboardStep(s => s + 1); }
-                  else { setShowOnboarding(false); localStorage.setItem("cosmos_onboarded", "1"); }
+                  else { setShowOnboarding(false); localStorage.setItem(onboardKey, "1"); }
                 }}
                   style={{ padding: "9px 24px", background: "linear-gradient(135deg, #c9a96e, #b8944f)", border: "none", borderRadius: 10, color: "#1a1520", fontSize: 13, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }}>
                   {onboardStep < steps.length - 1 ? "Next" : "Start Exploring"}
                 </button>
               </div>
               {onboardStep === 0 && (
-                <button onClick={() => { setShowOnboarding(false); localStorage.setItem("cosmos_onboarded", "1"); }}
+                <button onClick={() => { setShowOnboarding(false); localStorage.setItem(onboardKey, "1"); }}
                   style={{ marginTop: 14, background: "none", border: "none", color: "#686070", fontSize: 11, fontFamily: "inherit", cursor: "pointer", textDecoration: "underline" }}>
                   Skip tutorial
                 </button>

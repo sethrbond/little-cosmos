@@ -146,3 +146,25 @@ export async function getInviteInfo(token) {
   if (error) { console.error('[getInviteInfo]', error); return null }
   return data
 }
+
+// Create invite + optionally send a welcome letter to the invitee's email
+export async function createInviteWithLetter(worldId, userId, fromName, toEmail, letterText) {
+  // 1. Create the invite token
+  const invite = await createInvite(worldId, userId)
+  if (!invite) return null
+
+  // 2. If letter text provided, create a welcome letter for that email
+  if (letterText && letterText.trim()) {
+    const { error: letterErr } = await supabase
+      .from('welcome_letters')
+      .insert({
+        from_user_id: userId,
+        from_name: fromName,
+        to_email: toEmail.toLowerCase(),
+        letter_text: letterText.trim(),
+      })
+    if (letterErr) console.error('[createInviteWithLetter] letter error:', letterErr)
+  }
+
+  return { invite, inviteLink: `${window.location.origin}?invite=${invite.token}` }
+}

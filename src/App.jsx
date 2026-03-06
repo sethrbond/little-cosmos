@@ -24,6 +24,9 @@ function AppInner() {
   const [worldsLoaded, setWorldsLoaded] = useState(false)
   const [invitePending, setInvitePending] = useState(null)
 
+  // User's display name from auth metadata
+  const userDisplayName = user?.user_metadata?.display_name || ''
+
   // Check for welcome letter on login
   useEffect(() => {
     if (!user?.email) { setLetterChecked(true); return }
@@ -48,7 +51,6 @@ function AppInner() {
     const token = params.get('invite')
     if (token) {
       setInvitePending(token)
-      // Clean URL
       window.history.replaceState({}, '', window.location.pathname)
     }
   }, [])
@@ -65,7 +67,6 @@ function AppInner() {
       if (confirm(`You've been invited to join "${worldName}". Accept?`)) {
         acceptInvite(token).then(result => {
           if (result?.ok) {
-            // Reload worlds and enter the new one
             loadMyWorlds(userId).then(w => {
               setWorlds(w)
               selectWorld('our', result.world_id, worldName)
@@ -77,6 +78,16 @@ function AppInner() {
       }
     })
   }, [invitePending, userId])
+
+  // Auto-route brand new users straight to My World (first login ever)
+  useEffect(() => {
+    if (!userId || !worldsLoaded || worldMode) return
+    const hasVisited = localStorage.getItem('cosmos_hasVisited')
+    if (!hasVisited) {
+      localStorage.setItem('cosmos_hasVisited', '1')
+      selectWorld('my')
+    }
+  }, [userId, worldsLoaded, worldMode])
 
   const selectWorld = useCallback((mode, worldId = null, worldName = null) => {
     localStorage.setItem('worldMode', mode)
@@ -101,7 +112,6 @@ function AppInner() {
     setWorldMode(null)
     setActiveWorldId(null)
     setActiveWorldName(null)
-    // Refresh worlds list
     if (userId) loadMyWorlds(userId).then(setWorlds).catch(() => {})
   }, [userId])
 
@@ -136,6 +146,7 @@ function AppInner() {
         worlds={worlds}
         onWorldsChange={setWorlds}
         userId={userId}
+        userDisplayName={userDisplayName}
       />
     )
   }

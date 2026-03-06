@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import * as THREE from "three";
-import { createWorld, loadMyWorlds, createInvite } from "./supabaseWorlds.js";
+import { createWorld, loadMyWorlds, createInvite, createInviteWithLetter } from "./supabaseWorlds.js";
 
 /* WorldSelector.jsx — "My Cosmos" world chooser
    My World is the central orb. Shared worlds orbit it.
-   Camera can be dragged/orbited to view from any angle.
-   Labels track their orbs in real-time via direct DOM updates. */
+   Camera can be dragged/orbited to view from any angle. */
 
 const CENTER = {
   id: "my",
@@ -27,22 +26,43 @@ const ORB_PRESETS = [
 
 const F = "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif";
 
-export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorldsChange, userId }) {
+export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorldsChange, userId, userDisplayName }) {
   const mountRef = useRef(null);
   const [hovered, setHovered] = useState(null);
   const [ready, setReady] = useState(false);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showJoinModal, setShowJoinModal] = useState(false);
-  const [createName, setCreateName] = useState("");
-  const [creating, setCreating] = useState(false);
-  const [joinToken, setJoinToken] = useState("");
-  const [joining, setJoining] = useState(false);
-  const [showInviteModal, setShowInviteModal] = useState(null); // world object
-  const [inviteLink, setInviteLink] = useState("");
-  const [inviteGenerating, setInviteGenerating] = useState(false);
   const labelRefsMap = useRef({});
   const dragRef = useRef({ dragging: false, moved: false, prevX: 0, prevY: 0 });
   const camAngleRef = useRef({ theta: 0.3, phi: 1.2, radius: 5.8 });
+
+  // Modal states
+  const [showAddMenu, setShowAddMenu] = useState(false); // "what kind of world?"
+  const [showCreatePersonal, setShowCreatePersonal] = useState(false);
+  const [showCreateShared, setShowCreateShared] = useState(false);
+  const [showJoinModal, setShowJoinModal] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(null);
+
+  // Create personal world
+  const [personalName, setPersonalName] = useState("");
+  const [creatingPersonal, setCreatingPersonal] = useState(false);
+
+  // Create shared world
+  const [sharedName, setSharedName] = useState("");
+  const [sharedStep, setSharedStep] = useState(0); // 0=name, 1=invite details, 2=done
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteLetter, setInviteLetter] = useState("");
+  const [creatingShared, setCreatingShared] = useState(false);
+  const [createdWorldId, setCreatedWorldId] = useState(null);
+  const [generatedLink, setGeneratedLink] = useState("");
+
+  // Join
+  const [joinToken, setJoinToken] = useState("");
+  const [joining, setJoining] = useState(false);
+
+  // Invite from existing world
+  const [inviteLink, setInviteLink] = useState("");
+  const [inviteGenerating, setInviteGenerating] = useState(false);
+  const [existingInviteEmail, setExistingInviteEmail] = useState("");
+  const [existingInviteLetter, setExistingInviteLetter] = useState("");
 
   // Build orbiting worlds from props
   const WORLDS = useMemo(() => worlds.map((w, i) => ({
@@ -53,6 +73,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     ...(w.palette?.color ? { color: w.palette.color } : {}),
   })), [worlds]);
 
+  // ---- THREE.JS SCENE (unchanged) ----
   useEffect(() => {
     const mount = mountRef.current;
     if (!mount) return;
@@ -70,12 +91,9 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     scene.add(new THREE.AmbientLight("#f8f0f8", 0.9));
     const sun = new THREE.DirectionalLight("#fffff0", 1.5);
     sun.position.set(3, 3, 4); scene.add(sun);
-    const rim = new THREE.PointLight("#f0e0f0", 0.8, 18);
-    rim.position.set(-3, -1, 2); scene.add(rim);
-    const fill = new THREE.PointLight("#e0d8f8", 0.5, 14);
-    fill.position.set(0, 2, -3); scene.add(fill);
-    const back = new THREE.PointLight("#d0c0e0", 0.4, 12);
-    back.position.set(0, -2, -3); scene.add(back);
+    scene.add(Object.assign(new THREE.PointLight("#f0e0f0", 0.8, 18), { position: new THREE.Vector3(-3, -1, 2) }));
+    scene.add(Object.assign(new THREE.PointLight("#e0d8f8", 0.5, 14), { position: new THREE.Vector3(0, 2, -3) }));
+    scene.add(Object.assign(new THREE.PointLight("#d0c0e0", 0.4, 12), { position: new THREE.Vector3(0, -2, -3) }));
 
     // Stars
     const sP = new Float32Array(500 * 3);
@@ -86,7 +104,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     const sG = new THREE.BufferGeometry(); sG.setAttribute("position", new THREE.BufferAttribute(sP, 3));
     scene.add(new THREE.Points(sG, new THREE.PointsMaterial({ color: "#f0e8d8", size: 0.04, transparent: true, opacity: 0.5 })));
 
-    // Center orb — MY WORLD
+    // Center orb
     const centerOrb = new THREE.Mesh(
       new THREE.SphereGeometry(0.7, 48, 48),
       new THREE.MeshPhongMaterial({ color: CENTER.color, emissive: CENTER.emissive, emissiveIntensity: 1.2, shininess: 30 })
@@ -115,7 +133,6 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       return { mesh: orb, world: w, angleOffset: (idx / Math.max(WORLDS.length, 1)) * Math.PI * 2 };
     });
 
-    // Orbit ring
     if (WORLDS.length > 0) {
       const avgRadius = WORLDS.reduce((s, w) => s + w.orbitRadius, 0) / WORLDS.length;
       const ring = new THREE.Mesh(new THREE.RingGeometry(avgRadius - 0.03, avgRadius + 0.03, 80),
@@ -136,26 +153,21 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       t += 0.006;
       centerOrb.rotation.y += 0.002;
       centerOrb.scale.setScalar(1 + Math.sin(t * 1.2) * 0.03);
-
       orbs.forEach((o, i) => {
         const angle = o.angleOffset + t * o.world.orbitSpeed;
         o.mesh.position.set(Math.cos(angle) * o.world.orbitRadius, Math.sin(angle * 0.7) * 0.15, Math.sin(angle) * o.world.orbitRadius);
         o.mesh.rotation.y += 0.008;
         o.mesh.scale.setScalar(1 + Math.sin(t * 2 + i * 1.5) * 0.03);
       });
-
       const allItems = [{ id: "my", mesh: centerOrb }, ...orbs.map(o => ({ id: o.world.id, mesh: o.mesh }))];
       allItems.forEach(({ id, mesh }) => {
         const el = labelRefsMap.current[id];
         if (!el) return;
         const v = mesh.position.clone().project(cam);
-        const sx = (v.x * 0.5 + 0.5) * W;
-        const sy = (-v.y * 0.5 + 0.5) * H;
-        el.style.left = sx + "px";
-        el.style.top = sy + "px";
+        el.style.left = (v.x * 0.5 + 0.5) * W + "px";
+        el.style.top = (-v.y * 0.5 + 0.5) * H + "px";
         el.style.opacity = v.z < 1 ? (el.dataset.hov === "true" ? "1" : "0.8") : "0";
       });
-
       rend.render(scene, cam);
     };
     animate();
@@ -180,7 +192,6 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     window.addEventListener("pointermove", onMoveEvt);
     window.addEventListener("pointerup", onUp);
     mount.addEventListener("wheel", onWheelEvt, { passive: false });
-
     const onResize = () => { W = mount.clientWidth; H = mount.clientHeight; cam.aspect = W / H; cam.updateProjectionMatrix(); rend.setSize(W, H); };
     window.addEventListener("resize", onResize);
     setTimeout(() => setReady(true), 400);
@@ -197,6 +208,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     };
   }, [WORLDS.length]);
 
+  // ---- CLICK / HOVER HANDLERS ----
   const handleClick = useCallback((e) => {
     if (dragRef.current.moved) return;
     const rect = mountRef.current?.getBoundingClientRect();
@@ -206,15 +218,9 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       if (!el) continue;
       const lx = parseFloat(el.style.left), ly = parseFloat(el.style.top);
       if (isNaN(lx)) continue;
-      const dist = Math.sqrt((cx - lx) ** 2 + (cy - ly) ** 2);
-      if (dist < 75 && parseFloat(el.style.opacity) > 0.1) {
-        if (id === "my") {
-          onSelect("my");
-        } else {
-          // Find the world to pass name
-          const w = worlds.find(w => w.id === id);
-          onSelect("our", id, w?.name || "Shared World");
-        }
+      if (Math.sqrt((cx - lx) ** 2 + (cy - ly) ** 2) < 75 && parseFloat(el.style.opacity) > 0.1) {
+        if (id === "my") { onSelect("my"); }
+        else { const w = worlds.find(w => w.id === id); onSelect("our", id, w?.name || "Shared World"); }
         return;
       }
     }
@@ -233,70 +239,116 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       if (Math.sqrt((cx - lx) ** 2 + (cy - ly) ** 2) < 75 && parseFloat(el.style.opacity) > 0.1) { found = id; break; }
     }
     setHovered(found);
-    for (const [id, el] of Object.entries(labelRefsMap.current)) {
-      if (el) el.dataset.hov = (id === found) ? "true" : "false";
-    }
+    for (const [id, el] of Object.entries(labelRefsMap.current)) { if (el) el.dataset.hov = (id === found) ? "true" : "false"; }
   }, []);
 
   const makeLabelRef = useCallback((id) => (el) => { labelRefsMap.current[id] = el; }, []);
 
-  // Create world handler
-  const handleCreate = async () => {
-    if (!createName.trim()) return;
-    setCreating(true);
-    const world = await createWorld(userId, createName.trim());
-    setCreating(false);
+  // ---- HANDLERS ----
+
+  const handleCreatePersonal = async () => {
+    if (!personalName.trim()) return;
+    setCreatingPersonal(true);
+    const world = await createWorld(userId, personalName.trim(), "personal");
+    setCreatingPersonal(false);
     if (world) {
       const updated = await loadMyWorlds(userId);
       if (onWorldsChange) onWorldsChange(updated);
-      setShowCreateModal(false);
-      setCreateName("");
-      // Enter the new world
+      setShowCreatePersonal(false);
+      setPersonalName("");
       onSelect("our", world.id, world.name);
-    } else {
-      alert("Failed to create world. Please try again.");
-    }
+    } else { alert("Failed to create world. Please try again."); }
   };
 
-  // Join via token handler
+  const handleCreateShared = async () => {
+    if (!sharedName.trim()) return;
+    setCreatingShared(true);
+    const world = await createWorld(userId, sharedName.trim(), "shared");
+    setCreatingShared(false);
+    if (!world) { alert("Failed to create world."); return; }
+    setCreatedWorldId(world.id);
+    setSharedStep(1); // move to invite step
+  };
+
+  const handleSendInvite = async () => {
+    if (!inviteEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail.trim())) {
+      alert("Please enter a valid email address.");
+      return;
+    }
+    setCreatingShared(true);
+    const result = await createInviteWithLetter(
+      createdWorldId, userId, userDisplayName || "Someone special", inviteEmail.trim(), inviteLetter
+    );
+    setCreatingShared(false);
+    if (result) {
+      setGeneratedLink(result.inviteLink);
+      setSharedStep(2); // done
+    } else { alert("Failed to generate invite."); }
+  };
+
+  const handleFinishShared = async () => {
+    const updated = await loadMyWorlds(userId);
+    if (onWorldsChange) onWorldsChange(updated);
+    setShowCreateShared(false);
+    setSharedName(""); setSharedStep(0); setInviteEmail(""); setInviteLetter(""); setGeneratedLink("");
+    const w = updated.find(w => w.id === createdWorldId);
+    onSelect("our", createdWorldId, w?.name || "Shared World");
+  };
+
   const handleJoin = async () => {
     if (!joinToken.trim()) return;
     setJoining(true);
-    // Import acceptInvite dynamically to avoid circular
     const { acceptInvite } = await import("./supabaseWorlds.js");
     const result = await acceptInvite(joinToken.trim());
     setJoining(false);
     if (result?.ok) {
       const updated = await loadMyWorlds(userId);
       if (onWorldsChange) onWorldsChange(updated);
-      setShowJoinModal(false);
-      setJoinToken("");
+      setShowJoinModal(false); setJoinToken("");
       const w = updated.find(w => w.id === result.world_id);
       onSelect("our", result.world_id, w?.name || "Shared World");
-    } else {
-      alert(result?.error || "Invalid or expired invite code.");
-    }
+    } else { alert(result?.error || "Invalid or expired invite code."); }
   };
 
-  // Generate invite link
-  const handleGenerateInvite = async (world) => {
+  const handleGenerateInvite = async () => {
+    if (!existingInviteEmail.trim()) {
+      // Simple link-only invite
+      setInviteGenerating(true);
+      const inv = await createInvite(showInviteModal.id, userId);
+      setInviteGenerating(false);
+      if (inv) setInviteLink(`${window.location.origin}?invite=${inv.token}`);
+      else alert("Failed to generate invite.");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(existingInviteEmail.trim())) {
+      alert("Please enter a valid email address.");
+      return;
+    }
     setInviteGenerating(true);
-    setInviteLink("");
-    const invite = await createInvite(world.id, userId);
+    const result = await createInviteWithLetter(
+      showInviteModal.id, userId, userDisplayName || "Someone special", existingInviteEmail.trim(), existingInviteLetter
+    );
     setInviteGenerating(false);
-    if (invite) {
-      const link = `${window.location.origin}?invite=${invite.token}`;
-      setInviteLink(link);
-    } else {
-      alert("Failed to generate invite link.");
-    }
+    if (result) { setInviteLink(result.inviteLink); }
+    else { alert("Failed to generate invite."); }
   };
 
+  const closeAllModals = () => {
+    setShowAddMenu(false); setShowCreatePersonal(false); setShowCreateShared(false);
+    setShowJoinModal(false); setShowInviteModal(null);
+    setPersonalName(""); setSharedName(""); setSharedStep(0); setInviteEmail("");
+    setInviteLetter(""); setGeneratedLink(""); setJoinToken("");
+    setInviteLink(""); setExistingInviteEmail(""); setExistingInviteLetter("");
+  };
+
+  // Style constants
   const modalBg = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 };
-  const modalBox = { background: "#1a1424", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 16, padding: "32px 28px", width: 380, maxWidth: "90vw", textAlign: "center", fontFamily: F };
-  const inputSt = { width: "100%", padding: "10px 14px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: "#e8e0d0", fontSize: 14, fontFamily: F, outline: "none" };
-  const btnPrimary = { background: "linear-gradient(135deg, #c9a96e, #b8944f)", border: "none", borderRadius: 10, padding: "10px 24px", color: "#1a1520", fontSize: 13, fontWeight: 600, fontFamily: F, cursor: "pointer", letterSpacing: "0.04em" };
-  const btnSecondary = { background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, padding: "8px 20px", color: "#a098a8", fontSize: 12, fontFamily: F, cursor: "pointer" };
+  const modalBox = { background: "#1a1424", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 16, padding: "32px 28px", width: 400, maxWidth: "90vw", fontFamily: F };
+  const inputSt = { width: "100%", padding: "10px 14px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: "#e8e0d0", fontSize: 14, fontFamily: F, outline: "none", boxSizing: "border-box" };
+  const textareaSt = { ...inputSt, minHeight: 100, resize: "vertical", lineHeight: 1.6 };
+  const btnP = { background: "linear-gradient(135deg, #c9a96e, #b8944f)", border: "none", borderRadius: 10, padding: "10px 24px", color: "#1a1520", fontSize: 13, fontWeight: 600, fontFamily: F, cursor: "pointer", letterSpacing: "0.04em" };
+  const btnS = { background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, padding: "8px 20px", color: "#a098a8", fontSize: 12, fontFamily: F, cursor: "pointer" };
+  const optionCard = { background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "18px 20px", textAlign: "left", cursor: "pointer", transition: "all .2s" };
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "#0c0a12", fontFamily: F, cursor: hovered ? "pointer" : "grab", overflow: "hidden" }}
@@ -309,24 +361,19 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
         <div style={{ fontSize: 13, letterSpacing: "4px", color: "#d0c8e0", textTransform: "uppercase", fontWeight: 500, textShadow: "0 1px 8px rgba(0,0,0,0.4)" }}>My Cosmos</div>
       </div>
 
-      {/* Center label — My World */}
-      <div ref={makeLabelRef("my")} data-hov="false" style={{
-        position: "absolute", left: 0, top: 0, transform: "translate(-50%, -50%)", textAlign: "center", pointerEvents: "none", transition: "opacity .15s", opacity: 0,
-      }}>
+      {/* Center label */}
+      <div ref={makeLabelRef("my")} data-hov="false" style={{ position: "absolute", left: 0, top: 0, transform: "translate(-50%, -50%)", textAlign: "center", pointerEvents: "none", transition: "opacity .15s", opacity: 0 }}>
         <div style={{ fontSize: hovered === "my" ? 26 : 22, fontWeight: 600, color: "#e0eaff", letterSpacing: "1.5px", textShadow: "0 0 30px rgba(120,160,240,0.6), 0 2px 10px rgba(0,0,0,0.6)", transition: "font-size .2s" }}>My World</div>
         <div style={{ fontSize: 12, color: "#b8c8e0", marginTop: 3, letterSpacing: "1.2px", fontWeight: 400, textShadow: "0 1px 6px rgba(0,0,0,0.5)" }}>Travel Diary</div>
       </div>
 
       {/* Orbiting world labels */}
       {WORLDS.map(w => (
-        <div key={w.id} ref={makeLabelRef(w.id)} data-hov="false" style={{
-          position: "absolute", left: 0, top: 0, transform: "translate(-50%, -50%)", textAlign: "center", pointerEvents: "none", transition: "opacity .15s", opacity: 0,
-        }}>
+        <div key={w.id} ref={makeLabelRef(w.id)} data-hov="false" style={{ position: "absolute", left: 0, top: 0, transform: "translate(-50%, -50%)", textAlign: "center", pointerEvents: "none", transition: "opacity .15s", opacity: 0 }}>
           <div style={{ fontSize: hovered === w.id ? 22 : 17, fontWeight: 600, color: "#f0d8e8", letterSpacing: "0.8px", textShadow: `0 0 24px ${w.color}90, 0 2px 10px rgba(0,0,0,0.6)`, transition: "font-size .2s" }}>{w.label}</div>
           <div style={{ fontSize: 11, color: "#e0c8d8", marginTop: 2, letterSpacing: "0.8px", textShadow: "0 1px 6px rgba(0,0,0,0.5)" }}>{w.sub}</div>
-          {/* Invite button (visible on hover for owners/members) */}
           {hovered === w.id && (
-            <button onClick={(e) => { e.stopPropagation(); setShowInviteModal(worlds.find(ww => ww.id === w.id)); setInviteLink(""); }}
+            <button onClick={(e) => { e.stopPropagation(); setShowInviteModal(worlds.find(ww => ww.id === w.id)); setInviteLink(""); setExistingInviteEmail(""); setExistingInviteLetter(""); }}
               style={{ marginTop: 6, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 12, padding: "3px 10px", color: "#c0b8c8", fontSize: 9, fontFamily: F, cursor: "pointer", pointerEvents: "auto", letterSpacing: "0.5px" }}>
               Invite
             </button>
@@ -337,75 +384,172 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       {/* Bottom controls */}
       <div style={{ position: "absolute", bottom: "5%", left: 0, right: 0, textAlign: "center", opacity: ready ? 1 : 0, transition: "opacity 1.5s" }}>
         <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-          <button onClick={(e) => { e.stopPropagation(); setShowCreateModal(true); }}
+          <button onClick={(e) => { e.stopPropagation(); setShowAddMenu(true); }}
             style={{ background: "linear-gradient(135deg, rgba(200,170,110,0.15), rgba(200,170,110,0.08))", border: "1px solid rgba(200,170,110,0.25)", borderRadius: 20, padding: "8px 22px", color: "#c9a96e", fontSize: 11, fontFamily: F, letterSpacing: "1px", cursor: "pointer", transition: "all .3s" }}
-            onMouseEnter={e => { e.target.style.borderColor = "rgba(200,170,110,0.5)"; e.target.style.background = "linear-gradient(135deg, rgba(200,170,110,0.25), rgba(200,170,110,0.12))"; }}
-            onMouseLeave={e => { e.target.style.borderColor = "rgba(200,170,110,0.25)"; e.target.style.background = "linear-gradient(135deg, rgba(200,170,110,0.15), rgba(200,170,110,0.08))"; }}>
-            + Create a World
+            onMouseEnter={e => { e.target.style.borderColor = "rgba(200,170,110,0.5)"; }}
+            onMouseLeave={e => { e.target.style.borderColor = "rgba(200,170,110,0.25)"; }}>
+            + Add a World
           </button>
           <button onClick={(e) => { e.stopPropagation(); setShowJoinModal(true); }}
             style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 20, padding: "8px 22px", color: "#908898", fontSize: 11, fontFamily: F, letterSpacing: "1px", cursor: "pointer", transition: "all .3s" }}
-            onMouseEnter={e => { e.target.style.borderColor = "rgba(255,255,255,0.3)"; e.target.style.color = "#c0b8c8"; }}
-            onMouseLeave={e => { e.target.style.borderColor = "rgba(255,255,255,0.12)"; e.target.style.color = "#908898"; }}>
+            onMouseEnter={e => { e.target.style.color = "#c0b8c8"; }}
+            onMouseLeave={e => { e.target.style.color = "#908898"; }}>
             Join a World
           </button>
         </div>
         <div style={{ fontSize: 10, color: "#807888", marginTop: 8, letterSpacing: "0.8px" }}>drag to orbit · scroll to zoom</div>
       </div>
 
-      {/* Sign out button */}
+      {/* Sign out */}
       <button onClick={(e) => { e.stopPropagation(); if (window.confirm("Sign out of My Cosmos?")) onSignOut(); }}
         style={{ position: "absolute", top: 16, right: 16, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "5px 12px", color: "#807888", fontSize: 10, fontFamily: F, letterSpacing: "0.5px", cursor: "pointer", opacity: ready ? 1 : 0, transition: "all .5s", zIndex: 10 }}
-        onMouseEnter={e => { e.target.style.color = "#c0b8c8"; e.target.style.borderColor = "rgba(255,255,255,0.2)"; }}
-        onMouseLeave={e => { e.target.style.color = "#807888"; e.target.style.borderColor = "rgba(255,255,255,0.08)"; }}>
+        onMouseEnter={e => { e.target.style.color = "#c0b8c8"; }}
+        onMouseLeave={e => { e.target.style.color = "#807888"; }}>
         Sign Out
       </button>
 
-      {/* =============== CREATE WORLD MODAL =============== */}
-      {showCreateModal && (
-        <div style={modalBg} onClick={(e) => { e.stopPropagation(); setShowCreateModal(false); }}>
-          <div style={modalBox} onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Create a Shared World</div>
-            <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 20 }}>
-              Start a travel diary with someone special. You can invite them after creating it.
+      {/* ====== ADD A WORLD MENU ====== */}
+      {showAddMenu && (
+        <div style={modalBg} onClick={(e) => { e.stopPropagation(); closeAllModals(); }}>
+          <div style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Add a World</div>
+            <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 24 }}>
+              What kind of world would you like to create?
             </div>
-            <input
-              value={createName}
-              onChange={e => setCreateName(e.target.value)}
-              placeholder="World name (e.g. Our Adventures)"
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={optionCard}
+                onClick={() => { setShowAddMenu(false); setShowCreatePersonal(true); }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(160,192,232,0.3)"; e.currentTarget.style.background = "rgba(160,192,232,0.06)"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; e.currentTarget.style.background = "rgba(255,255,255,0.03)"; }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "#c0d8f0", marginBottom: 4 }}>Personal World</div>
+                <div style={{ fontSize: 11, color: "#807888", lineHeight: 1.5 }}>Another private travel diary, just for you. Great for separating trips by category or time period.</div>
+              </div>
+              <div style={optionCard}
+                onClick={() => { setShowAddMenu(false); setShowCreateShared(true); }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(232,184,208,0.3)"; e.currentTarget.style.background = "rgba(232,184,208,0.06)"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; e.currentTarget.style.background = "rgba(255,255,255,0.03)"; }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "#e8b8d0", marginBottom: 4 }}>Shared World</div>
+                <div style={{ fontSize: 11, color: "#807888", lineHeight: 1.5 }}>A travel diary with someone special — a partner, friend, or family. Invite them by email.</div>
+              </div>
+            </div>
+            <button onClick={closeAllModals} style={{ ...btnS, marginTop: 20 }}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* ====== CREATE PERSONAL WORLD ====== */}
+      {showCreatePersonal && (
+        <div style={modalBg} onClick={(e) => { e.stopPropagation(); closeAllModals(); }}>
+          <div style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Create a Personal World</div>
+            <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 20 }}>
+              This world will be private to you, orbiting your My World in your cosmos.
+            </div>
+            <input value={personalName} onChange={e => setPersonalName(e.target.value)}
+              placeholder="World name (e.g. Road Trips, Europe 2024)"
               style={{ ...inputSt, marginBottom: 16 }}
-              onKeyDown={e => { if (e.key === "Enter") handleCreate(); }}
-              autoFocus
-            />
+              onKeyDown={e => { if (e.key === "Enter") handleCreatePersonal(); }} autoFocus />
             <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-              <button onClick={() => setShowCreateModal(false)} style={btnSecondary}>Cancel</button>
-              <button onClick={handleCreate} disabled={creating || !createName.trim()} style={{ ...btnPrimary, opacity: creating || !createName.trim() ? 0.5 : 1 }}>
-                {creating ? "Creating..." : "Create World"}
+              <button onClick={closeAllModals} style={btnS}>Cancel</button>
+              <button onClick={handleCreatePersonal} disabled={creatingPersonal || !personalName.trim()}
+                style={{ ...btnP, opacity: creatingPersonal || !personalName.trim() ? 0.5 : 1 }}>
+                {creatingPersonal ? "Creating..." : "Create World"}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* =============== JOIN WORLD MODAL =============== */}
+      {/* ====== CREATE SHARED WORLD (multi-step) ====== */}
+      {showCreateShared && (
+        <div style={modalBg} onClick={(e) => { e.stopPropagation(); if (sharedStep < 2) closeAllModals(); }}>
+          <div style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
+
+            {/* Step 0: Name */}
+            {sharedStep === 0 && (<>
+              <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Create a Shared World</div>
+              <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 20 }}>
+                Name your shared world. You'll invite someone to join in the next step.
+              </div>
+              <input value={sharedName} onChange={e => setSharedName(e.target.value)}
+                placeholder="World name (e.g. Our Adventures)"
+                style={{ ...inputSt, marginBottom: 16 }}
+                onKeyDown={e => { if (e.key === "Enter") handleCreateShared(); }} autoFocus />
+              <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+                <button onClick={closeAllModals} style={btnS}>Cancel</button>
+                <button onClick={handleCreateShared} disabled={creatingShared || !sharedName.trim()}
+                  style={{ ...btnP, opacity: creatingShared || !sharedName.trim() ? 0.5 : 1 }}>
+                  {creatingShared ? "Creating..." : "Next"}
+                </button>
+              </div>
+            </>)}
+
+            {/* Step 1: Invite details */}
+            {sharedStep === 1 && (<>
+              <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Invite Someone</div>
+              <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 20 }}>
+                Enter their email to invite them. You can also write a personal letter they'll see when they first open the app.
+              </div>
+              <input value={inviteEmail} onChange={e => setInviteEmail(e.target.value)}
+                placeholder="Their email address"
+                type="email"
+                style={{ ...inputSt, marginBottom: 12 }} autoFocus />
+              <div style={{ textAlign: "left", marginBottom: 6 }}>
+                <div style={{ fontSize: 10, color: "#807888", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>Write them a letter (optional)</div>
+              </div>
+              <textarea value={inviteLetter} onChange={e => setInviteLetter(e.target.value)}
+                placeholder={"Dear ...\n\nI created this world for us to fill with our adventures together.\n\nWith love, ..."}
+                style={{ ...textareaSt, marginBottom: 16 }} />
+              <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+                <button onClick={() => {
+                  // Skip invite, go straight to world
+                  handleFinishShared();
+                }} style={btnS}>Skip for now</button>
+                <button onClick={handleSendInvite} disabled={creatingShared || !inviteEmail.trim()}
+                  style={{ ...btnP, opacity: creatingShared || !inviteEmail.trim() ? 0.5 : 1 }}>
+                  {creatingShared ? "Sending..." : "Send Invite"}
+                </button>
+              </div>
+            </>)}
+
+            {/* Step 2: Done */}
+            {sharedStep === 2 && (<>
+              <div style={{ fontSize: 44, marginBottom: 12 }}>&#10024;</div>
+              <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>World Created!</div>
+              <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 16 }}>
+                "{sharedName}" is ready. Share this link with your person:
+              </div>
+              <div style={{ ...inputSt, marginBottom: 12, textAlign: "left", wordBreak: "break-all", fontSize: 12, lineHeight: 1.5, background: "rgba(200,170,110,0.08)", borderColor: "rgba(200,170,110,0.25)" }}>
+                {generatedLink}
+              </div>
+              <div style={{ display: "flex", gap: 10, justifyContent: "center", marginBottom: 8 }}>
+                <button onClick={() => navigator.clipboard.writeText(generatedLink)} style={btnP}>Copy Link</button>
+              </div>
+              <div style={{ fontSize: 10, color: "#807888", marginBottom: 16 }}>
+                {inviteLetter ? "Your letter will appear when they first log in." : ""} Link expires in 7 days.
+              </div>
+              <button onClick={handleFinishShared} style={btnP}>Enter World</button>
+            </>)}
+          </div>
+        </div>
+      )}
+
+      {/* ====== JOIN WORLD ====== */}
       {showJoinModal && (
-        <div style={modalBg} onClick={(e) => { e.stopPropagation(); setShowJoinModal(false); }}>
-          <div style={modalBox} onClick={e => e.stopPropagation()}>
+        <div style={modalBg} onClick={(e) => { e.stopPropagation(); closeAllModals(); }}>
+          <div style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Join a World</div>
             <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 20 }}>
               Paste the invite code you received to join someone's world.
             </div>
-            <input
-              value={joinToken}
-              onChange={e => setJoinToken(e.target.value)}
+            <input value={joinToken} onChange={e => setJoinToken(e.target.value)}
               placeholder="Paste invite code"
               style={{ ...inputSt, marginBottom: 16 }}
-              onKeyDown={e => { if (e.key === "Enter") handleJoin(); }}
-              autoFocus
-            />
+              onKeyDown={e => { if (e.key === "Enter") handleJoin(); }} autoFocus />
             <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-              <button onClick={() => setShowJoinModal(false)} style={btnSecondary}>Cancel</button>
-              <button onClick={handleJoin} disabled={joining || !joinToken.trim()} style={{ ...btnPrimary, opacity: joining || !joinToken.trim() ? 0.5 : 1 }}>
+              <button onClick={closeAllModals} style={btnS}>Cancel</button>
+              <button onClick={handleJoin} disabled={joining || !joinToken.trim()}
+                style={{ ...btnP, opacity: joining || !joinToken.trim() ? 0.5 : 1 }}>
                 {joining ? "Joining..." : "Join World"}
               </button>
             </div>
@@ -413,32 +557,39 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
         </div>
       )}
 
-      {/* =============== INVITE MODAL =============== */}
+      {/* ====== INVITE FROM EXISTING WORLD ====== */}
       {showInviteModal && (
-        <div style={modalBg} onClick={(e) => { e.stopPropagation(); setShowInviteModal(null); }}>
-          <div style={modalBox} onClick={e => e.stopPropagation()}>
+        <div style={modalBg} onClick={(e) => { e.stopPropagation(); closeAllModals(); }}>
+          <div style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Invite to "{showInviteModal.name}"</div>
-            <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 20 }}>
-              Generate a link to invite someone to this world. They'll need a My Cosmos account.
+            <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 16 }}>
+              Enter their email to send a personal invite, or just generate a link.
             </div>
-            {!inviteLink ? (
-              <button onClick={() => handleGenerateInvite(showInviteModal)} disabled={inviteGenerating} style={{ ...btnPrimary, opacity: inviteGenerating ? 0.5 : 1 }}>
-                {inviteGenerating ? "Generating..." : "Generate Invite Link"}
+            {!inviteLink ? (<>
+              <input value={existingInviteEmail} onChange={e => setExistingInviteEmail(e.target.value)}
+                placeholder="Their email (optional)"
+                type="email"
+                style={{ ...inputSt, marginBottom: 8 }} autoFocus />
+              {existingInviteEmail.trim() && (
+                <textarea value={existingInviteLetter} onChange={e => setExistingInviteLetter(e.target.value)}
+                  placeholder="Write them a welcome letter (optional)"
+                  style={{ ...textareaSt, marginBottom: 12, minHeight: 80 }} />
+              )}
+              <button onClick={handleGenerateInvite} disabled={inviteGenerating}
+                style={{ ...btnP, opacity: inviteGenerating ? 0.5 : 1 }}>
+                {inviteGenerating ? "Generating..." : existingInviteEmail.trim() ? "Send Invite" : "Generate Link"}
               </button>
-            ) : (
-              <div>
-                <div style={{ ...inputSt, marginBottom: 12, textAlign: "left", wordBreak: "break-all", fontSize: 12, lineHeight: 1.5, background: "rgba(200,170,110,0.08)", borderColor: "rgba(200,170,110,0.25)" }}>
-                  {inviteLink}
-                </div>
-                <button onClick={() => { navigator.clipboard.writeText(inviteLink); }}
-                  style={{ ...btnPrimary, marginBottom: 8 }}>
-                  Copy Link
-                </button>
-                <div style={{ fontSize: 10, color: "#807888", marginTop: 6 }}>Link expires in 7 days</div>
+            </>) : (<>
+              <div style={{ ...inputSt, marginBottom: 12, textAlign: "left", wordBreak: "break-all", fontSize: 12, lineHeight: 1.5, background: "rgba(200,170,110,0.08)", borderColor: "rgba(200,170,110,0.25)" }}>
+                {inviteLink}
               </div>
-            )}
+              <button onClick={() => navigator.clipboard.writeText(inviteLink)} style={{ ...btnP, marginBottom: 8 }}>Copy Link</button>
+              <div style={{ fontSize: 10, color: "#807888", marginTop: 4 }}>
+                {existingInviteLetter.trim() ? "Your letter will appear when they first log in. " : ""}Link expires in 7 days.
+              </div>
+            </>)}
             <div style={{ marginTop: 16 }}>
-              <button onClick={() => setShowInviteModal(null)} style={btnSecondary}>Close</button>
+              <button onClick={closeAllModals} style={btnS}>Close</button>
             </div>
           </div>
         </div>

@@ -48,6 +48,7 @@ const link = {
 export default function AuthScreen() {
   const [mode, setMode] = useState('login') // login | signup | forgot | verify
   const [email, setEmail] = useState('')
+  const [displayName, setDisplayName] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
@@ -67,10 +68,17 @@ export default function AuthScreen() {
   const handleSignup = async (e) => {
     e.preventDefault()
     setError('')
+    if (!displayName.trim()) { setError('Please enter your name'); return }
     if (password !== confirmPassword) { setError('Passwords do not match'); return }
     if (password.length < 6) { setError('Password must be at least 6 characters'); return }
     setLoading(true)
-    const { error } = await supabase.auth.signUp({ email, password })
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { display_name: displayName.trim() },
+      },
+    })
     setLoading(false)
     if (error) { setError(error.message); return }
     setMode('verify')
@@ -115,7 +123,8 @@ export default function AuthScreen() {
         {mode === 'signup' && (
           <form onSubmit={handleSignup}>
             <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 20, textAlign: 'center' }}>Create Account</div>
-            <input style={inp} type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required autoFocus />
+            <input style={inp} type="text" placeholder="Your name" value={displayName} onChange={e => setDisplayName(e.target.value)} required autoFocus />
+            <input style={inp} type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required />
             <input style={inp} type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required />
             <input style={inp} type="password" placeholder="Confirm password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required />
             {error && <div style={{ color: '#e57373', fontSize: 13, marginBottom: 8 }}>{error}</div>}
