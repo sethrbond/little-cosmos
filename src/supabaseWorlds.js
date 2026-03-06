@@ -168,3 +168,98 @@ export async function createInviteWithLetter(worldId, userId, fromName, toEmail,
 
   return { invite, inviteLink: `${window.location.origin}?invite=${invite.token}` }
 }
+
+// Create a viewer invite (read-only access to someone's world)
+export async function createViewerInvite(worldId, userId, toEmail, letterText, fromName) {
+  const invite = await createInvite(worldId, userId, 'viewer')
+  if (!invite) return null
+
+  if (letterText && letterText.trim()) {
+    const { error: letterErr } = await supabase
+      .from('welcome_letters')
+      .insert({
+        from_user_id: userId,
+        from_name: fromName || 'A friend',
+        to_email: toEmail.toLowerCase(),
+        letter_text: letterText.trim(),
+      })
+    if (letterErr) console.error('[createViewerInvite] letter error:', letterErr)
+  }
+
+  return { invite, inviteLink: `${window.location.origin}?invite=${invite.token}` }
+}
+
+// ---- COMMENTS ----
+
+export async function loadComments(worldId, entryId) {
+  const { data, error } = await supabase
+    .from('entry_comments')
+    .select('*')
+    .eq('world_id', worldId)
+    .eq('entry_id', entryId)
+    .order('created_at', { ascending: true })
+  if (error) { console.error('[loadComments]', error); return [] }
+  return data || []
+}
+
+export async function addComment(worldId, entryId, userId, userName, text) {
+  const { data, error } = await supabase
+    .from('entry_comments')
+    .insert({ world_id: worldId, entry_id: entryId, user_id: userId, user_name: userName, comment_text: text })
+    .select()
+    .single()
+  if (error) { console.error('[addComment]', error); return null }
+  return data
+}
+
+export async function deleteComment(commentId) {
+  const { error } = await supabase.from('entry_comments').delete().eq('id', commentId)
+  if (error) console.error('[deleteComment]', error)
+  return !error
+}
+
+// ---- REACTIONS ----
+
+export async function loadReactions(worldId, entryId) {
+  const { data, error } = await supabase
+    .from('entry_reactions')
+    .select('*')
+    .eq('world_id', worldId)
+    .eq('entry_id', entryId)
+  if (error) { console.error('[loadReactions]', error); return [] }
+  return data || []
+}
+
+export async function toggleReaction(worldId, entryId, userId, reactionType = 'heart', photoUrl = null) {
+  // Check if already exists
+  let query = supabase.from('entry_reactions')
+    .select('id')
+    .eq('world_id', worldId)
+    .eq('entry_id', entryId)
+    .eq('user_id', userId)
+    .eq('reaction_type', reactionType)
+  if (photoUrl) query = query.eq('photo_url', photoUrl)
+  else query = query.is('photo_url', null)
+
+  const { data: existing } = await query.single()
+
+  if (existing) {
+    await supabase.from('entry_reactions').delete().eq('id', existing.id)
+    return { action: 'removed' }
+  } else {
+    const row = { world_id: worldId, entry_id: entryId, user_id: userId, reaction_type: reactionType }
+    if (photoUrl) row.photo_url = photoUrl
+    await supabase.from('entry_reactions').insert(row)
+    return { action: 'added' }
+  }
+}
+
+// Bulk load reactions for all entries in a world (for badges/counts)
+export async function loadAllWorldReactions(worldId) {
+  const { data, error } = await supabase
+    .from('entry_reactions')
+    .select('entry_id, reaction_type, user_id, photo_url')
+    .eq('world_id', worldId)
+  if (error) { console.error('[loadAllWorldReactions]', error); return [] }
+  return data || []
+}

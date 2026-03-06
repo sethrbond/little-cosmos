@@ -13,6 +13,7 @@ import {
   getSeasonalHue, resolveTypes,
 } from "./worldConfigs.js";
 import { sendWelcomeLetter, getMyLetters, deleteWelcomeLetter } from "./supabaseWelcomeLetters.js";
+import { loadComments, addComment, deleteComment, loadAllWorldReactions, toggleReaction } from "./supabaseWorlds.js";
 
 /* =================================================================
    🌍 OUR WORLD / MY WORLD — Multi-World Globe Engine
@@ -791,13 +792,15 @@ class OurWorldErrorBoundary extends Component {
 // ================================================================
 // MAIN
 // ================================================================
-function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, onSwitchWorld }) {
+function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, worldRole = null, onSwitchWorld }) {
   // ---- AUTH ----
-  const { userId, signOut } = useAuth();
+  const { user, userId, signOut } = useAuth();
+  const userDisplayName = user?.user_metadata?.display_name || "";
 
   // ---- WORLD MODE CONFIG ----
   const isMyWorld = worldMode === "my";
   const isSharedWorld = worldMode === "our" && !!worldId;
+  const isViewer = worldRole === "viewer";
   const DEFAULT_CONFIG = isMyWorld ? MY_WORLD_DEFAULT_CONFIG : OUR_WORLD_DEFAULT_CONFIG;
   const FIELD_LABELS = isMyWorld ? MY_WORLD_FIELDS : OUR_WORLD_FIELDS;
   useEffect(() => {
@@ -1014,6 +1017,18 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, on
     return () => clearTimeout(t);
   }, [selected?.id, selected?.musicUrl]);
 
+  // Load reactions for shared worlds
+  useEffect(() => {
+    if (!isSharedWorld || !worldId) return;
+    loadAllWorldReactions(worldId).then(setWorldReactions).catch(() => {});
+  }, [isSharedWorld, worldId]);
+
+  // Load comments when selecting an entry in a shared world
+  useEffect(() => {
+    if (!isSharedWorld || !worldId || !selected?.id) { setEntryComments([]); return; }
+    loadComments(worldId, selected.id).then(setEntryComments).catch(() => setEntryComments([]));
+  }, [isSharedWorld, worldId, selected?.id]);
+
   // zoom tracked via zmR ref (used in animation loop directly)
   const [ready, setReady] = useState(false);
   const [introComplete, setIntroComplete] = useState(false);
@@ -1061,6 +1076,10 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, on
   const [showConstellation, setShowConstellation] = useState(false);
   const [showDreams, setShowDreams] = useState(false);
   const [cardTab, setCardTab] = useState("overview"); // overview, memories, places, photos
+  // Comments & Reactions (shared/viewer worlds)
+  const [entryComments, setEntryComments] = useState([]);
+  const [worldReactions, setWorldReactions] = useState([]);
+  const [commentText, setCommentText] = useState("");
   const [showZoomHint, setShowZoomHint] = useState(true);
   const [monthlyPromptShown, setMonthlyPromptShown] = useState(false);
   const [quickAddMode, setQuickAddMode] = useState(false);
@@ -2287,9 +2306,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, on
       {/* TOOLBAR */}
       <div style={{ position: "absolute", top: 22, left: 22, zIndex: 20, display: "flex", flexDirection: "column", gap: 7, opacity: introComplete ? 1 : 0, transition: "opacity .8s ease" }}>
         
-        {<TBtn onClick={() => setShowAdd(true)} accent tip="Add Entry">＋</TBtn>}
-        {<TBtn onClick={() => setQuickAddMode(true)} tip="Quick Add">⚡</TBtn>}
-        {<TBtn onClick={() => { setShowSettings(true); getMyLetters(userId).then(setMyLetters); }} tip="Settings">⚙️</TBtn>}
+        {!isViewer && <TBtn onClick={() => setShowAdd(true)} accent tip="Add Entry">＋</TBtn>}
+        {!isViewer && <TBtn onClick={() => setQuickAddMode(true)} tip="Quick Add">⚡</TBtn>}
+        {!isViewer && <TBtn onClick={() => { setShowSettings(true); getMyLetters(userId).then(setMyLetters); }} tip="Settings">⚙️</TBtn>}
         <TBtn a={darkMode} onClick={() => { setDarkMode(v => { const next = !v; setConfig({ darkMode: next }); return next; }); }} tip="Toggle Theme">{darkMode ? "☀️" : "🌙"}</TBtn>
         {allPhotos.length > 0 && <TBtn a={showGallery} onClick={() => setShowGallery(v => !v)} tip="Photo Gallery">📷</TBtn>}
         {allPhotos.length > 2 && <TBtn onClick={() => { setShowPhotoJourney(true); setPjIndex(0); }} tip="Photo Journey">🎞</TBtn>}
@@ -2476,10 +2495,10 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, on
                   </div>
                 ))}
               </div>
-              {<button onClick={() => handlePhotos(cur.id)} style={{ marginTop: 6, width: "100%", padding: "5px", background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: "none", borderRadius: 5, cursor: "pointer", fontSize: 9, color: P.textMuted, fontFamily: "inherit" }}>+ Add More Photos</button>}
+              {!isViewer && <button onClick={() => handlePhotos(cur.id)} style={{ marginTop: 6, width: "100%", padding: "5px", background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: "none", borderRadius: 5, cursor: "pointer", fontSize: 9, color: P.textMuted, fontFamily: "inherit" }}>+ Add More Photos</button>}
             </div>
           )}
-          {(cur.photos || []).length === 0 && <div
+          {!isViewer && (cur.photos || []).length === 0 && <div
             onDragOver={e => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
             onDrop={async e => {
@@ -2549,10 +2568,10 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, on
                 {!isMyWorld && <div style={{ marginTop: 10, padding: "10px 12px", background: `${P.heart}06`, borderRadius: 8, borderLeft: `2px solid ${P.heart}20` }}>
                   <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 4 }}>💌 Love Note</div>
                   {cur.loveNote ? <p style={{ fontSize: 11, lineHeight: 1.6, color: P.textMid, margin: 0, fontStyle: "italic" }}>{cur.loveNote}</p>
-                  : true ? <input placeholder="Write a note about this memory..." onBlur={e => { if (e.target.value.trim()) dispatch({ type: "UPDATE", id: cur.id, data: { loveNote: e.target.value.trim() } }); }}
+                  : !isViewer ? <input placeholder="Write a note about this memory..." onBlur={e => { if (e.target.value.trim()) dispatch({ type: "UPDATE", id: cur.id, data: { loveNote: e.target.value.trim() } }); }}
                       style={{ width: "100%", border: "none", background: "none", fontSize: 10, fontFamily: "inherit", color: P.textMid, fontStyle: "italic", outline: "none", padding: 0 }} />
                   : <div style={{ fontSize: 9, color: P.textFaint, fontStyle: "italic" }}>No note yet</div>}
-                  {cur.loveNote && <button onClick={() => dispatch({ type: "UPDATE", id: cur.id, data: { loveNote: "" } })} style={{ marginTop: 4, background: "none", border: "none", fontSize: 8, color: P.textFaint, cursor: "pointer", padding: 0 }}>Clear</button>}
+                  {cur.loveNote && !isViewer && <button onClick={() => dispatch({ type: "UPDATE", id: cur.id, data: { loveNote: "" } })} style={{ marginTop: 4, background: "none", border: "none", fontSize: 8, color: P.textFaint, cursor: "pointer", padding: 0 }}>Clear</button>}
                 </div>}
               </>)}
 
@@ -2576,11 +2595,86 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, on
                     </button>
                   ))}
                 </div>
-                {<button onClick={() => handlePhotos(cur.id)} style={{ marginTop: 8, width: "100%", padding: "6px", background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: "none", borderRadius: 5, cursor: "pointer", fontSize: 9, color: P.textMuted, fontFamily: "inherit" }}>+ Add Photos</button>}
+                {!isViewer && <button onClick={() => handlePhotos(cur.id)} style={{ marginTop: 8, width: "100%", padding: "6px", background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: "none", borderRadius: 5, cursor: "pointer", fontSize: 9, color: P.textMuted, fontFamily: "inherit" }}>+ Add Photos</button>}
               </>)}
             </div>
 
-            {<button onClick={() => setEditing({ ...cur })} style={{ marginTop: 10, width: "100%", padding: "7px 0", background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: `1px solid ${P.rose}15`, borderRadius: 7, cursor: "pointer", fontSize: 9, color: P.textMuted, fontFamily: "inherit" }}>✏️ Edit</button>}
+            {!isViewer && <button onClick={() => setEditing({ ...cur })} style={{ marginTop: 10, width: "100%", padding: "7px 0", background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: `1px solid ${P.rose}15`, borderRadius: 7, cursor: "pointer", fontSize: 9, color: P.textMuted, fontFamily: "inherit" }}>✏️ Edit</button>}
+
+            {/* Reactions — shared worlds only */}
+            {isSharedWorld && (() => {
+              const entryReactions = worldReactions.filter(r => r.entry_id === cur.id && !r.photo_url);
+              const reactionTypes = [
+                { type: "heart", icon: "❤️" },
+                { type: "star", icon: "⭐" },
+                { type: "fire", icon: "🔥" },
+                { type: "wow", icon: "😮" },
+              ];
+              return (
+                <div style={{ marginTop: 10, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {reactionTypes.map(rt => {
+                    const count = entryReactions.filter(r => r.reaction_type === rt.type).length;
+                    const myReaction = entryReactions.find(r => r.reaction_type === rt.type && r.user_id === userId);
+                    return (
+                      <button key={rt.type} onClick={async () => {
+                        await toggleReaction(worldId, cur.id, userId, rt.type);
+                        loadAllWorldReactions(worldId).then(setWorldReactions).catch(() => {});
+                      }} style={{
+                        padding: "3px 8px", borderRadius: 12, border: myReaction ? `1px solid ${P.rose}40` : `1px solid ${P.rose}15`,
+                        background: myReaction ? `${P.rose}12` : "transparent", cursor: "pointer", fontSize: 11,
+                        fontFamily: "inherit", display: "flex", alignItems: "center", gap: 3, transition: "all .2s",
+                      }}>
+                        {rt.icon} {count > 0 && <span style={{ fontSize: 9, color: P.textMid }}>{count}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+
+            {/* Comments — shared worlds only */}
+            {isSharedWorld && (
+              <div style={{ marginTop: 10, borderTop: `1px solid ${P.rose}10`, paddingTop: 8 }}>
+                <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 6 }}>
+                  Comments {entryComments.length > 0 && `(${entryComments.length})`}
+                </div>
+                {entryComments.map(c => (
+                  <div key={c.id} style={{ padding: "6px 8px", background: `${P.rose}06`, borderRadius: 6, marginBottom: 4 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: 9, fontWeight: 600, color: P.textMid }}>{c.user_name || "Someone"}</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        <span style={{ fontSize: 7, color: P.textFaint }}>{new Date(c.created_at).toLocaleDateString()}</span>
+                        {c.user_id === userId && <button onClick={async () => {
+                          await deleteComment(c.id);
+                          loadComments(worldId, cur.id).then(setEntryComments).catch(() => {});
+                        }} style={{ background: "none", border: "none", fontSize: 8, color: P.textFaint, cursor: "pointer", padding: 0 }}>✕</button>}
+                      </div>
+                    </div>
+                    <p style={{ fontSize: 10, color: P.text, margin: "2px 0 0", lineHeight: 1.5 }}>{c.comment_text}</p>
+                  </div>
+                ))}
+                <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
+                  <input value={commentText} onChange={e => setCommentText(e.target.value)}
+                    placeholder="Leave a comment..."
+                    onKeyDown={e => {
+                      if (e.key === "Enter" && commentText.trim()) {
+                        addComment(worldId, cur.id, userId, userDisplayName, commentText.trim()).then(() => {
+                          setCommentText("");
+                          loadComments(worldId, cur.id).then(setEntryComments).catch(() => {});
+                        });
+                      }
+                    }}
+                    style={{ flex: 1, padding: "5px 8px", background: `${P.rose}06`, border: `1px solid ${P.rose}12`, borderRadius: 6, fontSize: 10, fontFamily: "inherit", color: P.text, outline: "none" }} />
+                  <button onClick={() => {
+                    if (!commentText.trim()) return;
+                    addComment(worldId, cur.id, userId, userDisplayName, commentText.trim()).then(() => {
+                      setCommentText("");
+                      loadComments(worldId, cur.id).then(setEntryComments).catch(() => {});
+                    });
+                  }} style={{ padding: "4px 10px", background: `linear-gradient(135deg,${P.rose}30,${P.rose}20)`, border: "none", borderRadius: 6, fontSize: 9, color: P.textMid, cursor: "pointer", fontFamily: "inherit" }}>Send</button>
+                </div>
+              </div>
+            )}
 
             {/* Entry navigation — prev/next chronologically */}
             {sorted.length > 1 && (() => {
@@ -2769,7 +2863,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, on
                   <div style={{ fontSize: 12, fontWeight: 400 }}>{dream.city}</div>
                   <div style={{ fontSize: 9, color: P.textFaint }}>{dream.country}{dream.notes ? ` — ${dream.notes}` : ""}</div>
                 </div>
-                {(<>
+                {!isViewer && (<>
                   <button onClick={() => {
                     const entry = { id: `e${Date.now()}`, city: dream.city, country: dream.country, lat: dream.lat, lng: dream.lng, dateStart: todayStr(), type: isMyWorld ? "adventure" : "together", who: isMyWorld ? "solo" : "both", notes: dream.notes || "", memories: [], museums: [], restaurants: [], highlights: [], photos: [], stops: [] };
                     dispatch({ type: "ADD", entry });
@@ -2786,7 +2880,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, on
 
             {(config.dreamDestinations || []).length === 0 && <div style={{ textAlign: "center", padding: "24px 0", color: P.textFaint, fontSize: 11 }}>{isMyWorld ? "No bucket list items yet" : "No dream destinations yet"}</div>}
 
-            {<DreamAddForm isMyWorld={isMyWorld} onAdd={dream => {
+            {!isViewer && <DreamAddForm isMyWorld={isMyWorld} onAdd={dream => {
               setConfig({ dreamDestinations: [...(config.dreamDestinations || []), { ...dream, id: `d${Date.now()}` }] });
               showToast(isMyWorld ? `${dream.city} added to bucket list 🗺` : `${dream.city} added to dreams ✦`, "✦", 2000);
             }} />}
@@ -3653,6 +3747,6 @@ function EditForm({ entry, types, fieldLabels, onChange, onSave, onClose, onDele
 }
 
 // ---- WRAPPED EXPORT WITH ERROR BOUNDARY ----
-export default function OurWorld({ worldMode, worldId, worldName, onSwitchWorld }) {
-  return <OurWorldErrorBoundary><OurWorldInner worldMode={worldMode} worldId={worldId} worldName={worldName} onSwitchWorld={onSwitchWorld} /></OurWorldErrorBoundary>;
+export default function OurWorld({ worldMode, worldId, worldName, worldRole, onSwitchWorld }) {
+  return <OurWorldErrorBoundary><OurWorldInner worldMode={worldMode} worldId={worldId} worldName={worldName} worldRole={worldRole} onSwitchWorld={onSwitchWorld} /></OurWorldErrorBoundary>;
 }

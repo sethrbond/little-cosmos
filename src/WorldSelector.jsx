@@ -63,13 +63,17 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
   const [inviteGenerating, setInviteGenerating] = useState(false);
   const [existingInviteEmail, setExistingInviteEmail] = useState("");
   const [existingInviteLetter, setExistingInviteLetter] = useState("");
+  const [existingInviteRole, setExistingInviteRole] = useState("member");
 
   // Build orbiting worlds from props
   const WORLDS = useMemo(() => worlds.map((w, i) => ({
     id: w.id,
     label: w.name,
-    sub: w.role === "owner" ? "Owner" : "Member",
+    sub: w.role === "owner" ? "Owner" : w.role === "viewer" ? "Viewing" : "Member",
+    isViewer: w.role === "viewer",
     ...ORB_PRESETS[i % ORB_PRESETS.length],
+    // Viewer worlds get slightly muted colors + smaller size
+    ...(w.role === "viewer" ? { size: 0.22, orbitRadius: (ORB_PRESETS[i % ORB_PRESETS.length]?.orbitRadius || 2.6) + 0.4 } : {}),
     ...(w.palette?.color ? { color: w.palette.color } : {}),
   })), [worlds]);
 
@@ -220,7 +224,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       if (isNaN(lx)) continue;
       if (Math.sqrt((cx - lx) ** 2 + (cy - ly) ** 2) < 75 && parseFloat(el.style.opacity) > 0.1) {
         if (id === "my") { onSelect("my"); }
-        else { const w = worlds.find(w => w.id === id); onSelect("our", id, w?.name || "Shared World"); }
+        else { const w = worlds.find(w => w.id === id); onSelect("our", id, w?.name || "Shared World", w?.role || "member"); }
         return;
       }
     }
@@ -256,7 +260,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       if (onWorldsChange) onWorldsChange(updated);
       setShowCreatePersonal(false);
       setPersonalName("");
-      onSelect("our", world.id, world.name);
+      onSelect("our", world.id, world.name, "owner");
     } else { alert("Failed to create world. Please try again."); }
   };
 
@@ -292,7 +296,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     setShowCreateShared(false);
     setSharedName(""); setSharedStep(0); setInviteEmail(""); setInviteLetter(""); setGeneratedLink("");
     const w = updated.find(w => w.id === createdWorldId);
-    onSelect("our", createdWorldId, w?.name || "Shared World");
+    onSelect("our", createdWorldId, w?.name || "Shared World", "owner");
   };
 
   const handleJoin = async () => {
@@ -306,15 +310,15 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       if (onWorldsChange) onWorldsChange(updated);
       setShowJoinModal(false); setJoinToken("");
       const w = updated.find(w => w.id === result.world_id);
-      onSelect("our", result.world_id, w?.name || "Shared World");
+      onSelect("our", result.world_id, w?.name || "Shared World", w?.role || "member");
     } else { alert(result?.error || "Invalid or expired invite code."); }
   };
 
   const handleGenerateInvite = async () => {
     if (!existingInviteEmail.trim()) {
-      // Simple link-only invite
+      // Simple link-only invite with selected role
       setInviteGenerating(true);
-      const inv = await createInvite(showInviteModal.id, userId);
+      const inv = await createInvite(showInviteModal.id, userId, existingInviteRole);
       setInviteGenerating(false);
       if (inv) setInviteLink(`${window.location.origin}?invite=${inv.token}`);
       else alert("Failed to generate invite.");
@@ -325,12 +329,23 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       return;
     }
     setInviteGenerating(true);
-    const result = await createInviteWithLetter(
-      showInviteModal.id, userId, userDisplayName || "Someone special", existingInviteEmail.trim(), existingInviteLetter
-    );
-    setInviteGenerating(false);
-    if (result) { setInviteLink(result.inviteLink); }
-    else { alert("Failed to generate invite."); }
+    // Use viewer-specific or member invite based on role
+    if (existingInviteRole === "viewer") {
+      const { createViewerInvite } = await import("./supabaseWorlds.js");
+      const result = await createViewerInvite(
+        showInviteModal.id, userId, existingInviteEmail.trim(), existingInviteLetter, userDisplayName
+      );
+      setInviteGenerating(false);
+      if (result) { setInviteLink(result.inviteLink); }
+      else { alert("Failed to generate invite."); }
+    } else {
+      const result = await createInviteWithLetter(
+        showInviteModal.id, userId, userDisplayName || "Someone special", existingInviteEmail.trim(), existingInviteLetter
+      );
+      setInviteGenerating(false);
+      if (result) { setInviteLink(result.inviteLink); }
+      else { alert("Failed to generate invite."); }
+    }
   };
 
   const closeAllModals = () => {
@@ -338,7 +353,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     setShowJoinModal(false); setShowInviteModal(null);
     setPersonalName(""); setSharedName(""); setSharedStep(0); setInviteEmail("");
     setInviteLetter(""); setGeneratedLink(""); setJoinToken("");
-    setInviteLink(""); setExistingInviteEmail(""); setExistingInviteLetter("");
+    setInviteLink(""); setExistingInviteEmail(""); setExistingInviteLetter(""); setExistingInviteRole("member");
   };
 
   // Style constants
@@ -566,6 +581,28 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
               Enter their email to send a personal invite, or just generate a link.
             </div>
             {!inviteLink ? (<>
+              {/* Role selection */}
+              <div style={{ display: "flex", gap: 8, marginBottom: 14, justifyContent: "center" }}>
+                <button onClick={() => setExistingInviteRole("member")}
+                  style={{ padding: "6px 16px", borderRadius: 8, fontSize: 12, fontFamily: F, cursor: "pointer", border: "1px solid", transition: "all .2s",
+                    ...(existingInviteRole === "member"
+                      ? { background: "rgba(200,170,110,0.15)", borderColor: "rgba(200,170,110,0.4)", color: "#c9a96e" }
+                      : { background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.1)", color: "#807888" }) }}>
+                  Member (can edit)
+                </button>
+                <button onClick={() => setExistingInviteRole("viewer")}
+                  style={{ padding: "6px 16px", borderRadius: 8, fontSize: 12, fontFamily: F, cursor: "pointer", border: "1px solid", transition: "all .2s",
+                    ...(existingInviteRole === "viewer"
+                      ? { background: "rgba(160,192,232,0.15)", borderColor: "rgba(160,192,232,0.4)", color: "#a0c0e8" }
+                      : { background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.1)", color: "#807888" }) }}>
+                  Viewer (read only)
+                </button>
+              </div>
+              <div style={{ fontSize: 10, color: "#686070", marginBottom: 12, fontStyle: "italic" }}>
+                {existingInviteRole === "viewer"
+                  ? "Viewers can see all entries and photos, leave comments and reactions, but can't add or edit."
+                  : "Members can add entries, upload photos, and edit the world alongside you."}
+              </div>
               <input value={existingInviteEmail} onChange={e => setExistingInviteEmail(e.target.value)}
                 placeholder="Their email (optional)"
                 type="email"

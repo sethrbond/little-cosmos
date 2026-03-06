@@ -18,6 +18,9 @@ function AppInner() {
   const [activeWorldName, setActiveWorldName] = useState(
     () => localStorage.getItem('activeWorldName') || null
   )
+  const [activeWorldRole, setActiveWorldRole] = useState(
+    () => localStorage.getItem('activeWorldRole') || null
+  )
   const [welcomeLetter, setWelcomeLetter] = useState(null)
   const [letterChecked, setLetterChecked] = useState(false)
   const [worlds, setWorlds] = useState([])
@@ -69,7 +72,8 @@ function AppInner() {
           if (result?.ok) {
             loadMyWorlds(userId).then(w => {
               setWorlds(w)
-              selectWorld('our', result.world_id, worldName)
+              const joined = w.find(x => x.id === result.world_id)
+              selectWorld('our', result.world_id, worldName, joined?.role || 'member')
             })
           } else {
             alert(result?.error || 'Failed to accept invite.')
@@ -89,19 +93,23 @@ function AppInner() {
     }
   }, [userId, worldsLoaded, worldMode])
 
-  const selectWorld = useCallback((mode, worldId = null, worldName = null) => {
+  const selectWorld = useCallback((mode, worldId = null, worldName = null, worldRole = null) => {
     localStorage.setItem('worldMode', mode)
     setWorldMode(mode)
     if (worldId) {
       localStorage.setItem('activeWorldId', worldId)
       localStorage.setItem('activeWorldName', worldName || '')
+      localStorage.setItem('activeWorldRole', worldRole || 'owner')
       setActiveWorldId(worldId)
       setActiveWorldName(worldName)
+      setActiveWorldRole(worldRole || 'owner')
     } else {
       localStorage.removeItem('activeWorldId')
       localStorage.removeItem('activeWorldName')
+      localStorage.removeItem('activeWorldRole')
       setActiveWorldId(null)
       setActiveWorldName(null)
+      setActiveWorldRole(null)
     }
   }, [])
 
@@ -109,9 +117,11 @@ function AppInner() {
     localStorage.removeItem('worldMode')
     localStorage.removeItem('activeWorldId')
     localStorage.removeItem('activeWorldName')
+    localStorage.removeItem('activeWorldRole')
     setWorldMode(null)
     setActiveWorldId(null)
     setActiveWorldName(null)
+    setActiveWorldRole(null)
     if (userId) loadMyWorlds(userId).then(setWorlds).catch(() => {})
   }, [userId])
 
@@ -156,6 +166,7 @@ function AppInner() {
       worldMode={worldMode}
       worldId={activeWorldId}
       worldName={activeWorldName}
+      worldRole={activeWorldRole}
       onSwitchWorld={switchWorld}
     />
   )
