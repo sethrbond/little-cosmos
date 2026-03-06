@@ -2691,6 +2691,21 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
             <div style={{ margin: "14px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
             <div style={{ fontSize: 8, color: P.textMid, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 4, fontWeight: 500 }}>🎨 Color Theme</div>
             <p style={{ fontSize: 8, color: P.textFaint, fontStyle: "italic", marginBottom: 10 }}>Pick colors for your world. UI colors change instantly. Globe colors (marked ✦) apply after refresh.</p>
+            <div style={{ marginBottom: 10, padding: 8, background: P.rose, borderRadius: 6, textAlign: "center" }}>
+              <div style={{ fontSize: 8, color: "#fff", marginBottom: 4 }}>P.rose = {P.rose}</div>
+              <button onClick={() => setConfig({ customPalette: { ...(config.customPalette || {}), rose: "#ff0000" } })}
+                style={{ padding: "4px 12px", fontSize: 9, background: "#fff", border: "none", borderRadius: 4, cursor: "pointer", marginRight: 4 }}>
+                Set Red
+              </button>
+              <button onClick={() => setConfig({ customPalette: { ...(config.customPalette || {}), rose: "#00ff00" } })}
+                style={{ padding: "4px 12px", fontSize: 9, background: "#fff", border: "none", borderRadius: 4, cursor: "pointer", marginRight: 4 }}>
+                Set Green
+              </button>
+              <button onClick={() => setConfig({ customPalette: {}, customScene: {} })}
+                style={{ padding: "4px 12px", fontSize: 9, background: "#fff", border: "none", borderRadius: 4, cursor: "pointer" }}>
+                Reset
+              </button>
+            </div>
             {(() => {
               const cp = config.customPalette || {};
               const cs = config.customScene || {};
