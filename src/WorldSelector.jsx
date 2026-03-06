@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import * as THREE from "three";
 
-/* WorldSelector.jsx — "My Constellation" world chooser
+/* WorldSelector.jsx — "My Cosmos" world chooser
    My World is the central orb. Other worlds orbit it.
    Camera can be dragged/orbited to view from any angle.
    Labels track their orbs in real-time via direct DOM updates. */
@@ -214,7 +214,7 @@ export default function WorldSelector({ onSelect }) {
 
       {/* Title */}
       <div style={{ position: "absolute", top: "4%", left: 0, right: 0, textAlign: "center", opacity: ready ? 1 : 0, transition: "opacity 1.2s", pointerEvents: "none" }}>
-        <div style={{ fontSize: 13, letterSpacing: "4px", color: "#d0c8e0", textTransform: "uppercase", fontWeight: 500, textShadow: "0 1px 8px rgba(0,0,0,0.4)" }}>My Constellation</div>
+        <div style={{ fontSize: 13, letterSpacing: "4px", color: "#d0c8e0", textTransform: "uppercase", fontWeight: 500, textShadow: "0 1px 8px rgba(0,0,0,0.4)" }}>My Cosmos</div>
       </div>
 
       {/* Center label — My World (positioned by animation loop) */}
