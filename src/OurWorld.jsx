@@ -10,6 +10,7 @@ import {
   OUR_WORLD_FIELDS, MY_WORLD_FIELDS,
   OUR_WORLD_SCENE, MY_WORLD_SCENE,
   getSeasonalHue, resolveTypes,
+  THEME_FIELDS, deriveTheme,
 } from "./worldConfigs.js";
 
 /* =================================================================
@@ -799,12 +800,8 @@ class OurWorldErrorBoundary extends Component {
 function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
   // ---- WORLD MODE CONFIG ----
   const isMyWorld = worldMode === "my";
-  const P = isMyWorld ? MY_WORLD_PALETTE : OUR_WORLD_PALETTE;
-  const TYPES = useMemo(() => resolveTypes(isMyWorld ? MY_WORLD_TYPES : OUR_WORLD_TYPES, P), [isMyWorld]);
-  const DEFAULT_TYPE = isMyWorld ? TYPES.adventure : TYPES.together;
   const DEFAULT_CONFIG = isMyWorld ? MY_WORLD_DEFAULT_CONFIG : OUR_WORLD_DEFAULT_CONFIG;
   const FIELD_LABELS = isMyWorld ? MY_WORLD_FIELDS : OUR_WORLD_FIELDS;
-  const SC = isMyWorld ? MY_WORLD_SCENE : OUR_WORLD_SCENE;
 
   // DB functions selected by mode
   const db = useMemo(() => isMyWorld
@@ -813,11 +810,16 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
   , [isMyWorld]);
 
   const [data, _dispatch] = useReducer(reducer, { entries: [] });
-  // Auto-inject db functions into every dispatch action
   const dispatch = useCallback(action => _dispatch({ ...action, db }), [db]);
   const [config, setConfigState] = useState(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(true);
   const [sceneReady, setSceneReady] = useState(false);
+
+  // Palette & scene merge custom overrides from config (takes effect on render for UI, on reload for scene)
+  const P = useMemo(() => ({ ...(isMyWorld ? MY_WORLD_PALETTE : OUR_WORLD_PALETTE), ...(config.customPalette || {}) }), [isMyWorld, config.customPalette]);
+  const SC = useMemo(() => ({ ...(isMyWorld ? MY_WORLD_SCENE : OUR_WORLD_SCENE), ...(config.customScene || {}) }), [isMyWorld, config.customScene]);
+  const TYPES = useMemo(() => resolveTypes(isMyWorld ? MY_WORLD_TYPES : OUR_WORLD_TYPES, P), [isMyWorld, P]);
+  const DEFAULT_TYPE = isMyWorld ? TYPES.adventure : TYPES.together;
 
   useEffect(() => {
     (async () => {
@@ -2665,6 +2667,68 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
                   <Fld l="Partner Name" v={config.partnerName} set={v => setConfig({ partnerName: v })} />
                 </>
             }
+
+            <div style={{ margin: "10px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
+            <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 6 }}>🎨 Color Theme</div>
+            <p style={{ fontSize: 8, color: P.textFaint, fontStyle: "italic", marginBottom: 8 }}>Customize your world's colors. Changes apply instantly.</p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 12px", marginBottom: 10 }}>
+              {THEME_FIELDS.map(tf => {
+                const currentVal = (config.customTheme || {})[tf.key] || (isMyWorld ? tf.defaultMy : tf.defaultOur);
+                return (
+                  <div key={tf.key} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <input type="color" value={currentVal}
+                      onChange={e => {
+                        const prev = config.customTheme || {};
+                        setConfig({ customTheme: { ...prev, [tf.key]: e.target.value } });
+                      }}
+                      style={{ width: 28, height: 22, border: `1px solid ${P.textFaint}30`, borderRadius: 4, cursor: "pointer", padding: 0, background: "none" }}
+                    />
+                    <span style={{ fontSize: 8, color: P.textMid, letterSpacing: ".04em" }}>{tf.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <button onClick={() => setConfig({ customTheme: {} })}
+              style={{ width: "100%", padding: "5px", background: "transparent", border: `1px dashed ${P.textFaint}30`, borderRadius: 5, cursor: "pointer", fontSize: 8, fontFamily: "inherit", color: P.textFaint, marginBottom: 4 }}>
+              Reset to Default Colors
+            </button>
+
+            <div style={{ margin: "10px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
+            <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 6 }}>Theme & Colors</div>
+            <p style={{ fontSize: 8, color: P.textFaint, fontStyle: "italic", marginBottom: 8 }}>Customize your world's palette. Scene colors (marked ✦) take effect on reload.</p>
+            {(() => {
+              const cp = config.customPalette || {};
+              const cs = config.customScene || {};
+              const setCP = (key, val) => setConfig({ customPalette: { ...cp, [key]: val } });
+              const setCS = (key, val) => setConfig({ customScene: { ...cs, [key]: val } });
+              const CPick = ({ label, value, onChange, scene }) => (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+                  <input type="color" value={value} onChange={e => onChange(e.target.value)} style={{ width: 26, height: 26, border: `1px solid ${P.textFaint}30`, borderRadius: 6, cursor: "pointer", padding: 0, background: "none" }} />
+                  <span style={{ fontSize: 9, color: P.textMid, flex: 1 }}>{scene ? "✦ " : ""}{label}</span>
+                  <span style={{ fontSize: 7, color: P.textFaint, fontFamily: "monospace" }}>{value}</span>
+                </div>
+              );
+              const baseP = isMyWorld ? MY_WORLD_PALETTE : OUR_WORLD_PALETTE;
+              const baseSC = isMyWorld ? MY_WORLD_SCENE : OUR_WORLD_SCENE;
+              return <>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
+                  <CPick label="Primary Accent" value={cp.rose || baseP.rose} onChange={v => setCP("rose", v)} />
+                  <CPick label="Secondary Accent" value={cp.sky || baseP.sky} onChange={v => setCP("sky", v)} />
+                  <CPick label="Special / Gold" value={cp.special || baseP.special} onChange={v => setCP("special", v)} />
+                  <CPick label="Heart Color" value={cp.heart || baseP.heart} onChange={v => setCP("heart", v)} />
+                  <CPick label="Text Color" value={cp.text || baseP.text} onChange={v => setCP("text", v)} />
+                  <CPick label="Soft Background" value={cp.cream || baseP.cream} onChange={v => setCP("cream", v)} />
+                  <CPick label="Space Background" value={cs.bg || baseSC.bg} onChange={v => setCS("bg", v)} scene />
+                  <CPick label="Globe Surface" value={cs.sphereColor || baseSC.sphereColor} onChange={v => setCS("sphereColor", v)} scene />
+                  <CPick label="Glow Tint" value={(cs.glowColors || baseSC.glowColors)[0]} onChange={v => setCS("glowColors", [v, v+"e8", v+"d0", v+"b8", v+"a0", v+"88", v+"70", v+"58"])} scene />
+                  <CPick label="Coastlines" value={cs.coastColor || baseSC.coastColor} onChange={v => setCS("coastColor", v)} scene />
+                </div>
+                <button onClick={() => { setConfig({ customPalette: {}, customScene: {} }); }}
+                  style={{ marginTop: 6, width: "100%", padding: "5px", background: "transparent", border: `1px dashed ${P.textFaint}40`, borderRadius: 5, cursor: "pointer", fontSize: 8, fontFamily: "inherit", color: P.textFaint }}>
+                  Reset to Default Theme
+                </button>
+              </>;
+            })()}
 
             <div style={{ margin: "10px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
             <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 6 }}>Timeline Chapters</div>
