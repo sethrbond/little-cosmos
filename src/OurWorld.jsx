@@ -1810,8 +1810,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       zmR.current = lerp(zmR.current, tZm.current, 0.03);
       cam.position.z = zmR.current;
 
-      // Easter egg: fade in "you are my world" when zoomed all the way out
-      if (easterEggRef.current) easterEggRef.current.style.opacity = zmR.current > 5.5 ? Math.min(1, (zmR.current - 5.5) * 2) : 0;
+      // Easter egg: fade in "you are my world" when zoomed all the way out (shared worlds only)
+      if (easterEggRef.current) easterEggRef.current.style.opacity = isSharedWorld && zmR.current > 5.5 ? Math.min(1, (zmR.current - 5.5) * 2) : 0;
 
       // Zoom-based marker scaling with gentle breathing
       const mkScale = Math.min(1.2, Math.max(0.35, zmR.current / 3.5));
@@ -3325,12 +3325,14 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         );
       })()}
 
-      {/* EASTER EGG — visible when zoomed all the way out (opacity updated by animation loop) */}
-      <div ref={easterEggRef} style={{ position: "absolute", top: "12%", left: "50%", transform: "translateX(-50%)", zIndex: 5, textAlign: "center", pointerEvents: "none", opacity: 0, transition: "opacity .8s" }}>
-        <div style={{ fontSize: 14, color: "#c9a96e", letterSpacing: "6px", fontWeight: 300, textShadow: "0 0 20px rgba(200,170,110,0.4), 0 0 40px rgba(200,170,110,0.2)", fontFamily: "'Palatino Linotype',serif" }}>
-          you are my world
+      {/* EASTER EGG — visible when zoomed all the way out (shared worlds only) */}
+      {isSharedWorld && (
+        <div ref={easterEggRef} style={{ position: "absolute", top: "12%", left: "50%", transform: "translateX(-50%)", zIndex: 5, textAlign: "center", pointerEvents: "none", opacity: 0, transition: "opacity .8s" }}>
+          <div style={{ fontSize: 14, color: "#c9a96e", letterSpacing: "6px", fontWeight: 300, textShadow: "0 0 20px rgba(200,170,110,0.4), 0 0 40px rgba(200,170,110,0.2)", fontFamily: "'Palatino Linotype',serif" }}>
+            you are my world
+          </div>
         </div>
-      </div>
+      )}
 
       <style>{`
         @keyframes cardIn{from{opacity:0;transform:translateY(-50%) translateX(18px)}to{opacity:1;transform:translateY(-50%) translateX(0)}}
