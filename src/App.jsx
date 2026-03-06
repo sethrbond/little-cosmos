@@ -1,8 +1,11 @@
 import { useState } from 'react'
+import { AuthProvider, useAuth } from './AuthContext.jsx'
+import AuthScreen from './AuthScreen.jsx'
 import WorldSelector from './WorldSelector.jsx'
 import OurWorld from './OurWorld.jsx'
 
-function App() {
+function AppInner() {
+  const { user, loading } = useAuth()
   const [worldMode, setWorldMode] = useState(
     () => localStorage.getItem('worldMode') || null
   )
@@ -17,6 +20,16 @@ function App() {
     setWorldMode(null)
   }
 
+  if (loading) {
+    return (
+      <div style={{ position: 'fixed', inset: 0, background: '#0c0a12', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: '"Palatino Linotype", serif', color: '#e8e0d0', fontSize: 18, opacity: 0.6 }}>
+        Loading...
+      </div>
+    )
+  }
+
+  if (!user) return <AuthScreen />
+
   if (!worldMode) {
     return <WorldSelector onSelect={selectWorld} />
   }
@@ -24,4 +37,10 @@ function App() {
   return <OurWorld worldMode={worldMode} onSwitchWorld={switchWorld} />
 }
 
-export default App
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppInner />
+    </AuthProvider>
+  )
+}

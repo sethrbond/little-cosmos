@@ -1,0 +1,156 @@
+import { useState } from 'react'
+import { supabase } from './supabaseClient.js'
+
+const wrap = {
+  position: 'fixed', inset: 0,
+  background: '#0c0a12',
+  display: 'flex', flexDirection: 'column',
+  alignItems: 'center', justifyContent: 'center',
+  fontFamily: '"Palatino Linotype", "Book Antiqua", Palatino, serif',
+  color: '#e8e0d0',
+}
+
+const card = {
+  background: 'rgba(255,255,255,0.04)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  borderRadius: 16, padding: '36px 32px',
+  width: 340, maxWidth: '90vw',
+  backdropFilter: 'blur(12px)',
+}
+
+const inp = {
+  width: '100%', padding: '10px 14px',
+  background: 'rgba(255,255,255,0.06)',
+  border: '1px solid rgba(255,255,255,0.12)',
+  borderRadius: 8, color: '#e8e0d0',
+  fontSize: 15, fontFamily: 'inherit',
+  outline: 'none', boxSizing: 'border-box',
+  marginBottom: 12,
+}
+
+const btn = {
+  width: '100%', padding: '11px 0',
+  background: 'linear-gradient(135deg, #c9a96e, #b8944f)',
+  border: 'none', borderRadius: 8,
+  color: '#1a1520', fontSize: 15,
+  fontWeight: 600, fontFamily: 'inherit',
+  cursor: 'pointer', marginTop: 4,
+}
+
+const link = {
+  background: 'none', border: 'none',
+  color: '#c9a96e', fontSize: 13,
+  fontFamily: 'inherit', cursor: 'pointer',
+  padding: 0, textDecoration: 'underline',
+  opacity: 0.8,
+}
+
+export default function AuthScreen() {
+  const [mode, setMode] = useState('login') // login | signup | forgot | verify
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const clearState = () => { setError(''); setMessage(''); setPassword(''); setConfirmPassword('') }
+
+  const handleLogin = async (e) => {
+    e.preventDefault()
+    setError(''); setLoading(true)
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    setLoading(false)
+    if (error) setError(error.message)
+  }
+
+  const handleSignup = async (e) => {
+    e.preventDefault()
+    setError('')
+    if (password !== confirmPassword) { setError('Passwords do not match'); return }
+    if (password.length < 6) { setError('Password must be at least 6 characters'); return }
+    setLoading(true)
+    const { error } = await supabase.auth.signUp({ email, password })
+    setLoading(false)
+    if (error) { setError(error.message); return }
+    setMode('verify')
+    setMessage('Check your email to verify your account, then sign in.')
+  }
+
+  const handleForgot = async (e) => {
+    e.preventDefault()
+    setError(''); setLoading(true)
+    const { error } = await supabase.auth.resetPasswordForEmail(email)
+    setLoading(false)
+    if (error) { setError(error.message); return }
+    setMessage('Password reset link sent. Check your email.')
+  }
+
+  const switchMode = (m) => { clearState(); setMode(m) }
+
+  return (
+    <div style={wrap}>
+      <div style={{ marginBottom: 28, textAlign: 'center' }}>
+        <div style={{ fontSize: 28, fontWeight: 300, letterSpacing: 2, opacity: 0.9 }}>My Cosmos</div>
+        <div style={{ fontSize: 13, opacity: 0.4, marginTop: 4 }}>your worlds, your stories</div>
+      </div>
+
+      <div style={card}>
+        {mode === 'login' && (
+          <form onSubmit={handleLogin}>
+            <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 20, textAlign: 'center' }}>Sign In</div>
+            <input style={inp} type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required autoFocus />
+            <input style={inp} type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required />
+            {error && <div style={{ color: '#e57373', fontSize: 13, marginBottom: 8 }}>{error}</div>}
+            <button style={{ ...btn, opacity: loading ? 0.6 : 1 }} disabled={loading} type="submit">
+              {loading ? 'Signing in...' : 'Sign In'}
+            </button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16 }}>
+              <button type="button" style={link} onClick={() => switchMode('forgot')}>Forgot password?</button>
+              <button type="button" style={link} onClick={() => switchMode('signup')}>Create account</button>
+            </div>
+          </form>
+        )}
+
+        {mode === 'signup' && (
+          <form onSubmit={handleSignup}>
+            <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 20, textAlign: 'center' }}>Create Account</div>
+            <input style={inp} type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required autoFocus />
+            <input style={inp} type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required />
+            <input style={inp} type="password" placeholder="Confirm password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required />
+            {error && <div style={{ color: '#e57373', fontSize: 13, marginBottom: 8 }}>{error}</div>}
+            <button style={{ ...btn, opacity: loading ? 0.6 : 1 }} disabled={loading} type="submit">
+              {loading ? 'Creating account...' : 'Create Account'}
+            </button>
+            <div style={{ marginTop: 16, textAlign: 'center' }}>
+              <button type="button" style={link} onClick={() => switchMode('login')}>Already have an account?</button>
+            </div>
+          </form>
+        )}
+
+        {mode === 'forgot' && (
+          <form onSubmit={handleForgot}>
+            <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 20, textAlign: 'center' }}>Reset Password</div>
+            <input style={inp} type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required autoFocus />
+            {error && <div style={{ color: '#e57373', fontSize: 13, marginBottom: 8 }}>{error}</div>}
+            {message && <div style={{ color: '#a5d6a7', fontSize: 13, marginBottom: 8 }}>{message}</div>}
+            <button style={{ ...btn, opacity: loading ? 0.6 : 1 }} disabled={loading} type="submit">
+              {loading ? 'Sending...' : 'Send Reset Link'}
+            </button>
+            <div style={{ marginTop: 16, textAlign: 'center' }}>
+              <button type="button" style={link} onClick={() => switchMode('login')}>Back to sign in</button>
+            </div>
+          </form>
+        )}
+
+        {mode === 'verify' && (
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 20 }}>Verify Your Email</div>
+            <div style={{ fontSize: 14, opacity: 0.7, lineHeight: 1.6, marginBottom: 20 }}>{message}</div>
+            <button type="button" style={link} onClick={() => switchMode('login')}>Back to sign in</button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

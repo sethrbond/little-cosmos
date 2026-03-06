@@ -1,9 +1,5 @@
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseUrl = 'https://yvugwhbjfshycxoyrluk.supabase.co'
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2dWd3aGJqZnNoeWN4b3lybHVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIzMDc3MDYsImV4cCI6MjA4Nzg4MzcwNn0.8bDtEyYmPf6h0Zkqr9josqP3xrJFuZLtVxgNMAFkEnE'
-
-export const supabase = createClient(supabaseUrl, supabaseKey)
+import { supabase } from './supabaseClient.js'
+export { supabase }
 
 /* supabase.js v8.2 — bulletproof array handling for JSONB columns */
 
@@ -224,5 +220,117 @@ export async function saveConfig(config) {
       const { error: e2 } = await supabase.from('config').upsert(basic, { onConflict: 'id' })
       if (e2) console.error('[saveConfig] fallback error:', e2)
     } else { console.error('[saveConfig] error:', error) }
+  }
+}
+
+// ---- USER-SCOPED FACTORY (Phase 1 Auth) ----
+
+export function createOurWorldDB(userId) {
+  return {
+    loadEntries: async () => {
+      const { data, error } = await supabase.from('entries').select('*')
+        .eq('user_id', userId)
+        .order('date_start', { ascending: true })
+      if (error) { console.error('[loadEntries] error:', error); return [] }
+      return (data || []).map(row => ({
+        id: row.id, city: row.city, country: row.country || '',
+        lat: row.lat, lng: row.lng,
+        dateStart: row.date_start, dateEnd: row.date_end || null,
+        type: row.entry_type, who: row.who,
+        zoomLevel: row.zoom_level || 1, notes: row.notes || '',
+        memories: safeArray(row.memories), museums: safeArray(row.museums),
+        restaurants: safeArray(row.restaurants), highlights: safeArray(row.highlights),
+        photos: safeArray(row.photos), stops: safeArray(row.stops),
+        musicUrl: row.music_url || null, favorite: row.favorite || false,
+        loveNote: row.love_note || '',
+      }))
+    },
+
+    saveEntry: async (entry) => {
+      const row = {
+        id: entry.id, user_id: userId,
+        city: entry.city, country: entry.country || '',
+        lat: entry.lat, lng: entry.lng,
+        date_start: entry.dateStart, date_end: entry.dateEnd || null,
+        entry_type: entry.type, who: entry.who,
+        zoom_level: entry.zoomLevel || 1, notes: entry.notes || '',
+        memories: cleanArray(entry.memories), museums: cleanArray(entry.museums),
+        restaurants: cleanArray(entry.restaurants), highlights: cleanArray(entry.highlights),
+        photos: cleanArray(entry.photos), stops: cleanArray(entry.stops),
+        music_url: entry.musicUrl || null, favorite: entry.favorite || false,
+        love_note: entry.loveNote || '',
+      }
+      return withRetry(async () => {
+        const { error } = await supabase.from('entries').upsert(row, { onConflict: 'id' })
+        if (error) {
+          console.error('[saveEntry] FAILED:', error.message)
+          if (error.message?.includes('love_note') || error.message?.includes('favorite') || error.code === '42703') {
+            const { love_note, favorite, ...safeRow } = row
+            const { error: e2 } = await supabase.from('entries').upsert(safeRow, { onConflict: 'id' })
+            if (e2) throw e2
+            return true
+          }
+          throw error
+        }
+        return true
+      })
+    },
+
+    deleteEntry: async (id) => {
+      await deleteEntryPhotos(id)
+      const { error } = await supabase.from('entries').delete().eq('id', id)
+      if (error) console.error('[deleteEntry] error:', error)
+      return !error
+    },
+
+    loadConfig: async () => {
+      const { data, error } = await supabase.from('config').select('*').eq('id', userId).single()
+      if (error || !data) return null
+      const cfg = {
+        startDate: data.start_date || '2021-06-01',
+        title: data.title || 'Our World',
+        subtitle: data.subtitle || 'every moment, every adventure',
+        loveLetter: data.love_letter || '',
+        youName: data.you_name || 'Seth',
+        partnerName: data.partner_name || 'Rosie Posie',
+      }
+      if (data.metadata && typeof data.metadata === 'object') {
+        if (Array.isArray(data.metadata.loveLetters))       cfg.loveLetters = data.metadata.loveLetters
+        if (Array.isArray(data.metadata.dreamDestinations))  cfg.dreamDestinations = data.metadata.dreamDestinations
+        if (Array.isArray(data.metadata.chapters))           cfg.chapters = data.metadata.chapters
+        if (typeof data.metadata.darkMode === 'boolean')     cfg.darkMode = data.metadata.darkMode
+        if (data.metadata.customPalette && typeof data.metadata.customPalette === 'object') cfg.customPalette = data.metadata.customPalette
+        if (data.metadata.customScene && typeof data.metadata.customScene === 'object') cfg.customScene = data.metadata.customScene
+      }
+      return cfg
+    },
+
+    saveConfig: async (config) => {
+      const row = {
+        id: userId, user_id: userId,
+        start_date: config.startDate,
+        title: config.title, subtitle: config.subtitle,
+        love_letter: config.loveLetter || '',
+        you_name: config.youName, partner_name: config.partnerName,
+        metadata: {
+          loveLetters: config.loveLetters || [],
+          dreamDestinations: config.dreamDestinations || [],
+          chapters: config.chapters || [],
+          darkMode: config.darkMode ?? false,
+          customPalette: config.customPalette || {},
+          customScene: config.customScene || {},
+        },
+      }
+      const { error } = await supabase.from('config').upsert(row, { onConflict: 'id' })
+      if (error) {
+        if (error.message?.includes('metadata') || error.code === '42703') {
+          const { metadata, ...basic } = row
+          const { error: e2 } = await supabase.from('config').upsert(basic, { onConflict: 'id' })
+          if (e2) console.error('[saveConfig] fallback error:', e2)
+        } else { console.error('[saveConfig] error:', error) }
+      }
+    },
+
+    uploadPhoto, deletePhoto, savePhotos, readPhotos,
   }
 }

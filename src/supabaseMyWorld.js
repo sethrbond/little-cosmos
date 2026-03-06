@@ -1,9 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseUrl = 'https://yvugwhbjfshycxoyrluk.supabase.co'
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2dWd3aGJqZnNoeWN4b3lybHVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIzMDc3MDYsImV4cCI6MjA4Nzg4MzcwNn0.8bDtEyYmPf6h0Zkqr9josqP3xrJFuZLtVxgNMAFkEnE'
-
-const supabase = createClient(supabaseUrl, supabaseKey)
+import { supabase } from './supabaseClient.js'
 
 /* supabaseMyWorld.js — DB ops for my_entries + my_config tables */
 
@@ -187,4 +182,96 @@ export async function saveConfig(config) {
   }
   const { error } = await supabase.from('my_config').upsert(row, { onConflict: 'id' })
   if (error) console.error('[my:saveConfig] error:', error)
+}
+
+// ---- USER-SCOPED FACTORY (Phase 1 Auth) ----
+
+export function createMyWorldDB(userId) {
+  return {
+    loadEntries: async () => {
+      const { data, error } = await supabase.from('my_entries').select('*')
+        .eq('user_id', userId)
+        .order('date_start', { ascending: true })
+      if (error) { console.error('[my:loadEntries] error:', error); return [] }
+      return (data || []).map(row => ({
+        id: row.id, city: row.city, country: row.country || '',
+        lat: row.lat, lng: row.lng,
+        dateStart: row.date_start, dateEnd: row.date_end || null,
+        type: row.entry_type, who: 'solo',
+        zoomLevel: row.zoom_level || 1, notes: row.notes || '',
+        memories: safeArray(row.memories), museums: safeArray(row.museums),
+        restaurants: safeArray(row.restaurants), highlights: safeArray(row.highlights),
+        photos: safeArray(row.photos), stops: safeArray(row.stops),
+        musicUrl: row.music_url || null, favorite: row.favorite || false,
+        loveNote: '',
+      }))
+    },
+
+    saveEntry: async (entry) => {
+      const row = {
+        id: entry.id, user_id: userId,
+        city: entry.city, country: entry.country || '',
+        lat: entry.lat, lng: entry.lng,
+        date_start: entry.dateStart, date_end: entry.dateEnd || null,
+        entry_type: entry.type,
+        zoom_level: entry.zoomLevel || 1, notes: entry.notes || '',
+        memories: cleanArray(entry.memories), museums: cleanArray(entry.museums),
+        restaurants: cleanArray(entry.restaurants), highlights: cleanArray(entry.highlights),
+        photos: cleanArray(entry.photos), stops: cleanArray(entry.stops),
+        music_url: entry.musicUrl || null, favorite: entry.favorite || false,
+      }
+      return withRetry(async () => {
+        const { error } = await supabase.from('my_entries').upsert(row, { onConflict: 'id' })
+        if (error) { console.error('[my:saveEntry] FAILED:', error.message); throw error }
+        return true
+      })
+    },
+
+    deleteEntry: async (id) => {
+      await deleteEntryPhotos(id)
+      const { error } = await supabase.from('my_entries').delete().eq('id', id)
+      if (error) console.error('[my:deleteEntry] error:', error)
+      return !error
+    },
+
+    loadConfig: async () => {
+      const { data, error } = await supabase.from('my_config').select('*').eq('id', userId).single()
+      if (error || !data) return null
+      const cfg = {
+        startDate: data.start_date || '',
+        title: data.title || 'My World',
+        subtitle: data.subtitle || 'every step, every discovery',
+        travelerName: data.traveler_name || 'Explorer',
+      }
+      if (data.metadata && typeof data.metadata === 'object') {
+        if (Array.isArray(data.metadata.bucketList))  cfg.bucketList = data.metadata.bucketList
+        if (Array.isArray(data.metadata.chapters))    cfg.chapters = data.metadata.chapters
+        if (typeof data.metadata.darkMode === 'boolean') cfg.darkMode = data.metadata.darkMode
+        if (data.metadata.customPalette && typeof data.metadata.customPalette === 'object') cfg.customPalette = data.metadata.customPalette
+        if (data.metadata.customScene && typeof data.metadata.customScene === 'object') cfg.customScene = data.metadata.customScene
+      }
+      return cfg
+    },
+
+    saveConfig: async (config) => {
+      const row = {
+        id: userId, user_id: userId,
+        start_date: config.startDate || '',
+        title: config.title || 'My World',
+        subtitle: config.subtitle || 'every step, every discovery',
+        traveler_name: config.travelerName || 'Explorer',
+        metadata: {
+          bucketList: config.bucketList || [],
+          chapters: config.chapters || [],
+          darkMode: config.darkMode ?? false,
+          customPalette: config.customPalette || {},
+          customScene: config.customScene || {},
+        },
+      }
+      const { error } = await supabase.from('my_config').upsert(row, { onConflict: 'id' })
+      if (error) console.error('[my:saveConfig] error:', error)
+    },
+
+    uploadPhoto, deletePhoto, savePhotos, readPhotos,
+  }
 }
