@@ -95,9 +95,9 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     scene.add(new THREE.AmbientLight("#f8f0f8", 0.9));
     const sun = new THREE.DirectionalLight("#fffff0", 1.5);
     sun.position.set(3, 3, 4); scene.add(sun);
-    scene.add(Object.assign(new THREE.PointLight("#f0e0f0", 0.8, 18), { position: new THREE.Vector3(-3, -1, 2) }));
-    scene.add(Object.assign(new THREE.PointLight("#e0d8f8", 0.5, 14), { position: new THREE.Vector3(0, 2, -3) }));
-    scene.add(Object.assign(new THREE.PointLight("#d0c0e0", 0.4, 12), { position: new THREE.Vector3(0, -2, -3) }));
+    const pl1 = new THREE.PointLight("#f0e0f0", 0.8, 18); pl1.position.set(-3, -1, 2); scene.add(pl1);
+    const pl2 = new THREE.PointLight("#e0d8f8", 0.5, 14); pl2.position.set(0, 2, -3); scene.add(pl2);
+    const pl3 = new THREE.PointLight("#d0c0e0", 0.4, 12); pl3.position.set(0, -2, -3); scene.add(pl3);
 
     // Stars
     const sP = new Float32Array(500 * 3);
