@@ -1166,7 +1166,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const filteredList = useMemo(() => {
     const list = markerFilter === "all" ? data.entries : markerFilter === "favorites" ? data.entries.filter(e => e.favorite) : data.entries.filter(e => e.type === markerFilter);
     return [...list].sort((a, b) => (b.dateStart || "").localeCompare(a.dateStart || "")); // newest first
-  }, [data.entries]);
+  }, [data.entries, markerFilter]);
   const togetherList = useMemo(() => sorted.filter(e => e.who === "both"), [sorted]);
   const firstBadges = useMemo(() => getFirstBadges(data.entries), [data.entries]);
   const season = useMemo(() => seasonalHue(sliderDate, isMyWorld), [sliderDate, isMyWorld]);
@@ -1528,7 +1528,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         playRef.current = setTimeout(() => {
           setSelected(null);
           idx++;
-          if (idx < togetherList.length) {
+          if (idx < playList.length) {
             tSpinSpd.current = 0.02; // gentle spin between entries
             tZm.current = 3.2;
             playRef.current = setTimeout(step, 1200);
@@ -1537,7 +1537,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       }, 1400);
     };
     step();
-  }, [togetherList, isPlaying, stopPlay]);
+  }, [togetherList, sorted, isMyWorld, isPlaying, stopPlay]);
 
   // Keyboard shortcuts (must be after stopPlay/playStory declarations)
   useEffect(() => {
@@ -2499,7 +2499,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             <p style={{ fontSize: 9, color: P.textFaint, marginTop: 2, letterSpacing: ".1em" }}>{locationList.entries.length} entries here</p>
           </div>
           <div style={{ padding: "0 14px 14px", maxHeight: 280, overflowY: "auto" }}>
-            {locationList.entries.sort((a, b) => a.dateStart.localeCompare(b.dateStart)).map(e => {
+            {[...locationList.entries].sort((a, b) => a.dateStart.localeCompare(b.dateStart)).map(e => {
               const t = TYPES[e.type] || DEFAULT_TYPE;
               return (
                 <button key={e.id} onClick={() => {
@@ -2530,7 +2530,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           : { position: "absolute", top: "42%", right: 18, transform: "translateY(-50%)", zIndex: 25, background: P.card, backdropFilter: "blur(24px)", borderRadius: 16, maxWidth: 340, minWidth: 260, maxHeight: "65vh", boxShadow: "0 12px 44px rgba(61,53,82,.1)", border: `1px solid ${P.rose}10`, animation: "cardIn .5s ease", overflow: "hidden", display: "flex", flexDirection: "column" }
         }>
           {(cur.photos || []).length > 0 && !cardGallery && (
-            <div style={{ position: "relative", width: "100%", background: "#f5f0eb", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", minHeight: 120, maxHeight: 220 }}>
+            <div style={{ position: "relative", width: "100%", background: P.parchment, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", minHeight: 120, maxHeight: 220 }}>
               <img loading="lazy" src={cur.photos[photoIdx % cur.photos.length]} alt={`Photo from ${cur.city || "trip"}`} style={{ maxWidth: "100%", maxHeight: 220, objectFit: "contain", display: "block", transition: "all .3s", ...(polaroidMode ? { border: "6px solid #fff", borderBottom: "28px solid #fff", boxShadow: "0 4px 16px rgba(0,0,0,.15)", borderRadius: 1, transform: `rotate(${(photoIdx % 3 - 1) * 1.5}deg)` } : {}) }} />
               {cur.photos.length > 1 && (<><button onClick={() => setPhotoIdx(i => (i - 1 + cur.photos.length) % cur.photos.length)} style={imgN("left")}>‹</button><button onClick={() => setPhotoIdx(i => (i + 1) % cur.photos.length)} style={imgN("right")}>›</button>
                 <div style={{ position: "absolute", bottom: 6, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 3 }}>{cur.photos.map((_, i) => <div key={i} style={{ width: 4, height: 4, borderRadius: "50%", background: i === photoIdx % cur.photos.length ? "#fff" : "rgba(255,255,255,.3)" }} />)}</div></>)}
@@ -2540,18 +2540,18 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             </div>
           )}
           {(cur.photos || []).length > 0 && cardGallery && (
-            <div style={{ flexShrink: 0, maxHeight: 280, overflowY: "auto", background: "#f5f0eb", padding: 6 }}>
+            <div style={{ flexShrink: 0, maxHeight: 280, overflowY: "auto", background: P.parchment, padding: 6 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, padding: "0 4px" }}>
                 <span style={{ fontSize: 9, color: P.textMid, letterSpacing: ".1em" }}>📷 {cur.photos.length} photos</span>
                 <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                  {<button onClick={() => setPhotoDeleteMode(v => !v)} style={{ background: photoDeleteMode ? "#c9777a" : "none", border: `1px solid ${photoDeleteMode ? "#c9777a" : P.textFaint}40`, borderRadius: 4, padding: "1px 6px", fontSize: 8, cursor: "pointer", color: photoDeleteMode ? "#fff" : P.textFaint, fontFamily: "inherit" }}>{photoDeleteMode ? "Done" : "🗑"}</button>}
+                  {<button onClick={() => setPhotoDeleteMode(v => !v)} style={{ background: photoDeleteMode ? "#c07070" : "none", border: `1px solid ${photoDeleteMode ? "#c07070" : P.textFaint}40`, borderRadius: 4, padding: "1px 6px", fontSize: 8, cursor: "pointer", color: photoDeleteMode ? "#fff" : P.textFaint, fontFamily: "inherit" }}>{photoDeleteMode ? "Done" : "🗑"}</button>}
                   <button onClick={() => { setCardGallery(false); setPhotoDeleteMode(false); }} style={{ background: "none", border: "none", fontSize: 12, color: P.textFaint, cursor: "pointer" }}>×</button>
                 </div>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(90px, 1fr))", gap: 4 }}>
                 {cur.photos.map((url, i) => (
                   <div key={i} style={{ position: "relative" }}>
-                    <button onClick={() => { if (photoDeleteMode) { dispatch({ type: "REMOVE_PHOTO", id: cur.id, photoIndex: i }); setPhotoIdx(pi => pi >= i && pi > 0 ? pi - 1 : pi); showToast("Photo removed", "🗑", 2000); } else { setPhotoIdx(i); setCardGallery(false); setPhotoDeleteMode(false); } }} style={{ padding: 0, border: photoIdx === i ? `2px solid ${P.rose}` : "2px solid transparent", background: "#f0e8f0", cursor: "pointer", borderRadius: 6, overflow: "hidden", aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center", width: "100%", opacity: photoDeleteMode ? 0.7 : 1 }}>
+                    <button onClick={() => { if (photoDeleteMode) { dispatch({ type: "REMOVE_PHOTO", id: cur.id, photoIndex: i }); setPhotoIdx(pi => pi >= i && pi > 0 ? pi - 1 : pi); showToast("Photo removed", "🗑", 2000); } else { setPhotoIdx(i); setCardGallery(false); setPhotoDeleteMode(false); } }} style={{ padding: 0, border: photoIdx === i ? `2px solid ${P.rose}` : "2px solid transparent", background: P.blush, cursor: "pointer", borderRadius: 6, overflow: "hidden", aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center", width: "100%", opacity: photoDeleteMode ? 0.7 : 1 }}>
                       <img loading="lazy" src={url} alt="Travel photo" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", borderRadius: 4 }} />
                     </button>
                     {photoDeleteMode && <div style={{ position: "absolute", top: 2, right: 2, width: 16, height: 16, borderRadius: "50%", background: "#c9777a", color: "#fff", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>×</div>}
@@ -2653,7 +2653,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               {cardTab === "photos" && (<>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))", gap: 4 }}>
                   {(cur.photos || []).map((url, i) => (
-                    <button key={i} onClick={() => { setPhotoIdx(i); setCardTab("overview"); }} style={{ padding: 0, border: "2px solid transparent", background: "#f0e8f0", cursor: "pointer", borderRadius: 6, overflow: "hidden", aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
+                    <button key={i} onClick={() => { setPhotoIdx(i); setCardTab("overview"); }} style={{ padding: 0, border: "2px solid transparent", background: P.blush, cursor: "pointer", borderRadius: 6, overflow: "hidden", aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
                       <img loading="lazy" src={url} alt="Travel photo" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "cover", borderRadius: 4 }} />
                     </button>
                   ))}
@@ -2819,7 +2819,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       })()}
 
       {!isMyWorld && editLetter && (
-        <div style={{ position: "absolute", inset: 0, zIndex: 55, background: "rgba(253,251,247,.95)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ position: "absolute", inset: 0, zIndex: 55, background: P.card, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ width: 420, padding: 28, background: P.card, borderRadius: 16, boxShadow: "0 14px 48px rgba(61,53,82,.1)" }}>
             <h3 style={{ margin: "0 0 10px", fontSize: 16, fontWeight: 400 }}>💌 {letterEditId ? "Edit" : "New"} Love Letter</h3>
             <p style={{ fontSize: 9, color: P.textMuted, marginBottom: 12, fontStyle: "italic" }}>Hidden as an easter egg ❀ on the globe — she'll discover it!</p>
@@ -2855,10 +2855,10 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 }
                 setEditLetter(false);
                 showToast(letterEditId ? "Letter updated 💌" : "Letter hidden on the globe ❀", "💌", 2500);
-              }} disabled={!letterDraft.trim()} style={{ flex: 1, padding: "9px", background: letterDraft.trim() ? P.rose : "#d8d8d0", color: "#fff", border: "none", borderRadius: 7, cursor: letterDraft.trim() ? "pointer" : "default", fontSize: 11, fontFamily: "inherit" }}>
+              }} disabled={!letterDraft.trim()} style={{ flex: 1, padding: "9px", background: letterDraft.trim() ? P.rose : `${P.textFaint}60`, color: "#fff", border: "none", borderRadius: 7, cursor: letterDraft.trim() ? "pointer" : "default", fontSize: 11, fontFamily: "inherit" }}>
                 {letterEditId ? "Update" : "Hide on Globe"} 💌
               </button>
-              <button onClick={() => setEditLetter(false)} style={{ padding: "9px 14px", background: "transparent", border: "1px solid #e0e0d8", borderRadius: 7, cursor: "pointer", fontSize: 11, fontFamily: "inherit", color: P.textMuted }}>Cancel</button>
+              <button onClick={() => setEditLetter(false)} style={{ padding: "9px 14px", background: "transparent", border: `1px solid ${P.textFaint}40`, borderRadius: 7, cursor: "pointer", fontSize: 11, fontFamily: "inherit", color: P.textMuted }}>Cancel</button>
             </div>
           </div>
         </div>
@@ -2910,7 +2910,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       {isPlaying && (
         <div style={{ position: "absolute", top: 70, left: 0, right: 0, textAlign: "center", zIndex: 12, pointerEvents: "none" }}>
           <div style={{ display: "inline-block", padding: "4px 16px", background: P.glass, backdropFilter: "blur(12px)", borderRadius: 20, fontSize: 10, color: P.heart, letterSpacing: ".15em", animation: "heartPulse 2s ease infinite" }}>
-            ▶ Playing Our Story...
+            ▶ {isMyWorld ? "Playing My Story..." : "Playing Our Story..."}
           </div>
         </div>
       )}
@@ -3186,7 +3186,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               <div style={{ marginTop: 14 }}>
                 <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 6 }}>Countries Visited</div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                  {expandedStats.countryList.sort().map(c => (
+                  {[...expandedStats.countryList].sort().map(c => (
                     <span key={c} style={{ padding: "3px 8px", background: P.parchment, borderRadius: 12, fontSize: 9, color: P.textMid }}>{c}</span>
                   ))}
                 </div>
@@ -3369,7 +3369,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         const ph = allPhotos[pjIndex];
         return (
           <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "#000", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
-            onClick={() => setPjIndex(i => i < allPhotos.length - 1 ? i + 1 : (setShowPhotoJourney(false), 0))}>
+            onClick={() => { if (pjIndex < allPhotos.length - 1) setPjIndex(i => i + 1); else setShowPhotoJourney(false); }}>
             <img key={ph.url} src={ph.url} alt="Travel photo" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", animation: "fadeIn .8s ease" }} />
             <div style={{ position: "absolute", bottom: 40, left: 0, right: 0, textAlign: "center", pointerEvents: "none" }}>
               <div style={{ fontSize: 16, color: "#e8e0d0", fontFamily: "'Palatino Linotype',serif", letterSpacing: ".08em", textShadow: "0 2px 12px rgba(0,0,0,0.8)" }}>{ph.city}</div>
@@ -3450,7 +3450,7 @@ function QuickAddForm({ types, onAdd, onClose }) {
   const [lng, setLng] = useState("");
   const [dateStart, setDateStart] = useState("");
   const [dateEnd, setDateEnd] = useState("");
-  const [type, setType] = useState("together");
+  const [type, setType] = useState(Object.keys(types)[0] || "together");
   const [note, setNote] = useState("");
   const [sugg, setSugg] = useState([]);
   const [showSugg, setShowSugg] = useState(false);
@@ -3817,7 +3817,7 @@ function EditForm({ entry, types, fieldLabels, onChange, onSave, onClose, onDele
         <button onClick={onSave} style={{ flex: 1, padding: "8px 0", background: P.rose, color: "#fff", border: "none", borderRadius: 7, cursor: "pointer", fontSize: 10, fontFamily: "inherit" }}>Save</button>
         <button onClick={onClose} style={{ padding: "8px 12px", background: "transparent", border: `1px solid ${P.textFaint}40`, borderRadius: 7, cursor: "pointer", fontSize: 10, fontFamily: "inherit", color: P.textMuted }}>Cancel</button>
       </div>
-      <button onClick={onDelete} style={{ marginTop: 7, width: "100%", padding: "6px 0", background: "transparent", color: "#c9777a", border: "1px solid #e5c5c6", borderRadius: 7, cursor: "pointer", fontSize: 9, fontFamily: "inherit" }}>Delete</button>
+      <button onClick={onDelete} style={{ marginTop: 7, width: "100%", padding: "6px 0", background: "transparent", color: "#c9777a", border: `1px solid #c0707030`, borderRadius: 7, cursor: "pointer", fontSize: 9, fontFamily: "inherit" }}>Delete</button>
     </div>
   );
 }

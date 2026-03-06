@@ -322,6 +322,7 @@ export function createOurWorldDB(userId) {
           darkMode: config.darkMode ?? false,
           customPalette: config.customPalette || {},
           customScene: config.customScene || {},
+          ambientMusicUrl: config.ambientMusicUrl || '',
         },
       }
       const { error } = await supabase.from('config').upsert(row, { onConflict: 'id' })
@@ -436,6 +437,7 @@ export function createSharedWorldDB(worldId, userId) {
           darkMode: config.darkMode ?? false,
           customPalette: config.customPalette || {},
           customScene: config.customScene || {},
+          ambientMusicUrl: config.ambientMusicUrl || '',
         },
       }
       const { error } = await supabase.from('config').upsert(row, { onConflict: 'id' })
