@@ -6,6 +6,7 @@ import OurWorld from './OurWorld.jsx'
 import WelcomeLetterScreen from './WelcomeLetterScreen.jsx'
 import { getWelcomeLetter, markLetterRead } from './supabaseWelcomeLetters.js'
 import { loadMyWorlds, acceptInvite, getInviteInfo } from './supabaseWorlds.js'
+import { getPendingRequests, getMyConnections } from './supabaseConnections.js'
 
 function AppInner() {
   const { user, userId, loading, signOut } = useAuth()
@@ -26,6 +27,8 @@ function AppInner() {
   const [worlds, setWorlds] = useState([])
   const [worldsLoaded, setWorldsLoaded] = useState(false)
   const [invitePending, setInvitePending] = useState(null)
+  const [connections, setConnections] = useState([])
+  const [pendingRequests, setPendingRequests] = useState([])
 
   // User's display name from auth metadata
   const userDisplayName = user?.user_metadata?.display_name || ''
@@ -39,14 +42,20 @@ function AppInner() {
     }).catch(err => { console.error('[welcome letter]', err); setLetterChecked(true) })
   }, [user?.email])
 
-  // Load user's shared worlds
+  // Load user's shared worlds + connections
   useEffect(() => {
     if (!userId) { setWorldsLoaded(true); return }
-    loadMyWorlds(userId).then(w => {
+    Promise.all([
+      loadMyWorlds(userId),
+      getMyConnections(userId),
+      getPendingRequests(user?.email),
+    ]).then(([w, conn, pending]) => {
       setWorlds(w)
+      setConnections(conn)
+      setPendingRequests(pending)
       setWorldsLoaded(true)
-    }).catch(err => { console.error('[loadMyWorlds]', err); setWorldsLoaded(true) })
-  }, [userId])
+    }).catch(err => { console.error('[loadData]', err); setWorldsLoaded(true) })
+  }, [userId, user?.email])
 
   // Check for invite token in URL
   useEffect(() => {
@@ -122,8 +131,18 @@ function AppInner() {
     setActiveWorldId(null)
     setActiveWorldName(null)
     setActiveWorldRole(null)
-    if (userId) loadMyWorlds(userId).then(setWorlds).catch(() => {})
-  }, [userId])
+    if (userId) {
+      Promise.all([
+        loadMyWorlds(userId),
+        getMyConnections(userId),
+        getPendingRequests(user?.email),
+      ]).then(([w, conn, pending]) => {
+        setWorlds(w)
+        setConnections(conn)
+        setPendingRequests(pending)
+      }).catch(() => {})
+    }
+  }, [userId, user?.email])
 
   if (loading || !letterChecked || !worldsLoaded) {
     return (
@@ -156,7 +175,12 @@ function AppInner() {
         worlds={worlds}
         onWorldsChange={setWorlds}
         userId={userId}
+        userEmail={user?.email}
         userDisplayName={userDisplayName}
+        connections={connections}
+        onConnectionsChange={setConnections}
+        pendingRequests={pendingRequests}
+        onPendingRequestsChange={setPendingRequests}
       />
     )
   }

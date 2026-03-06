@@ -1,0 +1,72 @@
+import { supabase } from './supabaseClient.js'
+
+/* supabaseConnections.js — Friend connections / follow system */
+
+// Send a friend/follow request to someone by email
+export async function sendConnectionRequest(fromUserId, fromName, toEmail, shareBack = false, letterText = '') {
+  const { data, error } = await supabase
+    .from('cosmos_connections')
+    .insert({
+      requester_id: fromUserId,
+      requester_name: fromName,
+      target_email: toEmail.toLowerCase(),
+      share_back: shareBack,
+      letter_text: letterText,
+    })
+    .select()
+    .single()
+  if (error) { console.error('[sendConnectionRequest]', error); return null }
+  return data
+}
+
+// Get pending requests addressed to the current user (by email)
+export async function getPendingRequests(userEmail) {
+  if (!userEmail) return []
+  const { data, error } = await supabase
+    .from('cosmos_connections')
+    .select('*')
+    .eq('target_email', userEmail.toLowerCase())
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false })
+  if (error) { console.error('[getPendingRequests]', error); return [] }
+  return data || []
+}
+
+// Get all accepted connections for a user (as requester or target)
+export async function getMyConnections(userId) {
+  const { data, error } = await supabase
+    .from('cosmos_connections')
+    .select('*')
+    .eq('status', 'accepted')
+    .or(`requester_id.eq.${userId},target_user_id.eq.${userId}`)
+  if (error) { console.error('[getMyConnections]', error); return [] }
+  return data || []
+}
+
+// Accept a connection request (SECURITY DEFINER function)
+export async function acceptConnection(connectionId) {
+  const { data, error } = await supabase.rpc('accept_cosmos_connection', { connection_id: connectionId })
+  if (error) { console.error('[acceptConnection]', error); return { ok: false, error: error.message } }
+  return data
+}
+
+// Decline a connection request
+export async function declineConnection(connectionId) {
+  const { error } = await supabase
+    .from('cosmos_connections')
+    .update({ status: 'declined', responded_at: new Date().toISOString() })
+    .eq('id', connectionId)
+  if (error) { console.error('[declineConnection]', error); return false }
+  return true
+}
+
+// Get sent requests (to show status)
+export async function getMySentRequests(userId) {
+  const { data, error } = await supabase
+    .from('cosmos_connections')
+    .select('*')
+    .eq('requester_id', userId)
+    .order('created_at', { ascending: false })
+  if (error) { console.error('[getMySentRequests]', error); return [] }
+  return data || []
+}

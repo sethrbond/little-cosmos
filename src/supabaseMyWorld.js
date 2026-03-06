@@ -275,3 +275,57 @@ export function createMyWorldDB(userId) {
     uploadPhoto, deletePhoto, savePhotos, readPhotos,
   }
 }
+
+// Read-only factory for viewing a friend's My World
+export function createFriendWorldDB(friendUserId) {
+  return {
+    loadEntries: async () => {
+      const { data, error } = await supabase.from('my_entries').select('*')
+        .eq('user_id', friendUserId)
+        .order('date_start', { ascending: true })
+      if (error) { console.error('[friend:loadEntries] error:', error); return [] }
+      return (data || []).map(row => ({
+        id: row.id, city: row.city, country: row.country || '',
+        lat: row.lat, lng: row.lng,
+        dateStart: row.date_start, dateEnd: row.date_end || null,
+        type: row.entry_type, who: 'solo',
+        zoomLevel: row.zoom_level || 1, notes: row.notes || '',
+        memories: safeArray(row.memories), museums: safeArray(row.museums),
+        restaurants: safeArray(row.restaurants), highlights: safeArray(row.highlights),
+        photos: safeArray(row.photos), stops: safeArray(row.stops),
+        musicUrl: row.music_url || null, favorite: row.favorite || false,
+        loveNote: '',
+      }))
+    },
+    loadConfig: async () => {
+      const { data, error } = await supabase.from('my_config').select('*').eq('id', friendUserId).single()
+      if (error || !data) return null
+      const cfg = {
+        startDate: data.start_date || '',
+        title: data.title || 'My World',
+        subtitle: data.subtitle || 'every step, every discovery',
+        travelerName: data.traveler_name || 'Explorer',
+      }
+      if (data.metadata && typeof data.metadata === 'object') {
+        if (Array.isArray(data.metadata.bucketList))  cfg.bucketList = data.metadata.bucketList
+        if (Array.isArray(data.metadata.chapters))    cfg.chapters = data.metadata.chapters
+        if (typeof data.metadata.darkMode === 'boolean') cfg.darkMode = data.metadata.darkMode
+        if (data.metadata.customPalette && typeof data.metadata.customPalette === 'object') cfg.customPalette = data.metadata.customPalette
+        if (data.metadata.customScene && typeof data.metadata.customScene === 'object') cfg.customScene = data.metadata.customScene
+      }
+      return cfg
+    },
+    // All write operations are no-ops for friend worlds
+    saveEntry: async () => {},
+    deleteEntry: async () => false,
+    saveConfig: async () => {},
+    uploadPhoto: async () => null,
+    deletePhoto: async () => false,
+    savePhotos: async () => ({ ok: false }),
+    readPhotos: async (entryId) => {
+      const { data, error } = await supabase.from('my_entries').select('photos').eq('id', entryId).single()
+      if (error) return { ok: false, error: error.message }
+      return { ok: true, photos: safeArray(data?.photos), count: safeArray(data?.photos).length }
+    },
+  }
+}

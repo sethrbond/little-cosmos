@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, useReducer, Component } from "react";
 import * as THREE from "three";
 import { createOurWorldDB, createSharedWorldDB } from "./supabase.js";
-import { createMyWorldDB } from "./supabaseMyWorld.js";
+import { createMyWorldDB, createFriendWorldDB } from "./supabaseMyWorld.js";
 import { useAuth } from "./AuthContext.jsx";
 import { geocodeSearch } from "./geocode.js";
 import {
@@ -800,23 +800,26 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const userDisplayName = user?.user_metadata?.display_name || "";
 
   // ---- WORLD MODE CONFIG ----
-  const isMyWorld = worldMode === "my";
+  const isMyWorld = worldMode === "my" || worldMode === "friend";
+  const isFriendWorld = worldMode === "friend";
   const isSharedWorld = worldMode === "our" && !!worldId;
-  const isViewer = worldRole === "viewer";
+  const isViewer = worldRole === "viewer" || isFriendWorld;
   const DEFAULT_CONFIG = isMyWorld ? MY_WORLD_DEFAULT_CONFIG : OUR_WORLD_DEFAULT_CONFIG;
   const FIELD_LABELS = isMyWorld ? MY_WORLD_FIELDS : OUR_WORLD_FIELDS;
   useEffect(() => {
-    document.title = isMyWorld ? "My World — My Cosmos"
+    document.title = isFriendWorld ? `${worldName || "Friend's World"} — My Cosmos`
+      : isMyWorld ? "My World — My Cosmos"
       : worldName ? `${worldName} — My Cosmos`
       : "Our World — My Cosmos";
-  }, [isMyWorld, worldName]);
+  }, [isMyWorld, isFriendWorld, worldName]);
 
   // DB functions selected by mode, scoped to current user or shared world
   const db = useMemo(() => {
+    if (isFriendWorld) return createFriendWorldDB(worldId);
     if (isMyWorld) return createMyWorldDB(userId);
     if (isSharedWorld) return createSharedWorldDB(worldId, userId);
     return createOurWorldDB(userId);
-  }, [isMyWorld, isSharedWorld, worldId, userId]);
+  }, [isMyWorld, isFriendWorld, isSharedWorld, worldId, userId]);
 
   const [data, _dispatch] = useReducer(reducer, { entries: [] });
   const dispatch = useCallback(action => _dispatch({ ...action, db }), [db]);

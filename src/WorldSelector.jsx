@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import * as THREE from "three";
 import { createWorld, loadMyWorlds, createInvite, createInviteWithLetter, acceptInvite, createViewerInvite } from "./supabaseWorlds.js";
+import { sendConnectionRequest, acceptConnection, declineConnection, getMyConnections, getPendingRequests } from "./supabaseConnections.js";
+import { sendWelcomeLetter } from "./supabaseWelcomeLetters.js";
 
 /* WorldSelector.jsx — "My Cosmos" world chooser
    My World is the central orb. Shared worlds orbit it.
+   Friend worlds orbit at a further distance.
    Camera can be dragged/orbited to view from any angle. */
 
 const CENTER = {
@@ -24,9 +27,16 @@ const ORB_PRESETS = [
   { color: "#a0d0e0", glowColor: "#c8e8f4", emissive: "#406080", orbitRadius: 2.5, orbitSpeed: 0.23, size: 0.29 },
 ];
 
+const FRIEND_ORB_PRESETS = [
+  { color: "#c8d8e8", glowColor: "#e0ecf8", emissive: "#405870", orbitRadius: 4.0, orbitSpeed: 0.12, size: 0.20 },
+  { color: "#d8c8e0", glowColor: "#ece0f0", emissive: "#584070", orbitRadius: 4.3, orbitSpeed: 0.10, size: 0.18 },
+  { color: "#c8e0d0", glowColor: "#e0f0e8", emissive: "#406850", orbitRadius: 4.6, orbitSpeed: 0.11, size: 0.19 },
+  { color: "#e0d8c8", glowColor: "#f0ece0", emissive: "#685840", orbitRadius: 4.1, orbitSpeed: 0.13, size: 0.20 },
+];
+
 const F = "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif";
 
-export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorldsChange, userId, userDisplayName }) {
+export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorldsChange, userId, userEmail, userDisplayName, connections = [], onConnectionsChange, pendingRequests = [], onPendingRequestsChange }) {
   const mountRef = useRef(null);
   const [hovered, setHovered] = useState(null);
   const [ready, setReady] = useState(false);
@@ -35,11 +45,13 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
   const camAngleRef = useRef({ theta: 0.3, phi: 1.2, radius: 5.8 });
 
   // Modal states
-  const [showAddMenu, setShowAddMenu] = useState(false); // "what kind of world?"
+  const [showAddMenu, setShowAddMenu] = useState(false);
   const [showCreatePersonal, setShowCreatePersonal] = useState(false);
   const [showCreateShared, setShowCreateShared] = useState(false);
-  const [showJoinModal, setShowJoinModal] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(null);
+  const [showInviteCosmos, setShowInviteCosmos] = useState(false);
+  const [showAddFriend, setShowAddFriend] = useState(false);
+  const [showPendingRequests, setShowPendingRequests] = useState(false);
 
   // Create personal world
   const [personalName, setPersonalName] = useState("");
@@ -47,16 +59,12 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
 
   // Create shared world
   const [sharedName, setSharedName] = useState("");
-  const [sharedStep, setSharedStep] = useState(0); // 0=name, 1=invite details, 2=done
+  const [sharedStep, setSharedStep] = useState(0);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteLetter, setInviteLetter] = useState("");
   const [creatingShared, setCreatingShared] = useState(false);
   const [createdWorldId, setCreatedWorldId] = useState(null);
   const [generatedLink, setGeneratedLink] = useState("");
-
-  // Join
-  const [joinToken, setJoinToken] = useState("");
-  const [joining, setJoining] = useState(false);
 
   // Invite from existing world
   const [inviteLink, setInviteLink] = useState("");
@@ -65,6 +73,32 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
   const [existingInviteLetter, setExistingInviteLetter] = useState("");
   const [existingInviteRole, setExistingInviteRole] = useState("member");
 
+  // Invite to Cosmos (platform invite)
+  const [cosmosInviteEmail, setCosmosInviteEmail] = useState("");
+  const [cosmosInviteLetter, setCosmosInviteLetter] = useState("");
+  const [cosmosInviteSending, setCosmosInviteSending] = useState(false);
+  const [cosmosInviteSent, setCosmosInviteSent] = useState(false);
+
+  // Add a Friend
+  const [friendEmail, setFriendEmail] = useState("");
+  const [friendShareBack, setFriendShareBack] = useState(false);
+  const [friendLetter, setFriendLetter] = useState("");
+  const [friendSending, setFriendSending] = useState(false);
+  const [friendSent, setFriendSent] = useState(false);
+
+  // Build friend worlds from connections
+  const friendWorlds = useMemo(() => {
+    return connections.map(c => {
+      const iAmRequester = c.requester_id === userId;
+      const friendName = iAmRequester ? (c.target_email?.split('@')[0] || 'Friend') : (c.requester_name || 'Friend');
+      const friendId = iAmRequester ? c.target_user_id : c.requester_id;
+      // Can I view their world?
+      const canView = iAmRequester || c.share_back;
+      if (!canView || !friendId) return null;
+      return { id: `friend-${friendId}`, friendUserId: friendId, name: `${friendName}'s World`, type: 'friend' };
+    }).filter(Boolean);
+  }, [connections, userId]);
+
   // Build orbiting worlds from props
   const WORLDS = useMemo(() => worlds.map((w, i) => ({
     id: w.id,
@@ -72,12 +106,22 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     sub: w.role === "owner" ? "Owner" : w.role === "viewer" ? "Viewing" : "Member",
     isViewer: w.role === "viewer",
     ...ORB_PRESETS[i % ORB_PRESETS.length],
-    // Viewer worlds get slightly muted colors + smaller size
     ...(w.role === "viewer" ? { size: 0.22, orbitRadius: (ORB_PRESETS[i % ORB_PRESETS.length]?.orbitRadius || 2.6) + 0.4 } : {}),
     ...(w.palette?.color ? { color: w.palette.color } : {}),
   })), [worlds]);
 
-  // ---- THREE.JS SCENE (unchanged) ----
+  // Build friend orbs
+  const FRIEND_ORBS = useMemo(() => friendWorlds.map((fw, i) => ({
+    id: fw.id,
+    friendUserId: fw.friendUserId,
+    label: fw.name,
+    sub: "Following",
+    ...FRIEND_ORB_PRESETS[i % FRIEND_ORB_PRESETS.length],
+  })), [friendWorlds]);
+
+  const ALL_ORBS = useMemo(() => [...WORLDS, ...FRIEND_ORBS], [WORLDS, FRIEND_ORBS]);
+
+  // ---- THREE.JS SCENE ----
   useEffect(() => {
     const mount = mountRef.current;
     if (!mount) return;
@@ -122,8 +166,8 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     scene.add(new THREE.Mesh(new THREE.SphereGeometry(0.72, 32, 32),
       new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.12, side: THREE.FrontSide })));
 
-    // Orbiting worlds
-    const orbs = WORLDS.map((w, idx) => {
+    // Orbiting worlds (shared + friend)
+    const orbs = ALL_ORBS.map((w, idx) => {
       const orb = new THREE.Mesh(new THREE.SphereGeometry(w.size, 32, 32),
         new THREE.MeshPhongMaterial({ color: w.color, emissive: w.emissive, emissiveIntensity: 1.2, shininess: 30 }));
       [0.08, 0.16, 0.28, 0.44, 0.65].forEach((d, i) => {
@@ -134,11 +178,11 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       orb.add(new THREE.Mesh(new THREE.SphereGeometry(w.size * 0.98, 24, 24),
         new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.10, side: THREE.FrontSide })));
       scene.add(orb);
-      return { mesh: orb, world: w, angleOffset: (idx / Math.max(WORLDS.length, 1)) * Math.PI * 2 };
+      return { mesh: orb, world: w, angleOffset: (idx / Math.max(ALL_ORBS.length, 1)) * Math.PI * 2 };
     });
 
-    if (WORLDS.length > 0) {
-      const avgRadius = WORLDS.reduce((s, w) => s + w.orbitRadius, 0) / WORLDS.length;
+    if (ALL_ORBS.length > 0) {
+      const avgRadius = ALL_ORBS.reduce((s, w) => s + w.orbitRadius, 0) / ALL_ORBS.length;
       const ring = new THREE.Mesh(new THREE.RingGeometry(avgRadius - 0.03, avgRadius + 0.03, 80),
         new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.04, side: THREE.DoubleSide }));
       ring.rotation.x = Math.PI * 0.5; scene.add(ring);
@@ -210,7 +254,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       rend.dispose();
       if (mount.contains(rend.domElement)) mount.removeChild(rend.domElement);
     };
-  }, [WORLDS.length]);
+  }, [ALL_ORBS.length]);
 
   // ---- CLICK / HOVER HANDLERS ----
   const handleClick = useCallback((e) => {
@@ -224,11 +268,16 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       if (isNaN(lx)) continue;
       if (Math.sqrt((cx - lx) ** 2 + (cy - ly) ** 2) < 75 && parseFloat(el.style.opacity) > 0.1) {
         if (id === "my") { onSelect("my"); }
+        else if (id.startsWith("friend-")) {
+          const friendUserId = id.replace("friend-", "");
+          const fw = friendWorlds.find(f => f.friendUserId === friendUserId);
+          onSelect("friend", friendUserId, fw?.name || "Friend's World", "viewer");
+        }
         else { const w = worlds.find(w => w.id === id); onSelect("our", id, w?.name || "Shared World", w?.role || "member"); }
         return;
       }
     }
-  }, [onSelect, worlds]);
+  }, [onSelect, worlds, friendWorlds]);
 
   const handleMove = useCallback((e) => {
     if (dragRef.current.dragging) { setHovered(null); return; }
@@ -271,7 +320,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     setCreatingShared(false);
     if (!world) { alert("Failed to create world."); return; }
     setCreatedWorldId(world.id);
-    setSharedStep(1); // move to invite step
+    setSharedStep(1);
   };
 
   const handleSendInvite = async () => {
@@ -286,7 +335,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     setCreatingShared(false);
     if (result) {
       setGeneratedLink(result.inviteLink);
-      setSharedStep(2); // done
+      setSharedStep(2);
     } else { alert("Failed to generate invite."); }
   };
 
@@ -299,23 +348,8 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     onSelect("our", createdWorldId, w?.name || "Shared World", "owner");
   };
 
-  const handleJoin = async () => {
-    if (!joinToken.trim()) return;
-    setJoining(true);
-    const result = await acceptInvite(joinToken.trim());
-    setJoining(false);
-    if (result?.ok) {
-      const updated = await loadMyWorlds(userId);
-      if (onWorldsChange) onWorldsChange(updated);
-      setShowJoinModal(false); setJoinToken("");
-      const w = updated.find(w => w.id === result.world_id);
-      onSelect("our", result.world_id, w?.name || "Shared World", w?.role || "member");
-    } else { alert(result?.error || "Invalid or expired invite code."); }
-  };
-
   const handleGenerateInvite = async () => {
     if (!existingInviteEmail.trim()) {
-      // Simple link-only invite with selected role
       setInviteGenerating(true);
       const inv = await createInvite(showInviteModal.id, userId, existingInviteRole);
       setInviteGenerating(false);
@@ -328,7 +362,6 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       return;
     }
     setInviteGenerating(true);
-    // Use viewer-specific or member invite based on role
     if (existingInviteRole === "viewer") {
       const result = await createViewerInvite(
         showInviteModal.id, userId, existingInviteEmail.trim(), existingInviteLetter, userDisplayName
@@ -346,12 +379,66 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     }
   };
 
+  // Invite to Cosmos (platform invite with optional letter)
+  const handleCosmosInvite = async () => {
+    if (!cosmosInviteEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cosmosInviteEmail.trim())) {
+      alert("Please enter a valid email address.");
+      return;
+    }
+    setCosmosInviteSending(true);
+    try {
+      await sendWelcomeLetter(userId, userDisplayName || "A friend", cosmosInviteEmail.trim(), cosmosInviteLetter || `I'd love for you to join me on Little Cosmos — a place to map our adventures and memories on a beautiful 3D globe. Sign up at ${window.location.origin}`);
+      setCosmosInviteSent(true);
+    } catch (err) {
+      console.error('[cosmosInvite]', err);
+      alert("Failed to send invite.");
+    }
+    setCosmosInviteSending(false);
+  };
+
+  // Add a Friend (connection request)
+  const handleAddFriend = async () => {
+    if (!friendEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(friendEmail.trim())) {
+      alert("Please enter a valid email address.");
+      return;
+    }
+    setFriendSending(true);
+    const result = await sendConnectionRequest(userId, userDisplayName || "", friendEmail.trim(), friendShareBack, friendLetter);
+    setFriendSending(false);
+    if (result) {
+      setFriendSent(true);
+    } else {
+      alert("Failed to send friend request.");
+    }
+  };
+
+  // Accept/decline pending requests
+  const handleAcceptRequest = async (req) => {
+    const result = await acceptConnection(req.id);
+    if (result?.ok) {
+      if (onPendingRequestsChange) onPendingRequestsChange(prev => prev.filter(r => r.id !== req.id));
+      const conn = await getMyConnections(userId);
+      if (onConnectionsChange) onConnectionsChange(conn);
+    } else {
+      alert(result?.error || "Failed to accept request.");
+    }
+  };
+
+  const handleDeclineRequest = async (req) => {
+    const ok = await declineConnection(req.id);
+    if (ok) {
+      if (onPendingRequestsChange) onPendingRequestsChange(prev => prev.filter(r => r.id !== req.id));
+    }
+  };
+
   const closeAllModals = () => {
     setShowAddMenu(false); setShowCreatePersonal(false); setShowCreateShared(false);
-    setShowJoinModal(false); setShowInviteModal(null);
+    setShowInviteModal(null); setShowInviteCosmos(false); setShowAddFriend(false); setShowPendingRequests(false);
     setPersonalName(""); setSharedName(""); setSharedStep(0); setInviteEmail("");
-    setInviteLetter(""); setGeneratedLink(""); setJoinToken("");
+    setInviteLetter(""); setGeneratedLink("");
     setInviteLink(""); setExistingInviteEmail(""); setExistingInviteLetter(""); setExistingInviteRole("member");
+    setCosmosInviteEmail(""); setCosmosInviteLetter(""); setCosmosInviteSent(false);
+    setFriendEmail(""); setFriendShareBack(false); setFriendLetter(""); setFriendSent(false);
   };
 
   // Style constants
@@ -380,12 +467,12 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
         <div style={{ fontSize: 12, color: "#b8c8e0", marginTop: 3, letterSpacing: "1.2px", fontWeight: 400, textShadow: "0 1px 6px rgba(0,0,0,0.5)" }}>Travel Diary</div>
       </div>
 
-      {/* Orbiting world labels */}
-      {WORLDS.map(w => (
+      {/* Orbiting world labels (shared + friend) */}
+      {ALL_ORBS.map(w => (
         <div key={w.id} ref={makeLabelRef(w.id)} data-hov="false" style={{ position: "absolute", left: 0, top: 0, transform: "translate(-50%, -50%)", textAlign: "center", pointerEvents: "none", transition: "opacity .15s", opacity: 0 }}>
-          <div style={{ fontSize: hovered === w.id ? 22 : 17, fontWeight: 600, color: "#f0d8e8", letterSpacing: "0.8px", textShadow: `0 0 24px ${w.color}90, 0 2px 10px rgba(0,0,0,0.6)`, transition: "font-size .2s" }}>{w.label}</div>
-          <div style={{ fontSize: 11, color: "#e0c8d8", marginTop: 2, letterSpacing: "0.8px", textShadow: "0 1px 6px rgba(0,0,0,0.5)" }}>{w.sub}</div>
-          {hovered === w.id && (
+          <div style={{ fontSize: hovered === w.id ? 22 : 17, fontWeight: 600, color: w.id.startsWith("friend-") ? "#c8d8e8" : "#f0d8e8", letterSpacing: "0.8px", textShadow: `0 0 24px ${w.color}90, 0 2px 10px rgba(0,0,0,0.6)`, transition: "font-size .2s" }}>{w.label}</div>
+          <div style={{ fontSize: 11, color: w.id.startsWith("friend-") ? "#a0b0c0" : "#e0c8d8", marginTop: 2, letterSpacing: "0.8px", textShadow: "0 1px 6px rgba(0,0,0,0.5)" }}>{w.sub}</div>
+          {hovered === w.id && !w.id.startsWith("friend-") && (
             <button onClick={(e) => { e.stopPropagation(); setShowInviteModal(worlds.find(ww => ww.id === w.id)); setInviteLink(""); setExistingInviteEmail(""); setExistingInviteLetter(""); }}
               style={{ marginTop: 6, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 12, padding: "3px 10px", color: "#c0b8c8", fontSize: 9, fontFamily: F, cursor: "pointer", pointerEvents: "auto", letterSpacing: "0.5px" }}>
               Invite
@@ -393,6 +480,14 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
           )}
         </div>
       ))}
+
+      {/* Pending requests notification */}
+      {pendingRequests.length > 0 && (
+        <button onClick={(e) => { e.stopPropagation(); setShowPendingRequests(true); }}
+          style={{ position: "absolute", top: 16, left: 16, background: "rgba(200,170,110,0.15)", border: "1px solid rgba(200,170,110,0.3)", borderRadius: 12, padding: "6px 14px", color: "#c9a96e", fontSize: 11, fontFamily: F, cursor: "pointer", opacity: ready ? 1 : 0, transition: "all .5s", zIndex: 10, letterSpacing: "0.5px" }}>
+          {pendingRequests.length} friend request{pendingRequests.length > 1 ? "s" : ""}
+        </button>
+      )}
 
       {/* Bottom controls */}
       <div style={{ position: "absolute", bottom: "5%", left: 0, right: 0, textAlign: "center", opacity: ready ? 1 : 0, transition: "opacity 1.5s" }}>
@@ -403,11 +498,17 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
             onMouseLeave={e => { e.target.style.borderColor = "rgba(200,170,110,0.25)"; }}>
             + Add a World
           </button>
-          <button onClick={(e) => { e.stopPropagation(); setShowJoinModal(true); }}
+          <button onClick={(e) => { e.stopPropagation(); setShowAddFriend(true); }}
+            style={{ background: "rgba(160,192,232,0.08)", border: "1px solid rgba(160,192,232,0.2)", borderRadius: 20, padding: "8px 22px", color: "#a0c0e8", fontSize: 11, fontFamily: F, letterSpacing: "1px", cursor: "pointer", transition: "all .3s" }}
+            onMouseEnter={e => { e.target.style.borderColor = "rgba(160,192,232,0.4)"; }}
+            onMouseLeave={e => { e.target.style.borderColor = "rgba(160,192,232,0.2)"; }}>
+            Add a Friend
+          </button>
+          <button onClick={(e) => { e.stopPropagation(); setShowInviteCosmos(true); }}
             style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 20, padding: "8px 22px", color: "#908898", fontSize: 11, fontFamily: F, letterSpacing: "1px", cursor: "pointer", transition: "all .3s" }}
             onMouseEnter={e => { e.target.style.color = "#c0b8c8"; }}
             onMouseLeave={e => { e.target.style.color = "#908898"; }}>
-            Join a World
+            Invite to Cosmos
           </button>
         </div>
         <div style={{ fontSize: 10, color: "#807888", marginTop: 8, letterSpacing: "0.8px" }}>drag to orbit · scroll to zoom</div>
@@ -477,8 +578,6 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       {showCreateShared && (
         <div style={modalBg} onClick={(e) => { e.stopPropagation(); if (sharedStep < 2) closeAllModals(); }}>
           <div style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
-
-            {/* Step 0: Name */}
             {sharedStep === 0 && (<>
               <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Create a Shared World</div>
               <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 20 }}>
@@ -496,8 +595,6 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
                 </button>
               </div>
             </>)}
-
-            {/* Step 1: Invite details */}
             {sharedStep === 1 && (<>
               <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Invite Someone</div>
               <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 20 }}>
@@ -514,18 +611,13 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
                 placeholder={"Dear ...\n\nI created this world for us to fill with our adventures together.\n\nWith love, ..."}
                 style={{ ...textareaSt, marginBottom: 16 }} />
               <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-                <button onClick={() => {
-                  // Skip invite, go straight to world
-                  handleFinishShared();
-                }} style={btnS}>Skip for now</button>
+                <button onClick={() => handleFinishShared()} style={btnS}>Skip for now</button>
                 <button onClick={handleSendInvite} disabled={creatingShared || !inviteEmail.trim()}
                   style={{ ...btnP, opacity: creatingShared || !inviteEmail.trim() ? 0.5 : 1 }}>
                   {creatingShared ? "Sending..." : "Send Invite"}
                 </button>
               </div>
             </>)}
-
-            {/* Step 2: Done */}
             {sharedStep === 2 && (<>
               <div style={{ fontSize: 44, marginBottom: 12 }}>&#10024;</div>
               <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>World Created!</div>
@@ -547,25 +639,129 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
         </div>
       )}
 
-      {/* ====== JOIN WORLD ====== */}
-      {showJoinModal && (
+      {/* ====== INVITE TO COSMOS (platform invite) ====== */}
+      {showInviteCosmos && (
         <div style={modalBg} onClick={(e) => { e.stopPropagation(); closeAllModals(); }}>
           <div style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Join a World</div>
+            {!cosmosInviteSent ? (<>
+              <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Invite to Little Cosmos</div>
+              <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 20 }}>
+                Invite someone to create their own cosmos. They'll receive your letter when they sign up.
+              </div>
+              <input value={cosmosInviteEmail} onChange={e => setCosmosInviteEmail(e.target.value)}
+                placeholder="Their email address"
+                type="email"
+                style={{ ...inputSt, marginBottom: 12 }} autoFocus />
+              <div style={{ textAlign: "left", marginBottom: 6 }}>
+                <div style={{ fontSize: 10, color: "#807888", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>Write them a letter (optional)</div>
+              </div>
+              <textarea value={cosmosInviteLetter} onChange={e => setCosmosInviteLetter(e.target.value)}
+                placeholder={"Hey!\n\nI've been using this beautiful app to map all my travels and adventures. I think you'd love it too.\n\nCheck it out!"}
+                style={{ ...textareaSt, marginBottom: 16 }} />
+              <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+                <button onClick={closeAllModals} style={btnS}>Cancel</button>
+                <button onClick={handleCosmosInvite} disabled={cosmosInviteSending || !cosmosInviteEmail.trim()}
+                  style={{ ...btnP, opacity: cosmosInviteSending || !cosmosInviteEmail.trim() ? 0.5 : 1 }}>
+                  {cosmosInviteSending ? "Sending..." : "Send Invite"}
+                </button>
+              </div>
+            </>) : (<>
+              <div style={{ fontSize: 44, marginBottom: 12 }}>&#9993;</div>
+              <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Invite Sent!</div>
+              <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 16 }}>
+                Your letter will be waiting for {cosmosInviteEmail} when they sign up at littlecosmos.app
+              </div>
+              <button onClick={closeAllModals} style={btnP}>Done</button>
+            </>)}
+          </div>
+        </div>
+      )}
+
+      {/* ====== ADD A FRIEND ====== */}
+      {showAddFriend && (
+        <div style={modalBg} onClick={(e) => { e.stopPropagation(); closeAllModals(); }}>
+          <div style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
+            {!friendSent ? (<>
+              <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Add a Friend</div>
+              <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 20 }}>
+                Send a friend request to follow someone's world in your cosmos. They'll need to accept before their world appears.
+              </div>
+              <input value={friendEmail} onChange={e => setFriendEmail(e.target.value)}
+                placeholder="Their email address"
+                type="email"
+                style={{ ...inputSt, marginBottom: 14 }} autoFocus />
+              <div onClick={() => setFriendShareBack(!friendShareBack)}
+                style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", padding: "10px 14px", background: friendShareBack ? "rgba(160,192,232,0.08)" : "rgba(255,255,255,0.02)", border: `1px solid ${friendShareBack ? "rgba(160,192,232,0.25)" : "rgba(255,255,255,0.08)"}`, borderRadius: 10, marginBottom: 14, transition: "all .2s" }}>
+                <div style={{ width: 18, height: 18, borderRadius: 4, border: `2px solid ${friendShareBack ? "#a0c0e8" : "#504858"}`, display: "flex", alignItems: "center", justifyContent: "center", transition: "all .2s", flexShrink: 0 }}>
+                  {friendShareBack && <div style={{ width: 10, height: 10, borderRadius: 2, background: "#a0c0e8" }} />}
+                </div>
+                <div style={{ textAlign: "left" }}>
+                  <div style={{ fontSize: 12, color: friendShareBack ? "#c0d8f0" : "#a098a8", fontWeight: 500 }}>Also share your world with them</div>
+                  <div style={{ fontSize: 10, color: "#686070", marginTop: 2 }}>They'll see your My World in their cosmos too</div>
+                </div>
+              </div>
+              <div style={{ textAlign: "left", marginBottom: 6 }}>
+                <div style={{ fontSize: 10, color: "#807888", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>Write a note (optional)</div>
+              </div>
+              <textarea value={friendLetter} onChange={e => setFriendLetter(e.target.value)}
+                placeholder="Hey! I'd love to follow your travels..."
+                style={{ ...textareaSt, minHeight: 70, marginBottom: 16 }} />
+              <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+                <button onClick={closeAllModals} style={btnS}>Cancel</button>
+                <button onClick={handleAddFriend} disabled={friendSending || !friendEmail.trim()}
+                  style={{ ...btnP, opacity: friendSending || !friendEmail.trim() ? 0.5 : 1 }}>
+                  {friendSending ? "Sending..." : "Send Request"}
+                </button>
+              </div>
+            </>) : (<>
+              <div style={{ fontSize: 44, marginBottom: 12 }}>&#128075;</div>
+              <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Request Sent!</div>
+              <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 16 }}>
+                {friendEmail} will see your request next time they open their cosmos.
+                {friendShareBack ? " If they accept, you'll both see each other's worlds." : " Once they accept, their world will appear in your cosmos."}
+              </div>
+              <button onClick={closeAllModals} style={btnP}>Done</button>
+            </>)}
+          </div>
+        </div>
+      )}
+
+      {/* ====== PENDING FRIEND REQUESTS ====== */}
+      {showPendingRequests && (
+        <div style={modalBg} onClick={(e) => { e.stopPropagation(); closeAllModals(); }}>
+          <div style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Friend Requests</div>
             <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 20 }}>
-              Paste the invite code you received to join someone's world.
+              People who want to follow your world in their cosmos.
             </div>
-            <input value={joinToken} onChange={e => setJoinToken(e.target.value)}
-              placeholder="Paste invite code"
-              style={{ ...inputSt, marginBottom: 16 }}
-              onKeyDown={e => { if (e.key === "Enter") handleJoin(); }} autoFocus />
-            <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-              <button onClick={closeAllModals} style={btnS}>Cancel</button>
-              <button onClick={handleJoin} disabled={joining || !joinToken.trim()}
-                style={{ ...btnP, opacity: joining || !joinToken.trim() ? 0.5 : 1 }}>
-                {joining ? "Joining..." : "Join World"}
-              </button>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 300, overflowY: "auto" }}>
+              {pendingRequests.map(req => (
+                <div key={req.id} style={{ ...optionCard, cursor: "default" }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#e0d8e8", marginBottom: 2 }}>
+                    {req.requester_name || "Someone"} wants to follow your world
+                  </div>
+                  <div style={{ fontSize: 10, color: "#807888", marginBottom: 4 }}>{req.target_email}</div>
+                  {req.share_back && (
+                    <div style={{ fontSize: 10, color: "#a0c0e8", marginBottom: 4, fontStyle: "italic" }}>
+                      They're also sharing their world with you
+                    </div>
+                  )}
+                  {req.letter_text && (
+                    <div style={{ fontSize: 11, color: "#b0a8b8", marginBottom: 8, padding: "8px 10px", background: "rgba(255,255,255,0.03)", borderRadius: 6, fontStyle: "italic", lineHeight: 1.5 }}>
+                      "{req.letter_text}"
+                    </div>
+                  )}
+                  <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                    <button onClick={() => handleDeclineRequest(req)} style={{ ...btnS, padding: "5px 14px", fontSize: 11 }}>Decline</button>
+                    <button onClick={() => handleAcceptRequest(req)} style={{ ...btnP, padding: "5px 14px", fontSize: 11 }}>Accept</button>
+                  </div>
+                </div>
+              ))}
+              {pendingRequests.length === 0 && (
+                <div style={{ fontSize: 12, color: "#686070", padding: 20 }}>No pending requests</div>
+              )}
             </div>
+            <button onClick={closeAllModals} style={{ ...btnS, marginTop: 16 }}>Close</button>
           </div>
         </div>
       )}
@@ -579,7 +775,6 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
               Enter their email to send a personal invite, or just generate a link.
             </div>
             {!inviteLink ? (<>
-              {/* Role selection */}
               <div style={{ display: "flex", gap: 8, marginBottom: 14, justifyContent: "center" }}>
                 <button onClick={() => setExistingInviteRole("member")}
                   style={{ padding: "6px 16px", borderRadius: 8, fontSize: 12, fontFamily: F, cursor: "pointer", border: "1px solid", transition: "all .2s",
