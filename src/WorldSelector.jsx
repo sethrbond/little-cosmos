@@ -439,6 +439,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     setInviteLink(""); setExistingInviteEmail(""); setExistingInviteLetter(""); setExistingInviteRole("member");
     setCosmosInviteEmail(""); setCosmosInviteLetter(""); setCosmosInviteSent(false);
     setFriendEmail(""); setFriendShareBack(false); setFriendLetter(""); setFriendSent(false);
+    setInviteGenerating(false);
   };
 
   // Style constants

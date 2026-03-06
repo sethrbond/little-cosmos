@@ -20,19 +20,6 @@ import { loadComments, addComment, deleteComment, loadAllWorldReactions, toggleR
    v9.0 — dual world support, earth-tone My World palette
    ================================================================= */
 
-const DEFAULT_CONFIG = {
-  startDate: "",
-  title: "Our World",
-  subtitle: "every moment, every adventure",
-  loveLetter: "",            // legacy single letter (migrated to loveLetters on load)
-  loveLetters: [],           // [{id, text, lat, lng, city}]
-  youName: "",
-  partnerName: "",
-  chapters: [],              // [{label, startDate, endDate}]
-  dreamDestinations: [],     // [{id, city, country, lat, lng, notes}]
-  darkMode: false,
-};
-
 // Mutable palette ref — stored on window to survive Vite production bundling
 // (Vite may convert top-level `let` to `const`, making reassignment throw)
 // External form components (inpSt, TBtn, Fld, etc.) read from P so they get correct world colors
@@ -900,7 +887,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     return merged;
   }, [isMyWorld, config.customPalette]);
   const SC = useMemo(() => ({ ...(isMyWorld ? MY_WORLD_SCENE : OUR_WORLD_SCENE), ...(config.customScene || {}) }), [isMyWorld, config.customScene]);
-  const TYPES = useMemo(() => resolveTypes(isMyWorld ? MY_WORLD_TYPES : OUR_WORLD_TYPES, P), [isMyWorld, P]);
+  const TYPES = useMemo(() => resolveTypes(isMyWorld ? MY_WORLD_TYPES : OUR_WORLD_TYPES, _paletteBase), [isMyWorld, _paletteBase]);
   const DEFAULT_TYPE = isMyWorld ? TYPES.adventure : TYPES.together;
 
   useEffect(() => {
@@ -1998,9 +1985,11 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
   useEffect(() => {
     const g = globeRef.current; if (!g || !sceneReady) return;
-    mkRef.current.forEach(m => [m.dot, m.ring, m.glow].forEach(o => o && g.remove(o)));
+    mkRef.current.forEach(m => [m.dot, m.ring, m.glow].forEach(o => {
+      if (!o) return; g.remove(o); o.geometry?.dispose(); o.material?.dispose();
+    }));
     mkRef.current = [];
-    rtRef.current.forEach(r => r.line && g.remove(r.line));
+    rtRef.current.forEach(r => { if (r.line) { g.remove(r.line); r.line.geometry?.dispose(); r.line.material?.dispose(); } });
     rtRef.current = [];
 
     const positions = getPositions(sliderDate);
@@ -2073,7 +2062,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     }
 
     // ---- LOVE THREAD — golden arcs connecting all together entries ---- (Our World only)
-    loveThreadRef.current.forEach(l => g.remove(l));
+    loveThreadRef.current.forEach(l => { g.remove(l); l.geometry?.dispose(); l.material?.dispose(); });
     loveThreadRef.current = [];
     if (!isMyWorld && showLoveThread) {
       loveThreadData.forEach(({ from, to }) => {
@@ -2091,7 +2080,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     }
 
     // ---- CONSTELLATION — minimum spanning tree lines ----
-    constellationRef.current.forEach(l => { if (l.parent) l.parent.remove(l); });
+    constellationRef.current.forEach(l => { if (l.parent) l.parent.remove(l); l.geometry?.dispose(); l.material?.dispose(); });
     constellationRef.current = [];
     if (showConstellation) {
       constellationData.forEach(({ from, to }) => {
@@ -3245,8 +3234,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                   {e.notes && <p style={{ fontSize: 11, color: P.textMid, margin: "4px 0", lineHeight: 1.5, maxHeight: 60, overflow: "hidden" }}>{e.notes}</p>}
                   {(e.photos || []).length > 0 && (
                     <div style={{ display: "flex", gap: 4, marginTop: 6, overflowX: "auto" }}>
-                      {e.photos.slice(0, 4).map((url, i) => (
-                        <img key={i} loading="lazy" src={url} alt="Travel photo" style={{ width: 60, height: 60, objectFit: "cover", borderRadius: 6 }} />
+                      {e.photos.slice(0, 4).map(url => (
+                        <img key={url} loading="lazy" src={url} alt="Travel photo" style={{ width: 60, height: 60, objectFit: "cover", borderRadius: 6 }} />
                       ))}
                     </div>
                   )}
