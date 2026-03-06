@@ -20,7 +20,7 @@ function AppInner() {
     getWelcomeLetter(user.email).then(letter => {
       setWelcomeLetter(letter)
       setLetterChecked(true)
-    }).catch(() => setLetterChecked(true))
+    }).catch(err => { console.error('[welcome letter]', err); setLetterChecked(true) })
   }, [user?.email])
 
   const selectWorld = (mode) => {
@@ -49,7 +49,7 @@ function AppInner() {
       <WelcomeLetterScreen
         letter={welcomeLetter}
         onEnter={() => {
-          markLetterRead(welcomeLetter.id)
+          markLetterRead(welcomeLetter.id).catch(err => console.error('[markLetterRead]', err))
           setWelcomeLetter(null)
         }}
       />

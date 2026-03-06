@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import * as THREE from "three";
 
 /* WorldSelector.jsx — "My Cosmos" world chooser
@@ -33,14 +33,14 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [] }) {
   const dragRef = useRef({ dragging: false, moved: false, prevX: 0, prevY: 0 });
   const camAngleRef = useRef({ theta: 0.3, phi: 1.2, radius: 5.8 });
 
-  // Build orbiting worlds from props (for now, just "Our World" if user has one)
-  const WORLDS = worlds.map((w, i) => ({
+  // Build orbiting worlds from props — memoized to avoid recreating on every render
+  const WORLDS = useMemo(() => worlds.map((w, i) => ({
     id: w.id || "our",
     label: w.label || "Our World",
     sub: w.sub || "Shared World",
     ...ORB_PRESETS[i % ORB_PRESETS.length],
     ...(w.color ? { color: w.color } : {}),
-  }));
+  })), [worlds]);
 
   useEffect(() => {
     const mount = mountRef.current;

@@ -2834,6 +2834,7 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
             <button
               disabled={wlSending || !wlEmail.trim() || !wlText.trim()}
               onClick={async () => {
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(wlEmail.trim())) { alert("Please enter a valid email address"); return; }
                 setWlSending(true); setWlSent(false);
                 try {
                   const name = isMyWorld ? (config.travelerName || "Someone") : (config.youName || "Someone");
@@ -2856,7 +2857,7 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
                       <div style={{ fontSize: 10, color: P.textMid }}>{lt.to_email}</div>
                       <div style={{ fontSize: 8, color: P.textFaint }}>{lt.read ? "Read" : "Unread"} · {new Date(lt.created_at).toLocaleDateString()}</div>
                     </div>
-                    <button onClick={async () => { await deleteWelcomeLetter(lt.id); setMyLetters(prev => prev.filter(l => l.id !== lt.id)); }}
+                    <button onClick={async () => { try { await deleteWelcomeLetter(lt.id); setMyLetters(prev => prev.filter(l => l.id !== lt.id)); } catch(err) { console.error('[deleteWelcomeLetter]', err); } }}
                       style={{ background: "none", border: "none", color: "#c9777a", cursor: "pointer", fontSize: 11 }}>x</button>
                   </div>
                 ))}
