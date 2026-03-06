@@ -903,7 +903,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             merged.loveLetter = "";
           }
           setConfigState(merged);
-          if (merged.darkMode) setDarkMode(true);
         }
       } catch (err) {
         console.error("Failed to load from Supabase:", err);
@@ -1141,25 +1140,19 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [monthlyPromptShown, setMonthlyPromptShown] = useState(false);
   const [quickAddMode, setQuickAddMode] = useState(false);
   const [polaroidMode, setPolaroidMode] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
   const [dragOver, setDragOver] = useState(false);
-  const nightRef = useRef(null);
   const starsRef = useRef(null);
   const auroraRef = useRef(null);
   const loveThreadRef = useRef([]);
   const constellationRef = useRef([]);
   const mouseRef = useRef({ x: 0, y: 0 });
 
-  // Dark mode theme overrides
-  const T = useMemo(() => darkMode ? {
-    bg: "#0c0a14", card: "rgba(22,18,36,0.96)", glass: "rgba(18,14,30,0.92)",
-    text: "#e8e0f0", textMid: "#b8a8d0", textMuted: "#8878a0", textFaint: "#584878",
-    parchment: "#1a1428", blush: "#1e1430", border: `${P.rose}18`,
-  } : {
+  // Theme colors (always light mode)
+  const T = useMemo(() => ({
     bg: null, card: P.card, glass: P.glass,
     text: P.text, textMid: P.textMid, textMuted: P.textMuted, textFaint: P.textFaint,
     parchment: P.parchment, blush: P.blush, border: `${P.rose}18`,
-  }, [darkMode]);
+  }), [_paletteBase]);
   const lastTapRef = useRef(0); // for double-tap to zoom
   const playRef = useRef(null);
   const animRef = useRef(null);
@@ -1712,7 +1705,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     LAND.forEach(([lat, lng]) => {
       const p = ll2v(lat, lng, RAD * 1.002);
       const sz = 0.002 + Math.random() * 0.003;
-      const op = 0.18 + Math.random() * 0.25;
+      const op = 0.30 + Math.random() * 0.30;
       const colors = SC.landColors;
       const c = colors[Math.floor(Math.random() * colors.length)];
       const d = new THREE.Mesh(new THREE.CircleGeometry(sz, 5), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: op, side: THREE.DoubleSide }));
@@ -1727,7 +1720,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       const mat = new THREE.LineBasicMaterial({
         color: SC.coastColor,
         transparent: true,
-        opacity: 0.7, // always clearly visible
+        opacity: 0.85,
         linewidth: 1,
       });
       const line = new THREE.Line(geom, mat);
@@ -1802,15 +1795,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     const warmStars = new THREE.Points(warmG, warmStarMat);
     warmStars.renderOrder = -10;
     scene.add(warmStars);
-
-    // Night shadow — soft terminator gradient using a full sphere with custom opacity
-    const nightGeo = new THREE.SphereGeometry(RAD * 1.0015, 64, 64);
-    // Darken vertices facing away from "sun" direction for soft day/night
-    const nightMat = new THREE.MeshBasicMaterial({ color: "#1a1030", transparent: true, opacity: 0.08, side: THREE.FrontSide, depthWrite: false });
-    const nightMesh = new THREE.Mesh(nightGeo, nightMat);
-    nightMesh.renderOrder = 5;
-    scene.add(nightMesh);
-    nightRef.current = nightMesh;
 
     // Aurora — rich color bands drifting across the top of the scene
     const auroraN = 160;
@@ -1901,11 +1885,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         sr.mesh.rotation.x += 0.000005; // subtle multi-axis
       }
 
-      // Night shadow — very slow subtle rotation
-      if (nightRef.current) {
-        nightRef.current.rotation.y = Date.now() * 0.00003;
-      }
-
       // Parallax — glow layers shift subtly opposite to mouse
       const mx = mouseRef.current.x, my = mouseRef.current.y;
       glows.forEach((glow, i) => {
@@ -1931,7 +1910,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       // Geography lines — always bright, even more vivid on zoom
       const zoomFactor = clamp((3.5 - zmR.current) / 2.0, 0, 1);
       geoGroup.forEach(g => {
-        g.mat.opacity = 0.7 + zoomFactor * 0.2; // 0.7 base → 0.9 at max zoom
+        g.mat.opacity = 0.85 + zoomFactor * 0.15; // 0.85 base → 1.0 at max zoom
       });
 
       rend.render(scene, cam);
@@ -2266,7 +2245,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   </div>;
 
   return (
-    <div style={{ width: "100%", height: "100vh", position: "relative", overflow: "hidden", background: darkMode ? T.bg : `linear-gradient(155deg,${P.cream} 0%,${P.blush} 40%,${P.lavMist} 100%)`, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", color: T.text, userSelect: "none", transition: "background .6s ease, color .4s ease" }}>
+    <div style={{ width: "100%", height: "100vh", position: "relative", overflow: "hidden", background: `linear-gradient(155deg,${P.cream} 0%,${P.blush} 40%,${P.lavMist} 100%)`, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", color: T.text, userSelect: "none", transition: "background .6s ease, color .4s ease" }}>
 
       <div ref={mountRef} style={{ width: "100%", height: "100%" }}
         onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onWheel={onWheel}
@@ -2274,8 +2253,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
       {/* TITLE */}
       <div style={{ position: "absolute", top: 22, left: 0, right: 0, textAlign: "center", zIndex: 10, pointerEvents: "none", opacity: ready ? 1 : 0, transform: ready ? "none" : "translateY(-12px)", transition: "all 1.8s cubic-bezier(.23,1,.32,1)" }}>
-        <h1 style={{ fontSize: 28, fontWeight: 400, margin: 0, letterSpacing: ".2em", textTransform: "uppercase", color: darkMode ? "#e8e0f0" : "#2a2038", textShadow: "0 1px 12px rgba(0,0,0,0.3), 0 0 40px rgba(255,255,255,0.15)" }}>{config.title}</h1>
-        <p style={{ fontSize: 11, color: darkMode ? "#b0a0c8" : "#5a4868", marginTop: 3, letterSpacing: ".35em", fontStyle: "italic", textShadow: "0 1px 8px rgba(0,0,0,0.2)" }}>{config.subtitle}</p>
+        <h1 style={{ fontSize: 28, fontWeight: 400, margin: 0, letterSpacing: ".2em", textTransform: "uppercase", color: "#2a2038", textShadow: "0 1px 12px rgba(0,0,0,0.3), 0 0 40px rgba(255,255,255,0.15)" }}>{config.title}</h1>
+        <p style={{ fontSize: 11, color: "#5a4868", marginTop: 3, letterSpacing: ".35em", fontStyle: "italic", textShadow: "0 1px 8px rgba(0,0,0,0.2)" }}>{config.subtitle}</p>
         {!isMyWorld && isAnniversary && <div style={{ fontSize: 11, color: P.heart, marginTop: 6, letterSpacing: ".15em", animation: "heartPulse 2s ease infinite" }}>✨ Happy Anniversary ✨</div>}
       </div>
 
@@ -2367,7 +2346,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         {!isViewer && <TBtn onClick={() => setShowAdd(true)} accent tip="Add Entry">＋</TBtn>}
         {!isViewer && <TBtn onClick={() => setQuickAddMode(true)} tip="Quick Add">⚡</TBtn>}
         {!isViewer && <TBtn onClick={() => { setShowSettings(true); getMyLetters(userId).then(setMyLetters); }} tip="Settings">⚙️</TBtn>}
-        <TBtn a={darkMode} onClick={() => { setDarkMode(v => { const next = !v; setConfig({ darkMode: next }); return next; }); }} tip="Toggle Theme">{darkMode ? "☀️" : "🌙"}</TBtn>
         {allPhotos.length > 0 && <TBtn a={showGallery} onClick={() => setShowGallery(v => !v)} tip="Photo Gallery">📷</TBtn>}
         {allPhotos.length > 2 && <TBtn onClick={() => { setShowPhotoJourney(true); setPjIndex(0); }} tip="Photo Journey">🎞</TBtn>}
         {data.entries.length > 0 && <TBtn a={showStats} onClick={() => setShowStats(v => !v)} tip="Stats & Insights">📊</TBtn>}
@@ -2789,7 +2767,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                   });
                 }
               }} style={{ padding: "8px 20px", background: "#c9777a", color: "#fff", border: "none", borderRadius: 7, cursor: "pointer", fontSize: 12, fontFamily: "inherit" }}>Delete</button>
-              <button onClick={() => setConfirmDelete(null)} style={{ padding: "8px 20px", background: "transparent", border: "1px solid #e8d8e4", borderRadius: 7, cursor: "pointer", fontSize: 12, fontFamily: "inherit", color: P.textMuted }}>Keep</button>
+              <button onClick={() => setConfirmDelete(null)} style={{ padding: "8px 20px", background: "transparent", border: `1px solid ${P.textFaint}40`, borderRadius: 7, cursor: "pointer", fontSize: 12, fontFamily: "inherit", color: P.textMuted }}>Keep</button>
             </div>
           </div>
         </div>
@@ -2825,10 +2803,10 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 if (v.length >= 2) { geocodeSearch(v, m => setLetterCitySugg(m)); } else setLetterCitySugg([]);
               }} placeholder="Type a city..." style={inpSt()} />
               {letterCitySugg.length > 0 && (
-                <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e8d8e4", borderRadius: 6, maxHeight: 120, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
+                <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: P.card, border: `1px solid ${P.textFaint}40`, borderRadius: 6, maxHeight: 120, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
                   {letterCitySugg.map((c, i) => (
                     <button key={i} onClick={() => { setLetterCity(c[0]); setLetterLat(c[2].toString()); setLetterLng(c[3].toString()); setLetterCitySugg([]); }}
-                      style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", border: "none", borderBottom: "1px solid #f5f0f4", background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }}
+                      style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", border: "none", borderBottom: `1px solid ${P.textFaint}15`, background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }}
                       onMouseEnter={e => e.currentTarget.style.background = P.blush} onMouseLeave={e => e.currentTarget.style.background = "none"}>
                       <span style={{ fontWeight: 500 }}>{c[0]}</span> <span style={{ color: P.textFaint }}>{c[1]}</span>
                     </button>
@@ -3410,7 +3388,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 }
 
 // ---- SHARED UI ----
-function inpSt() { return { width: "100%", padding: "7px 9px", border: "1px solid #e8d8e4", borderRadius: 5, fontSize: 12, fontFamily: "'Palatino Linotype',Palatino,Georgia,serif", color: P.text, background: "#fdfcfa", boxSizing: "border-box" }; }
+function inpSt() { return { width: "100%", padding: "7px 9px", border: `1px solid ${P.textFaint}40`, borderRadius: 5, fontSize: 12, fontFamily: "'Palatino Linotype',Palatino,Georgia,serif", color: P.text, background: P.cream, boxSizing: "border-box" }; }
 function navSt() { return { background: "none", border: `1px solid ${P.textFaint}35`, borderRadius: 5, padding: "3px 9px", cursor: "pointer", fontSize: 10, color: P.textMid, fontFamily: "inherit", transition: "all .2s" }; }
 function imgN(s) { return { position: "absolute", [s]: 5, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,.65)", border: "none", borderRadius: "50%", width: 24, height: 24, cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center" }; }
 function renderList(t, items, icon, color) { if (!items?.length) return null; return <div style={{ marginTop: 7 }}><div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 3 }}>{t}</div>{items.map((it, i) => <div key={i} style={{ display: "flex", gap: 4, marginBottom: 2 }}><span style={{ color, fontSize: 6, marginTop: 4 }}>{icon}</span><span style={{ fontSize: 11, opacity: .8, lineHeight: 1.5 }}>{it}</span></div>)}</div>; }
@@ -3421,9 +3399,9 @@ function TBtn({ a, onClick, children, accent, tip }) {
   const onLeave = () => { clearTimeout(tipTimer.current); setShowTip(false); };
   return (
     <div style={{ position: "relative" }} onMouseEnter={onEnter} onMouseLeave={onLeave}>
-      <button onClick={onClick} style={{ width: 34, height: 34, borderRadius: 9, border: `1px solid ${a ? P.rose : accent ? P.lavender : "#e0d0e0"}`, background: a ? P.card : "rgba(253,251,247,.7)", backdropFilter: "blur(10px)", cursor: "pointer", fontSize: accent ? 15 : 14, display: "flex", alignItems: "center", justifyContent: "center", transition: "all .3s", fontFamily: "inherit", color: P.text }}>{children}</button>
+      <button onClick={onClick} style={{ width: 34, height: 34, borderRadius: 9, border: `1px solid ${a ? P.rose : accent ? P.lavender : P.textFaint + "40"}`, background: a ? P.card : P.glass, backdropFilter: "blur(10px)", cursor: "pointer", fontSize: accent ? 15 : 14, display: "flex", alignItems: "center", justifyContent: "center", transition: "all .3s", fontFamily: "inherit", color: P.text }}>{children}</button>
       {showTip && tip && (
-        <div style={{ position: "absolute", left: 42, top: "50%", transform: "translateY(-50%)", whiteSpace: "nowrap", background: P.card, backdropFilter: "blur(12px)", border: `1px solid ${P.rose}20`, borderRadius: 7, padding: "4px 10px", fontSize: 9, color: P.textMid, boxShadow: "0 3px 12px rgba(61,53,82,.12)", pointerEvents: "none", animation: "fadeIn .2s ease", zIndex: 30, letterSpacing: ".04em" }}>{tip}</div>
+        <div style={{ position: "absolute", left: 42, top: "50%", transform: "translateY(-50%)", whiteSpace: "nowrap", background: P.card, backdropFilter: "blur(12px)", border: `1px solid ${P.rose}20`, borderRadius: 7, padding: "4px 10px", fontSize: 9, color: P.textMid, boxShadow: `0 3px 12px ${P.text}18`, pointerEvents: "none", animation: "fadeIn .2s ease", zIndex: 30, letterSpacing: ".04em" }}>{tip}</div>
       )}
     </div>
   );
@@ -3463,8 +3441,8 @@ function QuickAddForm({ types, onAdd, onClose }) {
       <div style={{ position: "relative", marginBottom: 6 }}>
         <input value={city} onChange={e => onCityInput(e.target.value)} onFocus={() => { if (sugg.length > 0) setShowSugg(true); }} placeholder="City..." style={inpSt()} autoFocus />
         {showSugg && sugg.length > 0 && (
-          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e8d8e4", borderRadius: 6, maxHeight: 130, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
-            {sugg.map((c, i) => <button key={i} onClick={() => selectCity(c)} style={{ display: "block", width: "100%", textAlign: "left", padding: "7px 10px", border: "none", borderBottom: "1px solid #f5f0f4", background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }} onMouseEnter={e => e.currentTarget.style.background = P.blush} onMouseLeave={e => e.currentTarget.style.background = "none"}><span style={{ fontWeight: 500, color: P.text }}>{c[0]}</span> <span style={{ color: P.textFaint }}>{c[1]}</span></button>)}
+          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: P.card, border: `1px solid ${P.textFaint}40`, borderRadius: 6, maxHeight: 130, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
+            {sugg.map((c, i) => <button key={i} onClick={() => selectCity(c)} style={{ display: "block", width: "100%", textAlign: "left", padding: "7px 10px", border: "none", borderBottom: `1px solid ${P.textFaint}15`, background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }} onMouseEnter={e => e.currentTarget.style.background = P.blush} onMouseLeave={e => e.currentTarget.style.background = "none"}><span style={{ fontWeight: 500, color: P.text }}>{c[0]}</span> <span style={{ color: P.textFaint }}>{c[1]}</span></button>)}
           </div>
         )}
       </div>
@@ -3477,7 +3455,7 @@ function QuickAddForm({ types, onAdd, onClose }) {
       </div>
       <input value={note} onChange={e => setNote(e.target.value)} placeholder="Quick note..." style={{ ...inpSt(), marginBottom: 8 }} />
       <button disabled={!ok} onClick={() => { onAdd({ id: `e-${Date.now()}`, city, country, lat: parseFloat(lat), lng: parseFloat(lng), dateStart, dateEnd: dateEnd || dateStart, type, who: types[type]?.who || "both", notes: note, memories: [], museums: [], restaurants: [], highlights: [], photos: [], stops: [], zoomLevel: 1 }); }}
-        style={{ width: "100%", padding: "9px", background: ok ? P.goldWarm : "#e8d8e4", color: "#fff", border: "none", borderRadius: 8, cursor: ok ? "pointer" : "default", fontSize: 11, fontFamily: "inherit", transition: "all .3s" }}>
+        style={{ width: "100%", padding: "9px", background: ok ? P.goldWarm : `${P.textFaint}60`, color: "#fff", border: "none", borderRadius: 8, cursor: ok ? "pointer" : "default", fontSize: 11, fontFamily: "inherit", transition: "all .3s" }}>
         {ok ? "⚡ Add to World" : "Select a city & date"}
       </button>
     </div>
@@ -3502,9 +3480,9 @@ function DreamAddForm({ onAdd, isMyWorld }) {
       <div style={{ position: "relative", marginBottom: 6 }}>
         <input placeholder="Start typing a city..." value={f.city} onChange={e => onInput(e.target.value)} onFocus={() => { if (sugg.length > 0) setShowSugg(true); }} style={{ ...inpSt(), fontSize: 11 }} />
         {showSugg && sugg.length > 0 && (
-          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e8d8e4", borderRadius: 6, maxHeight: 120, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
+          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: P.card, border: `1px solid ${P.textFaint}40`, borderRadius: 6, maxHeight: 120, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
             {sugg.map((c, i) => (
-              <button key={i} onClick={() => pick(c)} style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", border: "none", borderBottom: "1px solid #f5f0f4", background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }}
+              <button key={i} onClick={() => pick(c)} style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", border: "none", borderBottom: `1px solid ${P.textFaint}15`, background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }}
                 onMouseEnter={e => e.currentTarget.style.background = P.blush}
                 onMouseLeave={e => e.currentTarget.style.background = "none"}
               >
@@ -3516,7 +3494,7 @@ function DreamAddForm({ onAdd, isMyWorld }) {
       </div>
       <input placeholder="Why this place?" value={f.notes} onChange={e => sf(p => ({ ...p, notes: e.target.value }))} style={{ ...inpSt(), fontSize: 10, marginBottom: 6 }} />
       <button disabled={!ok} onClick={() => { onAdd({ city: f.city, country: f.country, lat: parseFloat(f.lat), lng: parseFloat(f.lng), notes: f.notes }); sf({ city: "", country: "", lat: "", lng: "", notes: "" }); }}
-        style={{ width: "100%", padding: "7px", background: ok ? P.goldWarm : "#e8d8e4", color: "#fff", border: "none", borderRadius: 6, cursor: ok ? "pointer" : "default", fontSize: 10, fontFamily: "inherit" }}>
+        style={{ width: "100%", padding: "7px", background: ok ? P.goldWarm : `${P.textFaint}60`, color: "#fff", border: "none", borderRadius: 6, cursor: ok ? "pointer" : "default", fontSize: 10, fontFamily: "inherit" }}>
         {isMyWorld ? "🗺 Add to List" : "✦ Add Dream"}
       </button>
     </div>
@@ -3604,14 +3582,14 @@ function AddForm({ types, defaultType = "together", defaultWho = "both", fieldLa
           onChange={e => onCityInput(e.target.value)}
           onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
           placeholder="Start typing — e.g. Haw..."
-          style={{ ...inpSt(), borderColor: f.city ? "#e8d8e4" : undefined }}
+          style={{ ...inpSt(), borderColor: f.city ? `${P.textFaint}60` : undefined }}
         />
         {showSuggestions && suggestions.length > 0 && (
-          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e8d8e4", borderRadius: 6, maxHeight: 150, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
+          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: P.card, border: `1px solid ${P.textFaint}40`, borderRadius: 6, maxHeight: 150, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
             {suggestions.map((c, i) => (
               <button key={i} onClick={() => selectCity(c)} style={{
                 display: "flex", alignItems: "center", gap: 6, width: "100%", textAlign: "left",
-                padding: "8px 10px", border: "none", borderBottom: "1px solid #f5f0f4",
+                padding: "8px 10px", border: "none", borderBottom: `1px solid ${P.textFaint}15`,
                 background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 11, color: P.textMid,
                 transition: "background .15s",
               }}
@@ -3658,9 +3636,9 @@ function AddForm({ types, defaultType = "together", defaultWho = "both", fieldLa
           <input placeholder="Lng" value={ns.lng} onChange={e => setNs(p => ({ ...p, lng: e.target.value }))} style={{ ...inpSt(), width: 48 }} />
         </div>
         {showStopSugg && stopSugg.length > 0 && (
-          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e8d8e4", borderRadius: 6, maxHeight: 120, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
+          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: P.card, border: `1px solid ${P.textFaint}40`, borderRadius: 6, maxHeight: 120, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
             {stopSugg.map((c, i) => (
-              <button key={i} onClick={() => selectStopCity(c)} style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", border: "none", borderBottom: "1px solid #f5f0f4", background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }}
+              <button key={i} onClick={() => selectStopCity(c)} style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", border: "none", borderBottom: `1px solid ${P.textFaint}15`, background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }}
                 onMouseEnter={e => e.currentTarget.style.background = P.blush}
                 onMouseLeave={e => e.currentTarget.style.background = "none"}
               >
@@ -3682,7 +3660,7 @@ function AddForm({ types, defaultType = "together", defaultWho = "both", fieldLa
         notes: f.notes, memories: f.memories.split("\n").filter(Boolean), museums: f.museums.split("\n").filter(Boolean),
         restaurants: f.restaurants.split("\n").filter(Boolean), highlights: f.highlights.split("\n").filter(Boolean),
         photos: [], stops: f.stops, musicUrl: f.musicUrl || null,
-      }); }} style={{ width: "100%", padding: "10px 0", background: ok ? P.rose : "#e8d8e4", color: "#fff", border: "none", borderRadius: 9, cursor: ok ? "pointer" : "default", fontSize: 12, letterSpacing: ".1em", fontFamily: "inherit", transition: "all .3s" }}>
+      }); }} style={{ width: "100%", padding: "10px 0", background: ok ? P.rose : `${P.textFaint}60`, color: "#fff", border: "none", borderRadius: 9, cursor: ok ? "pointer" : "default", fontSize: 12, letterSpacing: ".1em", fontFamily: "inherit", transition: "all .3s" }}>
         {ok ? (isMyWorld ? "Add to My World 🌍" : "Add to Our World 💕") : "Fill required fields to continue"}
       </button>
       {!ok && <p style={{ fontSize: 8, color: validationMsg.includes("must be") ? "#c9777a" : P.textFaint, textAlign: "center", marginTop: 5, letterSpacing: ".08em" }}>
@@ -3751,9 +3729,9 @@ function EditForm({ entry, types, fieldLabels, onChange, onSave, onClose, onDele
         <Lbl>City</Lbl>
         <input value={entry.city || ""} onChange={e => onEditCity(e.target.value)} onFocus={() => { if (citySugg.length > 0) setShowCitySugg(true); }} style={inpSt()} />
         {showCitySugg && citySugg.length > 0 && (
-          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e8d8e4", borderRadius: 6, maxHeight: 120, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
+          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: P.card, border: `1px solid ${P.textFaint}40`, borderRadius: 6, maxHeight: 120, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
             {citySugg.map((c, i) => (
-              <button key={i} onClick={() => selectEditCity(c)} style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", border: "none", borderBottom: "1px solid #f5f0f4", background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }}
+              <button key={i} onClick={() => selectEditCity(c)} style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", border: "none", borderBottom: `1px solid ${P.textFaint}15`, background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }}
                 onMouseEnter={e => e.currentTarget.style.background = P.blush}
                 onMouseLeave={e => e.currentTarget.style.background = "none"}
               >
@@ -3783,9 +3761,9 @@ function EditForm({ entry, types, fieldLabels, onChange, onSave, onClose, onDele
           <input placeholder="Start typing city..." value={ns.city} onChange={e => onStopCity(e.target.value)} onFocus={() => { if (stopSugg.length > 0) setShowStopSugg(true); }} style={{ ...inpSt(), flex: 1 }} />
         </div>
         {showStopSugg && stopSugg.length > 0 && (
-          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e8d8e4", borderRadius: 6, maxHeight: 120, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
+          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: P.card, border: `1px solid ${P.textFaint}40`, borderRadius: 6, maxHeight: 120, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
             {stopSugg.map((c, i) => (
-              <button key={i} onClick={() => selectStopCity(c)} style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", border: "none", borderBottom: "1px solid #f5f0f4", background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }}
+              <button key={i} onClick={() => selectStopCity(c)} style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", border: "none", borderBottom: `1px solid ${P.textFaint}15`, background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }}
                 onMouseEnter={e => e.currentTarget.style.background = P.blush}
                 onMouseLeave={e => e.currentTarget.style.background = "none"}
               >
@@ -3805,7 +3783,7 @@ function EditForm({ entry, types, fieldLabels, onChange, onSave, onClose, onDele
 
       <div style={{ display: "flex", gap: 7, marginTop: 10 }}>
         <button onClick={onSave} style={{ flex: 1, padding: "8px 0", background: P.rose, color: "#fff", border: "none", borderRadius: 7, cursor: "pointer", fontSize: 10, fontFamily: "inherit" }}>Save</button>
-        <button onClick={onClose} style={{ padding: "8px 12px", background: "transparent", border: "1px solid #e8d8e4", borderRadius: 7, cursor: "pointer", fontSize: 10, fontFamily: "inherit", color: P.textMuted }}>Cancel</button>
+        <button onClick={onClose} style={{ padding: "8px 12px", background: "transparent", border: `1px solid ${P.textFaint}40`, borderRadius: 7, cursor: "pointer", fontSize: 10, fontFamily: "inherit", color: P.textMuted }}>Cancel</button>
       </div>
       <button onClick={onDelete} style={{ marginTop: 7, width: "100%", padding: "6px 0", background: "transparent", color: "#c9777a", border: "1px solid #e5c5c6", borderRadius: 7, cursor: "pointer", fontSize: 9, fontFamily: "inherit" }}>Delete</button>
     </div>
