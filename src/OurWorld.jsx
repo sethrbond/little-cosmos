@@ -10,7 +10,6 @@ import {
   OUR_WORLD_FIELDS, MY_WORLD_FIELDS,
   OUR_WORLD_SCENE, MY_WORLD_SCENE,
   getSeasonalHue, resolveTypes,
-  THEME_FIELDS, deriveTheme,
 } from "./worldConfigs.js";
 
 /* =================================================================
@@ -2654,8 +2653,8 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
       )}
 
       {showSettings && (
-        <div style={{ position: "absolute", inset: 0, zIndex: 45, background: "rgba(22,16,40,.88)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ width: 360, padding: 26, background: P.card, borderRadius: 16, boxShadow: "0 14px 48px rgba(61,53,82,.1)" }}>
+        <div onClick={() => setShowSettings(false)} style={{ position: "absolute", inset: 0, zIndex: 45, background: "rgba(22,16,40,.88)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: 380, maxHeight: "85vh", overflowY: "auto", padding: 26, background: P.card, borderRadius: 16, boxShadow: "0 14px 48px rgba(61,53,82,.1)", cursor: "default" }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 14 }}><h3 style={{ margin: 0, fontSize: 15, fontWeight: 400 }}>Settings</h3><button onClick={() => setShowSettings(false)} style={{ background: "none", border: "none", fontSize: 17, color: P.textFaint, cursor: "pointer" }}>×</button></div>
             <Fld l={isMyWorld ? "First Trip Date" : "Date You Met"} v={config.startDate} t="date" set={v => setConfig({ startDate: v })} />
             <Fld l="Title" v={config.title} set={v => setConfig({ title: v })} />
@@ -2668,70 +2667,51 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
                 </>
             }
 
-            <div style={{ margin: "10px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
-            <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 6 }}>🎨 Color Theme</div>
-            <p style={{ fontSize: 8, color: P.textFaint, fontStyle: "italic", marginBottom: 8 }}>Customize your world's colors. Changes apply instantly.</p>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 12px", marginBottom: 10 }}>
-              {THEME_FIELDS.map(tf => {
-                const currentVal = (config.customTheme || {})[tf.key] || (isMyWorld ? tf.defaultMy : tf.defaultOur);
-                return (
-                  <div key={tf.key} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <input type="color" value={currentVal}
-                      onChange={e => {
-                        const prev = config.customTheme || {};
-                        setConfig({ customTheme: { ...prev, [tf.key]: e.target.value } });
-                      }}
-                      style={{ width: 28, height: 22, border: `1px solid ${P.textFaint}30`, borderRadius: 4, cursor: "pointer", padding: 0, background: "none" }}
-                    />
-                    <span style={{ fontSize: 8, color: P.textMid, letterSpacing: ".04em" }}>{tf.label}</span>
-                  </div>
-                );
-              })}
-            </div>
-            <button onClick={() => setConfig({ customTheme: {} })}
-              style={{ width: "100%", padding: "5px", background: "transparent", border: `1px dashed ${P.textFaint}30`, borderRadius: 5, cursor: "pointer", fontSize: 8, fontFamily: "inherit", color: P.textFaint, marginBottom: 4 }}>
-              Reset to Default Colors
-            </button>
-
-            <div style={{ margin: "10px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
-            <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 6 }}>Theme & Colors</div>
-            <p style={{ fontSize: 8, color: P.textFaint, fontStyle: "italic", marginBottom: 8 }}>Customize your world's palette. Scene colors (marked ✦) take effect on reload.</p>
+            <div style={{ margin: "14px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
+            <div style={{ fontSize: 8, color: P.textMid, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 4, fontWeight: 500 }}>🎨 Color Theme</div>
+            <p style={{ fontSize: 8, color: P.textFaint, fontStyle: "italic", marginBottom: 10 }}>Pick colors for your world. UI colors change instantly. Globe colors (marked ✦) apply after refresh.</p>
             {(() => {
               const cp = config.customPalette || {};
               const cs = config.customScene || {};
               const setCP = (key, val) => setConfig({ customPalette: { ...cp, [key]: val } });
               const setCS = (key, val) => setConfig({ customScene: { ...cs, [key]: val } });
-              const CPick = ({ label, value, onChange, scene }) => (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
-                  <input type="color" value={value} onChange={e => onChange(e.target.value)} style={{ width: 26, height: 26, border: `1px solid ${P.textFaint}30`, borderRadius: 6, cursor: "pointer", padding: 0, background: "none" }} />
-                  <span style={{ fontSize: 9, color: P.textMid, flex: 1 }}>{scene ? "✦ " : ""}{label}</span>
-                  <span style={{ fontSize: 7, color: P.textFaint, fontFamily: "monospace" }}>{value}</span>
-                </div>
-              );
               const baseP = isMyWorld ? MY_WORLD_PALETTE : OUR_WORLD_PALETTE;
               const baseSC = isMyWorld ? MY_WORLD_SCENE : OUR_WORLD_SCENE;
-              return <>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
-                  <CPick label="Primary Accent" value={cp.rose || baseP.rose} onChange={v => setCP("rose", v)} />
-                  <CPick label="Secondary Accent" value={cp.sky || baseP.sky} onChange={v => setCP("sky", v)} />
-                  <CPick label="Special / Gold" value={cp.special || baseP.special} onChange={v => setCP("special", v)} />
-                  <CPick label="Heart Color" value={cp.heart || baseP.heart} onChange={v => setCP("heart", v)} />
-                  <CPick label="Text Color" value={cp.text || baseP.text} onChange={v => setCP("text", v)} />
-                  <CPick label="Soft Background" value={cp.cream || baseP.cream} onChange={v => setCP("cream", v)} />
-                  <CPick label="Space Background" value={cs.bg || baseSC.bg} onChange={v => setCS("bg", v)} scene />
-                  <CPick label="Globe Surface" value={cs.sphereColor || baseSC.sphereColor} onChange={v => setCS("sphereColor", v)} scene />
-                  <CPick label="Glow Tint" value={(cs.glowColors || baseSC.glowColors)[0]} onChange={v => setCS("glowColors", [v, v+"e8", v+"d0", v+"b8", v+"a0", v+"88", v+"70", v+"58"])} scene />
-                  <CPick label="Coastlines" value={cs.coastColor || baseSC.coastColor} onChange={v => setCS("coastColor", v)} scene />
+              const CPick = ({ label, desc, value, onChange, scene }) => (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7, padding: "4px 0" }}>
+                  <input type="color" value={value} onChange={e => onChange(e.target.value)} style={{ width: 32, height: 24, border: `1px solid ${P.textFaint}30`, borderRadius: 5, cursor: "pointer", padding: 0, background: "none", flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 9, color: P.text, fontWeight: 500 }}>{scene ? "✦ " : ""}{label}</div>
+                    <div style={{ fontSize: 7, color: P.textFaint, lineHeight: 1.3 }}>{desc}</div>
+                  </div>
                 </div>
+              );
+              return <>
+                <div style={{ fontSize: 7, color: P.textMid, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 4, marginTop: 2 }}>Interface Colors</div>
+                <CPick label="Primary Accent" desc="Markers, buttons, borders, highlights" value={cp.rose || baseP.rose} onChange={v => setCP("rose", v)} />
+                <CPick label="Secondary Accent" desc="Cards, backgrounds, subtle accents" value={cp.sky || baseP.sky} onChange={v => setCP("sky", v)} />
+                <CPick label="Highlight Color" desc="Special entries, gold elements" value={cp.special || baseP.special} onChange={v => setCP("special", v)} />
+                <CPick label="Heart / Love Color" desc="Together markers, love features" value={cp.heart || baseP.heart} onChange={v => setCP("heart", v)} />
+                <CPick label="Text Color" desc="Main text throughout the app" value={cp.text || baseP.text} onChange={v => setCP("text", v)} />
+                <CPick label="Card Background" desc="Cards, panels, form backgrounds" value={cp.cream || baseP.cream} onChange={v => setCP("cream", v)} />
+
+                <div style={{ fontSize: 7, color: P.textMid, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 4, marginTop: 10 }}>Globe & Scene Colors</div>
+                <CPick label="Space Background" desc="The dark sky behind the globe" value={cs.bg || baseSC.bg} onChange={v => setCS("bg", v)} scene />
+                <CPick label="Globe Surface" desc="The globe sphere color" value={cs.sphereColor || baseSC.sphereColor} onChange={v => setCS("sphereColor", v)} scene />
+                <CPick label="Glow Aura" desc="The halo rings around the globe" value={(cs.glowColors || baseSC.glowColors)[0]} onChange={v => setCS("glowColors", [v, v+"e8", v+"d0", v+"b8", v+"a0", v+"88", v+"70", v+"58"])} scene />
+                <CPick label="Coastlines" desc="Country outlines on the globe" value={cs.coastColor || baseSC.coastColor} onChange={v => setCS("coastColor", v)} scene />
+                <CPick label="Particles" desc="Floating dust particles around globe" value={cs.particleColor || baseSC.particleColor} onChange={v => setCS("particleColor", v)} scene />
+                <CPick label="Stars Tint" desc="Background star color" value={cs.starTint || baseSC.starTint} onChange={v => setCS("starTint", v)} scene />
+
                 <button onClick={() => { setConfig({ customPalette: {}, customScene: {} }); }}
-                  style={{ marginTop: 6, width: "100%", padding: "5px", background: "transparent", border: `1px dashed ${P.textFaint}40`, borderRadius: 5, cursor: "pointer", fontSize: 8, fontFamily: "inherit", color: P.textFaint }}>
-                  Reset to Default Theme
+                  style={{ marginTop: 8, width: "100%", padding: "6px", background: "transparent", border: `1px dashed ${P.textFaint}40`, borderRadius: 5, cursor: "pointer", fontSize: 9, fontFamily: "inherit", color: P.textMid }}>
+                  Reset All Colors to Default
                 </button>
               </>;
             })()}
 
-            <div style={{ margin: "10px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
-            <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 6 }}>Timeline Chapters</div>
+            <div style={{ margin: "14px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
+            <div style={{ fontSize: 8, color: P.textMid, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 6, fontWeight: 500 }}>Timeline Chapters</div>
             <p style={{ fontSize: 8, color: P.textFaint, fontStyle: "italic", marginBottom: 8 }}>{isMyWorld ? "Name the eras of your travels" : "Name the eras of your relationship"}</p>
             {(config.chapters || []).map((ch, i) => (
               <div key={i} style={{ display: "flex", gap: 4, alignItems: "center", marginBottom: 4 }}>
