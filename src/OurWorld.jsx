@@ -1550,15 +1550,18 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
     el.appendChild(rend.domElement);
     rendRef.current = rend;
 
-    scene.add(new THREE.AmbientLight(SC.ambientColor, 1.1));
-    const sun = new THREE.DirectionalLight(SC.sunColor, 1.15);
+    scene.add(new THREE.AmbientLight(SC.ambientColor, 1.3));
+    const sun = new THREE.DirectionalLight(SC.sunColor, 1.3);
     sun.position.set(4, 3, 5); scene.add(sun);
-    const fill = new THREE.DirectionalLight(SC.fillColor, 0.6);
+    const fill = new THREE.DirectionalLight(SC.fillColor, 0.7);
     fill.position.set(-4, -2, -4); scene.add(fill);
-    const rim = new THREE.PointLight(SC.rimColor, 0.7, 12);
+    const rim = new THREE.PointLight(SC.rimColor, 0.9, 14);
     rim.position.set(0, 4, 2); scene.add(rim);
-    const bottomGlow = new THREE.PointLight(SC.bottomColor, 0.4, 8);
+    const bottomGlow = new THREE.PointLight(SC.bottomColor, 0.5, 10);
     bottomGlow.position.set(0, -3, 1); scene.add(bottomGlow);
+    // Extra radiance from behind — makes globe feel like it's glowing through the screen
+    const backGlow = new THREE.PointLight(SC.rimColor, 0.4, 12);
+    backGlow.position.set(0, 0, -4); scene.add(backGlow);
 
     const globe = new THREE.Group();
     scene.add(globe);
@@ -1567,12 +1570,17 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
     // Main sphere — themed per world mode
     globe.add(new THREE.Mesh(
       new THREE.SphereGeometry(RAD, 96, 96),
-      new THREE.MeshPhongMaterial({ color: SC.sphereColor, emissive: SC.sphereEmissive, emissiveIntensity: 0.18, shininess: 22, transparent: false })
+      new THREE.MeshPhongMaterial({ color: SC.sphereColor, emissive: SC.sphereEmissive, emissiveIntensity: 0.35, shininess: 28, transparent: false })
+    ));
+    // Inner bloom — subtle white overlay for luminosity
+    globe.add(new THREE.Mesh(
+      new THREE.SphereGeometry(RAD * 0.998, 64, 64),
+      new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.06, side: THREE.FrontSide })
     ));
 
-    // Glow layers — 8-layer halo themed per world
-    const glowRadii = [1.015, 1.035, 1.06, 1.09, 1.12, 1.18, 1.28, 1.42];
-    const glowOpacities = [0.38, 0.30, 0.24, 0.18, 0.14, 0.10, 0.06, 0.03];
+    // Glow layers — 12-layer deep halo for ethereal radiance
+    const glowRadii = [1.01, 1.025, 1.045, 1.07, 1.10, 1.14, 1.20, 1.28, 1.40, 1.55, 1.75, 2.0];
+    const glowOpacities = [0.40, 0.34, 0.28, 0.23, 0.18, 0.14, 0.10, 0.07, 0.05, 0.035, 0.02, 0.012];
     const glows = glowRadii.map((r, i) => ({ r, color: SC.glowColors[i] || SC.glowColors[0], op: glowOpacities[i] })).map(({ r, color, op }) => {
       const m = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: op, side: THREE.BackSide });
       const mesh = new THREE.Mesh(new THREE.SphereGeometry(RAD * r, 48, 48), m);
