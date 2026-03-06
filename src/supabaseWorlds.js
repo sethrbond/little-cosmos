@@ -163,7 +163,9 @@ export async function createInvite(worldId, userId, role = 'member', maxUses = 1
 export async function acceptInvite(token) {
   const { data, error } = await supabase.rpc('accept_world_invite', { invite_token: token })
   if (error) { console.error('[acceptInvite]', error); return { ok: false, error: error.message } }
-  return data
+  if (data && typeof data === 'object' && data.ok !== undefined) return data
+  if (data && typeof data === 'object' && data.world_id) return { ok: true, ...data }
+  return { ok: !!data, world_id: data?.world_id || null }
 }
 
 export async function getInviteInfo(token) {
@@ -388,16 +390,6 @@ export async function loadCrossWorldActivity(worldIds, limit = 20) {
   return (data || []).map(r => ({ ...r, type: r.entry_type }))
 }
 
-export async function loadMyWorldRecentActivity(userId, limit = 10) {
-  const { data, error } = await supabase
-    .from('my_entries')
-    .select('id, city, country, entry_type, date_start, photos, created_at')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-    .limit(limit)
-  if (error) { console.error('[loadMyWorldActivity]', error); return [] }
-  return (data || []).map(r => ({ ...r, type: r.entry_type }))
-}
 
 export async function loadWorldEntryCounts(worldIds) {
   if (!worldIds || worldIds.length === 0) return {}

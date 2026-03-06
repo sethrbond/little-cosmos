@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { createOurWorldDB, createSharedWorldDB } from "./supabase.js";
 import { createMyWorldDB, createFriendWorldDB } from "./supabaseMyWorld.js";
 import { useAuth } from "./AuthContext.jsx";
+import { supabase } from "./supabaseClient.js";
 import { geocodeSearch } from "./geocode.js";
 import {
   OUR_WORLD_PALETTE, MY_WORLD_PALETTE,
@@ -14,7 +15,6 @@ import {
 } from "./worldConfigs.js";
 import { sendWelcomeLetter, getMyLetters, deleteWelcomeLetter } from "./supabaseWelcomeLetters.js";
 import { loadComments, addComment, deleteComment, loadAllWorldReactions, toggleReaction, getWorldMembers } from "./supabaseWorlds.js";
-import { supabase } from "./supabaseClient.js";
 
 /* =================================================================
    🌍 OUR WORLD / MY WORLD — Multi-World Globe Engine
@@ -926,6 +926,16 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     })();
   }, [db]);
 
+  // Real-time sync for shared worlds — reload entries when another user makes changes
+  useEffect(() => {
+    if (!isSharedWorld || !worldId) return;
+    const channel = supabase.channel(`entries-${worldId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'entries', filter: `world_id=eq.${worldId}` },
+        () => { db.loadEntries().then(entries => { if (entries) dispatch({ type: "LOAD", entries }); }); })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [isSharedWorld, worldId, db, dispatch]);
+
   // Mobile detection
   const [isMobile, setIsMobile] = useState(window.innerWidth < 600);
   useEffect(() => {
@@ -1174,7 +1184,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [markerFilter, setMarkerFilter] = useState("all"); // "all", "together", "special", "home-seth", "home-rosie", "seth-solo", "rosie-solo"
   const [showFilter, setShowFilter] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [toast, setToast] = useState(null);
+  const [toasts, setToasts] = useState([]);
   const [showStats, setShowStats] = useState(false);
   const [showRecap, setShowRecap] = useState(false);
   const [recapYear, setRecapYear] = useState(null);
@@ -1191,6 +1201,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [worldReactions, setWorldReactions] = useState([]);
   const [commentText, setCommentText] = useState("");
   const [showZoomHint, setShowZoomHint] = useState(true);
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const [monthlyPromptShown, setMonthlyPromptShown] = useState(false);
   const [quickAddMode, setQuickAddMode] = useState(false);
   const [polaroidMode, setPolaroidMode] = useState(false);
@@ -1289,21 +1300,25 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     return idx >= 0 ? idx + 1 : null;
   }, [togetherList]);
 
-  // ---- TOAST SYSTEM (with undo support) ----
+  // ---- TOAST SYSTEM (queue/stack with undo support) ----
   const showToast = useCallback((message, icon = "✓", duration = 2500, undoAction = null) => {
-    setToast({ message, icon, duration, key: Date.now(), undoAction });
+    const t = { message, icon, duration, key: Date.now(), undoAction };
+    setToasts(prev => [...prev.slice(-4), t]); // keep max 5
   }, []);
-  const handleUndo = useCallback(() => {
-    if (toast?.undoAction) {
-      toast.undoAction();
-      setToast(null);
-    }
-  }, [toast]);
+  const dismissToast = useCallback((key) => {
+    setToasts(prev => prev.filter(t => t.key !== key));
+  }, []);
+  const handleUndo = useCallback((toast) => {
+    if (toast?.undoAction) toast.undoAction();
+    dismissToast(toast.key);
+  }, [dismissToast]);
   useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(() => setToast(null), toast.duration || 2500);
-    return () => clearTimeout(t);
-  }, [toast]);
+    if (toasts.length === 0) return;
+    const timers = toasts.map(t =>
+      setTimeout(() => dismissToast(t.key), t.duration || 2500)
+    );
+    return () => timers.forEach(clearTimeout);
+  }, [toasts, dismissToast]);
 
   // ---- "ON THIS DAY" MEMORIES ----
   const onThisDay = useMemo(() => {
@@ -1600,7 +1615,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       if (inInput && e.key !== "Escape") return;
       if (e.key === "ArrowLeft") { e.preventDefault(); stepDay(-1); }
       if (e.key === "ArrowRight") { e.preventDefault(); stepDay(1); }
-      if (e.key === "Escape") { setSelected(null); setEditing(null); setShowAdd(false); setQuickAddMode(false); setShowLetter(null); setShowSettings(false); setShowGallery(false); setCardGallery(false); setShowFilter(false); setMarkerFilter("all"); setLocationList(null); setShowStats(false); setShowRecap(false); setShowSearch(false); setSearchQuery(""); setShowDreams(false); setConfirmDelete(null); setLightboxOpen(false); tSpinSpd.current = 0.002; if (isPlaying) stopPlay(); }
+      if (e.key === "Escape") { setSelected(null); setEditing(null); setShowAdd(false); setQuickAddMode(false); setShowLetter(null); setShowSettings(false); setShowGallery(false); setCardGallery(false); setShowFilter(false); setMarkerFilter("all"); setLocationList(null); setShowStats(false); setShowRecap(false); setShowSearch(false); setSearchQuery(""); setShowDreams(false); setConfirmDelete(null); setLightboxOpen(false); setShowShortcuts(false); tSpinSpd.current = 0.002; if (isPlaying) stopPlay(); }
+      if (e.key === "?" && !showAdd && !editing && !showSettings) setShowShortcuts(v => !v);
       if (e.key === "f" && !showAdd && !editing && !showSettings) { setShowFilter(v => { if (v) { setMarkerFilter("all"); setLocationList(null); } return !v; }); }
       if (e.key === "i" && !showAdd && !editing && !showSettings) setShowStats(v => !v);
       if (e.key === "s" && !showAdd && !editing && !showSettings && !showSearch) { e.preventDefault(); setShowSearch(true); }
@@ -2124,8 +2140,18 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       if (animRef.current) cancelAnimationFrame(animRef.current);
       if (playRef.current) clearTimeout(playRef.current);
       window.removeEventListener("resize", onR);
+      // Dispose all Three.js objects to prevent GPU memory leaks
+      scene.traverse(obj => {
+        if (obj.geometry) obj.geometry.dispose();
+        if (obj.material) {
+          if (obj.material.map) obj.material.map.dispose();
+          obj.material.dispose();
+        }
+      });
       if (el.contains(rend.domElement)) el.removeChild(rend.domElement);
       rend.dispose();
+      // Clear symbol texture cache
+      Object.keys(_symbolCache).forEach(k => { if (_symbolCache[k]?.dispose) _symbolCache[k].dispose(); delete _symbolCache[k]; });
     };
   }, [loading]);
 
@@ -2152,7 +2178,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       else { groups.push({ lat: e.lat, lng: e.lng, city: e.city, entries: [e] }); }
     });
     return groups;
-  }, [data.entries, markerFilter]);
+  }, [data.entries]);
 
   const [locationList, setLocationList] = useState(null); // for multi-entry popup
 
@@ -2340,6 +2366,13 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     }
   }, [data.entries, locationGroups]);
   const onWheel = useCallback(e => { e.preventDefault(); tZm.current = clamp(tZm.current + e.deltaY * 0.001, MIN_Z, MAX_Z); setShowZoomHint(false); }, []);
+  // Attach wheel with passive:false so preventDefault works in all browsers
+  useEffect(() => {
+    const el = mountRef.current;
+    if (!el) return;
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [onWheel]);
   const onTS = useCallback(e => {
     if (e.touches.length === 1) {
       dragR.current = true;
@@ -2363,6 +2396,10 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
   const fileInputRef = useRef(null);
   const photoEntryIdRef = useRef(null);
+  const dbRef = useRef(db);
+  const dispatchRef = useRef(dispatch);
+  dbRef.current = db;
+  dispatchRef.current = dispatch;
 
   // Safari-safe photo upload — input must be in DOM
   useEffect(() => {
@@ -2377,6 +2414,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     const handler = async () => {
       const files = Array.from(input.files);
       const id = photoEntryIdRef.current;
+      const curDb = dbRef.current;
+      const curDispatch = dispatchRef.current;
       if (files.length === 0 || !id) return;
       setUploading(true);
 
@@ -2384,28 +2423,28 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       const urls = [];
       for (const file of files) {
         try {
-          const url = await db.uploadPhoto(file, id);
+          const url = await curDb.uploadPhoto(file, id);
           if (url) urls.push(url);
         } catch (err) { /* skip failed uploads */ }
       }
       if (urls.length === 0) { setUploading(false); input.value = ""; return; }
 
       // Step 2: Read current photos from DB
-      const current = await db.readPhotos(id);
+      const current = await curDb.readPhotos(id);
       const existing = current.ok ? current.photos : [];
 
       // Step 3: Merge and save directly to DB
       const merged = [...existing, ...urls];
-      const saveResult = await db.savePhotos(id, merged);
+      const saveResult = await curDb.savePhotos(id, merged);
 
       // Step 4: Update local state
-      dispatch({ type: "ADD_PHOTOS", id, urls });
+      curDispatch({ type: "ADD_PHOTOS", id, urls });
 
       // Step 5: Show result
       if (saveResult.ok) {
-        setToast({ message: `📷 ${urls.length} photo${urls.length > 1 ? "s" : ""} saved (${merged.length} total)`, icon: "✅", duration: 3000, key: Date.now() });
+        showToast(`📷 ${urls.length} photo${urls.length > 1 ? "s" : ""} saved (${merged.length} total)`, "✅", 3000);
       } else {
-        setToast({ message: `❌ Photo save failed: ${saveResult.error}`, icon: "⚠️", duration: 8000, key: Date.now() });
+        showToast(`❌ Photo save failed: ${saveResult.error}`, "⚠️", 8000);
       }
 
       setUploading(false);
@@ -2442,7 +2481,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     <div style={{ width: "100%", height: "100vh", position: "relative", overflow: "hidden", background: `linear-gradient(155deg,${P.cream} 0%,${P.blush} 40%,${P.lavMist} 100%)`, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", color: T.text, userSelect: "none", transition: "background .6s ease, color .4s ease" }}>
 
       <div ref={mountRef} style={{ width: "100%", height: "100%" }}
-        onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onWheel={onWheel}
+        onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp}
         onTouchStart={onTS} onTouchMove={onTM} onTouchEnd={() => dragR.current = false} />
 
       {/* TITLE */}
@@ -3292,14 +3331,15 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           ? { icon: "🌍", title: "Your world awaits", desc: "Add your first trip to start building your personal travel map.", btn: "Add Your First Trip" }
           : emptyMsg[worldType] || emptyMsg.partner;
         return (
-          <div style={{ position: "absolute", top: "46%", left: "50%", transform: "translate(-50%,-50%)", zIndex: 12, textAlign: "center", maxWidth: 340, animation: "fadeIn 1s ease" }}>
-            <div style={{ position: "relative", width: 80, height: 80, margin: "0 auto 16px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: `radial-gradient(circle, ${P.rose}20, transparent 70%)`, animation: "pulse 3s ease-in-out infinite" }} />
-              <div style={{ position: "absolute", inset: 4, borderRadius: "50%", border: `1px dashed ${P.rose}30` }} />
-              <div style={{ fontSize: 36, position: "relative", zIndex: 1 }}>{msg.icon}</div>
+          <div style={{ position: "absolute", top: "46%", left: "50%", transform: "translate(-50%,-50%)", zIndex: 12, textAlign: "center", maxWidth: 360, animation: "fadeIn 1.2s ease" }}>
+            <div style={{ position: "relative", width: 100, height: 100, margin: "0 auto 20px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: `radial-gradient(circle, ${P.rose}18, transparent 70%)`, animation: "pulse 3s ease-in-out infinite" }} />
+              <div style={{ position: "absolute", inset: 6, borderRadius: "50%", border: `1px dashed ${P.rose}20`, animation: "emptyOrbit 12s linear infinite" }} />
+              <div style={{ position: "absolute", inset: 16, borderRadius: "50%", border: `1px dashed ${P.sky}15`, animation: "emptyOrbit 8s linear infinite reverse" }} />
+              <div style={{ fontSize: 42, position: "relative", zIndex: 1, animation: "emptyFloat 4s ease-in-out infinite" }}>{msg.icon}</div>
             </div>
-            <div style={{ fontSize: 18, color: P.text, letterSpacing: ".06em", fontWeight: 500, opacity: 0.8 }}>{msg.title}</div>
-            <div style={{ fontSize: 12, color: P.textMuted, marginTop: 8, lineHeight: 1.7, letterSpacing: ".04em" }}>{msg.desc}</div>
+            <div style={{ fontSize: 20, color: P.text, letterSpacing: ".06em", fontWeight: 500, opacity: 0.85 }}>{msg.title}</div>
+            <div style={{ fontSize: 13, color: P.textMuted, marginTop: 10, lineHeight: 1.8, letterSpacing: ".04em", maxWidth: 300, margin: "10px auto 0" }}>{msg.desc}</div>
             {!isViewer && (
               <button onClick={() => setShowAdd(true)} style={{
                 marginTop: 24, padding: "12px 30px", background: `linear-gradient(135deg, ${P.rose}35, ${P.sky}35)`,
@@ -3515,7 +3555,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             {/* Progress bar */}
             <div style={{ display: "flex", gap: 2, marginTop: 10, marginBottom: 8 }}>
               {Array.from({ length: recapEntries.length + 1 }, (_, i) => (
-                <div key={i} style={{ flex: 1, height: 2, borderRadius: 1, background: i <= recapIdx ? P.goldWarm : `${P.textFaint}30`, transition: "background .3s" }} />
+                <div key={i} style={{ flex: 1, height: 2, borderRadius: 1, background: i <= recapIdx + 1 ? P.goldWarm : `${P.textFaint}30`, transition: "background .3s" }} />
               ))}
             </div>
 
@@ -3531,19 +3571,23 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         </div>
       )}
 
-      {/* TOAST NOTIFICATION */}
-      {toast && (
-        <div key={toast.key} style={{ position: "absolute", bottom: 120, left: "50%", transform: "translateX(-50%)", zIndex: 55, pointerEvents: toast.undoAction ? "auto" : "none", animation: "fadeIn .3s ease" }}>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 18px", background: P.card, backdropFilter: "blur(16px)", borderRadius: 24, boxShadow: "0 4px 20px rgba(0,0,0,.1)", border: `1px solid ${P.rose}15`, fontSize: 12, color: P.text, letterSpacing: ".05em" }}>
-            <span>{toast.icon}</span>
-            <span>{toast.message}</span>
-            {toast.undoAction && <button onClick={handleUndo} style={{ marginLeft: 6, padding: "2px 8px", background: P.sky, color: "#fff", border: "none", borderRadius: 12, fontSize: 9, cursor: "pointer", fontFamily: "inherit", fontWeight: 500 }}>Undo</button>}
-          </div>
+      {/* TOAST NOTIFICATIONS (stacked) */}
+      {toasts.length > 0 && (
+        <div style={{ position: "absolute", bottom: 120, left: "50%", transform: "translateX(-50%)", zIndex: 55, display: "flex", flexDirection: "column-reverse", gap: 6, alignItems: "center" }}>
+          {toasts.map((t, i) => (
+            <div key={t.key} style={{ pointerEvents: t.undoAction ? "auto" : "none", animation: "fadeIn .3s ease", opacity: i < toasts.length - 1 ? 0.7 : 1, transform: `scale(${i < toasts.length - 1 ? 0.95 : 1})`, transition: "opacity .2s, transform .2s" }}>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 18px", background: P.card, backdropFilter: "blur(16px)", borderRadius: 24, boxShadow: "0 4px 20px rgba(0,0,0,.1)", border: `1px solid ${P.rose}15`, fontSize: 12, color: P.text, letterSpacing: ".05em", whiteSpace: "nowrap" }}>
+                <span>{t.icon}</span>
+                <span>{t.message}</span>
+                {t.undoAction && <button onClick={() => handleUndo(t)} style={{ marginLeft: 6, padding: "2px 8px", background: P.sky, color: "#fff", border: "none", borderRadius: 12, fontSize: 9, cursor: "pointer", fontFamily: "inherit", fontWeight: 500 }}>Undo</button>}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
       {/* ON THIS DAY (clickable if memories exist) */}
-      {onThisDay.length > 0 && introComplete && !showStats && !showRecap && !toast && (
+      {onThisDay.length > 0 && introComplete && !showStats && !showRecap && toasts.length === 0 && (
         <button onClick={() => {
           const mem = onThisDay[0];
           const entry = data.entries.find(e => e.id === mem.id);
@@ -3672,6 +3716,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           60% { transform: scale(1.05); opacity: 1; }
           100% { transform: scale(1); opacity: 1; }
         }
+        @keyframes emptyOrbit { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes emptyFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
       `}</style>
 
       {/* PHOTO JOURNEY MODE */}
@@ -3709,6 +3755,35 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         </div>
       )}
 
+      {/* KEYBOARD SHORTCUTS OVERLAY */}
+      {showShortcuts && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 190, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(12px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .2s ease" }}
+          onClick={() => setShowShortcuts(false)}>
+          <div onClick={e => e.stopPropagation()} style={{ background: P.card, borderRadius: 16, padding: "28px 32px", maxWidth: 340, width: "90%", boxShadow: "0 12px 48px rgba(0,0,0,.2)", border: `1px solid ${P.rose}15` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: P.text, letterSpacing: ".08em" }}>Keyboard Shortcuts</div>
+              <button onClick={() => setShowShortcuts(false)} style={{ background: "none", border: "none", fontSize: 16, color: P.textFaint, cursor: "pointer" }}>×</button>
+            </div>
+            {[
+              ["←  →", "Step through timeline"],
+              ["Space", isMyWorld ? "Play My Story" : "Play Our Story"],
+              ["F", "Toggle filter panel"],
+              ["S", "Open search"],
+              ["G", "Toggle gallery"],
+              ["I", "Toggle stats"],
+              ["T", "Jump to today"],
+              ["?", "Show this help"],
+              ["Esc", "Close any panel"],
+            ].map(([key, desc]) => (
+              <div key={key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: `1px solid ${P.textFaint}10` }}>
+                <span style={{ fontSize: 11, color: P.textMuted }}>{desc}</span>
+                <kbd style={{ fontSize: 10, fontFamily: "monospace", padding: "2px 8px", background: P.parchment, borderRadius: 4, color: P.textMid, border: `1px solid ${P.textFaint}20`, letterSpacing: ".05em" }}>{key}</kbd>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* FULLSCREEN PHOTO LIGHTBOX */}
       {lightboxOpen && cur?.photos?.length > 0 && (() => {
         const photos = cur.photos;
@@ -3724,9 +3799,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             <button onClick={() => setLightboxOpen(false)} style={{ position: "absolute", top: 20, right: 20, background: "none", border: "none", color: "#fff", fontSize: 28, cursor: "pointer", zIndex: 210, opacity: 0.7, lineHeight: 1 }}>×</button>
             {/* Counter */}
             <div style={{ position: "absolute", top: 20, left: 0, right: 0, textAlign: "center", color: "rgba(255,255,255,0.5)", fontSize: 12, letterSpacing: "1px", zIndex: 210 }}>{idx + 1} / {photos.length}</div>
-            {/* Photo */}
-            <img src={photos[idx]} alt={`Photo ${idx + 1}`} onClick={e => e.stopPropagation()}
-              style={{ maxWidth: "90vw", maxHeight: "85vh", objectFit: "contain", borderRadius: 4, boxShadow: "0 8px 40px rgba(0,0,0,0.5)", transition: "opacity .2s", cursor: "default" }} />
+            {/* Photo with Ken Burns effect */}
+            <img key={photos[idx]} src={photos[idx]} alt={`Photo ${idx + 1}`} onClick={e => e.stopPropagation()}
+              style={{ maxWidth: "90vw", maxHeight: "85vh", objectFit: "contain", borderRadius: 4, boxShadow: "0 8px 40px rgba(0,0,0,0.5)", cursor: "default", animation: "lbFadeIn .35s ease, kenBurns 12s ease-in-out infinite alternate" }} />
             {/* Navigation arrows */}
             {photos.length > 1 && (<>
               <button onClick={e => { e.stopPropagation(); prev(); }} style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "50%", width: 44, height: 44, cursor: "pointer", fontSize: 20, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 210, transition: "all .2s" }}
@@ -3754,6 +3829,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         @keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
         @keyframes fadeIn{from{opacity:0}to{opacity:1}}
         @keyframes heartPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+        @keyframes lbFadeIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
+        @keyframes kenBurns{0%{transform:scale(1) translate(0,0)}100%{transform:scale(1.04) translate(-0.5%,-0.3%)}}
         *{box-sizing:border-box}
         ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:${P.textFaint}22;border-radius:2px}
         input:focus,textarea:focus,select:focus{outline:none;border-color:${P.rose}!important}

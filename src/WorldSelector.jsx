@@ -349,7 +349,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       rend.dispose();
       if (mount.contains(rend.domElement)) mount.removeChild(rend.domElement);
     };
-  }, [ALL_ORBS.length]);
+  }, [ALL_ORBS.map(o => o.id).join(',')]);
 
   // ---- CLICK / HOVER HANDLERS ----
   const handleClick = useCallback((e) => {

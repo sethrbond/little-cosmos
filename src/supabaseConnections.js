@@ -47,7 +47,8 @@ export async function getMyConnections(userId) {
 export async function acceptConnection(connectionId) {
   const { data, error } = await supabase.rpc('accept_cosmos_connection', { connection_id: connectionId })
   if (error) { console.error('[acceptConnection]', error); return { ok: false, error: error.message } }
-  return data
+  if (data && typeof data === 'object' && data.ok !== undefined) return data
+  return { ok: !!data }
 }
 
 // Decline a connection request
