@@ -2617,8 +2617,10 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                     const myReaction = entryReactions.find(r => r.reaction_type === rt.type && r.user_id === userId);
                     return (
                       <button key={rt.type} onClick={async () => {
-                        await toggleReaction(worldId, cur.id, userId, rt.type);
-                        loadAllWorldReactions(worldId).then(setWorldReactions).catch(() => {});
+                        try {
+                          await toggleReaction(worldId, cur.id, userId, rt.type);
+                          loadAllWorldReactions(worldId).then(setWorldReactions).catch(() => {});
+                        } catch { showToast("Failed to react", "⚠️", 2000); }
                       }} style={{
                         padding: "3px 8px", borderRadius: 12, border: myReaction ? `1px solid ${P.rose}40` : `1px solid ${P.rose}15`,
                         background: myReaction ? `${P.rose}12` : "transparent", cursor: "pointer", fontSize: 11,
@@ -2645,34 +2647,38 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                       <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                         <span style={{ fontSize: 7, color: P.textFaint }}>{new Date(c.created_at).toLocaleDateString()}</span>
                         {c.user_id === userId && <button onClick={async () => {
-                          await deleteComment(c.id);
-                          loadComments(worldId, cur.id).then(setEntryComments).catch(() => {});
+                          try {
+                            await deleteComment(c.id);
+                            loadComments(worldId, cur.id).then(setEntryComments).catch(() => {});
+                          } catch { showToast("Failed to delete comment", "⚠️", 2000); }
                         }} style={{ background: "none", border: "none", fontSize: 8, color: P.textFaint, cursor: "pointer", padding: 0 }}>✕</button>}
                       </div>
                     </div>
                     <p style={{ fontSize: 10, color: P.text, margin: "2px 0 0", lineHeight: 1.5 }}>{c.comment_text}</p>
                   </div>
                 ))}
-                <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
-                  <input value={commentText} onChange={e => setCommentText(e.target.value)}
-                    placeholder="Leave a comment..."
-                    onKeyDown={e => {
-                      if (e.key === "Enter" && commentText.trim()) {
-                        addComment(worldId, cur.id, userId, userDisplayName, commentText.trim()).then(() => {
-                          setCommentText("");
-                          loadComments(worldId, cur.id).then(setEntryComments).catch(() => {});
-                        });
-                      }
-                    }}
-                    style={{ flex: 1, padding: "5px 8px", background: `${P.rose}06`, border: `1px solid ${P.rose}12`, borderRadius: 6, fontSize: 10, fontFamily: "inherit", color: P.text, outline: "none" }} />
-                  <button onClick={() => {
+                {(() => {
+                  const submitComment = () => {
                     if (!commentText.trim()) return;
-                    addComment(worldId, cur.id, userId, userDisplayName, commentText.trim()).then(() => {
-                      setCommentText("");
-                      loadComments(worldId, cur.id).then(setEntryComments).catch(() => {});
-                    });
-                  }} style={{ padding: "4px 10px", background: `linear-gradient(135deg,${P.rose}30,${P.rose}20)`, border: "none", borderRadius: 6, fontSize: 9, color: P.textMid, cursor: "pointer", fontFamily: "inherit" }}>Send</button>
-                </div>
+                    const text = commentText.trim();
+                    setCommentText("");
+                    addComment(worldId, cur.id, userId, userDisplayName, text)
+                      .then(result => {
+                        if (!result) { showToast("Failed to post comment", "⚠️", 2000); return; }
+                        loadComments(worldId, cur.id).then(setEntryComments).catch(() => {});
+                      })
+                      .catch(() => showToast("Failed to post comment", "⚠️", 2000));
+                  };
+                  return (
+                    <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
+                      <input value={commentText} onChange={e => setCommentText(e.target.value)}
+                        placeholder="Leave a comment..."
+                        onKeyDown={e => { if (e.key === "Enter") submitComment(); }}
+                        style={{ flex: 1, padding: "5px 8px", background: `${P.rose}06`, border: `1px solid ${P.rose}12`, borderRadius: 6, fontSize: 10, fontFamily: "inherit", color: P.text, outline: "none" }} />
+                      <button onClick={submitComment} style={{ padding: "4px 10px", background: `linear-gradient(135deg,${P.rose}30,${P.rose}20)`, border: "none", borderRadius: 6, fontSize: 9, color: P.textMid, cursor: "pointer", fontFamily: "inherit" }}>Send</button>
+                    </div>
+                  );
+                })()}
               </div>
             )}
 

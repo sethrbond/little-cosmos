@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import * as THREE from "three";
-import { createWorld, loadMyWorlds, createInvite, createInviteWithLetter } from "./supabaseWorlds.js";
+import { createWorld, loadMyWorlds, createInvite, createInviteWithLetter, acceptInvite, createViewerInvite } from "./supabaseWorlds.js";
 
 /* WorldSelector.jsx — "My Cosmos" world chooser
    My World is the central orb. Shared worlds orbit it.
@@ -302,7 +302,6 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
   const handleJoin = async () => {
     if (!joinToken.trim()) return;
     setJoining(true);
-    const { acceptInvite } = await import("./supabaseWorlds.js");
     const result = await acceptInvite(joinToken.trim());
     setJoining(false);
     if (result?.ok) {
@@ -331,7 +330,6 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     setInviteGenerating(true);
     // Use viewer-specific or member invite based on role
     if (existingInviteRole === "viewer") {
-      const { createViewerInvite } = await import("./supabaseWorlds.js");
       const result = await createViewerInvite(
         showInviteModal.id, userId, existingInviteEmail.trim(), existingInviteLetter, userDisplayName
       );
