@@ -33,9 +33,10 @@ const DEFAULT_CONFIG = {
   darkMode: false,
 };
 
-// Mutable module-level palette ref — updated by OurWorldInner on mount/mode switch
-// External form components (inpSt, TBtn, Fld, etc.) read from this so they get correct world colors
-let P = {
+// Mutable palette ref — stored on window to survive Vite production bundling
+// (Vite may convert top-level `let` to `const`, making reassignment throw)
+// External form components (inpSt, TBtn, Fld, etc.) read from P so they get correct world colors
+window.__cosmosP = {
   cream: "#faf8f4", warm: "#fef9f4", parchment: "#f5f1ea",
   blush: "#fdf2f4", lavMist: "#f3f0ff",
   text: "#3d3552", textMid: "#6b5e7e", textMuted: "#958ba8", textFaint: "#c4bbd4",
@@ -47,6 +48,7 @@ let P = {
   special: "#dfc090", specialSoft: "#eedbb0",
   card: "rgba(253,251,247,0.96)", glass: "rgba(250,248,244,0.92)",
 };
+const P = window.__cosmosP;
 
 
 
@@ -826,9 +828,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   // Mutates module-level P so external form components (TBtn, Fld, etc.) get correct world colors
   const _paletteBase = useMemo(() => {
     const merged = { ...(isMyWorld ? MY_WORLD_PALETTE : OUR_WORLD_PALETTE), ...(config.customPalette || {}) };
-    // Reassign P (module-level let) so external form components get correct world colors
-    // Note: do NOT use Object.assign(P, merged) — Vite production builds freeze the original object
-    P = merged;
+    // Update window.__cosmosP properties so external form components (via P ref) get correct colors
+    for (const k of Object.keys(merged)) window.__cosmosP[k] = merged[k];
     return merged;
   }, [isMyWorld, config.customPalette]);
   const SC = useMemo(() => ({ ...(isMyWorld ? MY_WORLD_SCENE : OUR_WORLD_SCENE), ...(config.customScene || {}) }), [isMyWorld, config.customScene]);
