@@ -1382,7 +1382,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     const topCity = Object.entries(cityVisits).sort((a, b) => b[1] - a[1])[0];
 
     const countryList = new Set();
-    data.entries.forEach(e => { if (e.country) countryList.add(e.country); (e.stops || []).forEach(s => { if (s.country) countryList.add(s.country); }); });
+    const citySet = new Set();
+    data.entries.forEach(e => { if (e.country) countryList.add(e.country); if (e.city) citySet.add(e.city); (e.stops || []).forEach(s => { if (s.country) countryList.add(s.country); if (s.city) citySet.add(s.city); }); });
 
     let longestApart = 0;
     for (let i = 1; i < togetherList.length; i++) {
@@ -1397,7 +1398,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     // Available years for recap
     const years = [...new Set(data.entries.map(e => parseInt(e.dateStart?.slice(0, 4))).filter(Boolean))].sort();
 
-    return { longestTrip, farthestApart, topCity, countryList: [...countryList], longestApart, avgTripLength, years };
+    return { longestTrip, farthestApart, topCity, countryList: [...countryList], cityCount: citySet.size, longestApart, avgTripLength, years };
   }, [data.entries, togetherList, sorted]);
 
   // ---- SEARCH ----
@@ -1599,7 +1600,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       if (inInput && e.key !== "Escape") return;
       if (e.key === "ArrowLeft") { e.preventDefault(); stepDay(-1); }
       if (e.key === "ArrowRight") { e.preventDefault(); stepDay(1); }
-      if (e.key === "Escape") { setSelected(null); setEditing(null); setShowAdd(false); setQuickAddMode(false); setShowLetter(false); setShowSettings(false); setShowGallery(false); setCardGallery(false); setShowFilter(false); setMarkerFilter("all"); setLocationList(null); setShowStats(false); setShowRecap(false); setShowSearch(false); setSearchQuery(""); setShowDreams(false); setConfirmDelete(null); tSpinSpd.current = 0.002; if (isPlaying) stopPlay(); }
+      if (e.key === "Escape") { setSelected(null); setEditing(null); setShowAdd(false); setQuickAddMode(false); setShowLetter(null); setShowSettings(false); setShowGallery(false); setCardGallery(false); setShowFilter(false); setMarkerFilter("all"); setLocationList(null); setShowStats(false); setShowRecap(false); setShowSearch(false); setSearchQuery(""); setShowDreams(false); setConfirmDelete(null); setLightboxOpen(false); tSpinSpd.current = 0.002; if (isPlaying) stopPlay(); }
       if (e.key === "f" && !showAdd && !editing && !showSettings) { setShowFilter(v => { if (v) { setMarkerFilter("all"); setLocationList(null); } return !v; }); }
       if (e.key === "i" && !showAdd && !editing && !showSettings) setShowStats(v => !v);
       if (e.key === "s" && !showAdd && !editing && !showSettings && !showSearch) { e.preventDefault(); setShowSearch(true); }
@@ -1680,8 +1681,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
     // Background gradient
     const grad = ctx.createLinearGradient(0, 0, W, H);
-    grad.addColorStop(0, P.bg || "#0c0a12");
-    grad.addColorStop(1, P.card || "#1a1428");
+    grad.addColorStop(0, SC.bg || "#0c0a12");
+    grad.addColorStop(1, SC.bg || "#1a1428");
     ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
 
     // Photo (if available)
@@ -2611,8 +2612,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           ))}
         </div>
       )}
-      {!isMyWorld && (
-        <button onClick={() => { setEditLetter(true); setLetterDraft(""); setLetterEditId(null); setLetterCity(""); setLetterLat(""); setLetterLng(""); }} style={{ position: "absolute", bottom: 118, right: 22, zIndex: 12, background: P.glass, border: `1px dashed ${P.rose}40`, borderRadius: 7, cursor: "pointer", fontSize: 9, color: P.textMuted, padding: "3px 9px", fontFamily: "inherit" }}>+ Love Letter</button>
+      {!isMyWorld && !isViewer && (
+        <button onClick={() => { setEditLetter(true); setLetterDraft(""); setLetterEditId(null); setLetterCity(""); setLetterLat(""); setLetterLng(""); }} style={{ position: "absolute", bottom: 118, right: (config.loveLetters || []).length > 0 ? 50 : 22, zIndex: 12, background: P.glass, border: `1px dashed ${P.rose}40`, borderRadius: 7, cursor: "pointer", fontSize: 9, color: P.textMuted, padding: "3px 9px", fontFamily: "inherit", transition: "right .3s" }}>+ Love Letter</button>
       )}
 
       {/* SLIDER */}
@@ -2773,7 +2774,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               <button onClick={() => toggleFavorite(cur.id)} style={{ background: "none", border: "none", fontSize: 14, cursor: "pointer", color: cur.favorite ? P.heart : P.textFaint, transition: "color .2s" }} title={cur.favorite ? "Unfavorite" : "Favorite"}>
                 {cur.favorite ? "♥" : "♡"}
               </button>
-              <button onClick={() => { setSelected(null); tSpinSpd.current = 0.002; }} style={{ background: "none", border: "none", fontSize: 16, color: P.textFaint, cursor: "pointer", marginLeft: 2 }}>×</button>
+              <button onClick={() => { setSelected(null); setLightboxOpen(false); tSpinSpd.current = 0.002; }} style={{ background: "none", border: "none", fontSize: 16, color: P.textFaint, cursor: "pointer", marginLeft: 2 }}>×</button>
             </div>
 
             {firstBadges[cur.id] && <div style={{ fontSize: 8, color: P.gold, letterSpacing: ".12em", marginBottom: 4 }}>🏅 {firstBadges[cur.id]}</div>}
@@ -3331,7 +3332,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 { label: "Countries", value: stats.countries, icon: "🌍" },
                 { label: "Photos", value: stats.photos, icon: "📷" },
                 { label: "Miles Traveled", value: stats.totalMiles.toLocaleString(), icon: "✈️" },
-                ...(!isMyWorld ? [{ label: "Reunions", value: reunionStats.reunions, icon: "🫂" }] : [{ label: "Cities", value: expandedStats.countryList.length, icon: "🏙" }]),
+                ...(!isMyWorld ? [{ label: "Reunions", value: reunionStats.reunions, icon: "🫂" }] : [{ label: "Cities", value: expandedStats.cityCount, icon: "🏙" }]),
               ].map((s, i) => (
                 <div key={i} style={{ padding: "14px 16px", background: `linear-gradient(145deg, ${P.parchment}, ${P.cream})`, borderRadius: 14, textAlign: "center", boxShadow: `0 1px 3px ${P.text}04, 0 4px 12px ${P.text}03`, border: `1px solid ${P.rose}06`, transition: "transform .2s, box-shadow .2s" }}
                   onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = `0 2px 6px ${P.text}06, 0 8px 20px ${P.text}05`; }}
@@ -3654,9 +3655,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
       {/* FIRST ENTRY CELEBRATION */}
       {showCelebration && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 250, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none", animation: "fadeIn .3s ease" }}
+        <div style={{ position: "fixed", inset: 0, zIndex: 250, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "auto", animation: "fadeIn .3s ease", cursor: "pointer" }}
           onClick={() => setShowCelebration(false)}>
-          <div style={{ textAlign: "center", pointerEvents: "auto", animation: "celebrationPop .6s cubic-bezier(0.34, 1.56, 0.64, 1)" }}>
+          <div style={{ textAlign: "center", animation: "celebrationPop .6s cubic-bezier(0.34, 1.56, 0.64, 1)" }}>
             <div style={{ fontSize: 64, marginBottom: 12, filter: "drop-shadow(0 0 20px rgba(200,170,110,0.4))" }}>&#10024;</div>
             <div style={{ fontSize: 22, fontWeight: 500, color: "#e8e0d0", letterSpacing: "1px", textShadow: "0 0 30px rgba(200,170,110,0.4), 0 2px 10px rgba(0,0,0,0.6)", marginBottom: 8 }}>Your First Entry!</div>
             <div style={{ fontSize: 13, color: "#b0a8b8", lineHeight: 1.6, maxWidth: 280, margin: "0 auto", textShadow: "0 1px 6px rgba(0,0,0,0.5)" }}>

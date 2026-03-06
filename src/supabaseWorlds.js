@@ -380,23 +380,23 @@ export async function loadCrossWorldActivity(worldIds, limit = 20) {
   if (!worldIds || worldIds.length === 0) return []
   const { data, error } = await supabase
     .from('entries')
-    .select('id, city, country, type, date_start, photos, user_id, world_id, created_at')
+    .select('id, city, country, entry_type, date_start, photos, user_id, world_id, created_at')
     .in('world_id', worldIds)
     .order('created_at', { ascending: false })
     .limit(limit)
   if (error) { console.error('[loadCrossWorldActivity]', error); return [] }
-  return data || []
+  return (data || []).map(r => ({ ...r, type: r.entry_type }))
 }
 
 export async function loadMyWorldRecentActivity(userId, limit = 10) {
   const { data, error } = await supabase
     .from('my_entries')
-    .select('id, city, country, type, date_start, photos, created_at')
+    .select('id, city, country, entry_type, date_start, photos, created_at')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(limit)
   if (error) { console.error('[loadMyWorldActivity]', error); return [] }
-  return data || []
+  return (data || []).map(r => ({ ...r, type: r.entry_type }))
 }
 
 export async function loadWorldEntryCounts(worldIds) {
@@ -414,31 +414,32 @@ export async function loadWorldEntryCounts(worldIds) {
 
 export async function searchCrossWorld(worldIds, userId, query, limit = 20) {
   if (!query || query.trim().length === 0) return []
-  const q = query.trim().toLowerCase()
+  const q = query.trim().toLowerCase().replace(/[%_,.*()]/g, '')
+  if (!q) return []
   const results = []
 
   // Search shared worlds
   if (worldIds.length > 0) {
     const { data, error } = await supabase
       .from('entries')
-      .select('id, city, country, type, date_start, notes, photos, world_id')
+      .select('id, city, country, entry_type, date_start, notes, photos, world_id')
       .in('world_id', worldIds)
       .or(`city.ilike.%${q}%,country.ilike.%${q}%,notes.ilike.%${q}%`)
       .order('date_start', { ascending: false })
       .limit(limit)
-    if (!error && data) results.push(...data.map(e => ({ ...e, source: 'shared' })))
+    if (!error && data) results.push(...data.map(e => ({ ...e, type: e.entry_type, source: 'shared' })))
   }
 
   // Search my world
   if (userId) {
     const { data, error } = await supabase
       .from('my_entries')
-      .select('id, city, country, type, date_start, notes, photos')
+      .select('id, city, country, entry_type, date_start, notes, photos')
       .eq('user_id', userId)
       .or(`city.ilike.%${q}%,country.ilike.%${q}%,notes.ilike.%${q}%`)
       .order('date_start', { ascending: false })
       .limit(limit)
-    if (!error && data) results.push(...data.map(e => ({ ...e, source: 'my', world_id: 'my' })))
+    if (!error && data) results.push(...data.map(e => ({ ...e, type: e.entry_type, source: 'my', world_id: 'my' })))
   }
 
   // Sort combined by date descending
