@@ -862,6 +862,17 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
     });
   }, [db]);
 
+  // Color picker row (stable function — called as cPick(), NOT <CPick/>)
+  const cPick = (label, desc, value, onChange, scene) => (
+    <div key={label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7, padding: "4px 0" }}>
+      <input type="color" value={value} onChange={e => onChange(e.target.value)} style={{ width: 32, height: 24, border: `1px solid ${P.textFaint}30`, borderRadius: 5, cursor: "pointer", padding: 0, flexShrink: 0 }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 9, color: P.text, fontWeight: 500 }}>{scene ? "✦ " : ""}{label}</div>
+        <div style={{ fontSize: 7, color: P.textFaint, lineHeight: 1.3 }}>{desc}</div>
+      </div>
+    </div>
+  );
+
   // THREE refs
   const mountRef = useRef(null);
   const rendRef = useRef(null);
@@ -2682,31 +2693,22 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
               const setCS = (key, val) => setConfig({ customScene: { ...cs, [key]: val } });
               const baseP = isMyWorld ? MY_WORLD_PALETTE : OUR_WORLD_PALETTE;
               const baseSC = isMyWorld ? MY_WORLD_SCENE : OUR_WORLD_SCENE;
-              const CPick = ({ label, desc, value, onChange, scene }) => (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7, padding: "4px 0" }}>
-                  <input type="color" value={value} onChange={e => onChange(e.target.value)} style={{ width: 32, height: 24, border: `1px solid ${P.textFaint}30`, borderRadius: 5, cursor: "pointer", padding: 0, background: "none", flexShrink: 0 }} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 9, color: P.text, fontWeight: 500 }}>{scene ? "✦ " : ""}{label}</div>
-                    <div style={{ fontSize: 7, color: P.textFaint, lineHeight: 1.3 }}>{desc}</div>
-                  </div>
-                </div>
-              );
               return <>
                 <div style={{ fontSize: 7, color: P.textMid, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 4, marginTop: 2 }}>Interface Colors</div>
-                <CPick label="Primary Accent" desc="Markers, buttons, borders, highlights" value={cp.rose || baseP.rose} onChange={v => setCP("rose", v)} />
-                <CPick label="Secondary Accent" desc="Cards, backgrounds, subtle accents" value={cp.sky || baseP.sky} onChange={v => setCP("sky", v)} />
-                <CPick label="Highlight Color" desc="Special entries, gold elements" value={cp.special || baseP.special} onChange={v => setCP("special", v)} />
-                <CPick label="Heart / Love Color" desc="Together markers, love features" value={cp.heart || baseP.heart} onChange={v => setCP("heart", v)} />
-                <CPick label="Text Color" desc="Main text throughout the app" value={cp.text || baseP.text} onChange={v => setCP("text", v)} />
-                <CPick label="Card Background" desc="Cards, panels, form backgrounds" value={cp.cream || baseP.cream} onChange={v => setCP("cream", v)} />
+                {cPick("Primary Accent", "Markers, buttons, borders, highlights", cp.rose || baseP.rose, v => setCP("rose", v))}
+                {cPick("Secondary Accent", "Cards, backgrounds, subtle accents", cp.sky || baseP.sky, v => setCP("sky", v))}
+                {cPick("Highlight Color", "Special entries, gold elements", cp.special || baseP.special, v => setCP("special", v))}
+                {cPick("Heart / Love Color", "Together markers, love features", cp.heart || baseP.heart, v => setCP("heart", v))}
+                {cPick("Text Color", "Main text throughout the app", cp.text || baseP.text, v => setCP("text", v))}
+                {cPick("Card Background", "Cards, panels, form backgrounds", cp.cream || baseP.cream, v => setCP("cream", v))}
 
                 <div style={{ fontSize: 7, color: P.textMid, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 4, marginTop: 10 }}>Globe & Scene Colors</div>
-                <CPick label="Space Background" desc="The dark sky behind the globe" value={cs.bg || baseSC.bg} onChange={v => setCS("bg", v)} scene />
-                <CPick label="Globe Surface" desc="The globe sphere color" value={cs.sphereColor || baseSC.sphereColor} onChange={v => setCS("sphereColor", v)} scene />
-                <CPick label="Glow Aura" desc="The halo rings around the globe" value={(cs.glowColors || baseSC.glowColors)[0]} onChange={v => setCS("glowColors", [v, v+"e8", v+"d0", v+"b8", v+"a0", v+"88", v+"70", v+"58"])} scene />
-                <CPick label="Coastlines" desc="Country outlines on the globe" value={cs.coastColor || baseSC.coastColor} onChange={v => setCS("coastColor", v)} scene />
-                <CPick label="Particles" desc="Floating dust particles around globe" value={cs.particleColor || baseSC.particleColor} onChange={v => setCS("particleColor", v)} scene />
-                <CPick label="Stars Tint" desc="Background star color" value={cs.starTint || baseSC.starTint} onChange={v => setCS("starTint", v)} scene />
+                {cPick("Space Background", "The dark sky behind the globe", cs.bg || baseSC.bg, v => setCS("bg", v), true)}
+                {cPick("Globe Surface", "The globe sphere color", cs.sphereColor || baseSC.sphereColor, v => setCS("sphereColor", v), true)}
+                {cPick("Glow Aura", "The halo rings around the globe", (cs.glowColors || baseSC.glowColors)[0], v => setCS("glowColors", [v, v+"e8", v+"d0", v+"b8", v+"a0", v+"88", v+"70", v+"58"]), true)}
+                {cPick("Coastlines", "Country outlines on the globe", cs.coastColor || baseSC.coastColor, v => setCS("coastColor", v), true)}
+                {cPick("Particles", "Floating dust particles around globe", cs.particleColor || baseSC.particleColor, v => setCS("particleColor", v), true)}
+                {cPick("Stars Tint", "Background star color", cs.starTint || baseSC.starTint, v => setCS("starTint", v), true)}
 
                 <button onClick={() => { setConfig({ customPalette: {}, customScene: {} }); }}
                   style={{ marginTop: 8, width: "100%", padding: "6px", background: "transparent", border: `1px dashed ${P.textFaint}40`, borderRadius: 5, cursor: "pointer", fontSize: 9, fontFamily: "inherit", color: P.textMid }}>

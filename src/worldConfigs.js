@@ -161,7 +161,7 @@ export function getSeasonalHue(dateStr, isMyWorld) {
   }
 
   if (m >= 4 && m <= 7)  return { glow: "#f0c8e0", particle: "#f0a0c0" };
-  if (m >= 8 && m <= 0)  return { glow: "#d0c0f0", particle: "#c0a8e0" };
+  if (m >= 8 || m <= 0)  return { glow: "#d0c0f0", particle: "#c0a8e0" };
   return { glow: "#f0d0e8", particle: "#e8b0d0" };
 }
 
