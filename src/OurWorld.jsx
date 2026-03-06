@@ -815,9 +815,11 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
   const [sceneReady, setSceneReady] = useState(false);
 
   // Palette & scene merge custom overrides from config (takes effect on render for UI, on reload for scene)
-  const P = useMemo(() => ({ ...(isMyWorld ? MY_WORLD_PALETTE : OUR_WORLD_PALETTE), ...(config.customPalette || {}) }), [isMyWorld, config.customPalette]);
-  const SC = useMemo(() => ({ ...(isMyWorld ? MY_WORLD_SCENE : OUR_WORLD_SCENE), ...(config.customScene || {}) }), [isMyWorld, config.customScene]);
-  const TYPES = useMemo(() => resolveTypes(isMyWorld ? MY_WORLD_TYPES : OUR_WORLD_TYPES, P), [isMyWorld, P]);
+  const baseP = isMyWorld ? MY_WORLD_PALETTE : OUR_WORLD_PALETTE;
+  const baseSC = isMyWorld ? MY_WORLD_SCENE : OUR_WORLD_SCENE;
+  const P = { ...baseP, ...(config.customPalette || {}) };
+  const SC = { ...baseSC, ...(config.customScene || {}) };
+  const TYPES = resolveTypes(isMyWorld ? MY_WORLD_TYPES : OUR_WORLD_TYPES, P);
   const DEFAULT_TYPE = isMyWorld ? TYPES.adventure : TYPES.together;
 
   useEffect(() => {
@@ -2057,8 +2059,8 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
 
       {/* TITLE */}
       <div style={{ position: "absolute", top: 22, left: 0, right: 0, textAlign: "center", zIndex: 10, pointerEvents: "none", opacity: ready ? 1 : 0, transform: ready ? "none" : "translateY(-12px)", transition: "all 1.8s cubic-bezier(.23,1,.32,1)" }}>
-        <h1 style={{ fontSize: 28, fontWeight: 400, margin: 0, letterSpacing: ".2em", textTransform: "uppercase", color: darkMode ? "#e8e0f0" : "#2a2038", textShadow: "0 1px 12px rgba(0,0,0,0.3), 0 0 40px rgba(255,255,255,0.15)" }}>{config.title}</h1>
-        <p style={{ fontSize: 11, color: darkMode ? "#b0a0c8" : "#5a4868", marginTop: 3, letterSpacing: ".35em", fontStyle: "italic", textShadow: "0 1px 8px rgba(0,0,0,0.2)" }}>{config.subtitle}</p>
+        <h1 style={{ fontSize: 28, fontWeight: 400, margin: 0, letterSpacing: ".2em", textTransform: "uppercase", color: darkMode ? "#e8e0f0" : P.text, textShadow: "0 1px 12px rgba(0,0,0,0.3), 0 0 40px rgba(255,255,255,0.15)" }}>{config.title}</h1>
+        <p style={{ fontSize: 11, color: darkMode ? "#b0a0c8" : P.textMid, marginTop: 3, letterSpacing: ".35em", fontStyle: "italic", textShadow: "0 1px 8px rgba(0,0,0,0.2)" }}>{config.subtitle}</p>
         {!isMyWorld && isAnniversary && <div style={{ fontSize: 11, color: P.heart, marginTop: 6, letterSpacing: ".15em", animation: "heartPulse 2s ease infinite" }}>✨ Happy Anniversary ✨</div>}
       </div>
 
@@ -2707,6 +2709,23 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
                   style={{ marginTop: 8, width: "100%", padding: "6px", background: "transparent", border: `1px dashed ${P.textFaint}40`, borderRadius: 5, cursor: "pointer", fontSize: 9, fontFamily: "inherit", color: P.textMid }}>
                   Reset All Colors to Default
                 </button>
+
+                {/* Live preview strip */}
+                <div style={{ marginTop: 10, padding: 10, background: P.cream, borderRadius: 8, border: `1px solid ${P.rose}20` }}>
+                  <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 6 }}>Live Preview</div>
+                  <div style={{ display: "flex", gap: 4, marginBottom: 6 }}>
+                    {[P.rose, P.sky, P.special, P.heart, P.sage, P.gold].map((c, i) => (
+                      <div key={i} style={{ width: 20, height: 20, borderRadius: 4, background: c, border: "1px solid rgba(0,0,0,0.1)" }} />
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 10, color: P.text, fontWeight: 500 }}>Title text looks like this</div>
+                  <div style={{ fontSize: 8, color: P.textMid, marginTop: 2 }}>Subtitle and body text looks like this</div>
+                  <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
+                    <div style={{ padding: "3px 10px", background: P.rose, color: "#fff", borderRadius: 4, fontSize: 8 }}>Button</div>
+                    <div style={{ padding: "3px 10px", background: P.sky, color: "#fff", borderRadius: 4, fontSize: 8 }}>Accent</div>
+                    <div style={{ padding: "3px 10px", background: P.special, color: "#fff", borderRadius: 4, fontSize: 8 }}>Special</div>
+                  </div>
+                </div>
               </>;
             })()}
 
