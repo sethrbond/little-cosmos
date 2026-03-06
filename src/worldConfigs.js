@@ -19,22 +19,22 @@ export const OUR_WORLD_PALETTE = {
 };
 
 export const OUR_WORLD_TYPES = {
-  "home-seth":  { label: "Seth's Home",      icon: "\u{1F3E1}", color: "sky",      who: "seth",  symbol: "home-seth" },
-  "home-rosie": { label: "Rosie's Home",     icon: "\u{1F339}", color: "rose",     who: "rosie", symbol: "home-rosie" },
-  "seth-solo":  { label: "Seth Traveling",    icon: "\u{1F9ED}", color: "skySoft",  who: "seth",  symbol: "seth-solo" },
-  "rosie-solo": { label: "Rosie Traveling",   icon: "\u{1F339}", color: "roseSoft", who: "rosie", symbol: "rosie-solo" },
+  "home-seth":  { label: "Your Home",         icon: "\u{1F3E1}", color: "sky",      who: "seth",  symbol: "home-seth" },
+  "home-rosie": { label: "Partner's Home",   icon: "\u{1F339}", color: "rose",     who: "rosie", symbol: "home-rosie" },
+  "seth-solo":  { label: "You Traveling",    icon: "\u{1F9ED}", color: "skySoft",  who: "seth",  symbol: "seth-solo" },
+  "rosie-solo": { label: "Partner Traveling",icon: "\u{1F339}", color: "roseSoft", who: "rosie", symbol: "rosie-solo" },
   together:     { label: "Together",          icon: "\u{1F495}", color: "together", who: "both",  symbol: "together" },
   special:      { label: "Special Moment",    icon: "\u2728",    color: "special",  who: "both",  symbol: "special" },
 };
 
 export const OUR_WORLD_DEFAULT_CONFIG = {
-  startDate: "2021-06-01",
+  startDate: "",
   title: "Our World",
   subtitle: "every moment, every adventure",
   loveLetter: "",
   loveLetters: [],
-  youName: "Seth",
-  partnerName: "Rosie Posie",
+  youName: "",
+  partnerName: "",
   chapters: [],
   dreamDestinations: [],
   darkMode: false,

@@ -4,21 +4,8 @@ import * as THREE from "three";
 /* WorldSelector.jsx — "My Cosmos" world chooser
    My World is the central orb. Other worlds orbit it.
    Camera can be dragged/orbited to view from any angle.
-   Labels track their orbs in real-time via direct DOM updates. */
-
-const WORLDS = [
-  {
-    id: "our",
-    label: "Our World",
-    sub: "Seth & Rosie",
-    color: "#e8b8d0",
-    glowColor: "#fce0f0",
-    emissive: "#a05080",
-    orbitRadius: 2.4,
-    orbitSpeed: 0.25,
-    size: 0.32,
-  },
-];
+   Labels track their orbs in real-time via direct DOM updates.
+   Dynamic: only shows worlds the user has created/joined. */
 
 const CENTER = {
   id: "my",
@@ -29,13 +16,31 @@ const CENTER = {
   emissive: "#4060a0",
 };
 
-export default function WorldSelector({ onSelect }) {
+// Preset orbital configs for shared worlds
+const ORB_PRESETS = [
+  { color: "#e8b8d0", glowColor: "#fce0f0", emissive: "#a05080", orbitRadius: 2.4, orbitSpeed: 0.25, size: 0.32 },
+  { color: "#b8e0c0", glowColor: "#d8f4e0", emissive: "#408060", orbitRadius: 2.8, orbitSpeed: 0.20, size: 0.28 },
+  { color: "#e0d0a0", glowColor: "#f4ecc8", emissive: "#806830", orbitRadius: 3.2, orbitSpeed: 0.18, size: 0.26 },
+  { color: "#c0b8e8", glowColor: "#e0d8f8", emissive: "#504080", orbitRadius: 2.6, orbitSpeed: 0.22, size: 0.30 },
+];
+
+export default function WorldSelector({ onSelect, onSignOut, worlds = [] }) {
   const mountRef = useRef(null);
   const [hovered, setHovered] = useState(null);
   const [ready, setReady] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
   const labelRefsMap = useRef({});
   const dragRef = useRef({ dragging: false, moved: false, prevX: 0, prevY: 0 });
   const camAngleRef = useRef({ theta: 0.3, phi: 1.2, radius: 5.8 });
+
+  // Build orbiting worlds from props (for now, just "Our World" if user has one)
+  const WORLDS = worlds.map((w, i) => ({
+    id: w.id || "our",
+    label: w.label || "Our World",
+    sub: w.sub || "Shared World",
+    ...ORB_PRESETS[i % ORB_PRESETS.length],
+    ...(w.color ? { color: w.color } : {}),
+  }));
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -79,17 +84,15 @@ export default function WorldSelector({ onSelect }) {
       new THREE.MeshPhongMaterial({ color: CENTER.color, emissive: CENTER.emissive, emissiveIntensity: 1.2, shininess: 30 })
     );
     scene.add(centerOrb);
-    // Inner bright glow
     [0.74, 0.78, 0.84, 0.92, 1.02, 1.15, 1.35, 1.6, 1.9].forEach((r, i) => {
       const op = [0.35, 0.30, 0.24, 0.20, 0.16, 0.12, 0.08, 0.05, 0.03][i];
       scene.add(new THREE.Mesh(new THREE.SphereGeometry(r, 24, 24),
         new THREE.MeshBasicMaterial({ color: CENTER.glowColor, transparent: true, opacity: op, side: THREE.BackSide })));
     });
-    // Additive inner bloom
     scene.add(new THREE.Mesh(new THREE.SphereGeometry(0.72, 32, 32),
       new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.12, side: THREE.FrontSide })));
 
-    // Orbiting worlds — same radiant treatment
+    // Orbiting worlds
     const orbs = WORLDS.map((w, idx) => {
       const orb = new THREE.Mesh(new THREE.SphereGeometry(w.size, 32, 32),
         new THREE.MeshPhongMaterial({ color: w.color, emissive: w.emissive, emissiveIntensity: 1.2, shininess: 30 }));
@@ -98,17 +101,18 @@ export default function WorldSelector({ onSelect }) {
         orb.add(new THREE.Mesh(new THREE.SphereGeometry(w.size + d, 24, 24),
           new THREE.MeshBasicMaterial({ color: w.glowColor, transparent: true, opacity: op, side: THREE.BackSide })));
       });
-      // Inner bloom
       orb.add(new THREE.Mesh(new THREE.SphereGeometry(w.size * 0.98, 24, 24),
         new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.10, side: THREE.FrontSide })));
       scene.add(orb);
       return { mesh: orb, world: w, angleOffset: (idx / Math.max(WORLDS.length, 1)) * Math.PI * 2 };
     });
 
-    // Orbit ring
-    const ring = new THREE.Mesh(new THREE.RingGeometry(2.36, 2.42, 80),
-      new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.04, side: THREE.DoubleSide }));
-    ring.rotation.x = Math.PI * 0.5; scene.add(ring);
+    // Orbit ring (only if there are orbiting worlds)
+    if (WORLDS.length > 0) {
+      const ring = new THREE.Mesh(new THREE.RingGeometry(2.36, 2.42, 80),
+        new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.04, side: THREE.DoubleSide }));
+      ring.rotation.x = Math.PI * 0.5; scene.add(ring);
+    }
 
     let t = 0, frameId;
     const updateCamera = () => {
@@ -131,9 +135,8 @@ export default function WorldSelector({ onSelect }) {
         o.mesh.scale.setScalar(1 + Math.sin(t * 2 + i * 1.5) * 0.03);
       });
 
-      // Update label positions directly in DOM (no React re-render needed)
-      const allItems = [{ id: "my", mesh: centerOrb, below: true }, ...orbs.map(o => ({ id: o.world.id, mesh: o.mesh, below: false }))];
-      allItems.forEach(({ id, mesh, below }) => {
+      const allItems = [{ id: "my", mesh: centerOrb }, ...orbs.map(o => ({ id: o.world.id, mesh: o.mesh }))];
+      allItems.forEach(({ id, mesh }) => {
         const el = labelRefsMap.current[id];
         if (!el) return;
         const v = mesh.position.clone().project(cam);
@@ -183,11 +186,10 @@ export default function WorldSelector({ onSelect }) {
       rend.dispose();
       if (mount.contains(rend.domElement)) mount.removeChild(rend.domElement);
     };
-  }, []);
+  }, [WORLDS.length]);
 
   const handleClick = useCallback((e) => {
     if (dragRef.current.moved) return;
-    // Use label refs to detect click proximity
     const rect = mountRef.current?.getBoundingClientRect();
     if (!rect) return;
     const cx = e.clientX - rect.left, cy = e.clientY - rect.top;
@@ -213,14 +215,12 @@ export default function WorldSelector({ onSelect }) {
       if (Math.sqrt((cx - lx) ** 2 + (cy - ly) ** 2) < 75 && parseFloat(el.style.opacity) > 0.1) { found = id; break; }
     }
     setHovered(found);
-    // Update data-hov attribute for animation loop
     for (const [id, el] of Object.entries(labelRefsMap.current)) {
       if (el) el.dataset.hov = (id === found) ? "true" : "false";
     }
   }, []);
 
   const F = "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif";
-
   const makeLabelRef = useCallback((id) => (el) => { labelRefsMap.current[id] = el; }, []);
 
   return (
@@ -234,7 +234,7 @@ export default function WorldSelector({ onSelect }) {
         <div style={{ fontSize: 13, letterSpacing: "4px", color: "#d0c8e0", textTransform: "uppercase", fontWeight: 500, textShadow: "0 1px 8px rgba(0,0,0,0.4)" }}>My Cosmos</div>
       </div>
 
-      {/* Center label — My World (positioned by animation loop) */}
+      {/* Center label — My World */}
       <div ref={makeLabelRef("my")} data-hov="false" style={{
         position: "absolute", left: 0, top: 0, transform: "translate(-50%, -50%)", textAlign: "center", pointerEvents: "none", transition: "opacity .15s", opacity: 0,
       }}>
@@ -242,7 +242,7 @@ export default function WorldSelector({ onSelect }) {
         <div style={{ fontSize: 12, color: "#b8c8e0", marginTop: 3, letterSpacing: "1.2px", fontWeight: 400, textShadow: "0 1px 6px rgba(0,0,0,0.5)" }}>Travel Diary</div>
       </div>
 
-      {/* Orbiting world labels (positioned by animation loop) */}
+      {/* Orbiting world labels */}
       {WORLDS.map(w => (
         <div key={w.id} ref={makeLabelRef(w.id)} data-hov="false" style={{
           position: "absolute", left: 0, top: 0, transform: "translate(-50%, -50%)", textAlign: "center", pointerEvents: "none", transition: "opacity .15s", opacity: 0,
@@ -252,9 +252,9 @@ export default function WorldSelector({ onSelect }) {
         </div>
       ))}
 
-      {/* Add World button */}
+      {/* Bottom controls */}
       <div style={{ position: "absolute", bottom: "5%", left: 0, right: 0, textAlign: "center", opacity: ready ? 1 : 0, transition: "opacity 1.5s" }}>
-        <button onClick={(e) => { e.stopPropagation(); }}
+        <button onClick={(e) => { e.stopPropagation(); setShowAddModal(true); }}
           style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 20, padding: "8px 22px", color: "#908898", fontSize: 11, fontFamily: F, letterSpacing: "1px", cursor: "pointer", transition: "all .3s" }}
           onMouseEnter={e => { e.target.style.borderColor = "rgba(255,255,255,0.3)"; e.target.style.color = "#c0b8c8"; }}
           onMouseLeave={e => { e.target.style.borderColor = "rgba(255,255,255,0.12)"; e.target.style.color = "#908898"; }}>
@@ -262,6 +262,43 @@ export default function WorldSelector({ onSelect }) {
         </button>
         <div style={{ fontSize: 10, color: "#807888", marginTop: 8, letterSpacing: "0.8px" }}>drag to orbit · scroll to zoom</div>
       </div>
+
+      {/* Sign out button — top right */}
+      <button onClick={(e) => { e.stopPropagation(); if (onSignOut) onSignOut(); }}
+        style={{ position: "absolute", top: 16, right: 16, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "5px 12px", color: "#807888", fontSize: 10, fontFamily: F, letterSpacing: "0.5px", cursor: "pointer", opacity: ready ? 1 : 0, transition: "all .5s", zIndex: 10 }}
+        onMouseEnter={e => { e.target.style.color = "#c0b8c8"; e.target.style.borderColor = "rgba(255,255,255,0.2)"; }}
+        onMouseLeave={e => { e.target.style.color = "#807888"; e.target.style.borderColor = "rgba(255,255,255,0.08)"; }}>
+        Sign Out
+      </button>
+
+      {/* Add a World modal */}
+      {showAddModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}
+          onClick={(e) => { e.stopPropagation(); setShowAddModal(false); }}>
+          <div style={{ background: "#1a1424", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 16, padding: "32px 28px", width: 340, maxWidth: "90vw", textAlign: "center" }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 8 }}>Add a World</div>
+            <div style={{ fontSize: 13, color: "#a098a8", lineHeight: 1.6, marginBottom: 24 }}>
+              Shared worlds are coming soon! You'll be able to create worlds with partners, friends, and family — and invite them to join your cosmos.
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
+              <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "14px 16px", textAlign: "left" }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#c0b8c8" }}>Create a Shared World</div>
+                <div style={{ fontSize: 11, color: "#807888", marginTop: 4 }}>Start a travel diary with someone special</div>
+              </div>
+              <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "14px 16px", textAlign: "left" }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#c0b8c8" }}>Join Someone's World</div>
+                <div style={{ fontSize: 11, color: "#807888", marginTop: 4 }}>Accept an invite to explore together</div>
+              </div>
+            </div>
+            <div style={{ fontSize: 11, color: "#686070", fontStyle: "italic", marginBottom: 16 }}>Stay tuned — launching soon</div>
+            <button onClick={() => setShowAddModal(false)}
+              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, padding: "8px 24px", color: "#a098a8", fontSize: 12, fontFamily: F, cursor: "pointer" }}>
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

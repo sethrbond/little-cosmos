@@ -19,20 +19,21 @@ import {
    ================================================================= */
 
 const DEFAULT_CONFIG = {
-  startDate: "2021-06-01",
+  startDate: "",
   title: "Our World",
   subtitle: "every moment, every adventure",
   loveLetter: "",            // legacy single letter (migrated to loveLetters on load)
   loveLetters: [],           // [{id, text, lat, lng, city}]
-  youName: "Seth",
-  partnerName: "Rosie Posie",
+  youName: "",
+  partnerName: "",
   chapters: [],              // [{label, startDate, endDate}]
   dreamDestinations: [],     // [{id, city, country, lat, lng, notes}]
   darkMode: false,
 };
 
-// Module-level palette (Our World default; shadowed per-mode inside component)
-const P = {
+// Mutable module-level palette ref — updated by OurWorldInner on mount/mode switch
+// External form components (inpSt, TBtn, Fld, etc.) read from this so they get correct world colors
+let P = {
   cream: "#faf8f4", warm: "#fef9f4", parchment: "#f5f1ea",
   blush: "#fdf2f4", lavMist: "#f3f0ff",
   text: "#3d3552", textMid: "#6b5e7e", textMuted: "#958ba8", textFaint: "#c4bbd4",
@@ -45,15 +46,7 @@ const P = {
   card: "rgba(253,251,247,0.96)", glass: "rgba(250,248,244,0.92)",
 };
 
-// Module-level types fallback (overridden per-mode inside component)
-const TYPES_DEFAULT = {
-  "home-seth": { label: "Seth's Home", icon: "🏡", color: P.sky, who: "seth" },
-  "home-rosie": { label: "Rosie's Home", icon: "🌹", color: P.rose, who: "rosie" },
-  "seth-solo": { label: "Seth Traveling", icon: "🧭", color: P.skySoft, who: "seth" },
-  "rosie-solo": { label: "Rosie Traveling", icon: "🌹", color: P.roseSoft, who: "rosie" },
-  together: { label: "Together", icon: "💕", color: P.together, who: "both" },
-  special: { label: "Special Moment", icon: "✨", color: P.special, who: "both" },
-};
+
 
 // ---- UTILS ----
 // ---- SYMBOL TEXTURES — unique marker shapes per entry type ----
@@ -805,6 +798,7 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
   const isMyWorld = worldMode === "my";
   const DEFAULT_CONFIG = isMyWorld ? MY_WORLD_DEFAULT_CONFIG : OUR_WORLD_DEFAULT_CONFIG;
   const FIELD_LABELS = isMyWorld ? MY_WORLD_FIELDS : OUR_WORLD_FIELDS;
+  useEffect(() => { document.title = isMyWorld ? "My World — My Cosmos" : "Our World — My Cosmos"; }, [isMyWorld]);
 
   // DB functions selected by mode, scoped to current user
   const db = useMemo(() => isMyWorld
@@ -819,7 +813,12 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
   const [sceneReady, setSceneReady] = useState(false);
 
   // Palette & scene merge custom overrides from config (takes effect on render for UI, on reload for scene)
-  const P = useMemo(() => ({ ...(isMyWorld ? MY_WORLD_PALETTE : OUR_WORLD_PALETTE), ...(config.customPalette || {}) }), [isMyWorld, config.customPalette]);
+  // Mutates module-level P so external form components (TBtn, Fld, etc.) get correct world colors
+  const _paletteBase = useMemo(() => {
+    const merged = { ...(isMyWorld ? MY_WORLD_PALETTE : OUR_WORLD_PALETTE), ...(config.customPalette || {}) };
+    Object.assign(P, merged);
+    return merged;
+  }, [isMyWorld, config.customPalette]);
   const SC = useMemo(() => ({ ...(isMyWorld ? MY_WORLD_SCENE : OUR_WORLD_SCENE), ...(config.customScene || {}) }), [isMyWorld, config.customScene]);
   const TYPES = useMemo(() => resolveTypes(isMyWorld ? MY_WORLD_TYPES : OUR_WORLD_TYPES, P), [isMyWorld, P]);
   const DEFAULT_TYPE = isMyWorld ? TYPES.adventure : TYPES.together;
@@ -998,6 +997,8 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
   // zoom tracked via zmR ref (used in animation loop directly)
   const [ready, setReady] = useState(false);
   const [introComplete, setIntroComplete] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem("cosmos_onboarded"));
+  const [onboardStep, setOnboardStep] = useState(0);
   // editMode removed — all features always active
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -1055,7 +1056,6 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
     text: P.text, textMid: P.textMid, textMuted: P.textMuted, textFaint: P.textFaint,
     parchment: P.parchment, blush: P.blush, border: `${P.rose}18`,
   }, [darkMode]);
-  const swipeRef = useRef({ startX: 0, startY: 0, startTime: 0 });
   const lastTapRef = useRef(0); // for double-tap to zoom
   const playRef = useRef(null);
   const animRef = useRef(null);
@@ -1891,11 +1891,11 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
       mkRef.current.push(makeDot(g, loc.lat, loc.lng, color, size, entryId, false, icon));
     });
 
-    // ---- Seth position dot (from slider) ---- (Our World only)
+    // ---- Person 1 ("you") position dot (from slider) ---- (Our World only)
     if (!isMyWorld && positions.seth && !areTogether) {
       mkRef.current.push(makeDot(g, positions.seth.lat, positions.seth.lng, P.sky, 0.022, "seth-pos", false));
     }
-    // ---- Rosie position dot (from slider) ---- (Our World only)
+    // ---- Person 2 ("partner") position dot (from slider) ---- (Our World only)
     if (!isMyWorld && positions.rosie && !areTogether) {
       mkRef.current.push(makeDot(g, positions.rosie.lat, positions.rosie.lng, P.rose, 0.022, "rosie-pos", false));
     }
@@ -2256,7 +2256,7 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
         {(isMyWorld ? data.entries.length > 0 : togetherList.length > 0) && !isPlaying && <TBtn onClick={playStory} tip={isMyWorld ? "Play My Story" : "Play Our Story"}>▶</TBtn>}
         {isPlaying && <TBtn onClick={stopPlay} a tip="Stop Playback">⏹</TBtn>}
         {onSwitchWorld && <TBtn onClick={onSwitchWorld} tip="Switch World">🔄</TBtn>}
-        <TBtn onClick={signOut} tip="Sign Out">🚪</TBtn>
+        <TBtn onClick={() => { if (window.confirm("Sign out of My Cosmos?")) signOut(); }} tip="Sign Out">🚪</TBtn>
       </div>
 
       {/* SEARCH PANEL */}
@@ -2311,8 +2311,8 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
       {/* SLIDER */}
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 105, background: P.glass, backdropFilter: "blur(16px)", borderTop: `1px solid ${P.rose}10`, zIndex: 15, display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 22px" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 6 }}>
-          {!isMyWorld && <button onClick={() => jumpNext(-1)} disabled={isAnimating} style={navSt} title="Previous together">💕◂</button>}
-          <button onClick={() => stepDay(-1)} disabled={isAnimating} style={navSt}>◂</button>
+          {!isMyWorld && <button onClick={() => jumpNext(-1)} disabled={isAnimating} style={navSt()} title="Previous together">💕◂</button>}
+          <button onClick={() => stepDay(-1)} disabled={isAnimating} style={navSt()}>◂</button>
           <div style={{ minWidth: 150, textAlign: "center" }}>
             <div style={{ fontSize: 15, color: P.text, fontWeight: 400 }}>{fmtDate(sliderDate)}</div>
             <div style={{ fontSize: 9, color: isMyWorld ? P.textMid : (areTogether ? P.heart : P.textFaint), letterSpacing: ".1em", marginTop: 1 }}>
@@ -2322,8 +2322,8 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
               }
             </div>
           </div>
-          <button onClick={() => stepDay(1)} disabled={isAnimating} style={navSt}>▸</button>
-          {!isMyWorld && <button onClick={() => jumpNext(1)} disabled={isAnimating} style={navSt} title="Next together">▸💕</button>}
+          <button onClick={() => stepDay(1)} disabled={isAnimating} style={navSt()}>▸</button>
+          {!isMyWorld && <button onClick={() => jumpNext(1)} disabled={isAnimating} style={navSt()} title="Next together">▸💕</button>}
         </div>
         <div style={{ position: "relative", width: "100%", height: 24, display: "flex", alignItems: "center" }}>
           <input type="range" min={0} max={totalDays} value={clamp(sliderVal, 0, totalDays)}
@@ -2601,7 +2601,7 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
             <div style={{ fontSize: 30, marginBottom: 14 }}>💌</div>
             {letter.city && <div style={{ fontSize: 9, color: P.textFaint, letterSpacing: ".12em", marginBottom: 8 }}>found near {letter.city}</div>}
             <p style={{ fontSize: 14, lineHeight: 2, color: P.text, whiteSpace: "pre-wrap", fontStyle: "italic" }}>{letter.text}</p>
-            <p style={{ fontSize: 10, color: P.textFaint, marginTop: 20, letterSpacing: ".15em" }}>— {config.youName}</p>
+            <p style={{ fontSize: 10, color: P.textFaint, marginTop: 20, letterSpacing: ".15em" }}>— {config.youName || "You"}</p>
             {<div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 14 }}>
               <button onClick={() => { setLetterEditId(letter.id); setLetterDraft(letter.text); setLetterCity(letter.city || ""); setLetterLat(letter.lat?.toString() || ""); setLetterLng(letter.lng?.toString() || ""); setEditLetter(true); setShowLetter(null); }} style={{ background: "none", border: `1px solid ${P.rose}28`, borderRadius: 5, padding: "4px 12px", fontSize: 9, color: P.textMuted, cursor: "pointer", fontFamily: "inherit" }}>Edit</button>
               <button onClick={() => { setConfig({ loveLetters: (config.loveLetters || []).filter(l => l.id !== letter.id) }); setShowLetter(null); }} style={{ background: "none", border: `1px solid #c97a7a28`, borderRadius: 5, padding: "4px 12px", fontSize: 9, color: "#c97a7a", cursor: "pointer", fontFamily: "inherit" }}>Remove</button>
@@ -2620,7 +2620,7 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
               <input value={letterCity} onChange={e => {
                 const v = e.target.value; setLetterCity(v);
                 if (v.length >= 2) { geocodeSearch(v, m => setLetterCitySugg(m)); } else setLetterCitySugg([]);
-              }} placeholder="Type a city..." style={inpSt} />
+              }} placeholder="Type a city..." style={inpSt()} />
               {letterCitySugg.length > 0 && (
                 <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e8d8e4", borderRadius: 6, maxHeight: 120, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
                   {letterCitySugg.map((c, i) => (
@@ -2633,7 +2633,7 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
                 </div>
               )}
             </div>
-            <textarea value={letterDraft} onChange={e => setLetterDraft(e.target.value)} rows={8} placeholder={`Dear ${config.partnerName}...`} style={{ ...inpSt, resize: "vertical", lineHeight: 1.8 }} />
+            <textarea value={letterDraft} onChange={e => setLetterDraft(e.target.value)} rows={8} placeholder={`Dear ${config.partnerName || "Partner"}...`} style={{ ...inpSt(), resize: "vertical", lineHeight: 1.8 }} />
             <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
               <button onClick={() => {
                 const lat = parseFloat(letterLat) || (20 + Math.random() * 40);
@@ -2757,10 +2757,10 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
             <Fld l="Title" v={config.title} set={v => setConfig({ title: v })} />
             <Fld l="Subtitle" v={config.subtitle} set={v => setConfig({ subtitle: v })} />
             {isMyWorld
-              ? <Fld l="Traveler Name" v={config.travelerName || ''} set={v => setConfig({ travelerName: v })} />
+              ? <Fld l="Traveler Name" v={config.travelerName || ''} set={v => setConfig({ travelerName: v })} ph="Your name" />
               : <>
-                  <Fld l="Your Name" v={config.youName} set={v => setConfig({ youName: v })} />
-                  <Fld l="Partner Name" v={config.partnerName} set={v => setConfig({ partnerName: v })} />
+                  <Fld l="Your Name" v={config.youName} set={v => setConfig({ youName: v })} ph="Enter your name" />
+                  <Fld l="Partner's Name" v={config.partnerName} set={v => setConfig({ partnerName: v })} ph="Enter their name" />
                 </>
             }
 
@@ -2803,9 +2803,9 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
             <p style={{ fontSize: 8, color: P.textFaint, fontStyle: "italic", marginBottom: 8 }}>{isMyWorld ? "Name the eras of your travels" : "Name the eras of your relationship"}</p>
             {(config.chapters || []).map((ch, i) => (
               <div key={i} style={{ display: "flex", gap: 4, alignItems: "center", marginBottom: 4 }}>
-                <input value={ch.label} onChange={e => { const chs = [...(config.chapters || [])]; chs[i] = { ...chs[i], label: e.target.value }; setConfig({ chapters: chs }); }} style={{ ...inpSt, flex: 1, fontSize: 10 }} placeholder="Chapter name" />
-                <input type="date" value={ch.startDate || ""} onChange={e => { const chs = [...(config.chapters || [])]; chs[i] = { ...chs[i], startDate: e.target.value }; setConfig({ chapters: chs }); }} style={{ ...inpSt, width: 95, fontSize: 9 }} />
-                <input type="date" value={ch.endDate || ""} onChange={e => { const chs = [...(config.chapters || [])]; chs[i] = { ...chs[i], endDate: e.target.value }; setConfig({ chapters: chs }); }} style={{ ...inpSt, width: 95, fontSize: 9 }} />
+                <input value={ch.label} onChange={e => { const chs = [...(config.chapters || [])]; chs[i] = { ...chs[i], label: e.target.value }; setConfig({ chapters: chs }); }} style={{ ...inpSt(), flex: 1, fontSize: 10 }} placeholder="Chapter name" />
+                <input type="date" value={ch.startDate || ""} onChange={e => { const chs = [...(config.chapters || [])]; chs[i] = { ...chs[i], startDate: e.target.value }; setConfig({ chapters: chs }); }} style={{ ...inpSt(), width: 95, fontSize: 9 }} />
+                <input type="date" value={ch.endDate || ""} onChange={e => { const chs = [...(config.chapters || [])]; chs[i] = { ...chs[i], endDate: e.target.value }; setConfig({ chapters: chs }); }} style={{ ...inpSt(), width: 95, fontSize: 9 }} />
                 <button onClick={() => { const chs = (config.chapters || []).filter((_, j) => j !== i); setConfig({ chapters: chs }); }} style={{ background: "none", border: "none", color: "#c9777a", cursor: "pointer", fontSize: 12, flexShrink: 0 }}>×</button>
               </div>
             ))}
@@ -2825,10 +2825,25 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
       )}
 
       {data.entries.length === 0 && introComplete && !showAdd && (
-        <div style={{ position: "absolute", top: "48%", left: "50%", transform: "translate(-50%,-50%)", zIndex: 12, textAlign: "center", pointerEvents: "none", opacity: 0.45 }}>
-          <div style={{ fontSize: 36, marginBottom: 10 }}>🌍</div>
-          <div style={{ fontSize: 13, color: P.textMid, letterSpacing: ".08em" }}>Your world is waiting</div>
-          <div style={{ fontSize: 10, color: P.textFaint, marginTop: 5, letterSpacing: ".1em" }}>Click ✏️ then ＋ to begin your story</div>
+        <div style={{ position: "absolute", top: "46%", left: "50%", transform: "translate(-50%,-50%)", zIndex: 12, textAlign: "center", maxWidth: 320, animation: "fadeIn 1s ease" }}>
+          <div style={{ fontSize: 42, marginBottom: 12, opacity: 0.8 }}>{isMyWorld ? "🌍" : "💫"}</div>
+          <div style={{ fontSize: 18, color: P.text, letterSpacing: ".06em", fontWeight: 500, opacity: 0.7 }}>
+            {isMyWorld ? "Your world awaits" : "Your story begins here"}
+          </div>
+          <div style={{ fontSize: 12, color: P.textMuted, marginTop: 8, lineHeight: 1.6, letterSpacing: ".04em" }}>
+            {isMyWorld
+              ? "Add your first trip to start building your personal travel map."
+              : "Add your first memory together to bring your shared world to life."}
+          </div>
+          <button onClick={() => setShowAdd(true)} style={{
+            marginTop: 18, padding: "10px 24px", background: `linear-gradient(135deg, ${P.rose}40, ${P.sky}40)`,
+            border: `1px solid ${P.rose}30`, borderRadius: 20, color: P.text, fontSize: 13,
+            fontFamily: "inherit", cursor: "pointer", letterSpacing: ".06em", transition: "all .3s",
+          }}
+          onMouseEnter={e => { e.target.style.background = `linear-gradient(135deg, ${P.rose}60, ${P.sky}60)`; }}
+          onMouseLeave={e => { e.target.style.background = `linear-gradient(135deg, ${P.rose}40, ${P.sky}40)`; }}>
+            + Add Your First Trip
+          </button>
         </div>
       )}
 
@@ -2978,9 +2993,9 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
               );
             })()}
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10 }}>
-              <button onClick={() => advanceRecap(-1)} disabled={recapIdx === 0} style={{ ...navSt, opacity: recapIdx === 0 ? 0.3 : 1 }}>◂ Prev</button>
-              <button onClick={() => { setSelected(recapEntries[recapIdx]); setPhotoIdx(0); setCardTab("overview"); }} style={{ ...navSt, color: P.heart }}>View Entry</button>
-              <button onClick={() => advanceRecap(1)} style={navSt}>{recapIdx === recapEntries.length - 1 ? "Finish ✨" : "Next ▸"}</button>
+              <button onClick={() => advanceRecap(-1)} disabled={recapIdx === 0} style={{ ...navSt(), opacity: recapIdx === 0 ? 0.3 : 1 }}>◂ Prev</button>
+              <button onClick={() => { setSelected(recapEntries[recapIdx]); setPhotoIdx(0); setCardTab("overview"); }} style={{ ...navSt(), color: P.heart }}>View Entry</button>
+              <button onClick={() => advanceRecap(1)} style={navSt()}>{recapIdx === recapEntries.length - 1 ? "Finish ✨" : "Next ▸"}</button>
             </div>
           </div>
         </div>
@@ -3018,6 +3033,59 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
         </button>
       )}
 
+      {/* ONBOARDING OVERLAY */}
+      {showOnboarding && introComplete && data.entries.length === 0 && (() => {
+        const steps = [
+          { title: isMyWorld ? "Welcome to My World" : "Welcome to Our World",
+            body: isMyWorld
+              ? "This is your personal travel globe. Every trip you add becomes a glowing marker on your map."
+              : "This is your shared travel globe. Every adventure you add together lights up your world.",
+            icon: "🌍" },
+          { title: "Navigate Your Globe",
+            body: "Drag to spin the globe. Scroll to zoom in and out. Click any marker to see its details.",
+            icon: "🖱" },
+          { title: "Add Your First Trip",
+            body: "Click the + button in the toolbar on the left to add your first entry. You can add photos, notes, and memories.",
+            icon: "✨" },
+        ];
+        const step = steps[onboardStep];
+        return (
+          <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .5s ease" }}>
+            <div style={{ background: "#1a1424", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: "36px 32px", width: 360, maxWidth: "90vw", textAlign: "center" }}>
+              <div style={{ fontSize: 44, marginBottom: 16 }}>{step.icon}</div>
+              <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 10, letterSpacing: ".04em" }}>{step.title}</div>
+              <div style={{ fontSize: 13, color: "#a098a8", lineHeight: 1.7, marginBottom: 24 }}>{step.body}</div>
+              <div style={{ display: "flex", justifyContent: "center", gap: 6, marginBottom: 20 }}>
+                {steps.map((_, i) => (
+                  <div key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: i === onboardStep ? "#c9a96e" : "rgba(255,255,255,0.15)", transition: "background .3s" }} />
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+                {onboardStep > 0 && (
+                  <button onClick={() => setOnboardStep(s => s - 1)}
+                    style={{ padding: "9px 20px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, color: "#a098a8", fontSize: 13, fontFamily: "inherit", cursor: "pointer" }}>
+                    Back
+                  </button>
+                )}
+                <button onClick={() => {
+                  if (onboardStep < steps.length - 1) { setOnboardStep(s => s + 1); }
+                  else { setShowOnboarding(false); localStorage.setItem("cosmos_onboarded", "1"); }
+                }}
+                  style={{ padding: "9px 24px", background: "linear-gradient(135deg, #c9a96e, #b8944f)", border: "none", borderRadius: 10, color: "#1a1520", fontSize: 13, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }}>
+                  {onboardStep < steps.length - 1 ? "Next" : "Start Exploring"}
+                </button>
+              </div>
+              {onboardStep === 0 && (
+                <button onClick={() => { setShowOnboarding(false); localStorage.setItem("cosmos_onboarded", "1"); }}
+                  style={{ marginTop: 14, background: "none", border: "none", color: "#686070", fontSize: 11, fontFamily: "inherit", cursor: "pointer", textDecoration: "underline" }}>
+                  Skip tutorial
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
       <style>{`
         @keyframes cardIn{from{opacity:0;transform:translateY(-50%) translateX(18px)}to{opacity:1;transform:translateY(-50%) translateX(0)}}
         @keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
@@ -3039,8 +3107,8 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
 }
 
 // ---- SHARED UI ----
-const inpSt = { width: "100%", padding: "7px 9px", border: "1px solid #e8d8e4", borderRadius: 5, fontSize: 12, fontFamily: "'Palatino Linotype',Palatino,Georgia,serif", color: P.text, background: "#fdfcfa", boxSizing: "border-box" };
-const navSt = { background: "none", border: `1px solid ${P.textFaint}35`, borderRadius: 5, padding: "3px 9px", cursor: "pointer", fontSize: 10, color: P.textMid, fontFamily: "inherit", transition: "all .2s" };
+function inpSt() { return { width: "100%", padding: "7px 9px", border: "1px solid #e8d8e4", borderRadius: 5, fontSize: 12, fontFamily: "'Palatino Linotype',Palatino,Georgia,serif", color: P.text, background: "#fdfcfa", boxSizing: "border-box" }; }
+function navSt() { return { background: "none", border: `1px solid ${P.textFaint}35`, borderRadius: 5, padding: "3px 9px", cursor: "pointer", fontSize: 10, color: P.textMid, fontFamily: "inherit", transition: "all .2s" }; }
 function imgN(s) { return { position: "absolute", [s]: 5, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,.65)", border: "none", borderRadius: "50%", width: 24, height: 24, cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center" }; }
 function renderList(t, items, icon, color) { if (!items?.length) return null; return <div style={{ marginTop: 7 }}><div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 3 }}>{t}</div>{items.map((it, i) => <div key={i} style={{ display: "flex", gap: 4, marginBottom: 2 }}><span style={{ color, fontSize: 6, marginTop: 4 }}>{icon}</span><span style={{ fontSize: 11, opacity: .8, lineHeight: 1.5 }}>{it}</span></div>)}</div>; }
 function TBtn({ a, onClick, children, accent, tip }) {
@@ -3058,7 +3126,7 @@ function TBtn({ a, onClick, children, accent, tip }) {
   );
 }
 function Lbl({ children }) { return <label style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".13em", textTransform: "uppercase", display: "block", marginBottom: 2 }}>{children}</label>; }
-function Fld({ l, v, set, t = "text", ph = "" }) { return <div style={{ marginBottom: 9 }}><Lbl>{l}</Lbl><input type={t} value={v || ""} placeholder={ph} onChange={e => set(e.target.value)} style={inpSt} /></div>; }
+function Fld({ l, v, set, t = "text", ph = "" }) { return <div style={{ marginBottom: 9 }}><Lbl>{l}</Lbl><input type={t} value={v || ""} placeholder={ph} onChange={e => set(e.target.value)} style={inpSt()} /></div>; }
 
 // ---- DREAM ADD FORM ----
 // ---- QUICK ADD FORM ----
@@ -3090,7 +3158,7 @@ function QuickAddForm({ types, onAdd, onClose }) {
         <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 16, color: P.textFaint, cursor: "pointer" }}>×</button>
       </div>
       <div style={{ position: "relative", marginBottom: 6 }}>
-        <input value={city} onChange={e => onCityInput(e.target.value)} onFocus={() => { if (sugg.length > 0) setShowSugg(true); }} placeholder="City..." style={inpSt} autoFocus />
+        <input value={city} onChange={e => onCityInput(e.target.value)} onFocus={() => { if (sugg.length > 0) setShowSugg(true); }} placeholder="City..." style={inpSt()} autoFocus />
         {showSugg && sugg.length > 0 && (
           <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e8d8e4", borderRadius: 6, maxHeight: 130, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
             {sugg.map((c, i) => <button key={i} onClick={() => selectCity(c)} style={{ display: "block", width: "100%", textAlign: "left", padding: "7px 10px", border: "none", borderBottom: "1px solid #f5f0f4", background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }} onMouseEnter={e => e.currentTarget.style.background = P.blush} onMouseLeave={e => e.currentTarget.style.background = "none"}><span style={{ fontWeight: 500, color: P.text }}>{c[0]}</span> <span style={{ color: P.textFaint }}>{c[1]}</span></button>)}
@@ -3098,13 +3166,13 @@ function QuickAddForm({ types, onAdd, onClose }) {
         )}
       </div>
       <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-        <input type="date" value={dateStart} onChange={e => { setDateStart(e.target.value); if (!dateEnd) setDateEnd(e.target.value); }} style={{ ...inpSt, flex: 1 }} />
-        <input type="date" value={dateEnd} onChange={e => setDateEnd(e.target.value)} style={{ ...inpSt, flex: 1 }} />
-        <select value={type} onChange={e => setType(e.target.value)} style={{ ...inpSt, width: 80 }}>
+        <input type="date" value={dateStart} onChange={e => { setDateStart(e.target.value); if (!dateEnd) setDateEnd(e.target.value); }} style={{ ...inpSt(), flex: 1 }} />
+        <input type="date" value={dateEnd} onChange={e => setDateEnd(e.target.value)} style={{ ...inpSt(), flex: 1 }} />
+        <select value={type} onChange={e => setType(e.target.value)} style={{ ...inpSt(), width: 80 }}>
           {Object.entries(types).map(([k, v]) => <option key={k} value={k}>{v.icon}</option>)}
         </select>
       </div>
-      <input value={note} onChange={e => setNote(e.target.value)} placeholder="Quick note..." style={{ ...inpSt, marginBottom: 8 }} />
+      <input value={note} onChange={e => setNote(e.target.value)} placeholder="Quick note..." style={{ ...inpSt(), marginBottom: 8 }} />
       <button disabled={!ok} onClick={() => { onAdd({ id: `e-${Date.now()}`, city, country, lat: parseFloat(lat), lng: parseFloat(lng), dateStart, dateEnd: dateEnd || dateStart, type, who: types[type]?.who || "both", notes: note, memories: [], museums: [], restaurants: [], highlights: [], photos: [], stops: [], zoomLevel: 1 }); }}
         style={{ width: "100%", padding: "9px", background: ok ? P.goldWarm : "#e8d8e4", color: "#fff", border: "none", borderRadius: 8, cursor: ok ? "pointer" : "default", fontSize: 11, fontFamily: "inherit", transition: "all .3s" }}>
         {ok ? "⚡ Add to World" : "Select a city & date"}
@@ -3129,7 +3197,7 @@ function DreamAddForm({ onAdd, isMyWorld }) {
     <div style={{ marginTop: 12, padding: 12, background: `${P.gold}06`, borderRadius: 10, border: `1px dashed ${P.goldWarm}30` }}>
       <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 6 }}>{isMyWorld ? "Add to Bucket List" : "Add a Dream"}</div>
       <div style={{ position: "relative", marginBottom: 6 }}>
-        <input placeholder="Start typing a city..." value={f.city} onChange={e => onInput(e.target.value)} onFocus={() => { if (sugg.length > 0) setShowSugg(true); }} style={{ ...inpSt, fontSize: 11 }} />
+        <input placeholder="Start typing a city..." value={f.city} onChange={e => onInput(e.target.value)} onFocus={() => { if (sugg.length > 0) setShowSugg(true); }} style={{ ...inpSt(), fontSize: 11 }} />
         {showSugg && sugg.length > 0 && (
           <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e8d8e4", borderRadius: 6, maxHeight: 120, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
             {sugg.map((c, i) => (
@@ -3143,7 +3211,7 @@ function DreamAddForm({ onAdd, isMyWorld }) {
           </div>
         )}
       </div>
-      <input placeholder="Why this place?" value={f.notes} onChange={e => sf(p => ({ ...p, notes: e.target.value }))} style={{ ...inpSt, fontSize: 10, marginBottom: 6 }} />
+      <input placeholder="Why this place?" value={f.notes} onChange={e => sf(p => ({ ...p, notes: e.target.value }))} style={{ ...inpSt(), fontSize: 10, marginBottom: 6 }} />
       <button disabled={!ok} onClick={() => { onAdd({ city: f.city, country: f.country, lat: parseFloat(f.lat), lng: parseFloat(f.lng), notes: f.notes }); sf({ city: "", country: "", lat: "", lng: "", notes: "" }); }}
         style={{ width: "100%", padding: "7px", background: ok ? P.goldWarm : "#e8d8e4", color: "#fff", border: "none", borderRadius: 6, cursor: ok ? "pointer" : "default", fontSize: 10, fontFamily: "inherit" }}>
         {isMyWorld ? "🗺 Add to List" : "✦ Add Dream"}
@@ -3211,13 +3279,13 @@ function AddForm({ types, defaultType = "together", defaultWho = "both", fieldLa
       <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
         <div style={{ flex: 1 }}>
           <RLbl req>Type</RLbl>
-          <select value={f.type} onChange={e => { const t = e.target.value; sf(p => ({ ...p, type: t, who: types[t]?.who || "both" })); }} style={inpSt}>
+          <select value={f.type} onChange={e => { const t = e.target.value; sf(p => ({ ...p, type: t, who: types[t]?.who || "both" })); }} style={inpSt()}>
             {Object.entries(types).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
           </select>
         </div>
         <div style={{ flex: 1 }}>
           <RLbl>Zoom (1-3)</RLbl>
-          <select value={f.zoomLevel} onChange={e => sf(p => ({ ...p, zoomLevel: parseInt(e.target.value) || 1 }))} style={inpSt}>
+          <select value={f.zoomLevel} onChange={e => sf(p => ({ ...p, zoomLevel: parseInt(e.target.value) || 1 }))} style={inpSt()}>
             <option value={1}>1 — Always</option>
             <option value={2}>2 — Regional</option>
             <option value={3}>3 — Close-up</option>
@@ -3233,7 +3301,7 @@ function AddForm({ types, defaultType = "together", defaultWho = "both", fieldLa
           onChange={e => onCityInput(e.target.value)}
           onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
           placeholder="Start typing — e.g. Haw..."
-          style={{ ...inpSt, borderColor: f.city ? "#e8d8e4" : undefined }}
+          style={{ ...inpSt(), borderColor: f.city ? "#e8d8e4" : undefined }}
         />
         {showSuggestions && suggestions.length > 0 && (
           <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e8d8e4", borderRadius: 6, maxHeight: 150, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
@@ -3264,27 +3332,27 @@ function AddForm({ types, defaultType = "together", defaultWho = "both", fieldLa
         <div style={{ flex: 1 }}><FldR l="Longitude" v={f.lng} t="number" set={v => sf(p => ({ ...p, lng: v }))} ph="Auto-filled" req /></div>
       </div>
       <div style={{ display: "flex", gap: 8 }}>
-        <div style={{ flex: 1, marginBottom: 9 }}><RLbl req>Start Date</RLbl><input type="date" value={f.dateStart || ""} onChange={e => { sf(p => ({ ...p, dateStart: e.target.value })); setTimeout(() => { if (dateEndRef.current) { dateEndRef.current.showPicker?.(); dateEndRef.current.focus(); } }, 50); }} style={inpSt} /></div>
-        <div style={{ flex: 1, marginBottom: 9 }}><RLbl req>End Date</RLbl><input ref={dateEndRef} type="date" value={f.dateEnd || ""} onChange={e => { sf(p => ({ ...p, dateEnd: e.target.value })); setTimeout(() => { if (notesRef.current) notesRef.current.focus(); }, 50); }} style={inpSt} /></div>
+        <div style={{ flex: 1, marginBottom: 9 }}><RLbl req>Start Date</RLbl><input type="date" value={f.dateStart || ""} onChange={e => { sf(p => ({ ...p, dateStart: e.target.value })); setTimeout(() => { if (dateEndRef.current) { dateEndRef.current.showPicker?.(); dateEndRef.current.focus(); } }, 50); }} style={inpSt()} /></div>
+        <div style={{ flex: 1, marginBottom: 9 }}><RLbl req>End Date</RLbl><input ref={dateEndRef} type="date" value={f.dateEnd || ""} onChange={e => { sf(p => ({ ...p, dateEnd: e.target.value })); setTimeout(() => { if (notesRef.current) notesRef.current.focus(); }, 50); }} style={inpSt()} /></div>
       </div>
 
       <div style={{ margin: "10px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
 
-      <div style={{ marginBottom: 8 }}><RLbl req>Notes</RLbl><textarea ref={notesRef} value={f.notes} onChange={e => sf(p => ({ ...p, notes: e.target.value }))} rows={2} placeholder="What made this place special?" style={{ ...inpSt, resize: "vertical" }} /></div>
-      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.memories?.label || "Memories"} (one per line)</Lbl><textarea value={f.memories} onChange={e => sf(p => ({ ...p, memories: e.target.value }))} rows={2} placeholder={isMyWorld ? "Hiked the summit trail\nSunrise over the valley" : "The sunset was perfect\nDancing until midnight"} style={{ ...inpSt, resize: "vertical" }} /></div>
-      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.museums?.label || "Museums & Culture"}</Lbl><textarea value={f.museums} onChange={e => sf(p => ({ ...p, museums: e.target.value }))} rows={1} style={{ ...inpSt, resize: "vertical" }} /></div>
-      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.restaurants?.label || "Restaurants & Food"}</Lbl><textarea value={f.restaurants} onChange={e => sf(p => ({ ...p, restaurants: e.target.value }))} rows={1} style={{ ...inpSt, resize: "vertical" }} /></div>
-      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.highlights?.label || "Highlights"}</Lbl><textarea value={f.highlights} onChange={e => sf(p => ({ ...p, highlights: e.target.value }))} rows={1} style={{ ...inpSt, resize: "vertical" }} /></div>
-      <div style={{ marginBottom: 8 }}><Lbl>Music URL</Lbl><input value={f.musicUrl} onChange={e => sf(p => ({ ...p, musicUrl: e.target.value }))} placeholder="Paste audio URL (optional)" style={inpSt} /></div>
+      <div style={{ marginBottom: 8 }}><RLbl req>Notes</RLbl><textarea ref={notesRef} value={f.notes} onChange={e => sf(p => ({ ...p, notes: e.target.value }))} rows={2} placeholder="What made this place special?" style={{ ...inpSt(), resize: "vertical" }} /></div>
+      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.memories?.label || "Memories"} (one per line)</Lbl><textarea value={f.memories} onChange={e => sf(p => ({ ...p, memories: e.target.value }))} rows={2} placeholder={isMyWorld ? "Hiked the summit trail\nSunrise over the valley" : "The sunset was perfect\nDancing until midnight"} style={{ ...inpSt(), resize: "vertical" }} /></div>
+      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.museums?.label || "Museums & Culture"}</Lbl><textarea value={f.museums} onChange={e => sf(p => ({ ...p, museums: e.target.value }))} rows={1} style={{ ...inpSt(), resize: "vertical" }} /></div>
+      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.restaurants?.label || "Restaurants & Food"}</Lbl><textarea value={f.restaurants} onChange={e => sf(p => ({ ...p, restaurants: e.target.value }))} rows={1} style={{ ...inpSt(), resize: "vertical" }} /></div>
+      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.highlights?.label || "Highlights"}</Lbl><textarea value={f.highlights} onChange={e => sf(p => ({ ...p, highlights: e.target.value }))} rows={1} style={{ ...inpSt(), resize: "vertical" }} /></div>
+      <div style={{ marginBottom: 8 }}><Lbl>Music URL</Lbl><input value={f.musicUrl} onChange={e => sf(p => ({ ...p, musicUrl: e.target.value }))} placeholder="Paste audio URL (optional)" style={inpSt()} /></div>
 
       <div style={{ margin: "6px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
       <Lbl>Trip Stops</Lbl>
       {f.stops.map(s => <div key={s.sid} style={{ fontSize: 10, padding: "3px 7px", background: `${P.rose}08`, borderRadius: 5, marginBottom: 3, display: "flex", justifyContent: "space-between" }}><span>{s.city}</span><button onClick={() => sf(p => ({ ...p, stops: p.stops.filter(st => st.sid !== s.sid) }))} style={{ background: "none", border: "none", color: "#c9777a", cursor: "pointer", fontSize: 11 }}>×</button></div>)}
       <div style={{ position: "relative", marginTop: 4, marginBottom: 12 }}>
         <div style={{ display: "flex", gap: 4 }}>
-          <input placeholder="Start typing city..." value={ns.city} onChange={e => onStopCityInput(e.target.value)} onFocus={() => { if (stopSugg.length > 0) setShowStopSugg(true); }} style={{ ...inpSt, flex: 1 }} />
-          <input placeholder="Lat" value={ns.lat} onChange={e => setNs(p => ({ ...p, lat: e.target.value }))} style={{ ...inpSt, width: 48 }} />
-          <input placeholder="Lng" value={ns.lng} onChange={e => setNs(p => ({ ...p, lng: e.target.value }))} style={{ ...inpSt, width: 48 }} />
+          <input placeholder="Start typing city..." value={ns.city} onChange={e => onStopCityInput(e.target.value)} onFocus={() => { if (stopSugg.length > 0) setShowStopSugg(true); }} style={{ ...inpSt(), flex: 1 }} />
+          <input placeholder="Lat" value={ns.lat} onChange={e => setNs(p => ({ ...p, lat: e.target.value }))} style={{ ...inpSt(), width: 48 }} />
+          <input placeholder="Lng" value={ns.lng} onChange={e => setNs(p => ({ ...p, lng: e.target.value }))} style={{ ...inpSt(), width: 48 }} />
         </div>
         {showStopSugg && stopSugg.length > 0 && (
           <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e8d8e4", borderRadius: 6, maxHeight: 120, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
@@ -3299,8 +3367,8 @@ function AddForm({ types, defaultType = "together", defaultWho = "both", fieldLa
           </div>
         )}
         <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
-          <input type="date" placeholder="Start" value={ns.dateStart || ""} onChange={e => setNs(p => ({ ...p, dateStart: e.target.value }))} style={{ ...inpSt, flex: 1, fontSize: 9 }} />
-          <input type="date" placeholder="End" value={ns.dateEnd || ""} onChange={e => setNs(p => ({ ...p, dateEnd: e.target.value }))} style={{ ...inpSt, flex: 1, fontSize: 9 }} />
+          <input type="date" placeholder="Start" value={ns.dateStart || ""} onChange={e => setNs(p => ({ ...p, dateStart: e.target.value }))} style={{ ...inpSt(), flex: 1, fontSize: 9 }} />
+          <input type="date" placeholder="End" value={ns.dateEnd || ""} onChange={e => setNs(p => ({ ...p, dateEnd: e.target.value }))} style={{ ...inpSt(), flex: 1, fontSize: 9 }} />
         </div>
         <button disabled={!ns.city || !ns.lat} onClick={() => { setShowStopSugg(false); sf(p => ({ ...p, stops: [...p.stops, { sid: `s-${Date.now()}`, city: ns.city, lat: parseFloat(ns.lat) || 0, lng: parseFloat(ns.lng) || 0, notes: ns.notes, dateStart: ns.dateStart || null, dateEnd: ns.dateEnd || null }] })); setNs({ city: "", lat: "", lng: "", notes: "", dateStart: "", dateEnd: "" }); }} style={{ marginTop: 4, width: "100%", padding: "6px", background: P.rose, color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 10, fontFamily: "inherit" }}>+ Add Stop</button>
       </div>
@@ -3330,7 +3398,7 @@ function RLbl({ children, req }) {
 
 // Field with required asterisk
 function FldR({ l, v, set, t = "text", ph = "", req }) {
-  return <div style={{ marginBottom: 9 }}><RLbl req={req}>{l}</RLbl><input type={t} value={v || ""} placeholder={ph} onChange={e => set(e.target.value)} style={inpSt} /></div>;
+  return <div style={{ marginBottom: 9 }}><RLbl req={req}>{l}</RLbl><input type={t} value={v || ""} placeholder={ph} onChange={e => set(e.target.value)} style={inpSt()} /></div>;
 }
 
 // ---- EDIT FORM ----
@@ -3378,7 +3446,7 @@ function EditForm({ entry, types, fieldLabels, onChange, onSave, onClose, onDele
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}><h3 style={{ margin: 0, fontSize: 14, fontWeight: 400 }}>Edit</h3><button onClick={onClose} style={{ background: "none", border: "none", fontSize: 16, color: P.textFaint, cursor: "pointer" }}>×</button></div>
       <div style={{ marginBottom: 9, position: "relative" }}>
         <Lbl>City</Lbl>
-        <input value={entry.city || ""} onChange={e => onEditCity(e.target.value)} onFocus={() => { if (citySugg.length > 0) setShowCitySugg(true); }} style={inpSt} />
+        <input value={entry.city || ""} onChange={e => onEditCity(e.target.value)} onFocus={() => { if (citySugg.length > 0) setShowCitySugg(true); }} style={inpSt()} />
         {showCitySugg && citySugg.length > 0 && (
           <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e8d8e4", borderRadius: 6, maxHeight: 120, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
             {citySugg.map((c, i) => (
@@ -3394,14 +3462,14 @@ function EditForm({ entry, types, fieldLabels, onChange, onSave, onClose, onDele
       </div>
       <Fld l="Country" v={entry.country} set={v => onChange(p => ({ ...p, country: v }))} />
       <div style={{ display: "flex", gap: 6 }}><div style={{ flex: 1 }}><Fld l="Lat" v={entry.lat} t="number" set={v => onChange(p => ({ ...p, lat: parseFloat(v) || 0 }))} /></div><div style={{ flex: 1 }}><Fld l="Lng" v={entry.lng} t="number" set={v => onChange(p => ({ ...p, lng: parseFloat(v) || 0 }))} /></div></div>
-      <div style={{ display: "flex", gap: 6 }}><div style={{ flex: 1, marginBottom: 9 }}><Lbl>Start</Lbl><input type="date" value={entry.dateStart || ""} onChange={e => { onChange(p => ({ ...p, dateStart: e.target.value })); setTimeout(() => { if (editDateEndRef.current) { editDateEndRef.current.showPicker?.(); editDateEndRef.current.focus(); } }, 50); }} style={inpSt} /></div><div style={{ flex: 1, marginBottom: 9 }}><Lbl>End</Lbl><input ref={editDateEndRef} type="date" value={entry.dateEnd || ""} onChange={e => { onChange(p => ({ ...p, dateEnd: e.target.value || null })); setTimeout(() => { if (editNotesRef.current) editNotesRef.current.focus(); }, 50); }} style={inpSt} /></div></div>
-      <div style={{ marginBottom: 8 }}><Lbl>Type</Lbl><select value={entry.type} onChange={e => { const t = e.target.value; onChange(p => ({ ...p, type: t, who: types[t]?.who || "both" })); }} style={inpSt}>{Object.entries(types).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}</select></div>
-      <div style={{ marginBottom: 8 }}><Lbl>Notes</Lbl><textarea ref={editNotesRef} value={entry.notes || ""} onChange={e => onChange(p => ({ ...p, notes: e.target.value }))} rows={2} style={{ ...inpSt, resize: "vertical" }} /></div>
-      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.memories?.label || "Memories"}</Lbl><textarea value={(entry.memories || []).join("\n")} onChange={e => onChange(p => ({ ...p, memories: e.target.value.split("\n").filter(Boolean) }))} rows={2} style={{ ...inpSt, resize: "vertical" }} /></div>
-      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.museums?.label || "Museums"}</Lbl><textarea value={(entry.museums || []).join("\n")} onChange={e => onChange(p => ({ ...p, museums: e.target.value.split("\n").filter(Boolean) }))} rows={1} style={{ ...inpSt, resize: "vertical" }} /></div>
-      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.restaurants?.label || "Restaurants"}</Lbl><textarea value={(entry.restaurants || []).join("\n")} onChange={e => onChange(p => ({ ...p, restaurants: e.target.value.split("\n").filter(Boolean) }))} rows={1} style={{ ...inpSt, resize: "vertical" }} /></div>
-      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.highlights?.label || "Highlights"}</Lbl><textarea value={(entry.highlights || []).join("\n")} onChange={e => onChange(p => ({ ...p, highlights: e.target.value.split("\n").filter(Boolean) }))} rows={1} style={{ ...inpSt, resize: "vertical" }} /></div>
-      <div style={{ marginBottom: 8 }}><Lbl>Music URL</Lbl><input value={entry.musicUrl || ""} onChange={e => onChange(p => ({ ...p, musicUrl: e.target.value || null }))} placeholder="paste audio URL" style={inpSt} /></div>
+      <div style={{ display: "flex", gap: 6 }}><div style={{ flex: 1, marginBottom: 9 }}><Lbl>Start</Lbl><input type="date" value={entry.dateStart || ""} onChange={e => { onChange(p => ({ ...p, dateStart: e.target.value })); setTimeout(() => { if (editDateEndRef.current) { editDateEndRef.current.showPicker?.(); editDateEndRef.current.focus(); } }, 50); }} style={inpSt()} /></div><div style={{ flex: 1, marginBottom: 9 }}><Lbl>End</Lbl><input ref={editDateEndRef} type="date" value={entry.dateEnd || ""} onChange={e => { onChange(p => ({ ...p, dateEnd: e.target.value || null })); setTimeout(() => { if (editNotesRef.current) editNotesRef.current.focus(); }, 50); }} style={inpSt()} /></div></div>
+      <div style={{ marginBottom: 8 }}><Lbl>Type</Lbl><select value={entry.type} onChange={e => { const t = e.target.value; onChange(p => ({ ...p, type: t, who: types[t]?.who || "both" })); }} style={inpSt()}>{Object.entries(types).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}</select></div>
+      <div style={{ marginBottom: 8 }}><Lbl>Notes</Lbl><textarea ref={editNotesRef} value={entry.notes || ""} onChange={e => onChange(p => ({ ...p, notes: e.target.value }))} rows={2} style={{ ...inpSt(), resize: "vertical" }} /></div>
+      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.memories?.label || "Memories"}</Lbl><textarea value={(entry.memories || []).join("\n")} onChange={e => onChange(p => ({ ...p, memories: e.target.value.split("\n").filter(Boolean) }))} rows={2} style={{ ...inpSt(), resize: "vertical" }} /></div>
+      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.museums?.label || "Museums"}</Lbl><textarea value={(entry.museums || []).join("\n")} onChange={e => onChange(p => ({ ...p, museums: e.target.value.split("\n").filter(Boolean) }))} rows={1} style={{ ...inpSt(), resize: "vertical" }} /></div>
+      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.restaurants?.label || "Restaurants"}</Lbl><textarea value={(entry.restaurants || []).join("\n")} onChange={e => onChange(p => ({ ...p, restaurants: e.target.value.split("\n").filter(Boolean) }))} rows={1} style={{ ...inpSt(), resize: "vertical" }} /></div>
+      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.highlights?.label || "Highlights"}</Lbl><textarea value={(entry.highlights || []).join("\n")} onChange={e => onChange(p => ({ ...p, highlights: e.target.value.split("\n").filter(Boolean) }))} rows={1} style={{ ...inpSt(), resize: "vertical" }} /></div>
+      <div style={{ marginBottom: 8 }}><Lbl>Music URL</Lbl><input value={entry.musicUrl || ""} onChange={e => onChange(p => ({ ...p, musicUrl: e.target.value || null }))} placeholder="paste audio URL" style={inpSt()} /></div>
 
       <div style={{ margin: "8px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
       <Lbl>Trip Stops</Lbl>
@@ -3409,7 +3477,7 @@ function EditForm({ entry, types, fieldLabels, onChange, onSave, onClose, onDele
 
       <div style={{ position: "relative", marginTop: 4 }}>
         <div style={{ display: "flex", gap: 4 }}>
-          <input placeholder="Start typing city..." value={ns.city} onChange={e => onStopCity(e.target.value)} onFocus={() => { if (stopSugg.length > 0) setShowStopSugg(true); }} style={{ ...inpSt, flex: 1 }} />
+          <input placeholder="Start typing city..." value={ns.city} onChange={e => onStopCity(e.target.value)} onFocus={() => { if (stopSugg.length > 0) setShowStopSugg(true); }} style={{ ...inpSt(), flex: 1 }} />
         </div>
         {showStopSugg && stopSugg.length > 0 && (
           <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e8d8e4", borderRadius: 6, maxHeight: 120, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
@@ -3424,10 +3492,10 @@ function EditForm({ entry, types, fieldLabels, onChange, onSave, onClose, onDele
           </div>
         )}
         <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
-          <input placeholder="Lat" value={ns.lat} onChange={e => setNs(p => ({ ...p, lat: e.target.value }))} style={{ ...inpSt, width: 55 }} />
-          <input placeholder="Lng" value={ns.lng} onChange={e => setNs(p => ({ ...p, lng: e.target.value }))} style={{ ...inpSt, width: 55 }} />
-          <input type="date" value={ns.dateStart} onChange={e => setNs(p => ({ ...p, dateStart: e.target.value }))} style={{ ...inpSt, flex: 1, fontSize: 9 }} />
-          <input type="date" value={ns.dateEnd} onChange={e => setNs(p => ({ ...p, dateEnd: e.target.value }))} style={{ ...inpSt, flex: 1, fontSize: 9 }} />
+          <input placeholder="Lat" value={ns.lat} onChange={e => setNs(p => ({ ...p, lat: e.target.value }))} style={{ ...inpSt(), width: 55 }} />
+          <input placeholder="Lng" value={ns.lng} onChange={e => setNs(p => ({ ...p, lng: e.target.value }))} style={{ ...inpSt(), width: 55 }} />
+          <input type="date" value={ns.dateStart} onChange={e => setNs(p => ({ ...p, dateStart: e.target.value }))} style={{ ...inpSt(), flex: 1, fontSize: 9 }} />
+          <input type="date" value={ns.dateEnd} onChange={e => setNs(p => ({ ...p, dateEnd: e.target.value }))} style={{ ...inpSt(), flex: 1, fontSize: 9 }} />
         </div>
         <button disabled={!ns.city || !ns.lat} onClick={() => { setShowStopSugg(false); onAddStop({ sid: `s-${Date.now()}`, city: ns.city, lat: parseFloat(ns.lat) || 0, lng: parseFloat(ns.lng) || 0, notes: ns.notes, dateStart: ns.dateStart || null, dateEnd: ns.dateEnd || null }); setNs({ city: "", lat: "", lng: "", notes: "", dateStart: "", dateEnd: "" }); }} style={{ marginTop: 4, width: "100%", padding: "6px", background: P.rose, color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 10, fontFamily: "inherit" }}>+ Add Stop</button>
       </div>

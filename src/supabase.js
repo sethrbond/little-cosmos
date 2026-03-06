@@ -177,12 +177,12 @@ export async function loadConfig() {
   const { data, error } = await supabase.from('config').select('*').eq('id', 'main').single()
   if (error || !data) return null
   const cfg = {
-    startDate: data.start_date || '2021-06-01',
+    startDate: data.start_date || '',
     title: data.title || 'Our World',
     subtitle: data.subtitle || 'every moment, every adventure',
     loveLetter: data.love_letter || '',
-    youName: data.you_name || 'Seth',
-    partnerName: data.partner_name || 'Rosie Posie',
+    youName: data.you_name || '',
+    partnerName: data.partner_name || '',
   }
   if (data.metadata && typeof data.metadata === 'object') {
     if (Array.isArray(data.metadata.loveLetters))       cfg.loveLetters = data.metadata.loveLetters
@@ -287,12 +287,12 @@ export function createOurWorldDB(userId) {
       const { data, error } = await supabase.from('config').select('*').eq('id', userId).single()
       if (error || !data) return null
       const cfg = {
-        startDate: data.start_date || '2021-06-01',
+        startDate: data.start_date || '',
         title: data.title || 'Our World',
         subtitle: data.subtitle || 'every moment, every adventure',
         loveLetter: data.love_letter || '',
-        youName: data.you_name || 'Seth',
-        partnerName: data.partner_name || 'Rosie Posie',
+        youName: data.you_name || '',
+        partnerName: data.partner_name || '',
       }
       if (data.metadata && typeof data.metadata === 'object') {
         if (Array.isArray(data.metadata.loveLetters))       cfg.loveLetters = data.metadata.loveLetters

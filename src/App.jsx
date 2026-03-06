@@ -5,7 +5,7 @@ import WorldSelector from './WorldSelector.jsx'
 import OurWorld from './OurWorld.jsx'
 
 function AppInner() {
-  const { user, loading } = useAuth()
+  const { user, loading, signOut } = useAuth()
   const [worldMode, setWorldMode] = useState(
     () => localStorage.getItem('worldMode') || null
   )
@@ -31,7 +31,9 @@ function AppInner() {
   if (!user) return <AuthScreen />
 
   if (!worldMode) {
-    return <WorldSelector onSelect={selectWorld} />
+    // For now, no orbiting worlds — just the center "My World"
+    // When Phase 3 adds shared worlds, populate this from the worlds table
+    return <WorldSelector onSelect={selectWorld} onSignOut={signOut} worlds={[]} />
   }
 
   return <OurWorld worldMode={worldMode} onSwitchWorld={switchWorld} />
