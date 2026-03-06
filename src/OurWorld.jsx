@@ -862,21 +862,19 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
     });
   }, [db]);
 
-  // Color picker row — uses both native picker + hex text input for reliability
+  // Color picker row — plain native input, no tricks
   const cPick = (label, desc, value, onChange, scene) => (
-    <div key={label} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 7, padding: "4px 0" }}>
-      <label style={{ position: "relative", width: 28, height: 28, flexShrink: 0, cursor: "pointer" }}>
-        <input type="color" value={value} onChange={e => onChange(e.target.value)}
-          style={{ position: "absolute", inset: 0, opacity: 0, width: "100%", height: "100%", cursor: "pointer", border: "none", padding: 0 }} />
-        <div style={{ width: 28, height: 28, borderRadius: 6, background: value, border: `2px solid ${P.textFaint}40`, boxSizing: "border-box" }} />
-      </label>
+    <div key={label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7, padding: "4px 0" }}>
+      <input type="color" value={value}
+        onClick={e => e.stopPropagation()}
+        onInput={e => onChange(e.target.value)}
+        onChange={e => onChange(e.target.value)}
+        style={{ WebkitAppearance: "auto", appearance: "auto", width: 36, height: 28, border: `1px solid ${P.textFaint}30`, borderRadius: 4, cursor: "pointer", padding: 1, flexShrink: 0 }} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 9, color: P.text, fontWeight: 500 }}>{scene ? "✦ " : ""}{label}</div>
-        <div style={{ fontSize: 7, color: P.textFaint, lineHeight: 1.3, marginBottom: 2 }}>{desc}</div>
-        <input type="text" value={value} onChange={e => { const v = e.target.value; if (/^#[0-9a-fA-F]{6}$/.test(v)) onChange(v); }}
-          onBlur={e => { let v = e.target.value.trim(); if (!v.startsWith("#")) v = "#" + v; if (/^#[0-9a-fA-F]{6}$/.test(v)) onChange(v); }}
-          style={{ width: 72, padding: "2px 4px", fontSize: 8, fontFamily: "monospace", background: `${P.textFaint}12`, border: `1px solid ${P.textFaint}20`, borderRadius: 3, color: P.textMid, outline: "none" }} />
+        <div style={{ fontSize: 7, color: P.textFaint, lineHeight: 1.3 }}>{desc}</div>
       </div>
+      <div style={{ fontSize: 7, fontFamily: "monospace", color: P.textFaint, flexShrink: 0 }}>{value}</div>
     </div>
   );
 
