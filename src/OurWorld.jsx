@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo, useReducer, Component } from "react";
 import * as THREE from "three";
-import { createOurWorldDB } from "./supabase.js";
+import { createOurWorldDB, createSharedWorldDB } from "./supabase.js";
 import { createMyWorldDB } from "./supabaseMyWorld.js";
 import { useAuth } from "./AuthContext.jsx";
 import { geocodeSearch } from "./geocode.js";
@@ -791,21 +791,27 @@ class OurWorldErrorBoundary extends Component {
 // ================================================================
 // MAIN
 // ================================================================
-function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
+function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, onSwitchWorld }) {
   // ---- AUTH ----
   const { userId, signOut } = useAuth();
 
   // ---- WORLD MODE CONFIG ----
   const isMyWorld = worldMode === "my";
+  const isSharedWorld = worldMode === "our" && !!worldId;
   const DEFAULT_CONFIG = isMyWorld ? MY_WORLD_DEFAULT_CONFIG : OUR_WORLD_DEFAULT_CONFIG;
   const FIELD_LABELS = isMyWorld ? MY_WORLD_FIELDS : OUR_WORLD_FIELDS;
-  useEffect(() => { document.title = isMyWorld ? "My World — My Cosmos" : "Our World — My Cosmos"; }, [isMyWorld]);
+  useEffect(() => {
+    document.title = isMyWorld ? "My World — My Cosmos"
+      : worldName ? `${worldName} — My Cosmos`
+      : "Our World — My Cosmos";
+  }, [isMyWorld, worldName]);
 
-  // DB functions selected by mode, scoped to current user
-  const db = useMemo(() => isMyWorld
-    ? createMyWorldDB(userId)
-    : createOurWorldDB(userId)
-  , [isMyWorld, userId]);
+  // DB functions selected by mode, scoped to current user or shared world
+  const db = useMemo(() => {
+    if (isMyWorld) return createMyWorldDB(userId);
+    if (isSharedWorld) return createSharedWorldDB(worldId, userId);
+    return createOurWorldDB(userId);
+  }, [isMyWorld, isSharedWorld, worldId, userId]);
 
   const [data, _dispatch] = useReducer(reducer, { entries: [] });
   const dispatch = useCallback(action => _dispatch({ ...action, db }), [db]);
@@ -3628,6 +3634,6 @@ function EditForm({ entry, types, fieldLabels, onChange, onSave, onClose, onDele
 }
 
 // ---- WRAPPED EXPORT WITH ERROR BOUNDARY ----
-export default function OurWorld({ worldMode, onSwitchWorld }) {
-  return <OurWorldErrorBoundary><OurWorldInner worldMode={worldMode} onSwitchWorld={onSwitchWorld} /></OurWorldErrorBoundary>;
+export default function OurWorld({ worldMode, worldId, worldName, onSwitchWorld }) {
+  return <OurWorldErrorBoundary><OurWorldInner worldMode={worldMode} worldId={worldId} worldName={worldName} onSwitchWorld={onSwitchWorld} /></OurWorldErrorBoundary>;
 }
