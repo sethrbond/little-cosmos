@@ -193,6 +193,8 @@ export async function loadConfig() {
     if (Array.isArray(data.metadata.dreamDestinations))  cfg.dreamDestinations = data.metadata.dreamDestinations
     if (Array.isArray(data.metadata.chapters))           cfg.chapters = data.metadata.chapters
     if (typeof data.metadata.darkMode === 'boolean')     cfg.darkMode = data.metadata.darkMode
+    if (data.metadata.customPalette && typeof data.metadata.customPalette === 'object') cfg.customPalette = data.metadata.customPalette
+    if (data.metadata.customScene && typeof data.metadata.customScene === 'object') cfg.customScene = data.metadata.customScene
   }
   return cfg
 }
@@ -211,6 +213,8 @@ export async function saveConfig(config) {
       dreamDestinations: config.dreamDestinations || [],
       chapters: config.chapters || [],
       darkMode: config.darkMode ?? false,
+      customPalette: config.customPalette || {},
+      customScene: config.customScene || {},
     },
   }
   const { error } = await supabase.from('config').upsert(row, { onConflict: 'id' })
