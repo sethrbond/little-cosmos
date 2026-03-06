@@ -12,6 +12,7 @@ import {
   OUR_WORLD_SCENE, MY_WORLD_SCENE,
   getSeasonalHue, resolveTypes,
 } from "./worldConfigs.js";
+import { sendWelcomeLetter, getMyLetters, deleteWelcomeLetter } from "./supabaseWelcomeLetters.js";
 
 /* =================================================================
    🌍 OUR WORLD / MY WORLD — Multi-World Globe Engine
@@ -1012,6 +1013,11 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
   const [letterLat, setLetterLat] = useState("");
   const [letterLng, setLetterLng] = useState("");
   const [showSettings, setShowSettings] = useState(false);
+  const [wlEmail, setWlEmail] = useState("");
+  const [wlText, setWlText] = useState("");
+  const [wlSending, setWlSending] = useState(false);
+  const [wlSent, setWlSent] = useState(false);
+  const [myLetters, setMyLetters] = useState([]);
   const [sliderDate, setSliderDate] = useState(todayStr());
   const [isAnimating, setIsAnimating] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
@@ -2245,7 +2251,7 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
         
         {<TBtn onClick={() => setShowAdd(true)} accent tip="Add Entry">＋</TBtn>}
         {<TBtn onClick={() => setQuickAddMode(true)} tip="Quick Add">⚡</TBtn>}
-        {<TBtn onClick={() => setShowSettings(true)} tip="Settings">⚙️</TBtn>}
+        {<TBtn onClick={() => { setShowSettings(true); getMyLetters(userId).then(setMyLetters); }} tip="Settings">⚙️</TBtn>}
         <TBtn a={darkMode} onClick={() => { setDarkMode(v => { const next = !v; setConfig({ darkMode: next }); return next; }); }} tip="Toggle Theme">{darkMode ? "☀️" : "🌙"}</TBtn>
         {allPhotos.length > 0 && <TBtn a={showGallery} onClick={() => setShowGallery(v => !v)} tip="Photo Gallery">📷</TBtn>}
         {data.entries.length > 0 && <TBtn a={showStats} onClick={() => setShowStats(v => !v)} tip="Stats & Insights">📊</TBtn>}
@@ -2810,6 +2816,52 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
               </div>
             ))}
             <button onClick={() => { setConfig({ chapters: [...(config.chapters || []), { label: "New Chapter", startDate: config.startDate, endDate: todayStr() }] }); }} style={{ width: "100%", padding: "5px", background: `${P.lavender}12`, border: `1px dashed ${P.lavender}40`, borderRadius: 5, cursor: "pointer", fontSize: 9, fontFamily: "inherit", color: P.textMid, marginBottom: 8 }}>+ Add Chapter</button>
+
+            <div style={{ margin: "14px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
+            <div style={{ fontSize: 8, color: P.textMid, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 6, fontWeight: 500 }}>Welcome Letters</div>
+            <p style={{ fontSize: 8, color: P.textFaint, fontStyle: "italic", marginBottom: 8 }}>Write a personal letter that appears when someone you invite first opens their cosmos. They'll see it once, before the globe.</p>
+            {wlSent && <div style={{ fontSize: 10, color: "#7ab87a", marginBottom: 8 }}>Letter sent! They'll see it when they sign up.</div>}
+            <div style={{ marginBottom: 6 }}>
+              <Lbl>Recipient's Email</Lbl>
+              <input type="email" value={wlEmail} onChange={e => setWlEmail(e.target.value)} placeholder="their.email@example.com" style={inpSt()} />
+            </div>
+            <div style={{ marginBottom: 6 }}>
+              <Lbl>Your Letter</Lbl>
+              <textarea value={wlText} onChange={e => setWlText(e.target.value)} rows={5}
+                placeholder={"This is our world \u2014 every place we've been, every adventure we've shared...\n\nSpin the globe. Click the hearts. This is our story.\n\nI love you."}
+                style={{ ...inpSt(), resize: "vertical", lineHeight: 1.7 }} />
+            </div>
+            <button
+              disabled={wlSending || !wlEmail.trim() || !wlText.trim()}
+              onClick={async () => {
+                setWlSending(true); setWlSent(false);
+                try {
+                  const name = isMyWorld ? (config.travelerName || "Someone") : (config.youName || "Someone");
+                  await sendWelcomeLetter(userId, name, wlEmail.trim(), wlText.trim());
+                  setWlSent(true); setWlEmail(""); setWlText("");
+                  const letters = await getMyLetters(userId);
+                  setMyLetters(letters);
+                } catch (err) { alert("Failed to send: " + err.message); }
+                setWlSending(false);
+              }}
+              style={{ width: "100%", padding: "7px", background: wlSending ? P.textFaint : `linear-gradient(135deg, ${P.rose}, ${P.sky})`, border: "none", borderRadius: 6, cursor: wlSending ? "wait" : "pointer", fontSize: 10, fontFamily: "inherit", color: "#fff", fontWeight: 600, opacity: (!wlEmail.trim() || !wlText.trim()) ? 0.4 : 1 }}>
+              {wlSending ? "Sending..." : "Send Welcome Letter"}
+            </button>
+            {myLetters.length > 0 && (
+              <div style={{ marginTop: 10 }}>
+                <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 4 }}>Sent Letters</div>
+                {myLetters.map(lt => (
+                  <div key={lt.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: `1px solid ${P.textFaint}15` }}>
+                    <div>
+                      <div style={{ fontSize: 10, color: P.textMid }}>{lt.to_email}</div>
+                      <div style={{ fontSize: 8, color: P.textFaint }}>{lt.read ? "Read" : "Unread"} · {new Date(lt.created_at).toLocaleDateString()}</div>
+                    </div>
+                    <button onClick={async () => { await deleteWelcomeLetter(lt.id); setMyLetters(prev => prev.filter(l => l.id !== lt.id)); }}
+                      style={{ background: "none", border: "none", color: "#c9777a", cursor: "pointer", fontSize: 11 }}>x</button>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div style={{ margin: "10px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
             <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 6 }}>Data</div>

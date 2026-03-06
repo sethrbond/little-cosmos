@@ -1,0 +1,59 @@
+import { supabase } from './supabaseClient.js'
+
+// Fetch any unread welcome letter addressed to the current user's email
+export async function getWelcomeLetter(email) {
+  if (!email) return null
+  const { data, error } = await supabase
+    .from('welcome_letters')
+    .select('*')
+    .eq('to_email', email.toLowerCase())
+    .eq('read', false)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single()
+  if (error || !data) return null
+  return data
+}
+
+// Mark a welcome letter as read
+export async function markLetterRead(letterId) {
+  await supabase
+    .from('welcome_letters')
+    .update({ read: true, read_at: new Date().toISOString() })
+    .eq('id', letterId)
+}
+
+// Send a welcome letter (from current user to a specific email)
+export async function sendWelcomeLetter(fromUserId, fromName, toEmail, letterText) {
+  const { data, error } = await supabase
+    .from('welcome_letters')
+    .insert({
+      from_user_id: fromUserId,
+      from_name: fromName,
+      to_email: toEmail.toLowerCase(),
+      letter_text: letterText,
+    })
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+// Get all letters the current user has written
+export async function getMyLetters(userId) {
+  const { data, error } = await supabase
+    .from('welcome_letters')
+    .select('*')
+    .eq('from_user_id', userId)
+    .order('created_at', { ascending: false })
+  if (error) return []
+  return data || []
+}
+
+// Delete a letter the current user wrote
+export async function deleteWelcomeLetter(letterId) {
+  await supabase
+    .from('welcome_letters')
+    .delete()
+    .eq('id', letterId)
+}

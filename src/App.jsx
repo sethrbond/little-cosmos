@@ -1,14 +1,27 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { AuthProvider, useAuth } from './AuthContext.jsx'
 import AuthScreen from './AuthScreen.jsx'
 import WorldSelector from './WorldSelector.jsx'
 import OurWorld from './OurWorld.jsx'
+import WelcomeLetterScreen from './WelcomeLetterScreen.jsx'
+import { getWelcomeLetter, markLetterRead } from './supabaseWelcomeLetters.js'
 
 function AppInner() {
   const { user, loading, signOut } = useAuth()
   const [worldMode, setWorldMode] = useState(
     () => localStorage.getItem('worldMode') || null
   )
+  const [welcomeLetter, setWelcomeLetter] = useState(null)
+  const [letterChecked, setLetterChecked] = useState(false)
+
+  // Check for welcome letter on login
+  useEffect(() => {
+    if (!user?.email) { setLetterChecked(true); return }
+    getWelcomeLetter(user.email).then(letter => {
+      setWelcomeLetter(letter)
+      setLetterChecked(true)
+    }).catch(() => setLetterChecked(true))
+  }, [user?.email])
 
   const selectWorld = (mode) => {
     localStorage.setItem('worldMode', mode)
@@ -20,7 +33,7 @@ function AppInner() {
     setWorldMode(null)
   }
 
-  if (loading) {
+  if (loading || !letterChecked) {
     return (
       <div style={{ position: 'fixed', inset: 0, background: '#0c0a12', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: '"Palatino Linotype", serif', color: '#e8e0d0', fontSize: 18, opacity: 0.6 }}>
         Loading...
@@ -30,9 +43,20 @@ function AppInner() {
 
   if (!user) return <AuthScreen />
 
+  // Show welcome letter before anything else
+  if (welcomeLetter) {
+    return (
+      <WelcomeLetterScreen
+        letter={welcomeLetter}
+        onEnter={() => {
+          markLetterRead(welcomeLetter.id)
+          setWelcomeLetter(null)
+        }}
+      />
+    )
+  }
+
   if (!worldMode) {
-    // For now, no orbiting worlds — just the center "My World"
-    // When Phase 3 adds shared worlds, populate this from the worlds table
     return <WorldSelector onSelect={selectWorld} onSignOut={signOut} worlds={[]} />
   }
 

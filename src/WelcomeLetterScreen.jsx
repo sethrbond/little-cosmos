@@ -1,0 +1,104 @@
+import { useState } from "react";
+
+/* WelcomeLetterScreen — the "gift moment"
+   A full-screen parchment card that fades in when a recipient
+   has an unread welcome letter. They read it, click "Enter My Cosmos",
+   and the letter dissolves into the globe experience. */
+
+const F = "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif";
+
+export default function WelcomeLetterScreen({ letter, onEnter }) {
+  const [fading, setFading] = useState(false);
+
+  const handleEnter = () => {
+    setFading(true);
+    setTimeout(() => onEnter(), 800);
+  };
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 1000,
+      background: "radial-gradient(ellipse at center, #1a1424 0%, #0c0a12 100%)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontFamily: F, opacity: fading ? 0 : 1, transition: "opacity 0.8s ease",
+    }}>
+      {/* Subtle stars behind */}
+      <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none" }}>
+        {Array.from({ length: 60 }, (_, i) => (
+          <div key={i} style={{
+            position: "absolute",
+            left: `${Math.random() * 100}%`, top: `${Math.random() * 100}%`,
+            width: 2, height: 2, borderRadius: "50%",
+            background: "#e8e0d0",
+            opacity: 0.15 + Math.random() * 0.25,
+            animation: `twinkle ${3 + Math.random() * 4}s ease-in-out infinite`,
+            animationDelay: `${Math.random() * 5}s`,
+          }} />
+        ))}
+      </div>
+
+      {/* The letter */}
+      <div style={{
+        position: "relative", zIndex: 2,
+        maxWidth: 480, width: "90vw",
+        padding: "48px 40px",
+        background: "linear-gradient(170deg, rgba(250,248,244,0.97) 0%, rgba(245,241,234,0.95) 100%)",
+        borderRadius: 3,
+        boxShadow: "0 20px 80px rgba(0,0,0,0.5), 0 2px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.5)",
+        animation: "letterIn 1.2s ease forwards",
+      }}>
+        {/* Subtle texture overlay */}
+        <div style={{
+          position: "absolute", inset: 0, borderRadius: 3,
+          background: "repeating-linear-gradient(0deg, transparent, transparent 28px, rgba(180,170,155,0.06) 28px, rgba(180,170,155,0.06) 29px)",
+          pointerEvents: "none",
+        }} />
+
+        {/* Letter content */}
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <div style={{
+            fontSize: 15, color: "#3d3552", lineHeight: 2.0,
+            whiteSpace: "pre-wrap", fontStyle: "italic",
+            letterSpacing: "0.02em",
+          }}>
+            {letter.letter_text}
+          </div>
+
+          <div style={{
+            marginTop: 28, fontSize: 13, color: "#6b5e7e",
+            letterSpacing: "0.08em",
+          }}>
+            — {letter.from_name || "Someone who loves you"}
+          </div>
+        </div>
+
+        {/* Enter button */}
+        <div style={{ textAlign: "center", marginTop: 36 }}>
+          <button onClick={handleEnter} style={{
+            background: "linear-gradient(135deg, #c9a96e, #b8944f)",
+            border: "none", borderRadius: 24, padding: "12px 32px",
+            color: "#1a1520", fontSize: 14, fontWeight: 600,
+            fontFamily: F, cursor: "pointer", letterSpacing: "0.06em",
+            boxShadow: "0 4px 16px rgba(180,140,60,0.3)",
+            transition: "all 0.3s ease",
+          }}
+          onMouseEnter={e => { e.target.style.transform = "scale(1.04)"; e.target.style.boxShadow = "0 6px 24px rgba(180,140,60,0.4)"; }}
+          onMouseLeave={e => { e.target.style.transform = "scale(1)"; e.target.style.boxShadow = "0 4px 16px rgba(180,140,60,0.3)"; }}>
+            Enter My Cosmos
+          </button>
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes letterIn {
+          from { opacity: 0; transform: translateY(30px) scale(0.96); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes twinkle {
+          0%, 100% { opacity: 0.15; }
+          50% { opacity: 0.5; }
+        }
+      `}</style>
+    </div>
+  );
+}
