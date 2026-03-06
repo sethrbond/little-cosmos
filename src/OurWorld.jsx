@@ -826,7 +826,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   // Mutates module-level P so external form components (TBtn, Fld, etc.) get correct world colors
   const _paletteBase = useMemo(() => {
     const merged = { ...(isMyWorld ? MY_WORLD_PALETTE : OUR_WORLD_PALETTE), ...(config.customPalette || {}) };
-    Object.assign(P, merged);
+    // Reassign P (module-level let) so external form components get correct world colors
+    // Note: do NOT use Object.assign(P, merged) — Vite production builds freeze the original object
+    P = merged;
     return merged;
   }, [isMyWorld, config.customPalette]);
   const SC = useMemo(() => ({ ...(isMyWorld ? MY_WORLD_SCENE : OUR_WORLD_SCENE), ...(config.customScene || {}) }), [isMyWorld, config.customScene]);
