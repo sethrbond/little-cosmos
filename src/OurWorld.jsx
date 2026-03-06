@@ -161,6 +161,70 @@ function makeSymbolTexture(type, color) {
       ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
     }
     ctx.closePath(); ctx.fill();
+  } else if (type === "wave") {
+    // Wave (beach/coast)
+    ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(cx - 18, cy + 2);
+    ctx.bezierCurveTo(cx - 12, cy - 10, cx - 6, cy - 10, cx, cy + 2);
+    ctx.bezierCurveTo(cx + 6, cy + 14, cx + 12, cy + 14, cx + 18, cy + 2);
+    ctx.stroke();
+    ctx.globalAlpha = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(cx - 14, cy + 10);
+    ctx.bezierCurveTo(cx - 8, cy + 2, cx - 2, cy + 2, cx + 4, cy + 10);
+    ctx.bezierCurveTo(cx + 8, cy + 16, cx + 12, cy + 16, cx + 16, cy + 10);
+    ctx.stroke();
+  } else if (type === "anchor") {
+    // Anchor (cruise/sailing)
+    ctx.strokeStyle = color; ctx.lineWidth = 2.5; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(cx, cy - 14); ctx.lineTo(cx, cy + 12); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx - 8, cy - 6); ctx.lineTo(cx + 8, cy - 6); ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx, cy + 12, 8, Math.PI, 0); ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx, cy - 14, 3, 0, Math.PI * 2); ctx.fill();
+  } else if (type === "mountain") {
+    // Mountain peaks (nature/wilderness)
+    ctx.beginPath();
+    ctx.moveTo(cx - 16, cy + 12); ctx.lineTo(cx - 4, cy - 10); ctx.lineTo(cx + 4, cy + 4);
+    ctx.lineTo(cx + 8, cy - 4); ctx.lineTo(cx + 16, cy + 12);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#fff8f0"; ctx.globalAlpha = 0.6;
+    ctx.beginPath();
+    ctx.moveTo(cx - 4, cy - 10); ctx.lineTo(cx - 1, cy - 4); ctx.lineTo(cx - 7, cy - 4);
+    ctx.closePath(); ctx.fill();
+  } else if (type === "car") {
+    // Car silhouette (road trip)
+    ctx.beginPath();
+    ctx.moveTo(cx - 14, cy + 4); ctx.lineTo(cx - 14, cy - 2); ctx.lineTo(cx - 8, cy - 2);
+    ctx.lineTo(cx - 5, cy - 10); ctx.lineTo(cx + 7, cy - 10); ctx.lineTo(cx + 12, cy - 2);
+    ctx.lineTo(cx + 14, cy - 2); ctx.lineTo(cx + 14, cy + 4);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#fff8f0"; ctx.globalAlpha = 0.5;
+    ctx.beginPath(); ctx.arc(cx - 8, cy + 4, 3.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx + 8, cy + 4, 3.5, 0, Math.PI * 2); ctx.fill();
+  } else if (type === "tent") {
+    // Tent/festival (event)
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - 16); ctx.lineTo(cx + 16, cy + 10); ctx.lineTo(cx - 16, cy + 10);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#fff8f0"; ctx.globalAlpha = 0.4;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy + 10); ctx.lineTo(cx - 4, cy + 10); ctx.lineTo(cx, cy - 2);
+    ctx.lineTo(cx + 4, cy + 10);
+    ctx.closePath(); ctx.fill();
+  } else if (type === "backpack") {
+    // Backpack shape
+    ctx.fillRect(cx - 8, cy - 8, 16, 20);
+    ctx.fillStyle = "#fff8f0"; ctx.globalAlpha = 0.4;
+    ctx.fillRect(cx - 5, cy - 14, 10, 8);
+    ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.globalAlpha = 0.6;
+    ctx.beginPath(); ctx.moveTo(cx - 4, cy); ctx.lineTo(cx + 4, cy); ctx.stroke();
+  } else if (type === "people") {
+    // Two people silhouette (friends/family)
+    ctx.beginPath(); ctx.arc(cx - 6, cy - 8, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx + 6, cy - 8, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillRect(cx - 10, cy - 2, 8, 14);
+    ctx.fillRect(cx + 2, cy - 2, 8, 14);
   } else if (type === "briefcase") {
     // Briefcase (work)
     ctx.fillRect(cx - 12, cy - 6, 24, 16);
@@ -1676,7 +1740,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       const mat = new THREE.LineBasicMaterial({
         color: SC.coastColor,
         transparent: true,
-        opacity: 0.55, // always clearly visible
+        opacity: 0.7, // always clearly visible
         linewidth: 1,
       });
       const line = new THREE.Line(geom, mat);
@@ -1880,7 +1944,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       // Geography lines — always bright, even more vivid on zoom
       const zoomFactor = clamp((3.5 - zmR.current) / 2.0, 0, 1);
       geoGroup.forEach(g => {
-        g.mat.opacity = 0.55 + zoomFactor * 0.25; // 0.55 base → 0.80 at max zoom
+        g.mat.opacity = 0.7 + zoomFactor * 0.2; // 0.7 base → 0.9 at max zoom
       });
 
       rend.render(scene, cam);
@@ -1943,15 +2007,14 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
     // ---- ALL ENTRIES always visible as colored markers ----
     locationGroups.forEach(loc => {
-      // Use the "most significant" entry type for the dot color
       const types = loc.entries.map(e => e.type);
-      let color = P.textFaint;
-      let icon = "together";
-      if (types.includes("together") || types.includes("special")) { color = types.includes("special") ? P.special : P.together; icon = types.includes("special") ? "special" : "together"; }
-      else if (types.includes("home-seth")) { color = P.sky; icon = "home-seth"; }
-      else if (types.includes("home-rosie")) { color = P.rose; icon = "home-rosie"; }
-      else if (types.includes("seth-solo")) { color = P.skySoft; icon = "seth-solo"; }
-      else if (types.includes("rosie-solo")) { color = P.roseSoft; icon = "rosie-solo"; }
+      // Pick the "most significant" entry's type for color & symbol
+      // Priority: special > together > first matching type
+      const priority = ["special", "together"];
+      const primaryType = priority.find(t => types.includes(t)) || types.find(t => TYPES[t]) || types[0];
+      const typeInfo = TYPES[primaryType];
+      let color = typeInfo ? (P[typeInfo.color] || typeInfo.color || P.textFaint) : P.textFaint;
+      let icon = typeInfo?.symbol || "together";
 
       const isMulti = loc.entries.length > 1;
       const size = isMulti ? 0.02 : 0.014;
