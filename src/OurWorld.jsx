@@ -862,21 +862,50 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
     });
   }, [db]);
 
-  // Color picker row — plain native input, no tricks
-  const cPick = (label, desc, value, onChange, scene) => (
-    <div key={label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7, padding: "4px 0" }}>
-      <input type="color" value={value}
-        onClick={e => e.stopPropagation()}
-        onInput={e => onChange(e.target.value)}
-        onChange={e => onChange(e.target.value)}
-        style={{ WebkitAppearance: "auto", appearance: "auto", width: 36, height: 28, border: `1px solid ${P.textFaint}30`, borderRadius: 4, cursor: "pointer", padding: 1, flexShrink: 0 }} />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 9, color: P.text, fontWeight: 500 }}>{scene ? "✦ " : ""}{label}</div>
-        <div style={{ fontSize: 7, color: P.textFaint, lineHeight: 1.3 }}>{desc}</div>
+  // Color picker row — custom swatch picker (native input type=color broken in Safari)
+  const [cpOpen, setCpOpen] = useState(null); // which color picker label is expanded
+  const cPick = (label, desc, value, onChange, scene) => {
+    const isOpen = cpOpen === label;
+    const presets = scene
+      ? ["#161028","#1a1030","#0c0e16","#101820","#e8d8f0","#f0dce8","#d0c0a0","#c8b898",
+         "#f0a0c8","#d8a0f0","#7088a8","#6880a8","#70b850","#5a9848","#f8d0e0","#c8d0e0"]
+      : ["#d4a0b9","#e07a9a","#c0a068","#b08040","#9bb5d6","#7090a8","#dfc090","#c4a048",
+         "#a8bf94","#7a9a70","#b8a5cc","#908098","#faf8f4","#f2f0ec","#3d3552","#282830"];
+    return (
+      <div key={label} style={{ marginBottom: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", cursor: "pointer" }}
+          onClick={() => setCpOpen(isOpen ? null : label)}>
+          <div style={{ width: 28, height: 28, borderRadius: 6, background: value, border: `2px solid ${P.textFaint}40`, flexShrink: 0, boxSizing: "border-box" }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 9, color: P.text, fontWeight: 500 }}>{scene ? "✦ " : ""}{label}</div>
+            <div style={{ fontSize: 7, color: P.textFaint, lineHeight: 1.3 }}>{desc}</div>
+          </div>
+          <div style={{ fontSize: 7, fontFamily: "monospace", color: P.textFaint, flexShrink: 0 }}>{value}</div>
+          <div style={{ fontSize: 10, color: P.textFaint, transform: isOpen ? "rotate(90deg)" : "none", transition: "transform .15s" }}>▶</div>
+        </div>
+        {isOpen && (
+          <div style={{ padding: "6px 0 2px 36px" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 6 }}>
+              {presets.map(c => (
+                <div key={c} onClick={() => onChange(c)}
+                  style={{ width: 20, height: 20, borderRadius: 4, background: c, cursor: "pointer",
+                    border: value === c ? `2px solid ${P.text}` : `1px solid ${P.textFaint}30`,
+                    boxSizing: "border-box" }} />
+              ))}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 8, color: P.textFaint }}>Hex:</span>
+              <input type="text" defaultValue={value} key={value}
+                onKeyDown={e => { if (e.key === "Enter") { let v = e.target.value.trim(); if (!v.startsWith("#")) v = "#" + v; if (/^#[0-9a-fA-F]{6}$/.test(v)) onChange(v); }}}
+                onBlur={e => { let v = e.target.value.trim(); if (!v.startsWith("#")) v = "#" + v; if (/^#[0-9a-fA-F]{6}$/.test(v)) onChange(v); }}
+                style={{ width: 70, padding: "3px 5px", fontSize: 9, fontFamily: "monospace", background: `${P.textFaint}12`, border: `1px solid ${P.textFaint}20`, borderRadius: 3, color: P.textMid, outline: "none" }} />
+              <div style={{ width: 16, height: 16, borderRadius: 3, background: value, border: `1px solid ${P.textFaint}30` }} />
+            </div>
+          </div>
+        )}
       </div>
-      <div style={{ fontSize: 7, fontFamily: "monospace", color: P.textFaint, flexShrink: 0 }}>{value}</div>
-    </div>
-  );
+    );
+  };
 
   // THREE refs
   const mountRef = useRef(null);
@@ -1482,14 +1511,14 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
     el.appendChild(rend.domElement);
     rendRef.current = rend;
 
-    scene.add(new THREE.AmbientLight(SC.ambientColor, 0.9));
-    const sun = new THREE.DirectionalLight(SC.sunColor, 1.0);
+    scene.add(new THREE.AmbientLight(SC.ambientColor, 1.1));
+    const sun = new THREE.DirectionalLight(SC.sunColor, 1.15);
     sun.position.set(4, 3, 5); scene.add(sun);
-    const fill = new THREE.DirectionalLight(SC.fillColor, 0.5);
+    const fill = new THREE.DirectionalLight(SC.fillColor, 0.6);
     fill.position.set(-4, -2, -4); scene.add(fill);
-    const rim = new THREE.PointLight(SC.rimColor, 0.6, 12);
+    const rim = new THREE.PointLight(SC.rimColor, 0.7, 12);
     rim.position.set(0, 4, 2); scene.add(rim);
-    const bottomGlow = new THREE.PointLight(SC.bottomColor, 0.3, 8);
+    const bottomGlow = new THREE.PointLight(SC.bottomColor, 0.4, 8);
     bottomGlow.position.set(0, -3, 1); scene.add(bottomGlow);
 
     const globe = new THREE.Group();
@@ -1499,12 +1528,12 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
     // Main sphere — themed per world mode
     globe.add(new THREE.Mesh(
       new THREE.SphereGeometry(RAD, 96, 96),
-      new THREE.MeshPhongMaterial({ color: SC.sphereColor, emissive: SC.sphereEmissive, emissiveIntensity: 0.08, shininess: 18, transparent: false })
+      new THREE.MeshPhongMaterial({ color: SC.sphereColor, emissive: SC.sphereEmissive, emissiveIntensity: 0.18, shininess: 22, transparent: false })
     ));
 
     // Glow layers — 8-layer halo themed per world
     const glowRadii = [1.015, 1.035, 1.06, 1.09, 1.12, 1.18, 1.28, 1.42];
-    const glowOpacities = [0.30, 0.24, 0.18, 0.14, 0.10, 0.07, 0.04, 0.02];
+    const glowOpacities = [0.38, 0.30, 0.24, 0.18, 0.14, 0.10, 0.06, 0.03];
     const glows = glowRadii.map((r, i) => ({ r, color: SC.glowColors[i] || SC.glowColors[0], op: glowOpacities[i] })).map(({ r, color, op }) => {
       const m = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: op, side: THREE.BackSide });
       const mesh = new THREE.Mesh(new THREE.SphereGeometry(RAD * r, 48, 48), m);
@@ -2691,21 +2720,6 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
             <div style={{ margin: "14px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
             <div style={{ fontSize: 8, color: P.textMid, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 4, fontWeight: 500 }}>🎨 Color Theme</div>
             <p style={{ fontSize: 8, color: P.textFaint, fontStyle: "italic", marginBottom: 10 }}>Pick colors for your world. UI colors change instantly. Globe colors (marked ✦) apply after refresh.</p>
-            <div style={{ marginBottom: 10, padding: 8, background: P.rose, borderRadius: 6, textAlign: "center" }}>
-              <div style={{ fontSize: 8, color: "#fff", marginBottom: 4 }}>P.rose = {P.rose}</div>
-              <button onClick={() => setConfig({ customPalette: { ...(config.customPalette || {}), rose: "#ff0000" } })}
-                style={{ padding: "4px 12px", fontSize: 9, background: "#fff", border: "none", borderRadius: 4, cursor: "pointer", marginRight: 4 }}>
-                Set Red
-              </button>
-              <button onClick={() => setConfig({ customPalette: { ...(config.customPalette || {}), rose: "#00ff00" } })}
-                style={{ padding: "4px 12px", fontSize: 9, background: "#fff", border: "none", borderRadius: 4, cursor: "pointer", marginRight: 4 }}>
-                Set Green
-              </button>
-              <button onClick={() => setConfig({ customPalette: {}, customScene: {} })}
-                style={{ padding: "4px 12px", fontSize: 9, background: "#fff", border: "none", borderRadius: 4, cursor: "pointer" }}>
-                Reset
-              </button>
-            </div>
             {(() => {
               const cp = config.customPalette || {};
               const cs = config.customScene || {};

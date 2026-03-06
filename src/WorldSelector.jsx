@@ -11,9 +11,9 @@ const WORLDS = [
     id: "our",
     label: "Our World",
     sub: "Seth & Rosie",
-    color: "#d4a0b9",
-    glowColor: "#f0c8e0",
-    emissive: "#5a2060",
+    color: "#e8b8d0",
+    glowColor: "#fce0f0",
+    emissive: "#a05080",
     orbitRadius: 2.4,
     orbitSpeed: 0.25,
     size: 0.32,
@@ -24,9 +24,9 @@ const CENTER = {
   id: "my",
   label: "My World",
   sub: "Travel Diary",
-  color: "#7090c0",
-  glowColor: "#a0b8e0",
-  emissive: "#182840",
+  color: "#a0c0e8",
+  glowColor: "#d0e4ff",
+  emissive: "#4060a0",
 };
 
 export default function WorldSelector({ onSelect }) {
@@ -51,12 +51,15 @@ export default function WorldSelector({ onSelect }) {
     rend.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     mount.appendChild(rend.domElement);
 
-    scene.add(new THREE.AmbientLight("#e8e0d8", 0.5));
-    const sun = new THREE.DirectionalLight("#fff4e8", 0.9);
+    scene.add(new THREE.AmbientLight("#f0e8f0", 0.7));
+    const sun = new THREE.DirectionalLight("#fff8f0", 1.2);
     sun.position.set(3, 3, 4); scene.add(sun);
-    const rim = new THREE.PointLight("#d8c8b0", 0.4, 15);
+    const rim = new THREE.PointLight("#e0d0e8", 0.6, 15);
     rim.position.set(-3, -1, 2);
     scene.add(rim);
+    const fill = new THREE.PointLight("#d0c8f0", 0.3, 12);
+    fill.position.set(0, 2, -3);
+    scene.add(fill);
 
     // Stars
     const sP = new Float32Array(500 * 3);
@@ -70,20 +73,22 @@ export default function WorldSelector({ onSelect }) {
     // Center orb — MY WORLD (blue-ish)
     const centerOrb = new THREE.Mesh(
       new THREE.SphereGeometry(0.7, 48, 48),
-      new THREE.MeshPhongMaterial({ color: CENTER.color, emissive: CENTER.emissive, emissiveIntensity: 0.5, shininess: 14 })
+      new THREE.MeshPhongMaterial({ color: CENTER.color, emissive: CENTER.emissive, emissiveIntensity: 0.8, shininess: 20 })
     );
     scene.add(centerOrb);
-    [0.76, 0.84, 0.95, 1.1].forEach((r, i) => {
+    [0.76, 0.84, 0.95, 1.1, 1.3].forEach((r, i) => {
       scene.add(new THREE.Mesh(new THREE.SphereGeometry(r, 24, 24),
-        new THREE.MeshBasicMaterial({ color: CENTER.glowColor, transparent: true, opacity: 0.16 - i * 0.035, side: THREE.BackSide })));
+        new THREE.MeshBasicMaterial({ color: CENTER.glowColor, transparent: true, opacity: 0.22 - i * 0.038, side: THREE.BackSide })));
     });
 
     // Orbiting worlds
     const orbs = WORLDS.map((w, idx) => {
       const orb = new THREE.Mesh(new THREE.SphereGeometry(w.size, 32, 32),
-        new THREE.MeshPhongMaterial({ color: w.color, emissive: w.emissive, emissiveIntensity: 0.5, shininess: 18 }));
+        new THREE.MeshPhongMaterial({ color: w.color, emissive: w.emissive, emissiveIntensity: 0.8, shininess: 22 }));
       orb.add(new THREE.Mesh(new THREE.SphereGeometry(w.size + 0.08, 24, 24),
-        new THREE.MeshBasicMaterial({ color: w.glowColor, transparent: true, opacity: 0.2, side: THREE.BackSide })));
+        new THREE.MeshBasicMaterial({ color: w.glowColor, transparent: true, opacity: 0.3, side: THREE.BackSide })));
+      orb.add(new THREE.Mesh(new THREE.SphereGeometry(w.size + 0.18, 24, 24),
+        new THREE.MeshBasicMaterial({ color: w.glowColor, transparent: true, opacity: 0.15, side: THREE.BackSide })));
       scene.add(orb);
       return { mesh: orb, world: w, angleOffset: (idx / Math.max(WORLDS.length, 1)) * Math.PI * 2 };
     });
