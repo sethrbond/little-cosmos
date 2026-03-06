@@ -120,7 +120,7 @@ export const OUR_WORLD_SCENE = {
   particleColor: "#f8c0d8",
   particleColor2: "#e8c8f8",
   starTint: "#fce0f0",
-  coastColor: "#90e870",
+  coastColor: "#a0f080",
 };
 
 // Blue-tinged space, earthy/sandstone globe, green coasts
@@ -139,7 +139,7 @@ export const MY_WORLD_SCENE = {
   particleColor: "#b8c8d8",
   particleColor2: "#c8d8c8",
   starTint: "#d8e0f0",
-  coastColor: "#88d068",
+  coastColor: "#98e078",
 };
 
 // ============================================================
@@ -187,7 +187,7 @@ export const THEME_FIELDS = [
   { key: "glow",      label: "Glow Halo",        defaultOur: "#f4c0fc", defaultMy: "#98b8d8" },
   { key: "accent",    label: "Primary Accent",    defaultOur: "#d4a0b9", defaultMy: "#c0a068" },
   { key: "secondary", label: "Secondary Accent",  defaultOur: "#9bb5d6", defaultMy: "#7090a8" },
-  { key: "coast",     label: "Coastlines",        defaultOur: "#90e870", defaultMy: "#88d068" },
+  { key: "coast",     label: "Coastlines",        defaultOur: "#a0f080", defaultMy: "#98e078" },
   { key: "particles", label: "Particles",         defaultOur: "#f8c0d8", defaultMy: "#b8c8d8" },
   { key: "card",      label: "Card Background",   defaultOur: "#fdfbf7", defaultMy: "#f2eee6" },
   { key: "textColor", label: "Text Color",        defaultOur: "#3d3552", defaultMy: "#282830" },

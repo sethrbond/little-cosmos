@@ -1025,6 +1025,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const heartRef = useRef(null);
   const easterEggRef = useRef(null);
   const musicRef = useRef(null);
+  const ambientRef = useRef(null);
+  const [ambientPlaying, setAmbientPlaying] = useState(false);
   const glowLayersRef = useRef([]);
   const particlesRef = useRef(null);
 
@@ -1715,18 +1717,32 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     // Geography lines — Natural Earth 50m coastlines, always visible in glowing green
     const geoGroup = [];
     COAST_DATA.forEach(ring => {
+      // Primary coastline — bright and full opacity
       const pts = ring.map(c => ll2v(c[0], c[1], RAD * 1.003));
       const geom = new THREE.BufferGeometry().setFromPoints(pts);
       const mat = new THREE.LineBasicMaterial({
         color: SC.coastColor,
         transparent: true,
-        opacity: 0.85,
+        opacity: 1.0,
         linewidth: 1,
       });
       const line = new THREE.Line(geom, mat);
       line.renderOrder = -1;
       globe.add(line);
       geoGroup.push({ line, mat });
+      // Secondary glow line — slightly larger radius, softer, for thickness illusion
+      const pts2 = ring.map(c => ll2v(c[0], c[1], RAD * 1.005));
+      const geom2 = new THREE.BufferGeometry().setFromPoints(pts2);
+      const mat2 = new THREE.LineBasicMaterial({
+        color: SC.coastColor,
+        transparent: true,
+        opacity: 0.45,
+        linewidth: 1,
+      });
+      const line2 = new THREE.Line(geom2, mat2);
+      line2.renderOrder = -2;
+      globe.add(line2);
+      geoGroup.push({ line: line2, mat: mat2 });
     });
     // geoGroup managed via closure in animation loop
 
@@ -1907,11 +1923,13 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         ag.attributes.position.needsUpdate = true;
       }
 
-      // Geography lines — always bright, even more vivid on zoom
+      // Geography lines — primary at full opacity, glow lines softer
       const zoomFactor = clamp((3.5 - zmR.current) / 2.0, 0, 1);
-      geoGroup.forEach(g => {
-        g.mat.opacity = 0.85 + zoomFactor * 0.15; // 0.85 base → 1.0 at max zoom
-      });
+      for (let gi = 0; gi < geoGroup.length; gi++) {
+        const g = geoGroup[gi];
+        // Even indices = primary lines, odd = glow lines
+        g.mat.opacity = gi % 2 === 0 ? 1.0 : 0.35 + zoomFactor * 0.25;
+      }
 
       rend.render(scene, cam);
     };
@@ -2253,8 +2271,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
       {/* TITLE */}
       <div style={{ position: "absolute", top: 22, left: 0, right: 0, textAlign: "center", zIndex: 10, pointerEvents: "none", opacity: ready ? 1 : 0, transform: ready ? "none" : "translateY(-12px)", transition: "all 1.8s cubic-bezier(.23,1,.32,1)" }}>
-        <h1 style={{ fontSize: 28, fontWeight: 400, margin: 0, letterSpacing: ".2em", textTransform: "uppercase", color: "#2a2038", textShadow: "0 1px 12px rgba(0,0,0,0.3), 0 0 40px rgba(255,255,255,0.15)" }}>{config.title}</h1>
-        <p style={{ fontSize: 11, color: "#5a4868", marginTop: 3, letterSpacing: ".35em", fontStyle: "italic", textShadow: "0 1px 8px rgba(0,0,0,0.2)" }}>{config.subtitle}</p>
+        <h1 style={{ fontSize: 28, fontWeight: 400, margin: 0, letterSpacing: ".2em", textTransform: "uppercase", color: "#f0e8d8", textShadow: "0 1px 12px rgba(0,0,0,0.5), 0 0 40px rgba(255,255,255,0.12)" }}>{config.title}</h1>
+        <p style={{ fontSize: 11, color: "#c8bca8", marginTop: 3, letterSpacing: ".35em", fontStyle: "italic", textShadow: "0 1px 8px rgba(0,0,0,0.4)" }}>{config.subtitle}</p>
         {!isMyWorld && isAnniversary && <div style={{ fontSize: 11, color: P.heart, marginTop: 6, letterSpacing: ".15em", animation: "heartPulse 2s ease infinite" }}>✨ Happy Anniversary ✨</div>}
       </div>
 
@@ -2355,9 +2373,18 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         {<TBtn a={showDreams} onClick={() => setShowDreams(v => !v)} tip={isMyWorld ? "Bucket List" : "Dream Destinations"}>{isMyWorld ? "🗺" : "✦"}</TBtn>}
         {(isMyWorld ? data.entries.length > 0 : togetherList.length > 0) && !isPlaying && <TBtn onClick={playStory} tip={isMyWorld ? "Play My Story" : "Play Our Story"}>▶</TBtn>}
         {isPlaying && <TBtn onClick={stopPlay} a tip="Stop Playback">⏹</TBtn>}
+        {config.ambientMusicUrl && <TBtn a={ambientPlaying} onClick={() => {
+          const au = ambientRef.current;
+          if (!au) return;
+          if (ambientPlaying) { au.pause(); setAmbientPlaying(false); }
+          else { au.play().catch(() => {}); setAmbientPlaying(true); }
+        }} tip={ambientPlaying ? "Pause Ambient Music" : "Play Ambient Music"}>{ambientPlaying ? "🔊" : "🎵"}</TBtn>}
         {onSwitchWorld && <TBtn onClick={onSwitchWorld} tip="Switch World">🔄</TBtn>}
         <TBtn onClick={() => { if (window.confirm("Sign out of My Cosmos?")) signOut(); }} tip="Sign Out">🚪</TBtn>
       </div>
+
+      {/* AMBIENT MUSIC — persistent audio element */}
+      {config.ambientMusicUrl && <audio ref={ambientRef} src={config.ambientMusicUrl} loop preload="none" style={{ display: "none" }} onEnded={() => setAmbientPlaying(false)} />}
 
       {/* SEARCH PANEL */}
       {showSearch && (
@@ -2978,6 +3005,11 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 </button>
               </>;
             })()}
+
+            <div style={{ margin: "14px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
+            <div style={{ fontSize: 8, color: P.textMid, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 4, fontWeight: 500 }}>🎵 Ambient Music</div>
+            <p style={{ fontSize: 8, color: P.textFaint, fontStyle: "italic", marginBottom: 6 }}>Paste an audio URL to play background music while exploring your globe. A 🎵 button will appear in the toolbar.</p>
+            <input value={config.ambientMusicUrl || ""} onChange={e => setConfig({ ambientMusicUrl: e.target.value || "" })} placeholder="https://example.com/song.mp3" style={inpSt()} />
 
             <div style={{ margin: "14px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
             <div style={{ fontSize: 8, color: P.textMid, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 6, fontWeight: 500 }}>Timeline Chapters</div>

@@ -161,6 +161,7 @@ export async function loadConfig() {
     if (typeof data.metadata.darkMode === 'boolean') cfg.darkMode = data.metadata.darkMode
     if (data.metadata.customPalette && typeof data.metadata.customPalette === 'object') cfg.customPalette = data.metadata.customPalette
     if (data.metadata.customScene && typeof data.metadata.customScene === 'object') cfg.customScene = data.metadata.customScene
+    if (data.metadata.ambientMusicUrl) cfg.ambientMusicUrl = data.metadata.ambientMusicUrl
   }
   return cfg
 }
@@ -178,6 +179,7 @@ export async function saveConfig(config) {
       darkMode: config.darkMode ?? false,
       customPalette: config.customPalette || {},
       customScene: config.customScene || {},
+      ambientMusicUrl: config.ambientMusicUrl || '',
     },
   }
   const { error } = await supabase.from('my_config').upsert(row, { onConflict: 'id' })
@@ -249,6 +251,7 @@ export function createMyWorldDB(userId) {
         if (typeof data.metadata.darkMode === 'boolean') cfg.darkMode = data.metadata.darkMode
         if (data.metadata.customPalette && typeof data.metadata.customPalette === 'object') cfg.customPalette = data.metadata.customPalette
         if (data.metadata.customScene && typeof data.metadata.customScene === 'object') cfg.customScene = data.metadata.customScene
+        if (data.metadata.ambientMusicUrl) cfg.ambientMusicUrl = data.metadata.ambientMusicUrl
       }
       return cfg
     },
@@ -266,6 +269,7 @@ export function createMyWorldDB(userId) {
           darkMode: config.darkMode ?? false,
           customPalette: config.customPalette || {},
           customScene: config.customScene || {},
+          ambientMusicUrl: config.ambientMusicUrl || '',
         },
       }
       const { error } = await supabase.from('my_config').upsert(row, { onConflict: 'id' })
@@ -312,6 +316,7 @@ export function createFriendWorldDB(friendUserId) {
         if (typeof data.metadata.darkMode === 'boolean') cfg.darkMode = data.metadata.darkMode
         if (data.metadata.customPalette && typeof data.metadata.customPalette === 'object') cfg.customPalette = data.metadata.customPalette
         if (data.metadata.customScene && typeof data.metadata.customScene === 'object') cfg.customScene = data.metadata.customScene
+        if (data.metadata.ambientMusicUrl) cfg.ambientMusicUrl = data.metadata.ambientMusicUrl
       }
       return cfg
     },
