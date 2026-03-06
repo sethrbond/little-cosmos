@@ -224,6 +224,72 @@ export const FAMILY_SCENE = {
   coastColor: "#509858",
 };
 
+// ============================================================
+//  FRIENDS WORLD — entry types, fields, defaults
+// ============================================================
+
+export const FRIENDS_TYPES = {
+  "group-trip":  { label: "Group Trip",       icon: "\u{1F30D}", color: "together", who: "group", symbol: "together" },
+  "weekend":     { label: "Weekend Away",     icon: "\u{1F3D5}\uFE0F", color: "sage",     who: "group", symbol: "tent" },
+  "night-out":   { label: "Night Out",        icon: "\u{1F378}", color: "rose",     who: "group", symbol: "burst" },
+  "hangout":     { label: "Hangout",          icon: "\u{1F3E0}", color: "sky",      who: "group", symbol: "home-seth" },
+  "concert":     { label: "Concert & Event",  icon: "\u{1F3B6}", color: "special",  who: "group", symbol: "burst" },
+  "sports":      { label: "Sports & Activity",icon: "\u{1F3C4}", color: "skySoft",  who: "group", symbol: "wave" },
+  "food":        { label: "Food & Drinks",    icon: "\u{1F37B}", color: "gold",     who: "group", symbol: "diamond" },
+  "reunion":     { label: "Reunion",          icon: "\u{1F91D}", color: "heart",    who: "group", symbol: "people" },
+  "adventure":   { label: "Adventure",        icon: "\u26F0\uFE0F", color: "sage",  who: "group", symbol: "compass" },
+  "milestone":   { label: "Milestone",        icon: "\u{1F389}", color: "special",  who: "group", symbol: "star" },
+};
+
+export const FRIENDS_FIELDS = {
+  memories:    { label: "Best Moments",      icon: "\u{1F4AB}" },
+  highlights:  { label: "Highlights",        icon: "\u2728" },
+  museums:     { label: "Places & Culture",  icon: "\u{1F3DB}" },
+  restaurants: { label: "Food & Drinks",     icon: "\u{1F37B}" },
+};
+
+export const FRIENDS_DEFAULT_CONFIG = {
+  startDate: "",
+  title: "Friends World",
+  subtitle: "adventures together",
+  chapters: [],
+  dreamDestinations: [],
+  darkMode: false,
+};
+
+// ============================================================
+//  FAMILY WORLD — entry types, fields, defaults
+// ============================================================
+
+export const FAMILY_TYPES = {
+  "family-trip":  { label: "Family Trip",      icon: "\u{1F46A}", color: "together", who: "family", symbol: "people" },
+  "holiday":      { label: "Holiday",          icon: "\u{1F384}", color: "special",  who: "family", symbol: "star" },
+  "gathering":    { label: "Family Gathering", icon: "\u{1F3E1}", color: "rose",     who: "family", symbol: "home-seth" },
+  "celebration":  { label: "Celebration",      icon: "\u{1F382}", color: "heart",    who: "family", symbol: "burst" },
+  "road-trip":    { label: "Road Trip",        icon: "\u{1F697}", color: "gold",     who: "family", symbol: "car" },
+  "outdoors":     { label: "Outdoors",         icon: "\u{1F332}", color: "sage",     who: "family", symbol: "mountain" },
+  "beach":        { label: "Beach & Coast",    icon: "\u{1F3D6}\uFE0F", color: "skyLight", who: "family", symbol: "wave" },
+  "tradition":    { label: "Tradition",        icon: "\u2764\uFE0F", color: "roseSoft", who: "family", symbol: "heart" },
+  "milestone":    { label: "Milestone",        icon: "\u{1F393}", color: "special",  who: "family", symbol: "diamond" },
+  "home":         { label: "Home & Everyday",  icon: "\u{1F3E0}", color: "sky",      who: "family", symbol: "house" },
+};
+
+export const FAMILY_FIELDS = {
+  memories:    { label: "Family Moments",    icon: "\u{1F4AB}" },
+  highlights:  { label: "Highlights",        icon: "\u2728" },
+  museums:     { label: "Places & Culture",  icon: "\u{1F3DB}" },
+  restaurants: { label: "Food & Meals",      icon: "\u{1F37D}" },
+};
+
+export const FAMILY_DEFAULT_CONFIG = {
+  startDate: "",
+  title: "Family World",
+  subtitle: "family adventures",
+  chapters: [],
+  dreamDestinations: [],
+  darkMode: false,
+};
+
 // Helper to get palette/scene for a shared world type
 export function getSharedWorldConfig(worldType) {
   switch (worldType) {

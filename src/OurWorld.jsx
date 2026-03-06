@@ -11,6 +11,8 @@ import {
   OUR_WORLD_DEFAULT_CONFIG, MY_WORLD_DEFAULT_CONFIG,
   OUR_WORLD_FIELDS, MY_WORLD_FIELDS,
   OUR_WORLD_SCENE, MY_WORLD_SCENE,
+  FRIENDS_TYPES, FRIENDS_FIELDS, FRIENDS_DEFAULT_CONFIG,
+  FAMILY_TYPES, FAMILY_FIELDS, FAMILY_DEFAULT_CONFIG,
   getSeasonalHue, resolveTypes, getSharedWorldConfig,
 } from "./worldConfigs.js";
 import { sendWelcomeLetter, getMyLetters, deleteWelcomeLetter } from "./supabaseWelcomeLetters.js";
@@ -858,8 +860,15 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const isFriendWorld = worldMode === "friend";
   const isSharedWorld = worldMode === "our" && !!worldId;
   const isViewer = worldRole === "viewer" || isFriendWorld;
-  const DEFAULT_CONFIG = isMyWorld ? MY_WORLD_DEFAULT_CONFIG : OUR_WORLD_DEFAULT_CONFIG;
-  const FIELD_LABELS = isMyWorld ? MY_WORLD_FIELDS : OUR_WORLD_FIELDS;
+  const isPartnerWorld = !isMyWorld && (!worldType || worldType === "partner" || worldType === "shared");
+  const DEFAULT_CONFIG = isMyWorld ? MY_WORLD_DEFAULT_CONFIG
+    : worldType === "friends" ? FRIENDS_DEFAULT_CONFIG
+    : worldType === "family" ? FAMILY_DEFAULT_CONFIG
+    : OUR_WORLD_DEFAULT_CONFIG;
+  const FIELD_LABELS = isMyWorld ? MY_WORLD_FIELDS
+    : worldType === "friends" ? FRIENDS_FIELDS
+    : worldType === "family" ? FAMILY_FIELDS
+    : OUR_WORLD_FIELDS;
   useEffect(() => {
     const typeLabel = { partner: "Partner", friends: "Friends", family: "Family" }[worldType] || "";
     document.title = isFriendWorld ? `${worldName || "Friend's World"} — Little Cosmos`
@@ -902,8 +911,17 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     }
     return { ...baseScene, ...(config.customScene || {}) };
   }, [isMyWorld, worldType, config.customScene]);
-  const TYPES = useMemo(() => resolveTypes(isMyWorld ? MY_WORLD_TYPES : OUR_WORLD_TYPES, _paletteBase), [isMyWorld, _paletteBase]);
-  const DEFAULT_TYPE = isMyWorld ? TYPES.adventure : TYPES.together;
+  const TYPES = useMemo(() => {
+    const base = isMyWorld ? MY_WORLD_TYPES
+      : worldType === "friends" ? FRIENDS_TYPES
+      : worldType === "family" ? FAMILY_TYPES
+      : OUR_WORLD_TYPES;
+    return resolveTypes(base, _paletteBase);
+  }, [isMyWorld, worldType, _paletteBase]);
+  const DEFAULT_TYPE = isMyWorld ? TYPES.adventure
+    : worldType === "friends" ? (TYPES["group-trip"] || Object.values(TYPES)[0])
+    : worldType === "family" ? (TYPES["family-trip"] || Object.values(TYPES)[0])
+    : TYPES.together;
 
   useEffect(() => {
     (async () => {
@@ -912,8 +930,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         dispatch({ type: "LOAD", entries: entries || [] });
         if (cfg) {
           const merged = { ...DEFAULT_CONFIG, ...cfg };
-          // Migrate legacy single loveLetter to loveLetters array (Our World only)
-          if (!isMyWorld && merged.loveLetter && (!merged.loveLetters || merged.loveLetters.length === 0)) {
+          // Migrate legacy single loveLetter to loveLetters array (partner worlds only)
+          if (isPartnerWorld && merged.loveLetter && (!merged.loveLetters || merged.loveLetters.length === 0)) {
             merged.loveLetters = [{ id: `ll-legacy`, text: merged.loveLetter, lat: 48.8566, lng: 2.3522, city: "Paris" }];
             merged.loveLetter = "";
           }
@@ -2057,7 +2075,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       cam.position.z = zmR.current;
 
       // Easter egg: fade in "you are my world" when zoomed all the way out (shared worlds only)
-      if (easterEggRef.current) easterEggRef.current.style.opacity = isSharedWorld && zmR.current > 5.5 ? Math.min(1, (zmR.current - 5.5) * 2) : 0;
+      if (easterEggRef.current) easterEggRef.current.style.opacity = isPartnerWorld && isSharedWorld && zmR.current > 5.5 ? Math.min(1, (zmR.current - 5.5) * 2) : 0;
 
       // Zoom-based marker scaling with gentle breathing
       const mkScale = Math.min(1.2, Math.max(0.35, zmR.current / 3.5));
@@ -2162,8 +2180,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     glowLayersRef.current.forEach((mesh, i) => {
       mesh.material.color.set(i < 2 ? s.glow : P.cream);
     });
-    if (particlesRef.current) particlesRef.current.material.color.set(!isMyWorld && isAnniversary ? P.heart : s.particle);
-    if (!isMyWorld && isAnniversary && particlesRef.current) particlesRef.current.material.opacity = 0.35;
+    if (particlesRef.current) particlesRef.current.material.color.set(isPartnerWorld && isAnniversary ? P.heart : s.particle);
+    if (isPartnerWorld && isAnniversary && particlesRef.current) particlesRef.current.material.opacity = 0.35;
     else if (particlesRef.current) particlesRef.current.material.opacity = 0.18;
   }, [season, isAnniversary]);
 
@@ -2211,17 +2229,17 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       mkRef.current.push(makeDot(g, loc.lat, loc.lng, color, size, entryId, false, icon));
     });
 
-    // ---- Person 1 ("you") position dot (from slider) ---- (Our World only)
-    if (!isMyWorld && positions.seth && !areTogether) {
+    // ---- Person 1 ("you") position dot (from slider) ---- (partner only)
+    if (isPartnerWorld && positions.seth && !areTogether) {
       mkRef.current.push(makeDot(g, positions.seth.lat, positions.seth.lng, P.sky, 0.022, "seth-pos", false));
     }
-    // ---- Person 2 ("partner") position dot (from slider) ---- (Our World only)
-    if (!isMyWorld && positions.rosie && !areTogether) {
+    // ---- Person 2 ("partner") position dot (from slider) ---- (partner only)
+    if (isPartnerWorld && positions.rosie && !areTogether) {
       mkRef.current.push(makeDot(g, positions.rosie.lat, positions.rosie.lng, P.rose, 0.022, "rosie-pos", false));
     }
 
-    // ---- Heart on together location ---- (Our World only)
-    if (!isMyWorld) {
+    // ---- Heart on together location ---- (partner only)
+    if (isPartnerWorld) {
       if (areTogether && positions.together) {
         if (heartRef.current) {
           const hp = ll2v(positions.together.lat, positions.together.lng, RAD * 1.05);
@@ -2231,8 +2249,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       } else if (heartRef.current) { heartRef.current.visible = false; }
     } else if (heartRef.current) { heartRef.current.visible = false; }
 
-    // ---- Distance line when apart ---- (Our World only)
-    if (!isMyWorld && positions.seth && positions.rosie && !areTogether) {
+    // ---- Distance line when apart ---- (partner only)
+    if (isPartnerWorld && positions.seth && positions.rosie && !areTogether) {
       const from = ll2v(positions.seth.lat, positions.seth.lng, RAD * 1.08);
       const to = ll2v(positions.rosie.lat, positions.rosie.lng, RAD * 1.08);
       const mid = from.clone().add(to).multiplyScalar(0.5);
@@ -2263,7 +2281,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     // ---- LOVE THREAD — golden arcs connecting all together entries ---- (Our World only)
     loveThreadRef.current.forEach(l => { g.remove(l); l.geometry?.dispose(); l.material?.dispose(); });
     loveThreadRef.current = [];
-    if (!isMyWorld && showLoveThread) {
+    if (isPartnerWorld && showLoveThread) {
       loveThreadData.forEach(({ from, to }) => {
         const f = ll2v(from.lat, from.lng, RAD * 1.03);
         const t = ll2v(to.lat, to.lng, RAD * 1.03);
@@ -2298,8 +2316,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       mkRef.current.push(makeDot(g, dream.lat, dream.lng, P.goldWarm, 0.016, `dream-${dream.id}`, true, "dream"));
     });
 
-    // ---- LOVE LETTERS — hidden flower markers scattered on globe ---- (Our World only)
-    if (!isMyWorld) {
+    // ---- LOVE LETTERS — hidden flower markers scattered on globe ---- (partner only)
+    if (isPartnerWorld) {
       (config.loveLetters || []).forEach(letter => {
         mkRef.current.push(makeDot(g, letter.lat, letter.lng, "#e8a878", 0.018, `love-${letter.id}`, false, "love-letter"));
       });
@@ -2488,7 +2506,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       <div style={{ position: "absolute", top: 22, left: 0, right: 0, textAlign: "center", zIndex: 10, pointerEvents: "none", opacity: ready ? 1 : 0, transform: ready ? "none" : "translateY(-12px)", transition: "all 1.8s cubic-bezier(.23,1,.32,1)" }}>
         <h1 style={{ fontSize: 28, fontWeight: 400, margin: 0, letterSpacing: ".2em", textTransform: "uppercase", color: "#f0e8d8", textShadow: "0 1px 12px rgba(0,0,0,0.5), 0 0 40px rgba(255,255,255,0.12)" }}>{config.title}</h1>
         <p style={{ fontSize: 11, color: "#c8bca8", marginTop: 3, letterSpacing: ".35em", fontStyle: "italic", textShadow: "0 1px 8px rgba(0,0,0,0.4)" }}>{config.subtitle}</p>
-        {!isMyWorld && isAnniversary && <div style={{ fontSize: 11, color: P.heart, marginTop: 6, letterSpacing: ".15em", animation: "heartPulse 2s ease infinite" }}>✨ Happy Anniversary ✨</div>}
+        {isPartnerWorld && isAnniversary && <div style={{ fontSize: 11, color: P.heart, marginTop: 6, letterSpacing: ".15em", animation: "heartPulse 2s ease infinite" }}>✨ Happy Anniversary ✨</div>}
       </div>
 
       {/* ZOOM HINT — fades after 4 seconds */}
@@ -2502,13 +2520,13 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
       {/* RIGHT PANEL — distance + stats */}
       <div style={{ position: "absolute", top: isMobile ? 14 : 22, right: isMobile ? 12 : 22, zIndex: 10, textAlign: "right", opacity: introComplete ? .8 : 0, transition: "opacity 1s ease", maxWidth: isMobile ? 130 : 180 }}>
-        {!isMyWorld && dist !== null && (
+        {isPartnerWorld && dist !== null && (
           <div style={{ marginBottom: 4 }}>
             {areTogether ? <div style={{ fontSize: 16, color: P.heart, animation: "heartPulse 1.5s ease infinite" }}>💕 Together</div>
               : <div style={{ fontSize: 13, color: P.textMid }}><span style={{ color: P.rose }}>♥</span> {dist.toLocaleString()} mi apart</div>}
           </div>
         )}
-        {!isMyWorld && nextTogether && !areTogether && (
+        {isPartnerWorld && nextTogether && !areTogether && (
           <div style={{ fontSize: 10, color: P.goldWarm, letterSpacing: ".08em", marginBottom: 4, fontWeight: 500, textShadow: "0 1px 3px rgba(0,0,0,.15)" }}>
             {daysBetween(todayStr(), nextTogether.dateStart)} days until together 💛
           </div>
@@ -2516,7 +2534,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         {!isMobile && <div style={{ fontSize: 8, color: P.textMid, letterSpacing: ".08em", lineHeight: 1.6, textShadow: "0 1px 6px rgba(0,0,0,0.2)" }}>
           {isMyWorld
             ? <>{data.entries.length} trips · {stats.countries} countries<br />{stats.totalMiles.toLocaleString()} miles explored</>
-            : <>{stats.daysTog} days together<br />{stats.trips} adventures · {stats.countries} countries<br />{stats.totalMiles.toLocaleString()} miles traveled</>
+            : isPartnerWorld
+            ? <>{stats.daysTog} days together<br />{stats.trips} adventures · {stats.countries} countries<br />{stats.totalMiles.toLocaleString()} miles traveled</>
+            : <>{data.entries.length} trips · {stats.countries} countries<br />{stats.totalMiles.toLocaleString()} miles traveled</>
           }
         </div>}
         {/* Entry type filter + scrollable entry list */}
@@ -2588,10 +2608,10 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         {allPhotos.length > 2 && <TBtn onClick={() => { setShowPhotoJourney(true); setPjIndex(0); }} tip="Photo Journey">🎞</TBtn>}
         {data.entries.length > 0 && <TBtn a={showStats} onClick={() => setShowStats(v => !v)} tip="Stats & Insights">📊</TBtn>}
         {data.entries.length > 0 && <TBtn a={showSearch} onClick={() => setShowSearch(v => !v)} tip="Search Entries">🔍</TBtn>}
-        {!isMyWorld && togetherList.length > 1 && <TBtn a={showLoveThread} onClick={() => setShowLoveThread(v => !v)} tip="Love Thread">🧵</TBtn>}
+        {isPartnerWorld && togetherList.length > 1 && <TBtn a={showLoveThread} onClick={() => setShowLoveThread(v => !v)} tip="Love Thread">🧵</TBtn>}
         {data.entries.length > 2 && <TBtn a={showConstellation} onClick={() => setShowConstellation(v => !v)} tip="Constellation">⭐</TBtn>}
-        {<TBtn a={showDreams} onClick={() => setShowDreams(v => !v)} tip={isMyWorld ? "Bucket List" : "Dream Destinations"}>{isMyWorld ? "🗺" : "✦"}</TBtn>}
-        {(isMyWorld ? data.entries.length > 0 : togetherList.length > 0) && !isPlaying && <TBtn onClick={playStory} tip={isMyWorld ? "Play My Story" : "Play Our Story"}>▶</TBtn>}
+        {<TBtn a={showDreams} onClick={() => setShowDreams(v => !v)} tip={isMyWorld ? "Bucket List" : isPartnerWorld ? "Dream Destinations" : "Wish List"}>{isMyWorld ? "🗺" : "✦"}</TBtn>}
+        {(isPartnerWorld ? togetherList.length > 0 : data.entries.length > 0) && !isPlaying && <TBtn onClick={playStory} tip={isMyWorld ? "Play My Story" : isPartnerWorld ? "Play Our Story" : "Play Story"}>▶</TBtn>}
         {isPlaying && <TBtn onClick={stopPlay} a tip="Stop Playback">⏹</TBtn>}
         {config.ambientMusicUrl && <TBtn a={ambientPlaying} onClick={() => {
           const au = ambientRef.current;
@@ -2641,8 +2661,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         </div>
       )}
 
-      {/* LOVE LETTER TRIGGERS — small ❀ markers in bottom-right (Our World only) */}
-      {!isMyWorld && (config.loveLetters || []).length > 0 && (
+      {/* LOVE LETTER TRIGGERS — small ❀ markers in bottom-right (partner only) */}
+      {isPartnerWorld && (config.loveLetters || []).length > 0 && (
         <div style={{ position: "absolute", bottom: 118, right: 22, zIndex: 12, display: "flex", flexDirection: "column", gap: 4 }}>
           {(config.loveLetters || []).map((lt, i) => (
             <button key={lt.id} onClick={() => setShowLetter(lt.id)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, opacity: 0.22, transition: "opacity .5s", padding: 2 }}
@@ -2651,26 +2671,28 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           ))}
         </div>
       )}
-      {!isMyWorld && !isViewer && (
+      {isPartnerWorld && !isViewer && (
         <button onClick={() => { setEditLetter(true); setLetterDraft(""); setLetterEditId(null); setLetterCity(""); setLetterLat(""); setLetterLng(""); }} style={{ position: "absolute", bottom: 118, right: (config.loveLetters || []).length > 0 ? 50 : 22, zIndex: 12, background: P.glass, border: `1px dashed ${P.rose}40`, borderRadius: 7, cursor: "pointer", fontSize: 9, color: P.textMuted, padding: "3px 9px", fontFamily: "inherit", transition: "right .3s" }}>+ Love Letter</button>
       )}
 
       {/* SLIDER */}
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 105, background: P.glass, backdropFilter: "blur(16px)", borderTop: `1px solid ${P.rose}10`, zIndex: 15, display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 22px" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 6 }}>
-          {!isMyWorld && <button onClick={() => jumpNext(-1)} disabled={isAnimating} style={navSt()} title="Previous together">💕◂</button>}
+          {isPartnerWorld && <button onClick={() => jumpNext(-1)} disabled={isAnimating} style={navSt()} title="Previous together">💕◂</button>}
           <button onClick={() => stepDay(-1)} disabled={isAnimating} style={navSt()}>◂</button>
           <div style={{ minWidth: 150, textAlign: "center" }}>
             <div style={{ fontSize: 15, color: P.text, fontWeight: 400 }}>{fmtDate(sliderDate)}</div>
-            <div style={{ fontSize: 9, color: isMyWorld ? P.textMid : (areTogether ? P.heart : P.textFaint), letterSpacing: ".1em", marginTop: 1 }}>
+            <div style={{ fontSize: 9, color: isMyWorld ? P.textMid : (isPartnerWorld && areTogether ? P.heart : P.textFaint), letterSpacing: ".1em", marginTop: 1 }}>
               {isMyWorld
                 ? (pos.seth?.entry?.city ? `📍 ${pos.seth.entry.city}` : "Add entries to begin")
-                : (areTogether ? `✨ ${pos.together?.city || "Together"} ✨` : pos.seth && pos.rosie ? `${pos.seth.entry?.city || "?"} ↔ ${pos.rosie.entry?.city || "?"}` : "Add entries to begin")
+                : isPartnerWorld
+                ? (areTogether ? `✨ ${pos.together?.city || "Together"} ✨` : pos.seth && pos.rosie ? `${pos.seth.entry?.city || "?"} ↔ ${pos.rosie.entry?.city || "?"}` : "Add entries to begin")
+                : (data.entries.length > 0 ? `📍 ${data.entries[0]?.city || ""}` : "Add entries to begin")
               }
             </div>
           </div>
           <button onClick={() => stepDay(1)} disabled={isAnimating} style={navSt()}>▸</button>
-          {!isMyWorld && <button onClick={() => jumpNext(1)} disabled={isAnimating} style={navSt()} title="Next together">▸💕</button>}
+          {isPartnerWorld && <button onClick={() => jumpNext(1)} disabled={isAnimating} style={navSt()} title="Next together">▸💕</button>}
         </div>
         <div style={{ position: "relative", width: "100%", height: 24, display: "flex", alignItems: "center" }}>
           <input type="range" min={0} max={totalDays} value={clamp(sliderVal, 0, totalDays)}
@@ -2817,7 +2839,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             </div>
 
             {firstBadges[cur.id] && <div style={{ fontSize: 8, color: P.gold, letterSpacing: ".12em", marginBottom: 4 }}>🏅 {firstBadges[cur.id]}</div>}
-            {!isMyWorld && togetherIndex(cur.id) && <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".1em", marginBottom: 4 }}>Trip #{togetherIndex(cur.id)}</div>}
+            {isPartnerWorld && togetherIndex(cur.id) && <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".1em", marginBottom: 4 }}>Trip #{togetherIndex(cur.id)}</div>}
 
             <div style={{ display: "inline-block", padding: "2px 7px", borderRadius: 14, fontSize: 7, letterSpacing: ".08em", color: (TYPES[cur.type] || DEFAULT_TYPE).color, border: `1px solid ${(TYPES[cur.type] || DEFAULT_TYPE).color}28`, marginBottom: 5 }}>
               {(TYPES[cur.type] || DEFAULT_TYPE).icon} {(TYPES[cur.type] || DEFAULT_TYPE).label}
@@ -2855,9 +2877,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               {cardTab === "overview" && (<>
                 {cur.notes && <p style={{ fontSize: 12, lineHeight: 1.6, margin: "0 0 8px", opacity: .85 }}>{cur.notes}</p>}
                 {(cur.stops || []).length > 0 && (<div style={{ marginTop: 8 }}><div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".16em", textTransform: "uppercase", marginBottom: 4 }}>Trip Route</div>{cur.stops.map(s => <div key={s.sid} style={{ padding: "5px 8px", background: `${P.rose}08`, borderRadius: 6, marginBottom: 4, borderLeft: `2px solid ${P.rose}30` }}><div style={{ fontSize: 11, fontWeight: 500 }}>{s.city}</div>{s.dateStart && <div style={{ fontSize: 9, color: P.textFaint }}>{fmtDate(s.dateStart)}{s.dateEnd ? ` → ${fmtDate(s.dateEnd)}` : ""}</div>}{s.notes && <p style={{ fontSize: 10, color: P.textMid, margin: "2px 0 0" }}>{s.notes}</p>}</div>)}</div>)}
-                {cur.musicUrl && <div style={{ marginTop: 8, padding: "6px 8px", background: `${P.lavender}0a`, borderRadius: 6 }}><div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 3 }}>{isMyWorld ? "Music" : "Our Song"}</div><audio ref={musicRef} controls src={cur.musicUrl} style={{ width: "100%", height: 26 }} /></div>}
-                {/* Love Note — Our World only */}
-                {!isMyWorld && <div style={{ marginTop: 10, padding: "10px 12px", background: `${P.heart}06`, borderRadius: 8, borderLeft: `2px solid ${P.heart}20` }}>
+                {cur.musicUrl && <div style={{ marginTop: 8, padding: "6px 8px", background: `${P.lavender}0a`, borderRadius: 6 }}><div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 3 }}>{isPartnerWorld ? "Our Song" : "Music"}</div><audio ref={musicRef} controls src={cur.musicUrl} style={{ width: "100%", height: 26 }} /></div>}
+                {/* Love Note — partner worlds only */}
+                {isPartnerWorld && <div style={{ marginTop: 10, padding: "10px 12px", background: `${P.heart}06`, borderRadius: 8, borderLeft: `2px solid ${P.heart}20` }}>
                   <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 4 }}>💌 Love Note</div>
                   {cur.loveNote ? <p style={{ fontSize: 11, lineHeight: 1.6, color: P.textMid, margin: 0, fontStyle: "italic" }}>{cur.loveNote}</p>
                   : !isViewer ? <input placeholder="Write a note about this memory..." onBlur={e => { if (e.target.value.trim()) dispatch({ type: "UPDATE", id: cur.id, data: { loveNote: e.target.value.trim() } }); }}
@@ -3029,16 +3051,16 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         </div>
       )}
 
-      {!isMyWorld && showLetter && (() => {
+      {isPartnerWorld && showLetter && (() => {
         const letter = (config.loveLetters || []).find(l => l.id === showLetter);
         if (!letter) return null;
         return (
         <div onClick={() => setShowLetter(null)} style={{ position: "absolute", inset: 0, zIndex: 50, background: `linear-gradient(135deg, rgba(22,16,40,.84), rgba(30,24,48,.90))`, backdropFilter: "blur(30px)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", animation: "fadeIn .8s ease" }}>
           <div style={{ maxWidth: 460, padding: 36, textAlign: "center" }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 30, marginBottom: 14 }}>💌</div>
-            {letter.city && <div style={{ fontSize: 9, color: P.textFaint, letterSpacing: ".12em", marginBottom: 8 }}>found near {letter.city}</div>}
-            <p style={{ fontSize: 14, lineHeight: 2, color: P.text, whiteSpace: "pre-wrap", fontStyle: "italic" }}>{letter.text}</p>
-            <p style={{ fontSize: 10, color: P.textFaint, marginTop: 20, letterSpacing: ".15em" }}>— {config.youName || "You"}</p>
+            {letter.city && <div style={{ fontSize: 9, color: "#a098b0", letterSpacing: ".12em", marginBottom: 8 }}>found near {letter.city}</div>}
+            <p style={{ fontSize: 14, lineHeight: 2, color: "#e8dcd0", whiteSpace: "pre-wrap", fontStyle: "italic" }}>{letter.text}</p>
+            <p style={{ fontSize: 10, color: "#a098b0", marginTop: 20, letterSpacing: ".15em" }}>— {config.youName || "You"}</p>
             {<div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 14 }}>
               <button onClick={() => { setLetterEditId(letter.id); setLetterDraft(letter.text); setLetterCity(letter.city || ""); setLetterLat(letter.lat?.toString() || ""); setLetterLng(letter.lng?.toString() || ""); setEditLetter(true); setShowLetter(null); }} style={{ background: "none", border: `1px solid ${P.rose}28`, borderRadius: 5, padding: "4px 12px", fontSize: 9, color: P.textMuted, cursor: "pointer", fontFamily: "inherit" }}>Edit</button>
               <button onClick={() => { setConfig({ loveLetters: (config.loveLetters || []).filter(l => l.id !== letter.id) }); setShowLetter(null); }} style={{ background: "none", border: `1px solid #c97a7a28`, borderRadius: 5, padding: "4px 12px", fontSize: 9, color: "#c97a7a", cursor: "pointer", fontFamily: "inherit" }}>Remove</button>
@@ -3047,7 +3069,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         </div>);
       })()}
 
-      {!isMyWorld && editLetter && (
+      {isPartnerWorld && editLetter && (
         <div style={{ position: "absolute", inset: 0, zIndex: 55, background: P.card, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ width: 420, padding: 28, background: P.card, borderRadius: 16, boxShadow: "0 14px 48px rgba(61,53,82,.1)" }}>
             <h3 style={{ margin: "0 0 10px", fontSize: 16, fontWeight: 400 }}>💌 {letterEditId ? "Edit" : "New"} Love Letter</h3>
@@ -3163,7 +3185,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 </div>
                 {!isViewer && (<>
                   <button onClick={() => {
-                    const entry = { id: `e${Date.now()}`, city: dream.city, country: dream.country, lat: dream.lat, lng: dream.lng, dateStart: todayStr(), type: isMyWorld ? "adventure" : "together", who: isMyWorld ? "solo" : "both", notes: dream.notes || "", memories: [], museums: [], restaurants: [], highlights: [], photos: [], stops: [] };
+                    const defaultType = isMyWorld ? "adventure" : isPartnerWorld ? "together" : worldType === "friends" ? "group-trip" : worldType === "family" ? "family-trip" : "together";
+                    const defaultWho = isMyWorld ? "solo" : isPartnerWorld ? "both" : "group";
+                    const entry = { id: `e${Date.now()}`, city: dream.city, country: dream.country, lat: dream.lat, lng: dream.lng, dateStart: todayStr(), type: defaultType, who: defaultWho, notes: dream.notes || "", memories: [], museums: [], restaurants: [], highlights: [], photos: [], stops: [] };
                     dispatch({ type: "ADD", entry });
                     setConfig({ dreamDestinations: (config.dreamDestinations || []).filter(d => d.id !== dream.id) });
                     showToast(`${dream.city} is now real! ✨`, "🎉", 3000);
@@ -3195,10 +3219,12 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             <Fld l="Subtitle" v={config.subtitle} set={v => setConfig({ subtitle: v })} />
             {isMyWorld
               ? <Fld l="Traveler Name" v={config.travelerName || ''} set={v => setConfig({ travelerName: v })} ph="Your name" />
-              : <>
+              : isPartnerWorld
+              ? <>
                   <Fld l="Your Name" v={config.youName} set={v => setConfig({ youName: v })} ph="Enter your name" />
                   <Fld l="Partner's Name" v={config.partnerName} set={v => setConfig({ partnerName: v })} ph="Enter their name" />
                 </>
+              : null
             }
 
             <div style={{ margin: "14px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
@@ -3367,12 +3393,12 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 18 }}>
               {[
-                isMyWorld ? { label: "Days Exploring", value: stats.daysTog, icon: "🧭" } : { label: "Days Together", value: stats.daysTog, icon: "💕" },
-                { label: isMyWorld ? "Trips" : "Adventures", value: stats.trips, icon: "🗺" },
+                isPartnerWorld ? { label: "Days Together", value: stats.daysTog, icon: "💕" } : { label: "Days Exploring", value: stats.daysTog, icon: "🧭" },
+                { label: "Trips", value: stats.trips, icon: "🗺" },
                 { label: "Countries", value: stats.countries, icon: "🌍" },
                 { label: "Photos", value: stats.photos, icon: "📷" },
                 { label: "Miles Traveled", value: stats.totalMiles.toLocaleString(), icon: "✈️" },
-                ...(!isMyWorld ? [{ label: "Reunions", value: reunionStats.reunions, icon: "🫂" }] : [{ label: "Cities", value: expandedStats.cityCount, icon: "🏙" }]),
+                ...(isPartnerWorld ? [{ label: "Reunions", value: reunionStats.reunions, icon: "🫂" }] : [{ label: "Cities", value: expandedStats.cityCount, icon: "🏙" }]),
               ].map((s, i) => (
                 <div key={i} style={{ padding: "14px 16px", background: `linear-gradient(145deg, ${P.parchment}, ${P.cream})`, borderRadius: 14, textAlign: "center", boxShadow: `0 1px 3px ${P.text}04, 0 4px 12px ${P.text}03`, border: `1px solid ${P.rose}06`, transition: "transform .2s, box-shadow .2s" }}
                   onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = `0 2px 6px ${P.text}06, 0 8px 20px ${P.text}05`; }}
@@ -3385,7 +3411,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             </div>
 
             {/* Distance Scoreboard */}
-            {!isMyWorld && <div style={{ padding: "14px 18px", background: `linear-gradient(135deg,${P.blush},${P.lavMist})`, borderRadius: 14, marginBottom: 16, textAlign: "center", boxShadow: `0 1px 4px ${P.text}04` }}>
+            {isPartnerWorld && <div style={{ padding: "14px 18px", background: `linear-gradient(135deg,${P.blush},${P.lavMist})`, borderRadius: 14, marginBottom: 16, textAlign: "center", boxShadow: `0 1px 4px ${P.text}04` }}>
               <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 6 }}>The Scoreboard</div>
               <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 12 }}>
                 <div><span style={{ fontSize: 16, color: P.heart }}>💕</span><div style={{ fontSize: 18, fontWeight: 400 }}>{reunionStats.daysTogether}</div><div style={{ fontSize: 7, color: P.textFaint }}>days together</div></div>
@@ -3405,11 +3431,11 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 <div style={{ padding: "12px 14px", background: `linear-gradient(135deg, ${P.together}06, ${P.together}03)`, borderRadius: 12, borderLeft: `3px solid ${P.together}`, transition: "transform .2s" }}
                   onMouseEnter={e => e.currentTarget.style.transform = "translateX(2px)"}
                   onMouseLeave={e => e.currentTarget.style.transform = "none"}>
-                  <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>{isMyWorld ? "Longest Trip" : "Longest Trip Together"}</div>
+                  <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>{isPartnerWorld ? "Longest Trip Together" : "Longest Trip"}</div>
                   <div style={{ fontSize: 13, marginTop: 2 }}>{expandedStats.longestTrip.entry.city} — {expandedStats.longestTrip.days} days</div>
                 </div>
               )}
-              {!isMyWorld && expandedStats.farthestApart.dist > 0 && (
+              {isPartnerWorld && expandedStats.farthestApart.dist > 0 && (
                 <div style={{ padding: "12px 14px", background: `linear-gradient(135deg, ${P.sky}06, ${P.sky}03)`, borderRadius: 12, borderLeft: `3px solid ${P.sky}`, transition: "transform .2s" }}
                   onMouseEnter={e => e.currentTarget.style.transform = "translateX(2px)"}
                   onMouseLeave={e => e.currentTarget.style.transform = "none"}>
@@ -3421,11 +3447,11 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 <div style={{ padding: "12px 14px", background: `linear-gradient(135deg, ${P.rose}06, ${P.rose}03)`, borderRadius: 12, borderLeft: `3px solid ${P.rose}`, transition: "transform .2s" }}
                   onMouseEnter={e => e.currentTarget.style.transform = "translateX(2px)"}
                   onMouseLeave={e => e.currentTarget.style.transform = "none"}>
-                  <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>{isMyWorld ? "Most Visited" : "Most Visited Together"}</div>
+                  <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>{isPartnerWorld ? "Most Visited Together" : "Most Visited"}</div>
                   <div style={{ fontSize: 13, marginTop: 2 }}>{expandedStats.topCity[0]} — {expandedStats.topCity[1]} times</div>
                 </div>
               )}
-              {!isMyWorld && expandedStats.longestApart > 0 && (
+              {isPartnerWorld && expandedStats.longestApart > 0 && (
                 <div style={{ padding: "12px 14px", background: `linear-gradient(135deg, ${P.lavender}06, ${P.lavender}03)`, borderRadius: 12, borderLeft: `3px solid ${P.lavender}`, transition: "transform .2s" }}
                   onMouseEnter={e => e.currentTarget.style.transform = "translateX(2px)"}
                   onMouseLeave={e => e.currentTarget.style.transform = "none"}>
@@ -3746,8 +3772,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         );
       })()}
 
-      {/* EASTER EGG — visible when zoomed all the way out (shared worlds only) */}
-      {isSharedWorld && (
+      {/* EASTER EGG — visible when zoomed all the way out (partner worlds only) */}
+      {isPartnerWorld && isSharedWorld && (
         <div ref={easterEggRef} style={{ position: "absolute", top: "12%", left: "50%", transform: "translateX(-50%)", zIndex: 5, textAlign: "center", pointerEvents: "none", opacity: 0, transition: "opacity .8s" }}>
           <div style={{ fontSize: 14, color: "#c9a96e", letterSpacing: "6px", fontWeight: 300, textShadow: "0 0 20px rgba(200,170,110,0.4), 0 0 40px rgba(200,170,110,0.2)", fontFamily: "'Palatino Linotype',serif" }}>
             you are my world
