@@ -672,7 +672,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
 
       {/* Activity feed panel */}
       {showActivity && (
-        <div style={{ position: "absolute", top: 50, right: 16, width: 280, maxHeight: "60vh", background: "rgba(16,12,24,0.85)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: "16px", zIndex: 20, overflowY: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.03)" }}
+        <div style={{ position: "absolute", top: 50, right: 16, width: 290, maxHeight: "60vh", background: "rgba(20,16,28,0.88)", backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", border: "1px solid rgba(200,170,140,0.06)", borderRadius: 18, padding: "18px", zIndex: 20, overflowY: "auto", boxShadow: "0 1px 3px rgba(0,0,0,.1), 0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,245,230,0.03)", animation: "fadeIn .3s ease" }}
           onClick={e => e.stopPropagation()}>
           <div style={{ fontSize: 9, letterSpacing: "2px", textTransform: "uppercase", color: "#807888", marginBottom: 12, fontFamily: F }}>Recent Activity</div>
           {activityData.length === 0 && (
@@ -709,12 +709,14 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
 
       {/* Cross-world search panel */}
       {showSearch && (
-        <div style={{ position: "absolute", top: 50, right: 16, width: 300, maxHeight: "65vh", background: "rgba(16,12,24,0.85)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: "16px", zIndex: 20, overflowY: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.03)" }}
+        <div style={{ position: "absolute", top: 50, right: 16, width: 310, maxHeight: "65vh", background: "rgba(20,16,28,0.88)", backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", border: "1px solid rgba(200,170,140,0.06)", borderRadius: 18, padding: "18px", zIndex: 20, overflowY: "auto", boxShadow: "0 1px 3px rgba(0,0,0,.1), 0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,245,230,0.03)", animation: "fadeIn .3s ease" }}
           onClick={e => e.stopPropagation()}>
           <div style={{ fontSize: 9, letterSpacing: "2px", textTransform: "uppercase", color: "#807888", marginBottom: 10, fontFamily: F }}>Search All Worlds</div>
           <input id="cosmos-search-input" value={searchQuery} onChange={e => handleSearch(e.target.value)}
             placeholder="Search cities, countries, notes..."
-            style={{ width: "100%", padding: "8px 12px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 10, color: "#e8e0d0", fontSize: 13, fontFamily: F, outline: "none", boxSizing: "border-box", marginBottom: 10 }} />
+            style={{ width: "100%", padding: "10px 14px", background: "rgba(255,245,230,0.04)", border: "1px solid rgba(200,170,140,0.12)", borderRadius: 12, color: "#e8e0d0", fontSize: 13, fontFamily: F, outline: "none", boxSizing: "border-box", marginBottom: 12, transition: "border-color .2s, box-shadow .2s" }}
+            onFocus={e => { e.target.style.borderColor = "rgba(200,170,140,0.25)"; e.target.style.boxShadow = "0 0 0 2px rgba(200,170,140,0.06)"; }}
+            onBlur={e => { e.target.style.borderColor = "rgba(200,170,140,0.12)"; e.target.style.boxShadow = "none"; }} />
           {searching && <div style={{ fontSize: 11, color: "#686070", textAlign: "center", padding: 10, fontFamily: F }}>Searching...</div>}
           {!searching && searchQuery && searchResults.length === 0 && (
             <div style={{ fontSize: 11, color: "#605868", textAlign: "center", padding: "16px 0", fontFamily: F }}>No results found</div>

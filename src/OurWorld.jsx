@@ -2706,8 +2706,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       {/* DETAIL CARD */}
       {cur && !editing && (
         <div style={isMobile
-          ? { position: "absolute", bottom: 105, left: 0, right: 0, zIndex: 25, background: P.card, backdropFilter: "blur(24px)", borderRadius: "16px 16px 0 0", maxHeight: "55vh", boxShadow: "0 -8px 32px rgba(61,53,82,.1)", border: `1px solid ${P.rose}10`, animation: "fadeIn .3s ease", overflow: "hidden", display: "flex", flexDirection: "column" }
-          : { position: "absolute", top: "42%", right: 18, transform: "translateY(-50%)", zIndex: 25, background: P.card, backdropFilter: "blur(24px)", borderRadius: 16, maxWidth: 340, minWidth: 260, maxHeight: "65vh", boxShadow: "0 12px 44px rgba(61,53,82,.1)", border: `1px solid ${P.rose}10`, animation: "cardIn .5s ease", overflow: "hidden", display: "flex", flexDirection: "column" }
+          ? { position: "absolute", bottom: 105, left: 0, right: 0, zIndex: 25, background: P.card, backdropFilter: "blur(24px)", borderRadius: "18px 18px 0 0", maxHeight: "55vh", boxShadow: "0 -2px 8px rgba(61,53,82,.04), 0 -8px 32px rgba(61,53,82,.08)", border: `1px solid ${P.rose}08`, animation: "fadeIn .3s ease", overflow: "hidden", display: "flex", flexDirection: "column" }
+          : { position: "absolute", top: "42%", right: 18, transform: "translateY(-50%)", zIndex: 25, background: P.card, backdropFilter: "blur(24px)", borderRadius: 18, maxWidth: 350, minWidth: 270, maxHeight: "65vh", boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 20px 60px rgba(61,53,82,.08)", border: `1px solid ${P.rose}08`, animation: "cardIn .5s ease", overflow: "hidden", display: "flex", flexDirection: "column" }
         }>
           {(cur.photos || []).length > 0 && !cardGallery && (
             <div style={{ position: "relative", width: "100%", background: P.parchment, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", minHeight: 120, maxHeight: 220 }}>
@@ -2968,8 +2968,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         onAddStop={stop => { const updated = { ...editing, stops: [...(editing.stops || []), stop] }; setEditing(updated); dispatch({ type: "UPDATE", id: editing.id, data: { stops: updated.stops } }); }} />}
 
       {confirmDelete && (
-        <div style={{ position: "absolute", inset: 0, zIndex: 60, background: "rgba(22,16,40,.85)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ background: P.card, borderRadius: 14, padding: 28, maxWidth: 320, textAlign: "center", boxShadow: "0 12px 40px rgba(61,53,82,.1)" }}>
+        <div style={{ position: "absolute", inset: 0, zIndex: 60, background: `linear-gradient(135deg, rgba(22,16,40,.82), rgba(30,24,48,.88))`, backdropFilter: "blur(20px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .2s ease" }}>
+          <div style={{ background: P.card, borderRadius: 20, padding: 32, maxWidth: 340, textAlign: "center", boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 20px 56px rgba(61,53,82,.1)" }}>
             <p style={{ fontSize: 14, margin: "0 0 16px" }}>Delete this memory forever?</p>
             <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
               <button onClick={() => {
@@ -2993,7 +2993,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         const letter = (config.loveLetters || []).find(l => l.id === showLetter);
         if (!letter) return null;
         return (
-        <div onClick={() => setShowLetter(null)} style={{ position: "absolute", inset: 0, zIndex: 50, background: "rgba(22,16,40,.88)", backdropFilter: "blur(30px)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", animation: "fadeIn .8s ease" }}>
+        <div onClick={() => setShowLetter(null)} style={{ position: "absolute", inset: 0, zIndex: 50, background: `linear-gradient(135deg, rgba(22,16,40,.84), rgba(30,24,48,.90))`, backdropFilter: "blur(30px)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", animation: "fadeIn .8s ease" }}>
           <div style={{ maxWidth: 460, padding: 36, textAlign: "center" }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 30, marginBottom: 14 }}>💌</div>
             {letter.city && <div style={{ fontSize: 9, color: P.textFaint, letterSpacing: ".12em", marginBottom: 8 }}>found near {letter.city}</div>}
@@ -3044,10 +3044,10 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 }
                 setEditLetter(false);
                 showToast(letterEditId ? "Letter updated 💌" : "Letter hidden on the globe ❀", "💌", 2500);
-              }} disabled={!letterDraft.trim()} style={{ flex: 1, padding: "9px", background: letterDraft.trim() ? P.rose : `${P.textFaint}60`, color: "#fff", border: "none", borderRadius: 7, cursor: letterDraft.trim() ? "pointer" : "default", fontSize: 11, fontFamily: "inherit" }}>
+              }} disabled={!letterDraft.trim()} style={{ flex: 1, padding: "10px", background: letterDraft.trim() ? `linear-gradient(135deg, ${P.rose}, ${P.sky})` : `${P.textFaint}60`, color: "#fff", border: "none", borderRadius: 12, cursor: letterDraft.trim() ? "pointer" : "default", fontSize: 11, fontFamily: "inherit", letterSpacing: ".04em", boxShadow: letterDraft.trim() ? `0 2px 8px ${P.rose}30` : "none", transition: "all .25s" }}>
                 {letterEditId ? "Update" : "Hide on Globe"} 💌
               </button>
-              <button onClick={() => setEditLetter(false)} style={{ padding: "9px 14px", background: "transparent", border: `1px solid ${P.textFaint}40`, borderRadius: 7, cursor: "pointer", fontSize: 11, fontFamily: "inherit", color: P.textMuted }}>Cancel</button>
+              <button onClick={() => setEditLetter(false)} style={{ padding: "10px 16px", background: "transparent", border: `1px solid ${P.textFaint}30`, borderRadius: 12, cursor: "pointer", fontSize: 11, fontFamily: "inherit", color: P.textMuted, transition: "all .2s" }}>Cancel</button>
             </div>
           </div>
         </div>
@@ -3055,7 +3055,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
       {/* GALLERY PANEL — slides out from left, not a full overlay */}
       {showGallery && (
-        <div style={{ position: "absolute", top: 72, left: 22, zIndex: 22, background: P.card, backdropFilter: "blur(24px)", borderRadius: 14, width: 280, maxHeight: "calc(100vh - 200px)", boxShadow: "0 10px 40px rgba(61,53,82,.12)", border: `1px solid ${P.rose}10`, animation: "fadeIn .4s ease", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+        <div style={{ position: "absolute", top: 72, left: 22, zIndex: 22, background: P.card, backdropFilter: "blur(28px)", borderRadius: 18, width: 290, maxHeight: "calc(100vh - 200px)", boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 20px 48px rgba(61,53,82,.08)", border: `1px solid ${P.rose}08`, animation: "fadeIn .4s ease", overflow: "hidden", display: "flex", flexDirection: "column" }}>
           <div style={{ padding: "12px 14px 8px", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0, borderBottom: `1px solid ${P.rose}08` }}>
             <div>
               <div style={{ fontSize: 12, fontWeight: 400 }}>📷 Gallery</div>
@@ -3106,11 +3106,11 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
       {/* DREAM DESTINATIONS PANEL */}
       {showDreams && (
-        <div style={{ position: "absolute", inset: 0, zIndex: 45, background: "rgba(22,16,40,.88)", backdropFilter: "blur(20px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .4s ease" }}>
-          <div style={{ width: 420, maxWidth: "92vw", maxHeight: "85vh", overflowY: "auto", padding: 28, background: P.card, borderRadius: 18, boxShadow: "0 24px 64px rgba(0,0,0,.2)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <div style={{ position: "absolute", inset: 0, zIndex: 45, background: `linear-gradient(135deg, rgba(22,16,40,.82), rgba(30,24,48,.88))`, backdropFilter: "blur(24px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .4s ease" }}>
+          <div style={{ width: 440, maxWidth: "92vw", maxHeight: "85vh", overflowY: "auto", padding: 32, background: P.card, borderRadius: 22, boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 24px 64px rgba(61,53,82,.1)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
               <h2 style={{ margin: 0, fontSize: 18, fontWeight: 400, letterSpacing: ".08em" }}>{isMyWorld ? "🗺 Bucket List" : "✦ Dream Destinations"}</h2>
-              <button onClick={() => setShowDreams(false)} style={{ background: "none", border: "none", fontSize: 18, color: P.textFaint, cursor: "pointer" }}>×</button>
+              <button onClick={() => setShowDreams(false)} style={{ background: "none", border: "none", fontSize: 18, color: P.textFaint, cursor: "pointer", transition: "color .2s" }}>×</button>
             </div>
             <p style={{ fontSize: 10, color: P.textFaint, marginBottom: 14, fontStyle: "italic" }}>{isMyWorld ? "Places on your bucket list. They appear as golden ghost markers on the globe." : "Places you dream of visiting together. They appear as golden ghost markers on the globe."}</p>
 
@@ -3147,9 +3147,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       )}
 
       {showSettings && !isViewer && (
-        <div onClick={() => setShowSettings(false)} style={{ position: "absolute", inset: 0, zIndex: 45, background: "rgba(22,16,40,.88)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-          <div onClick={e => e.stopPropagation()} style={{ width: 380, maxHeight: "85vh", overflowY: "auto", padding: 26, background: P.card, borderRadius: 16, boxShadow: "0 14px 48px rgba(61,53,82,.1)", cursor: "default" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 14 }}><h3 style={{ margin: 0, fontSize: 15, fontWeight: 400 }}>Settings</h3><button onClick={() => setShowSettings(false)} style={{ background: "none", border: "none", fontSize: 17, color: P.textFaint, cursor: "pointer" }}>×</button></div>
+        <div onClick={() => setShowSettings(false)} style={{ position: "absolute", inset: 0, zIndex: 45, background: `linear-gradient(135deg, rgba(22,16,40,.82), rgba(30,24,48,.88))`, backdropFilter: "blur(24px)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", animation: "fadeIn .3s ease" }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: 400, maxHeight: "85vh", overflowY: "auto", padding: 30, background: P.card, borderRadius: 22, boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 24px 64px rgba(61,53,82,.1)", cursor: "default" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}><h3 style={{ margin: 0, fontSize: 16, fontWeight: 400, letterSpacing: ".06em" }}>Settings</h3><button onClick={() => setShowSettings(false)} style={{ background: "none", border: "none", fontSize: 17, color: P.textFaint, cursor: "pointer", transition: "color .2s" }}>×</button></div>
             <Fld l={isMyWorld ? "First Trip Date" : "Date You Met"} v={config.startDate} t="date" set={v => setConfig({ startDate: v })} />
             <Fld l="Title" v={config.title} set={v => setConfig({ title: v })} />
             <Fld l="Subtitle" v={config.subtitle} set={v => setConfig({ subtitle: v })} />
@@ -3189,7 +3189,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 {cPick("Stars Tint", "Background star color", cs.starTint || baseSC.starTint, v => setCS("starTint", v), true)}
 
                 <button onClick={() => { setConfig({ customPalette: {}, customScene: {} }); }}
-                  style={{ marginTop: 8, width: "100%", padding: "6px", background: "transparent", border: `1px dashed ${P.textFaint}40`, borderRadius: 5, cursor: "pointer", fontSize: 9, fontFamily: "inherit", color: P.textMid }}>
+                  style={{ marginTop: 10, width: "100%", padding: "8px", background: "transparent", border: `1px dashed ${P.textFaint}30`, borderRadius: 8, cursor: "pointer", fontSize: 9, fontFamily: "inherit", color: P.textMid, transition: "all .2s" }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = `${P.rose}50`; e.currentTarget.style.color = P.text; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = `${P.textFaint}30`; e.currentTarget.style.color = P.textMid; }}>
                   Reset All Colors to Default
                 </button>
               </>;
@@ -3241,7 +3243,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 } catch (err) { alert("Failed to send: " + err.message); }
                 setWlSending(false);
               }}
-              style={{ width: "100%", padding: "7px", background: wlSending ? P.textFaint : `linear-gradient(135deg, ${P.rose}, ${P.sky})`, border: "none", borderRadius: 6, cursor: wlSending ? "wait" : "pointer", fontSize: 10, fontFamily: "inherit", color: "#fff", fontWeight: 600, opacity: (!wlEmail.trim() || !wlText.trim()) ? 0.4 : 1 }}>
+              style={{ width: "100%", padding: "10px", background: wlSending ? P.textFaint : `linear-gradient(135deg, ${P.rose}, ${P.sky})`, border: "none", borderRadius: 12, cursor: wlSending ? "wait" : "pointer", fontSize: 10, fontFamily: "inherit", color: "#fff", fontWeight: 600, opacity: (!wlEmail.trim() || !wlText.trim()) ? 0.4 : 1, letterSpacing: ".06em", boxShadow: !wlSending && wlEmail.trim() && wlText.trim() ? `0 2px 8px ${P.rose}30` : "none", transition: "all .25s" }}>
               {wlSending ? "Sending..." : "Send Welcome Letter"}
             </button>
             {myLetters.length > 0 && (
@@ -3263,12 +3265,18 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             <div style={{ margin: "10px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
             <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 6 }}>Data</div>
             <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-              <button onClick={exportData} style={{ flex: 1, padding: "8px", background: P.parchment, border: `1px solid ${P.rose}25`, borderRadius: 6, cursor: "pointer", fontSize: 9, fontFamily: "inherit", color: P.textMid }}>📥 Export Backup</button>
-              <button onClick={importData} style={{ flex: 1, padding: "8px", background: P.parchment, border: `1px solid ${P.sky}30`, borderRadius: 6, cursor: "pointer", fontSize: 9, fontFamily: "inherit", color: P.textMid }}>📤 Import Data</button>
+              <button onClick={exportData} style={{ flex: 1, padding: "9px", background: `linear-gradient(145deg, ${P.parchment}, ${P.cream})`, border: `1px solid ${P.rose}18`, borderRadius: 10, cursor: "pointer", fontSize: 9, fontFamily: "inherit", color: P.textMid, transition: "all .2s", boxShadow: `0 1px 3px ${P.text}04` }}
+                onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = `0 2px 8px ${P.text}08`; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = `0 1px 3px ${P.text}04`; }}>📥 Export Backup</button>
+              <button onClick={importData} style={{ flex: 1, padding: "9px", background: `linear-gradient(145deg, ${P.parchment}, ${P.cream})`, border: `1px solid ${P.sky}18`, borderRadius: 10, cursor: "pointer", fontSize: 9, fontFamily: "inherit", color: P.textMid, transition: "all .2s", boxShadow: `0 1px 3px ${P.text}04` }}
+                onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = `0 2px 8px ${P.text}08`; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = `0 1px 3px ${P.text}04`; }}>📤 Import Data</button>
             </div>
             <div style={{ fontSize: 7, color: P.textFaint, fontStyle: "italic", marginBottom: 8 }}>Export saves all entries, photos, and settings as a JSON file</div>
 
-            <button onClick={() => setShowSettings(false)} style={{ width: "100%", padding: "9px", background: P.rose, color: "#fff", border: "none", borderRadius: 7, cursor: "pointer", fontSize: 11, fontFamily: "inherit", marginTop: 6 }}>Done</button>
+            <button onClick={() => setShowSettings(false)} style={{ width: "100%", padding: "11px", background: `linear-gradient(135deg, ${P.rose}, ${P.sky})`, color: "#fff", border: "none", borderRadius: 12, cursor: "pointer", fontSize: 11, fontFamily: "inherit", marginTop: 8, letterSpacing: ".06em", boxShadow: `0 2px 8px ${P.rose}30, 0 4px 16px ${P.rose}15`, transition: "all .25s" }}
+              onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = `0 4px 12px ${P.rose}40, 0 8px 24px ${P.rose}20`; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = `0 2px 8px ${P.rose}30, 0 4px 16px ${P.rose}15`; }}>Done</button>
           </div>
         </div>
       )}
@@ -3293,12 +3301,13 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             <div style={{ fontSize: 12, color: P.textMuted, marginTop: 8, lineHeight: 1.7, letterSpacing: ".04em" }}>{msg.desc}</div>
             {!isViewer && (
               <button onClick={() => setShowAdd(true)} style={{
-                marginTop: 20, padding: "10px 26px", background: `linear-gradient(135deg, ${P.rose}30, ${P.sky}30)`,
-                border: `1px solid ${P.rose}25`, borderRadius: 22, color: P.text, fontSize: 13,
+                marginTop: 24, padding: "12px 30px", background: `linear-gradient(135deg, ${P.rose}35, ${P.sky}35)`,
+                border: `1px solid ${P.rose}20`, borderRadius: 24, color: P.text, fontSize: 13,
                 fontFamily: "inherit", cursor: "pointer", letterSpacing: ".06em", transition: "all .3s",
+                boxShadow: `0 2px 12px ${P.rose}15, 0 4px 20px ${P.sky}10`,
               }}
-              onMouseEnter={e => { e.target.style.background = `linear-gradient(135deg, ${P.rose}50, ${P.sky}50)`; }}
-              onMouseLeave={e => { e.target.style.background = `linear-gradient(135deg, ${P.rose}30, ${P.sky}30)`; }}>
+              onMouseEnter={e => { e.target.style.background = `linear-gradient(135deg, ${P.rose}50, ${P.sky}50)`; e.target.style.transform = "translateY(-1px)"; e.target.style.boxShadow = `0 4px 16px ${P.rose}25, 0 8px 28px ${P.sky}15`; }}
+              onMouseLeave={e => { e.target.style.background = `linear-gradient(135deg, ${P.rose}35, ${P.sky}35)`; e.target.style.transform = "none"; e.target.style.boxShadow = `0 2px 12px ${P.rose}15, 0 4px 20px ${P.sky}10`; }}>
                 + {msg.btn}
               </button>
             )}
@@ -3308,14 +3317,14 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
       {/* STATS DASHBOARD */}
       {showStats && (
-        <div style={{ position: "absolute", inset: 0, zIndex: 45, background: "rgba(22,16,40,.88)", backdropFilter: "blur(20px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .4s ease" }}>
-          <div style={{ width: 420, maxWidth: "92vw", maxHeight: "85vh", overflowY: "auto", padding: 28, background: P.card, borderRadius: 18, boxShadow: "0 24px 64px rgba(0,0,0,.2)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <div style={{ position: "absolute", inset: 0, zIndex: 45, background: `linear-gradient(135deg, rgba(22,16,40,.82), rgba(30,24,48,.88))`, backdropFilter: "blur(24px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .4s ease" }}>
+          <div style={{ width: 440, maxWidth: "92vw", maxHeight: "85vh", overflowY: "auto", padding: 32, background: P.card, borderRadius: 22, boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 24px 64px rgba(61,53,82,.1)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
               <h2 style={{ margin: 0, fontSize: 18, fontWeight: 400, letterSpacing: ".08em" }}>{isMyWorld ? "📊 My Travel Stats" : "📊 Our Story in Numbers"}</h2>
-              <button onClick={() => setShowStats(false)} style={{ background: "none", border: "none", fontSize: 18, color: P.textFaint, cursor: "pointer" }}>×</button>
+              <button onClick={() => setShowStats(false)} style={{ background: "none", border: "none", fontSize: 18, color: P.textFaint, cursor: "pointer", transition: "color .2s" }}>×</button>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 18 }}>
               {[
                 isMyWorld ? { label: "Days Exploring", value: stats.daysTog, icon: "🧭" } : { label: "Days Together", value: stats.daysTog, icon: "💕" },
                 { label: isMyWorld ? "Trips" : "Adventures", value: stats.trips, icon: "🗺" },
@@ -3324,16 +3333,18 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 { label: "Miles Traveled", value: stats.totalMiles.toLocaleString(), icon: "✈️" },
                 ...(!isMyWorld ? [{ label: "Reunions", value: reunionStats.reunions, icon: "🫂" }] : [{ label: "Cities", value: expandedStats.countryList.length, icon: "🏙" }]),
               ].map((s, i) => (
-                <div key={i} style={{ padding: "12px 14px", background: P.parchment, borderRadius: 10, textAlign: "center" }}>
-                  <div style={{ fontSize: 20, marginBottom: 2 }}>{s.icon}</div>
-                  <div style={{ fontSize: 22, fontWeight: 400, color: P.text }}>{s.value}</div>
-                  <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>{s.label}</div>
+                <div key={i} style={{ padding: "14px 16px", background: `linear-gradient(145deg, ${P.parchment}, ${P.cream})`, borderRadius: 14, textAlign: "center", boxShadow: `0 1px 3px ${P.text}04, 0 4px 12px ${P.text}03`, border: `1px solid ${P.rose}06`, transition: "transform .2s, box-shadow .2s" }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = `0 2px 6px ${P.text}06, 0 8px 20px ${P.text}05`; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = `0 1px 3px ${P.text}04, 0 4px 12px ${P.text}03`; }}>
+                  <div style={{ fontSize: 20, marginBottom: 4 }}>{s.icon}</div>
+                  <div style={{ fontSize: 24, fontWeight: 400, color: P.text, letterSpacing: ".02em" }}>{s.value}</div>
+                  <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginTop: 2 }}>{s.label}</div>
                 </div>
               ))}
             </div>
 
             {/* Distance Scoreboard */}
-            {!isMyWorld && <div style={{ padding: "12px 16px", background: `linear-gradient(135deg,${P.blush},${P.lavMist})`, borderRadius: 10, marginBottom: 14, textAlign: "center" }}>
+            {!isMyWorld && <div style={{ padding: "14px 18px", background: `linear-gradient(135deg,${P.blush},${P.lavMist})`, borderRadius: 14, marginBottom: 16, textAlign: "center", boxShadow: `0 1px 4px ${P.text}04` }}>
               <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 6 }}>The Scoreboard</div>
               <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 12 }}>
                 <div><span style={{ fontSize: 16, color: P.heart }}>💕</span><div style={{ fontSize: 18, fontWeight: 400 }}>{reunionStats.daysTogether}</div><div style={{ fontSize: 7, color: P.textFaint }}>days together</div></div>
@@ -3347,34 +3358,44 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
             <div style={{ margin: "14px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}20,transparent)` }} />
 
-            <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 8 }}>Highlights</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 10 }}>Highlights</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {expandedStats.longestTrip.entry && (
-                <div style={{ padding: "10px 12px", background: `${P.together}08`, borderRadius: 8, borderLeft: `3px solid ${P.together}` }}>
+                <div style={{ padding: "12px 14px", background: `linear-gradient(135deg, ${P.together}06, ${P.together}03)`, borderRadius: 12, borderLeft: `3px solid ${P.together}`, transition: "transform .2s" }}
+                  onMouseEnter={e => e.currentTarget.style.transform = "translateX(2px)"}
+                  onMouseLeave={e => e.currentTarget.style.transform = "none"}>
                   <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>{isMyWorld ? "Longest Trip" : "Longest Trip Together"}</div>
                   <div style={{ fontSize: 13, marginTop: 2 }}>{expandedStats.longestTrip.entry.city} — {expandedStats.longestTrip.days} days</div>
                 </div>
               )}
               {!isMyWorld && expandedStats.farthestApart.dist > 0 && (
-                <div style={{ padding: "10px 12px", background: `${P.sky}08`, borderRadius: 8, borderLeft: `3px solid ${P.sky}` }}>
+                <div style={{ padding: "12px 14px", background: `linear-gradient(135deg, ${P.sky}06, ${P.sky}03)`, borderRadius: 12, borderLeft: `3px solid ${P.sky}`, transition: "transform .2s" }}
+                  onMouseEnter={e => e.currentTarget.style.transform = "translateX(2px)"}
+                  onMouseLeave={e => e.currentTarget.style.transform = "none"}>
                   <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>Farthest Apart</div>
                   <div style={{ fontSize: 13, marginTop: 2 }}>{expandedStats.farthestApart.dist.toLocaleString()} miles</div>
                 </div>
               )}
               {expandedStats.topCity && (
-                <div style={{ padding: "10px 12px", background: `${P.rose}08`, borderRadius: 8, borderLeft: `3px solid ${P.rose}` }}>
+                <div style={{ padding: "12px 14px", background: `linear-gradient(135deg, ${P.rose}06, ${P.rose}03)`, borderRadius: 12, borderLeft: `3px solid ${P.rose}`, transition: "transform .2s" }}
+                  onMouseEnter={e => e.currentTarget.style.transform = "translateX(2px)"}
+                  onMouseLeave={e => e.currentTarget.style.transform = "none"}>
                   <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>{isMyWorld ? "Most Visited" : "Most Visited Together"}</div>
                   <div style={{ fontSize: 13, marginTop: 2 }}>{expandedStats.topCity[0]} — {expandedStats.topCity[1]} times</div>
                 </div>
               )}
               {!isMyWorld && expandedStats.longestApart > 0 && (
-                <div style={{ padding: "10px 12px", background: `${P.lavender}08`, borderRadius: 8, borderLeft: `3px solid ${P.lavender}` }}>
+                <div style={{ padding: "12px 14px", background: `linear-gradient(135deg, ${P.lavender}06, ${P.lavender}03)`, borderRadius: 12, borderLeft: `3px solid ${P.lavender}`, transition: "transform .2s" }}
+                  onMouseEnter={e => e.currentTarget.style.transform = "translateX(2px)"}
+                  onMouseLeave={e => e.currentTarget.style.transform = "none"}>
                   <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>Longest Apart</div>
                   <div style={{ fontSize: 13, marginTop: 2 }}>{expandedStats.longestApart} days</div>
                 </div>
               )}
               {expandedStats.avgTripLength > 0 && (
-                <div style={{ padding: "10px 12px", background: `${P.rose}08`, borderRadius: 8, borderLeft: `3px solid ${P.rose}` }}>
+                <div style={{ padding: "12px 14px", background: `linear-gradient(135deg, ${P.rose}06, ${P.rose}03)`, borderRadius: 12, borderLeft: `3px solid ${P.rose}`, transition: "transform .2s" }}
+                  onMouseEnter={e => e.currentTarget.style.transform = "translateX(2px)"}
+                  onMouseLeave={e => e.currentTarget.style.transform = "none"}>
                   <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>Average Trip Length</div>
                   <div style={{ fontSize: 13, marginTop: 2 }}>{expandedStats.avgTripLength} days</div>
                 </div>
@@ -3386,7 +3407,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 6 }}>Countries Visited</div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                   {[...expandedStats.countryList].sort().map(c => (
-                    <span key={c} style={{ padding: "3px 8px", background: P.parchment, borderRadius: 12, fontSize: 9, color: P.textMid }}>{c}</span>
+                    <span key={c} style={{ padding: "4px 10px", background: `linear-gradient(145deg, ${P.parchment}, ${P.cream})`, borderRadius: 14, fontSize: 9, color: P.textMid, border: `1px solid ${P.rose}06` }}>{c}</span>
                   ))}
                 </div>
               </div>
@@ -3397,9 +3418,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 6 }}>Year in Review</div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                   {expandedStats.years.map(y => (
-                    <button key={y} onClick={() => startRecap(y)} style={{ padding: "6px 14px", background: `linear-gradient(135deg,${P.blush},${P.lavMist})`, border: `1px solid ${P.rose}18`, borderRadius: 8, cursor: "pointer", fontSize: 10, fontFamily: "inherit", color: P.textMid, transition: "all .2s" }}
-                      onMouseEnter={e => e.currentTarget.style.transform = "scale(1.05)"}
-                      onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+                    <button key={y} onClick={() => startRecap(y)} style={{ padding: "8px 16px", background: `linear-gradient(135deg,${P.blush},${P.lavMist})`, border: `1px solid ${P.rose}12`, borderRadius: 12, cursor: "pointer", fontSize: 10, fontFamily: "inherit", color: P.textMid, transition: "all .25s", boxShadow: `0 1px 4px ${P.text}04` }}
+                      onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px) scale(1.03)"; e.currentTarget.style.boxShadow = `0 3px 12px ${P.text}08`; }}
+                      onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = `0 1px 4px ${P.text}04`; }}
                     >🎬 {y}</button>
                   ))}
                 </div>
@@ -3411,7 +3432,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 6 }}>Milestones Reached</div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                   {milestones.map(m => (
-                    <span key={m.days} style={{ padding: "3px 8px", background: `${P.gold}15`, borderRadius: 12, fontSize: 9, color: P.goldWarm }}>◆ {m.label} — {fmtDate(m.date)}</span>
+                    <span key={m.days} style={{ padding: "4px 10px", background: `linear-gradient(135deg, ${P.gold}12, ${P.gold}06)`, borderRadius: 14, fontSize: 9, color: P.goldWarm, border: `1px solid ${P.gold}10` }}>◆ {m.label} — {fmtDate(m.date)}</span>
                   ))}
                 </div>
               </div>
@@ -3423,7 +3444,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       {/* YEAR-IN-REVIEW RECAP */}
       {showRecap && recapEntries.length > 0 && (
         <div style={{ position: "absolute", bottom: 115, left: 0, right: 0, zIndex: 30, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
-          <div style={{ pointerEvents: "auto", background: P.card, backdropFilter: "blur(16px)", borderRadius: 14, padding: "16px 22px", boxShadow: "0 8px 32px rgba(0,0,0,.15)", maxWidth: 400, width: "90vw", animation: "slideUp .4s ease" }}>
+          <div style={{ pointerEvents: "auto", background: P.card, backdropFilter: "blur(20px)", borderRadius: 18, padding: "18px 24px", boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 20px 48px rgba(61,53,82,.08)", maxWidth: 420, width: "90vw", animation: "slideUp .4s ease", border: `1px solid ${P.rose}08` }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
               <span style={{ fontSize: 8, color: P.goldWarm, letterSpacing: ".14em", textTransform: "uppercase" }}>
                 🎬 {recapYear} Recap {recapIdx >= 0 ? `— ${recapIdx + 1} of ${recapEntries.length}` : ""}
@@ -3748,26 +3769,27 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 }
 
 // ---- SHARED UI ----
-function inpSt() { return { width: "100%", padding: "7px 9px", border: `1px solid ${P.textFaint}40`, borderRadius: 5, fontSize: 12, fontFamily: "'Palatino Linotype',Palatino,Georgia,serif", color: P.text, background: P.cream, boxSizing: "border-box" }; }
-function navSt() { return { background: "none", border: `1px solid ${P.textFaint}35`, borderRadius: 5, padding: "3px 9px", cursor: "pointer", fontSize: 10, color: P.textMid, fontFamily: "inherit", transition: "all .2s" }; }
+function inpSt() { return { width: "100%", padding: "10px 14px", border: `1px solid ${P.textFaint}25`, borderRadius: 10, fontSize: 13, fontFamily: "'Palatino Linotype',Palatino,Georgia,serif", color: P.text, background: P.cream, boxSizing: "border-box", transition: "border-color .2s, box-shadow .2s", outline: "none" }; }
+function navSt() { return { background: "none", border: `1px solid ${P.textFaint}25`, borderRadius: 8, padding: "5px 12px", cursor: "pointer", fontSize: 10, color: P.textMid, fontFamily: "inherit", transition: "all .25s ease" }; }
 function imgN(s) { return { position: "absolute", [s]: 5, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,.65)", border: "none", borderRadius: "50%", width: 24, height: 24, cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center" }; }
-function renderList(t, items, icon, color) { if (!items?.length) return null; return <div style={{ marginTop: 7 }}><div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 3 }}>{t}</div>{items.map((it, i) => <div key={i} style={{ display: "flex", gap: 4, marginBottom: 2 }}><span style={{ color, fontSize: 6, marginTop: 4 }}>{icon}</span><span style={{ fontSize: 11, opacity: .8, lineHeight: 1.5 }}>{it}</span></div>)}</div>; }
+function renderList(t, items, icon, color) { if (!items?.length) return null; return <div style={{ marginTop: 10 }}><div style={{ fontSize: 9, color: P.textFaint, letterSpacing: ".16em", textTransform: "uppercase", marginBottom: 5 }}>{t}</div>{items.map((it, i) => <div key={i} style={{ display: "flex", gap: 6, marginBottom: 4 }}><span style={{ color, fontSize: 7, marginTop: 5 }}>{icon}</span><span style={{ fontSize: 12, opacity: .8, lineHeight: 1.6 }}>{it}</span></div>)}</div>; }
 function TBtn({ a, onClick, children, accent, tip }) {
   const [showTip, setShowTip] = useState(false);
+  const [hov, setHov] = useState(false);
   const tipTimer = useRef(null);
-  const onEnter = () => { if (tip) tipTimer.current = setTimeout(() => setShowTip(true), 2000); };
-  const onLeave = () => { clearTimeout(tipTimer.current); setShowTip(false); };
+  const onEnter = () => { setHov(true); if (tip) tipTimer.current = setTimeout(() => setShowTip(true), 1500); };
+  const onLeave = () => { setHov(false); clearTimeout(tipTimer.current); setShowTip(false); };
   return (
     <div style={{ position: "relative" }} onMouseEnter={onEnter} onMouseLeave={onLeave}>
-      <button onClick={onClick} style={{ width: 34, height: 34, borderRadius: 9, border: `1px solid ${a ? P.rose : accent ? P.lavender : P.textFaint + "40"}`, background: a ? P.card : P.glass, backdropFilter: "blur(10px)", cursor: "pointer", fontSize: accent ? 15 : 14, display: "flex", alignItems: "center", justifyContent: "center", transition: "all .3s", fontFamily: "inherit", color: P.text }}>{children}</button>
+      <button onClick={onClick} style={{ width: 38, height: 38, borderRadius: 12, border: `1px solid ${a ? P.rose + "50" : accent ? P.lavender + "40" : P.textFaint + "20"}`, background: a ? P.card : P.glass, backdropFilter: "blur(12px)", cursor: "pointer", fontSize: accent ? 15 : 14, display: "flex", alignItems: "center", justifyContent: "center", transition: "all .3s ease", fontFamily: "inherit", color: P.text, boxShadow: hov ? `0 4px 16px ${P.text}12, 0 1px 3px ${P.text}08` : `0 1px 4px ${P.text}06`, transform: hov ? "translateY(-1px)" : "none" }}>{children}</button>
       {showTip && tip && (
-        <div style={{ position: "absolute", left: 42, top: "50%", transform: "translateY(-50%)", whiteSpace: "nowrap", background: P.card, backdropFilter: "blur(12px)", border: `1px solid ${P.rose}20`, borderRadius: 7, padding: "4px 10px", fontSize: 9, color: P.textMid, boxShadow: `0 3px 12px ${P.text}18`, pointerEvents: "none", animation: "fadeIn .2s ease", zIndex: 30, letterSpacing: ".04em" }}>{tip}</div>
+        <div style={{ position: "absolute", left: 46, top: "50%", transform: "translateY(-50%)", whiteSpace: "nowrap", background: P.card, backdropFilter: "blur(14px)", border: `1px solid ${P.rose}15`, borderRadius: 10, padding: "6px 14px", fontSize: 10, color: P.textMid, boxShadow: `0 4px 20px ${P.text}12, 0 1px 4px ${P.text}06`, pointerEvents: "none", animation: "fadeIn .2s ease", zIndex: 30, letterSpacing: ".05em" }}>{tip}</div>
       )}
     </div>
   );
 }
-function Lbl({ children }) { return <label style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".13em", textTransform: "uppercase", display: "block", marginBottom: 2 }}>{children}</label>; }
-function Fld({ l, v, set, t = "text", ph = "" }) { return <div style={{ marginBottom: 9 }}><Lbl>{l}</Lbl><input type={t} value={v || ""} placeholder={ph} onChange={e => set(e.target.value)} style={inpSt()} /></div>; }
+function Lbl({ children }) { return <label style={{ fontSize: 9, color: P.textFaint, letterSpacing: ".18em", textTransform: "uppercase", display: "block", marginBottom: 4, fontWeight: 400 }}>{children}</label>; }
+function Fld({ l, v, set, t = "text", ph = "" }) { return <div style={{ marginBottom: 12 }}><Lbl>{l}</Lbl><input type={t} value={v || ""} placeholder={ph} onChange={e => set(e.target.value)} style={inpSt()} /></div>; }
 
 // ---- DREAM ADD FORM ----
 // ---- QUICK ADD FORM ----
@@ -3793,9 +3815,9 @@ function QuickAddForm({ types, onAdd, onClose }) {
   const ok = city.trim() && lat && lng && dateStart;
 
   return (
-    <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", zIndex: 40, background: P.card, backdropFilter: "blur(24px)", borderRadius: 16, padding: 20, width: 320, boxShadow: "0 18px 56px rgba(61,53,82,.14)", border: `1px solid ${P.gold}22`, fontFamily: "'Palatino Linotype',Palatino,Georgia,serif", color: P.text }}>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-        <h3 style={{ margin: 0, fontSize: 14, fontWeight: 400 }}>⚡ Quick Add</h3>
+    <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", zIndex: 40, background: P.card, backdropFilter: "blur(28px)", borderRadius: 20, padding: 24, width: 340, boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 20px 56px rgba(61,53,82,.1)", border: `1px solid ${P.gold}15`, fontFamily: "'Palatino Linotype',Palatino,Georgia,serif", color: P.text, animation: "fadeIn .3s ease" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+        <h3 style={{ margin: 0, fontSize: 15, fontWeight: 400, letterSpacing: ".04em" }}>⚡ Quick Add</h3>
         <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 16, color: P.textFaint, cursor: "pointer" }}>×</button>
       </div>
       <div style={{ position: "relative", marginBottom: 6 }}>
@@ -3815,7 +3837,7 @@ function QuickAddForm({ types, onAdd, onClose }) {
       </div>
       <input value={note} onChange={e => setNote(e.target.value)} placeholder="Quick note..." style={{ ...inpSt(), marginBottom: 8 }} />
       <button disabled={!ok} onClick={() => { onAdd({ id: `e-${Date.now()}`, city, country, lat: parseFloat(lat), lng: parseFloat(lng), dateStart, dateEnd: dateEnd || dateStart, type, who: types[type]?.who || "both", notes: note, memories: [], museums: [], restaurants: [], highlights: [], photos: [], stops: [], zoomLevel: 1 }); }}
-        style={{ width: "100%", padding: "9px", background: ok ? P.goldWarm : `${P.textFaint}60`, color: "#fff", border: "none", borderRadius: 8, cursor: ok ? "pointer" : "default", fontSize: 11, fontFamily: "inherit", transition: "all .3s" }}>
+        style={{ width: "100%", padding: "11px", background: ok ? `linear-gradient(135deg, ${P.goldWarm}, ${P.rose})` : `${P.textFaint}60`, color: "#fff", border: "none", borderRadius: 12, cursor: ok ? "pointer" : "default", fontSize: 11, fontFamily: "inherit", transition: "all .3s", letterSpacing: ".06em", boxShadow: ok ? `0 2px 8px ${P.goldWarm}30, 0 4px 16px ${P.goldWarm}15` : "none" }}>
         {ok ? "⚡ Add to World" : "Select a city & date"}
       </button>
     </div>
@@ -3835,8 +3857,8 @@ function DreamAddForm({ onAdd, isMyWorld }) {
   const pick = c => { sf(p => ({ ...p, city: c[0], country: c[1], lat: c[2].toString(), lng: c[3].toString() })); setSugg([]); setShowSugg(false); };
   const ok = f.city && f.lat && f.lng;
   return (
-    <div style={{ marginTop: 12, padding: 12, background: `${P.gold}06`, borderRadius: 10, border: `1px dashed ${P.goldWarm}30` }}>
-      <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 6 }}>{isMyWorld ? "Add to Bucket List" : "Add a Dream"}</div>
+    <div style={{ marginTop: 14, padding: 14, background: `linear-gradient(145deg, ${P.gold}06, ${P.cream})`, borderRadius: 14, border: `1px dashed ${P.goldWarm}25` }}>
+      <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 8 }}>{isMyWorld ? "Add to Bucket List" : "Add a Dream"}</div>
       <div style={{ position: "relative", marginBottom: 6 }}>
         <input placeholder="Start typing a city..." value={f.city} onChange={e => onInput(e.target.value)} onFocus={() => { if (sugg.length > 0) setShowSugg(true); }} style={{ ...inpSt(), fontSize: 11 }} />
         {showSugg && sugg.length > 0 && (
@@ -3854,7 +3876,7 @@ function DreamAddForm({ onAdd, isMyWorld }) {
       </div>
       <input placeholder="Why this place?" value={f.notes} onChange={e => sf(p => ({ ...p, notes: e.target.value }))} style={{ ...inpSt(), fontSize: 10, marginBottom: 6 }} />
       <button disabled={!ok} onClick={() => { onAdd({ city: f.city, country: f.country, lat: parseFloat(f.lat), lng: parseFloat(f.lng), notes: f.notes }); sf({ city: "", country: "", lat: "", lng: "", notes: "" }); }}
-        style={{ width: "100%", padding: "7px", background: ok ? P.goldWarm : `${P.textFaint}60`, color: "#fff", border: "none", borderRadius: 6, cursor: ok ? "pointer" : "default", fontSize: 10, fontFamily: "inherit" }}>
+        style={{ width: "100%", padding: "9px", background: ok ? `linear-gradient(135deg, ${P.goldWarm}, ${P.rose})` : `${P.textFaint}60`, color: "#fff", border: "none", borderRadius: 10, cursor: ok ? "pointer" : "default", fontSize: 10, fontFamily: "inherit", transition: "all .3s", letterSpacing: ".06em", boxShadow: ok ? `0 2px 8px ${P.goldWarm}25` : "none" }}>
         {isMyWorld ? "🗺 Add to List" : "✦ Add Dream"}
       </button>
     </div>
@@ -3913,8 +3935,8 @@ function AddForm({ types, defaultType = "together", defaultWho = "both", fieldLa
   };
 
   return (
-    <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", zIndex: 40, background: P.card, backdropFilter: "blur(24px)", borderRadius: 18, padding: 24, width: 370, maxHeight: "88vh", overflowY: "auto", boxShadow: "0 18px 56px rgba(61,53,82,.14)", border: `1px solid ${P.rose}18`, fontFamily: "'Palatino Linotype',Palatino,Georgia,serif", color: P.text }}>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}><h3 style={{ margin: 0, fontSize: 16, fontWeight: 400 }}>Add a New Chapter</h3><button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, color: P.textFaint, cursor: "pointer" }}>×</button></div>
+    <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", zIndex: 40, background: P.card, backdropFilter: "blur(28px)", borderRadius: 22, padding: 28, width: 380, maxHeight: "88vh", overflowY: "auto", boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 20px 56px rgba(61,53,82,.1)", border: `1px solid ${P.rose}10`, fontFamily: "'Palatino Linotype',Palatino,Georgia,serif", color: P.text, animation: "fadeIn .3s ease" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}><h3 style={{ margin: 0, fontSize: 17, fontWeight: 400, letterSpacing: ".04em" }}>Add a New Chapter</h3><button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, color: P.textFaint, cursor: "pointer" }}>×</button></div>
       <p style={{ fontSize: 9, color: P.textMuted, marginBottom: 12, fontStyle: "italic" }}>{isMyWorld ? "Add a new adventure 🧭" : "Another page in your story ✨"}</p>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
@@ -4020,7 +4042,7 @@ function AddForm({ types, defaultType = "together", defaultWho = "both", fieldLa
         notes: f.notes, memories: f.memories.split("\n").filter(Boolean), museums: f.museums.split("\n").filter(Boolean),
         restaurants: f.restaurants.split("\n").filter(Boolean), highlights: f.highlights.split("\n").filter(Boolean),
         photos: [], stops: f.stops, musicUrl: f.musicUrl || null,
-      }); }} style={{ width: "100%", padding: "10px 0", background: ok ? P.rose : `${P.textFaint}60`, color: "#fff", border: "none", borderRadius: 9, cursor: ok ? "pointer" : "default", fontSize: 12, letterSpacing: ".1em", fontFamily: "inherit", transition: "all .3s" }}>
+      }); }} style={{ width: "100%", padding: "12px 0", background: ok ? `linear-gradient(135deg, ${P.rose}, ${P.sky})` : `${P.textFaint}60`, color: "#fff", border: "none", borderRadius: 14, cursor: ok ? "pointer" : "default", fontSize: 12, letterSpacing: ".1em", fontFamily: "inherit", transition: "all .3s", boxShadow: ok ? `0 2px 8px ${P.rose}30, 0 4px 16px ${P.rose}15` : "none" }}>
         {ok ? (isMyWorld ? "Add to My World 🌍" : "Add to Our World 💕") : "Fill required fields to continue"}
       </button>
       {!ok && <p style={{ fontSize: 8, color: validationMsg.includes("must be") ? "#c9777a" : P.textFaint, textAlign: "center", marginTop: 5, letterSpacing: ".08em" }}>
@@ -4032,8 +4054,8 @@ function AddForm({ types, defaultType = "together", defaultWho = "both", fieldLa
 
 // Required-field label with pink asterisk
 function RLbl({ children, req }) {
-  return <label style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".13em", textTransform: "uppercase", display: "block", marginBottom: 2 }}>
-    {children}{req && <span style={{ color: P.rose, marginLeft: 2 }}>✱</span>}
+  return <label style={{ fontSize: 9, color: P.textFaint, letterSpacing: ".18em", textTransform: "uppercase", display: "block", marginBottom: 4, fontWeight: 400 }}>
+    {children}{req && <span style={{ color: P.rose, marginLeft: 3 }}>✱</span>}
   </label>;
 }
 
@@ -4083,8 +4105,8 @@ function EditForm({ entry, types, fieldLabels, onChange, onSave, onClose, onDele
   };
 
   return (
-    <div style={{ position: "absolute", top: "42%", right: 18, transform: "translateY(-50%)", zIndex: 30, background: P.card, backdropFilter: "blur(24px)", borderRadius: 16, padding: 20, maxWidth: 330, minWidth: 260, maxHeight: "65vh", overflowY: "auto", boxShadow: "0 12px 44px rgba(61,53,82,.12)", border: `1px solid ${P.together}20`, fontFamily: "'Palatino Linotype',Palatino,Georgia,serif" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}><h3 style={{ margin: 0, fontSize: 14, fontWeight: 400 }}>Edit</h3><button onClick={onClose} style={{ background: "none", border: "none", fontSize: 16, color: P.textFaint, cursor: "pointer" }}>×</button></div>
+    <div style={{ position: "absolute", top: "42%", right: 18, transform: "translateY(-50%)", zIndex: 30, background: P.card, backdropFilter: "blur(28px)", borderRadius: 20, padding: 22, maxWidth: 340, minWidth: 270, maxHeight: "65vh", overflowY: "auto", boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 20px 56px rgba(61,53,82,.1)", border: `1px solid ${P.together}12`, fontFamily: "'Palatino Linotype',Palatino,Georgia,serif", animation: "fadeIn .3s ease" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}><h3 style={{ margin: 0, fontSize: 15, fontWeight: 400, letterSpacing: ".04em" }}>Edit</h3><button onClick={onClose} style={{ background: "none", border: "none", fontSize: 16, color: P.textFaint, cursor: "pointer" }}>×</button></div>
       <div style={{ marginBottom: 9, position: "relative" }}>
         <Lbl>City</Lbl>
         <input value={entry.city || ""} onChange={e => onEditCity(e.target.value)} onFocus={() => { if (citySugg.length > 0) setShowCitySugg(true); }} style={inpSt()} />
@@ -4141,11 +4163,15 @@ function EditForm({ entry, types, fieldLabels, onChange, onSave, onClose, onDele
         <button disabled={!ns.city || !ns.lat} onClick={() => { setShowStopSugg(false); onAddStop({ sid: `s-${Date.now()}`, city: ns.city, lat: parseFloat(ns.lat) || 0, lng: parseFloat(ns.lng) || 0, notes: ns.notes, dateStart: ns.dateStart || null, dateEnd: ns.dateEnd || null }); setNs({ city: "", lat: "", lng: "", notes: "", dateStart: "", dateEnd: "" }); }} style={{ marginTop: 4, width: "100%", padding: "6px", background: P.rose, color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 10, fontFamily: "inherit" }}>+ Add Stop</button>
       </div>
 
-      <div style={{ display: "flex", gap: 7, marginTop: 10 }}>
-        <button onClick={onSave} style={{ flex: 1, padding: "8px 0", background: P.rose, color: "#fff", border: "none", borderRadius: 7, cursor: "pointer", fontSize: 10, fontFamily: "inherit" }}>Save</button>
-        <button onClick={onClose} style={{ padding: "8px 12px", background: "transparent", border: `1px solid ${P.textFaint}40`, borderRadius: 7, cursor: "pointer", fontSize: 10, fontFamily: "inherit", color: P.textMuted }}>Cancel</button>
+      <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+        <button onClick={onSave} style={{ flex: 1, padding: "10px 0", background: `linear-gradient(135deg, ${P.rose}, ${P.sky})`, color: "#fff", border: "none", borderRadius: 12, cursor: "pointer", fontSize: 10, fontFamily: "inherit", letterSpacing: ".06em", boxShadow: `0 2px 8px ${P.rose}30`, transition: "all .25s" }}
+          onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = `0 4px 12px ${P.rose}40`; }}
+          onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = `0 2px 8px ${P.rose}30`; }}>Save</button>
+        <button onClick={onClose} style={{ padding: "10px 14px", background: "transparent", border: `1px solid ${P.textFaint}30`, borderRadius: 12, cursor: "pointer", fontSize: 10, fontFamily: "inherit", color: P.textMuted, transition: "all .2s" }}>Cancel</button>
       </div>
-      <button onClick={onDelete} style={{ marginTop: 7, width: "100%", padding: "6px 0", background: "transparent", color: "#c9777a", border: `1px solid #c0707030`, borderRadius: 7, cursor: "pointer", fontSize: 9, fontFamily: "inherit" }}>Delete</button>
+      <button onClick={onDelete} style={{ marginTop: 8, width: "100%", padding: "7px 0", background: "transparent", color: "#c9777a", border: `1px solid #c0707020`, borderRadius: 10, cursor: "pointer", fontSize: 9, fontFamily: "inherit", transition: "all .2s" }}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = "#c0707050"; e.currentTarget.style.background = "#c9777a08"; }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor = "#c0707020"; e.currentTarget.style.background = "transparent"; }}>Delete</button>
     </div>
   );
 }
