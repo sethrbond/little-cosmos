@@ -164,6 +164,8 @@ export async function loadConfig() {
     if (Array.isArray(data.metadata.bucketList))  cfg.bucketList = data.metadata.bucketList
     if (Array.isArray(data.metadata.chapters))    cfg.chapters = data.metadata.chapters
     if (typeof data.metadata.darkMode === 'boolean') cfg.darkMode = data.metadata.darkMode
+    if (data.metadata.customPalette && typeof data.metadata.customPalette === 'object') cfg.customPalette = data.metadata.customPalette
+    if (data.metadata.customScene && typeof data.metadata.customScene === 'object') cfg.customScene = data.metadata.customScene
   }
   return cfg
 }
@@ -179,6 +181,8 @@ export async function saveConfig(config) {
       bucketList: config.bucketList || [],
       chapters: config.chapters || [],
       darkMode: config.darkMode ?? false,
+      customPalette: config.customPalette || {},
+      customScene: config.customScene || {},
     },
   }
   const { error } = await supabase.from('my_config').upsert(row, { onConflict: 'id' })
