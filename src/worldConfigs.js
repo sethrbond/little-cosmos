@@ -176,3 +176,89 @@ export function resolveTypes(types, palette) {
   }
   return resolved;
 }
+
+// ============================================================
+//  CUSTOMIZABLE THEME SYSTEM
+// ============================================================
+
+export const THEME_FIELDS = [
+  { key: "space",     label: "Space Background", defaultOur: "#161028", defaultMy: "#0c0e16" },
+  { key: "globe",     label: "Globe Color",      defaultOur: "#e8d8f0", defaultMy: "#c8b898" },
+  { key: "glow",      label: "Glow Halo",        defaultOur: "#d8a0f0", defaultMy: "#6880a8" },
+  { key: "accent",    label: "Primary Accent",    defaultOur: "#d4a0b9", defaultMy: "#c0a068" },
+  { key: "secondary", label: "Secondary Accent",  defaultOur: "#9bb5d6", defaultMy: "#7090a8" },
+  { key: "coast",     label: "Coastlines",        defaultOur: "#70b850", defaultMy: "#5a9848" },
+  { key: "particles", label: "Particles",         defaultOur: "#f0a0c8", defaultMy: "#90a0b8" },
+  { key: "card",      label: "Card Background",   defaultOur: "#fdfbf7", defaultMy: "#f2eee6" },
+  { key: "textColor", label: "Text Color",        defaultOur: "#3d3552", defaultMy: "#282830" },
+  { key: "gold",      label: "Gold / Highlight",  defaultOur: "#d4b078", defaultMy: "#c4a048" },
+];
+
+function adjustHex(hex, amt) {
+  const c = hex.replace("#", "");
+  const r = Math.min(255, Math.max(0, parseInt(c.slice(0,2),16) + amt));
+  const g = Math.min(255, Math.max(0, parseInt(c.slice(2,4),16) + amt));
+  const b = Math.min(255, Math.max(0, parseInt(c.slice(4,6),16) + amt));
+  return "#" + [r,g,b].map(v => v.toString(16).padStart(2,"0")).join("");
+}
+
+function hexToRgb(hex) {
+  const c = hex.replace("#","");
+  return [parseInt(c.slice(0,2),16), parseInt(c.slice(2,4),16), parseInt(c.slice(4,6),16)];
+}
+
+function mixHex(a, b, t) {
+  const [r1,g1,b1] = hexToRgb(a), [r2,g2,b2] = hexToRgb(b);
+  return "#" + [Math.round(r1+(r2-r1)*t), Math.round(g1+(g2-g1)*t), Math.round(b1+(b2-b1)*t)]
+    .map(v => Math.min(255,Math.max(0,v)).toString(16).padStart(2,"0")).join("");
+}
+
+export function deriveTheme(seeds, isMyWorld) {
+  const base = isMyWorld ? MY_WORLD_PALETTE : OUR_WORLD_PALETTE;
+  const baseScene = isMyWorld ? MY_WORLD_SCENE : OUR_WORLD_SCENE;
+  const s = seeds || {};
+  if (!Object.values(s).some(v => v && v.length > 0)) return { palette: base, scene: baseScene };
+
+  const accent = s.accent || base.rose;
+  const secondary = s.secondary || base.sky;
+  const tc = s.textColor || base.text;
+  const gold = s.gold || base.gold;
+  const cardBg = s.card || (isMyWorld ? "#f2eee6" : "#fdfbf7");
+  const space = s.space || baseScene.bg;
+  const globe = s.globe || baseScene.sphereColor;
+  const glow = s.glow || baseScene.glowColors[0];
+  const coast = s.coast || baseScene.coastColor;
+  const particles = s.particles || baseScene.particleColor;
+
+  const palette = {
+    ...base,
+    cream: adjustHex(cardBg, 4), warm: adjustHex(cardBg, 6), parchment: adjustHex(cardBg, -8),
+    blush: mixHex(cardBg, accent, 0.06), lavMist: mixHex(cardBg, secondary, 0.08),
+    text: tc, textMid: adjustHex(tc, 40), textMuted: adjustHex(tc, 80), textFaint: adjustHex(tc, 120),
+    rose: accent, roseLight: adjustHex(accent, 50), roseSoft: adjustHex(accent, 30),
+    sky: secondary, skyLight: adjustHex(secondary, 40), skySoft: adjustHex(secondary, 20),
+    sage: mixHex(secondary, "#88aa88", 0.5),
+    gold: gold, goldWarm: adjustHex(gold, 20), lavender: mixHex(accent, secondary, 0.5),
+    together: mixHex(accent, secondary, 0.4), togetherSoft: mixHex(accent, secondary, 0.25),
+    togetherLight: mixHex(cardBg, mixHex(accent, secondary, 0.4), 0.15),
+    heart: adjustHex(accent, -15), heartSoft: adjustHex(accent, 15),
+    special: gold, specialSoft: adjustHex(gold, 30),
+    card: `rgba(${hexToRgb(cardBg).join(",")},0.96)`,
+    glass: `rgba(${hexToRgb(adjustHex(cardBg, -4)).join(",")},0.92)`,
+    warmMist: adjustHex(cardBg, -16),
+  };
+
+  const scene = {
+    ...baseScene,
+    bg: space, fog: space,
+    sphereColor: globe, sphereEmissive: adjustHex(space, 10),
+    ambientColor: adjustHex(cardBg, 30), sunColor: adjustHex(cardBg, 20),
+    fillColor: mixHex(globe, cardBg, 0.5), rimColor: accent, bottomColor: mixHex(secondary, glow, 0.5),
+    glowColors: Array.from({length: 8}, (_, i) => adjustHex(glow, i * 12)),
+    landColors: Array.from({length: 5}, (_, i) => adjustHex(mixHex(globe, accent, 0.2), -10 + i * 5)),
+    particleColor: particles, particleColor2: mixHex(particles, gold, 0.4),
+    starTint: mixHex(glow, cardBg, 0.5), coastColor: coast,
+  };
+
+  return { palette, scene };
+}
