@@ -862,15 +862,20 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
     });
   }, [db]);
 
-  // Color picker row — custom swatch picker (native input type=color broken in Safari)
-  const [cpOpen, setCpOpen] = useState(null); // which color picker label is expanded
+  // Color picker — rainbow gradient + presets + hex input
+  const [cpOpen, setCpOpen] = useState(null);
   const cPick = (label, desc, value, onChange, scene) => {
     const isOpen = cpOpen === label;
     const presets = scene
-      ? ["#161028","#1a1030","#0c0e16","#101820","#e8d8f0","#f0dce8","#d0c0a0","#c8b898",
-         "#f0a0c8","#d8a0f0","#7088a8","#6880a8","#70b850","#5a9848","#f8d0e0","#c8d0e0"]
-      : ["#d4a0b9","#e07a9a","#c0a068","#b08040","#9bb5d6","#7090a8","#dfc090","#c4a048",
-         "#a8bf94","#7a9a70","#b8a5cc","#908098","#faf8f4","#f2f0ec","#3d3552","#282830"];
+      ? ["#0a0814","#161028","#18102c","#0c0e16","#101820","#1a1428",
+         "#f8e8f4","#f0dce8","#e8d8f0","#d0c0a0","#e0d0b0","#c8b898",
+         "#f8b8d0","#f0a0c8","#d8a0f0","#e0c0f0","#80a0c0","#7088a8",
+         "#78c058","#70b850","#5a9848","#fce0f0","#d8e0f0","#c8d0e0"]
+      : ["#d4a0b9","#e8b8d0","#f0c8d8","#e07a9a","#f08888","#c97a7a",
+         "#c0a068","#d4b078","#b08040","#dfc090","#c4a048","#e8c88a",
+         "#9bb5d6","#7090a8","#a0c0e8","#b8a5cc","#908098","#c4a8e0",
+         "#a8bf94","#7a9a70","#88a890","#faf8f4","#f2f0ec","#e8e4dc",
+         "#3d3552","#282830","#504c58","#6b5e7e","#ffffff","#000000"];
     return (
       <div key={label} style={{ marginBottom: 8 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", cursor: "pointer" }}
@@ -885,14 +890,48 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
         </div>
         {isOpen && (
           <div style={{ padding: "6px 0 2px 36px" }}>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 6 }}>
+            {/* Rainbow gradient bar — click anywhere to pick */}
+            <canvas width={260} height={28}
+              style={{ width: "100%", height: 28, borderRadius: 4, cursor: "crosshair", marginBottom: 6, border: `1px solid ${P.textFaint}20` }}
+              ref={el => {
+                if (!el) return;
+                const ctx = el.getContext("2d");
+                if (el._drawn) return;
+                el._drawn = true;
+                const grad = ctx.createLinearGradient(0, 0, 260, 0);
+                ["#ff0000","#ff8000","#ffff00","#80ff00","#00ff00","#00ff80","#00ffff","#0080ff","#0000ff","#8000ff","#ff00ff","#ff0080","#ff0000"].forEach((c, i) => grad.addColorStop(i/12, c));
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, 260, 10);
+                const grad2 = ctx.createLinearGradient(0, 0, 260, 0);
+                ["#ffb0b0","#ffd0a0","#ffffb0","#b0ffb0","#b0ffff","#b0b0ff","#e0b0ff","#ffb0e0"].forEach((c, i) => grad2.addColorStop(i/7, c));
+                ctx.fillStyle = grad2;
+                ctx.fillRect(0, 10, 260, 9);
+                const grad3 = ctx.createLinearGradient(0, 0, 260, 0);
+                ["#000000","#1a1020","#2a1828","#182030","#202820","#282018","#382028","#ffffff"].forEach((c, i) => grad3.addColorStop(i/7, c));
+                ctx.fillStyle = grad3;
+                ctx.fillRect(0, 19, 260, 9);
+              }}
+              onClick={e => {
+                const canvas = e.target;
+                const rect = canvas.getBoundingClientRect();
+                const x = Math.round((e.clientX - rect.left) / rect.width * 259);
+                const y = Math.round((e.clientY - rect.top) / rect.height * 27);
+                const ctx = canvas.getContext("2d");
+                const px = ctx.getImageData(x, y, 1, 1).data;
+                const hex = "#" + [px[0],px[1],px[2]].map(v => v.toString(16).padStart(2,"0")).join("");
+                onChange(hex);
+              }}
+            />
+            {/* Preset swatches */}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginBottom: 6 }}>
               {presets.map(c => (
                 <div key={c} onClick={() => onChange(c)}
-                  style={{ width: 20, height: 20, borderRadius: 4, background: c, cursor: "pointer",
+                  style={{ width: 18, height: 18, borderRadius: 3, background: c, cursor: "pointer",
                     border: value === c ? `2px solid ${P.text}` : `1px solid ${P.textFaint}30`,
                     boxSizing: "border-box" }} />
               ))}
             </div>
+            {/* Hex input */}
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <span style={{ fontSize: 8, color: P.textFaint }}>Hex:</span>
               <input type="text" defaultValue={value} key={value}
@@ -2719,7 +2758,7 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
 
             <div style={{ margin: "14px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
             <div style={{ fontSize: 8, color: P.textMid, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 4, fontWeight: 500 }}>🎨 Color Theme</div>
-            <p style={{ fontSize: 8, color: P.textFaint, fontStyle: "italic", marginBottom: 10 }}>Pick colors for your world. UI colors change instantly. Globe colors (marked ✦) apply after refresh.</p>
+            <p style={{ fontSize: 8, color: P.textFaint, fontStyle: "italic", marginBottom: 10 }}>Interface colors update instantly. Globe/scene colors (✦) save but require a <strong style={{ color: P.textMid }}>page refresh</strong> to take effect.</p>
             {(() => {
               const cp = config.customPalette || {};
               const cs = config.customScene || {};
