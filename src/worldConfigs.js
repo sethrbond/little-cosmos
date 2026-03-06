@@ -5,17 +5,17 @@
 // ============================================================
 
 export const OUR_WORLD_PALETTE = {
-  cream: "#faf8f4", warm: "#fef9f4", parchment: "#f5f1ea",
-  blush: "#fdf2f4", lavMist: "#f3f0ff",
-  text: "#3d3552", textMid: "#6b5e7e", textMuted: "#958ba8", textFaint: "#c4bbd4",
-  rose: "#d4a0b9", roseLight: "#f0d4e4", roseSoft: "#e8c0d4",
-  sky: "#9bb5d6", skyLight: "#c8daf0", skySoft: "#b0c8e0",
-  sage: "#a8bf94", gold: "#d4b078", goldWarm: "#e8c88a", lavender: "#b8a5cc",
-  together: "#c4a8e0", togetherSoft: "#d8c4f0", togetherLight: "#ece0f8",
-  heart: "#e07a9a", heartSoft: "#f0a0b8",
-  special: "#dfc090", specialSoft: "#eedbb0",
-  card: "rgba(253,251,247,0.96)", glass: "rgba(250,248,244,0.92)",
-  warmMist: "#f5ece6",
+  cream: "#faf7f5", warm: "#fdf8f5", parchment: "#f3ede8",
+  blush: "#faf0f2", lavMist: "#f1edf8",
+  text: "#2e2440", textMid: "#584c6e", textMuted: "#8878a0", textFaint: "#b8aec8",
+  rose: "#c48aa8", roseLight: "#e4c0d4", roseSoft: "#d8a8c0",
+  sky: "#8ca8c8", skyLight: "#b8d0e8", skySoft: "#a0bcd8",
+  sage: "#90b080", gold: "#c8a060", goldWarm: "#dab470", lavender: "#a898c0",
+  together: "#b898d0", togetherSoft: "#d0b8e4", togetherLight: "#e6d8f2",
+  heart: "#d06888", heartSoft: "#e890a8",
+  special: "#d0a870", specialSoft: "#e0c090",
+  card: "rgba(252,249,246,0.96)", glass: "rgba(248,244,240,0.92)",
+  warmMist: "#f0e6de",
 };
 
 export const OUR_WORLD_TYPES = {
@@ -54,19 +54,19 @@ export const OUR_WORLD_FIELDS = {
 // ============================================================
 
 export const MY_WORLD_PALETTE = {
-  cream: "#f2f0ec", warm: "#f4f0e8", parchment: "#e8e4dc",
-  blush: "#e8e4de", lavMist: "#e0dcd4",
-  text: "#282830", textMid: "#504c58", textMuted: "#807888", textFaint: "#a8a0b0",
-  rose: "#c0a068",       // warm amber accent
-  roseLight: "#d8c498", roseSoft: "#ccb480",
-  sky: "#7090a8",        // slate blue
-  skyLight: "#90acc0", skySoft: "#80a0b8",
-  sage: "#7a9a70", gold: "#c4a048", goldWarm: "#d8b460", lavender: "#908098",
-  together: "#88a098", togetherSoft: "#a0b8b0", togetherLight: "#b8ccc4",
-  heart: "#b08040", heartSoft: "#c8a060",
-  special: "#c8a040", specialSoft: "#d8b868",
-  card: "rgba(242,238,232,0.96)", glass: "rgba(238,234,228,0.92)",
-  warmMist: "#dcd4c8",
+  cream: "#f5f2ee", warm: "#f8f4ee", parchment: "#ece6de",
+  blush: "#ede8e0", lavMist: "#e4e0d8",
+  text: "#24222c", textMid: "#484450", textMuted: "#747080", textFaint: "#a09ca8",
+  rose: "#b89058",       // warm amber accent (richer, deeper)
+  roseLight: "#d0b080", roseSoft: "#c4a070",
+  sky: "#6888a4",        // deeper slate blue
+  skyLight: "#88a8c0", skySoft: "#7898b0",
+  sage: "#688c5c", gold: "#b89040", goldWarm: "#cca450", lavender: "#887890",
+  together: "#7c9488", togetherSoft: "#98b0a4", togetherLight: "#b4c8bc",
+  heart: "#a07038", heartSoft: "#b88850",
+  special: "#b89038", specialSoft: "#ccaa50",
+  card: "rgba(244,240,234,0.96)", glass: "rgba(240,236,228,0.92)",
+  warmMist: "#d8cec0",
 };
 
 export const MY_WORLD_TYPES = {
@@ -102,45 +102,137 @@ export const MY_WORLD_FIELDS = {
 };
 
 // ============================================================
+//  SHARED WORLD TYPE PALETTES
+// ============================================================
+
+// Partner shared worlds — rose/lavender (same as Our World)
+export const PARTNER_PALETTE = OUR_WORLD_PALETTE;
+
+// Friends shared worlds — deep sapphire / burnished gold (premium social)
+export const FRIENDS_PALETTE = {
+  cream: "#f5f4fa", warm: "#f7f5fc", parchment: "#eceaf6",
+  blush: "#f2eef8", lavMist: "#eceef8",
+  text: "#1c1c34", textMid: "#3c3c5c", textMuted: "#6c6c8c", textFaint: "#9c9cb8",
+  rose: "#5b6abf",       // deep sapphire accent
+  roseLight: "#8890d8", roseSoft: "#7078cc",
+  sky: "#c89640",        // burnished gold secondary
+  skyLight: "#ddb460", skySoft: "#d4a850",
+  sage: "#6c9478", gold: "#bfa040", goldWarm: "#d4b450", lavender: "#8888b0",
+  together: "#7480b8", togetherSoft: "#9098cc", togetherLight: "#b4b8e0",
+  heart: "#4854a8", heartSoft: "#6870c0",
+  special: "#c89840", specialSoft: "#d8b058",
+  card: "rgba(245,244,250,0.97)", glass: "rgba(238,236,248,0.93)",
+  warmMist: "#d8d4ec",
+};
+
+// Family shared worlds — rich terracotta / deep sage (premium warm)
+export const FAMILY_PALETTE = {
+  cream: "#faf5f0", warm: "#fcf7f2", parchment: "#f0e8e0",
+  blush: "#f8ede6", lavMist: "#ecf2ea",
+  text: "#241c18", textMid: "#4c3c34", textMuted: "#7c6c60", textFaint: "#a89c90",
+  rose: "#c46040",       // rich terracotta accent
+  roseLight: "#dc8868", roseSoft: "#d07450",
+  sky: "#3c7c5c",        // deep sage/forest secondary
+  skyLight: "#5c9c78", skySoft: "#4c8c68",
+  sage: "#6c9460", gold: "#c09840", goldWarm: "#d4ac50", lavender: "#988878",
+  together: "#887060", togetherSoft: "#a08878", togetherLight: "#bca898",
+  heart: "#b84828", heartSoft: "#d06848",
+  special: "#c89840", specialSoft: "#dcb058",
+  card: "rgba(250,245,240,0.97)", glass: "rgba(244,238,230,0.93)",
+  warmMist: "#dcd0c4",
+};
+
+// ============================================================
 //  SCENE THEMING — Three.js colors per world
 // ============================================================
 
 export const OUR_WORLD_SCENE = {
-  bg: "#1e1638",
-  fog: "#1e1638",
-  sphereColor: "#fef4fa",
-  sphereEmissive: "#985090",
-  ambientColor: "#fffcfc",
-  sunColor: "#fff8fc",
-  fillColor: "#fcf4fa",
-  rimColor: "#f8b8e0",
-  bottomColor: "#e8d0fc",
-  glowColors: ["#f4c0fc", "#f8ccff", "#fce0ff", "#fde8ff", "#fef0ff", "#fef6ff", "#fffaff", "#fffcff"],
-  landColors: ["#f8d8e8", "#f0d0f0", "#f8e0f0", "#f0d8f0", "#fce0f8"],
-  particleColor: "#f8c0d8",
-  particleColor2: "#e8c8f8",
-  starTint: "#fce0f0",
-  coastColor: "#a0f080",
+  bg: "#1a1230",
+  fog: "#1a1230",
+  sphereColor: "#fcf0f6",
+  sphereEmissive: "#884880",
+  ambientColor: "#fefafc",
+  sunColor: "#fff6fa",
+  fillColor: "#faf0f6",
+  rimColor: "#e8a8d0",
+  bottomColor: "#d8c0f0",
+  glowColors: ["#e8b0e8", "#f0bbf0", "#f4c8f4", "#f8d4f8", "#fae0fa", "#fce8fc", "#fef0fe", "#fef6fe"],
+  landColors: ["#f0cce0", "#e8c4e4", "#f0d4e8", "#e8cce4", "#f4d8ec"],
+  particleColor: "#e8b0cc",
+  particleColor2: "#d8b8e8",
+  starTint: "#f0d4e8",
+  coastColor: "#60b858",
 };
 
-// Blue-tinged space, earthy/sandstone globe, green coasts
+// Deeper blue-slate space, warm sandstone globe, vivid green coasts
 export const MY_WORLD_SCENE = {
-  bg: "#161c24",
-  fog: "#161c24",
-  sphereColor: "#f4e8d0",
-  sphereEmissive: "#504858",
-  ambientColor: "#fcf4ec",
-  sunColor: "#fff8f0",
-  fillColor: "#f8f0e0",
-  rimColor: "#b8d8f0",
-  bottomColor: "#a0b8d0",
-  glowColors: ["#98b8d8", "#a0c0e0", "#a8c8e8", "#b8d0ec", "#c0d8f0", "#c8e0f4", "#d0e8f8", "#d8ecfc"],
-  landColors: ["#e8d8b8", "#dcc8a8", "#eee0c0", "#e0d0b0", "#d8c4a0"],
-  particleColor: "#b8c8d8",
-  particleColor2: "#c8d8c8",
-  starTint: "#d8e0f0",
-  coastColor: "#98e078",
+  bg: "#121820",
+  fog: "#121820",
+  sphereColor: "#f0e0c8",
+  sphereEmissive: "#484050",
+  ambientColor: "#faf0e4",
+  sunColor: "#fff4e8",
+  fillColor: "#f4ead8",
+  rimColor: "#a0c8e0",
+  bottomColor: "#90acc4",
+  glowColors: ["#88a8c8", "#90b0d0", "#98b8d8", "#a8c4e0", "#b0cce4", "#b8d4ec", "#c0dcf0", "#c8e4f4"],
+  landColors: ["#e0ccac", "#d4bc98", "#e6d4b4", "#d8c8a4", "#d0bc94"],
+  particleColor: "#a4b8cc",
+  particleColor2: "#b8ccb8",
+  starTint: "#ccd8e8",
+  coastColor: "#58b050",
 };
+
+// Partner scene — same as Our World
+export const PARTNER_SCENE = OUR_WORLD_SCENE;
+
+// Friends scene — deep sapphire-navy, luminous globe
+export const FRIENDS_SCENE = {
+  bg: "#0e1028",
+  fog: "#0e1028",
+  sphereColor: "#e8e4f4",
+  sphereEmissive: "#2c3060",
+  ambientColor: "#f4f2fc",
+  sunColor: "#f4f0ff",
+  fillColor: "#ece8f8",
+  rimColor: "#6c78c8",
+  bottomColor: "#9098c0",
+  glowColors: ["#5c68b0", "#6874b8", "#7480c0", "#808cc8", "#8c98d0", "#98a4d8", "#a4b0e0", "#b0bce8"],
+  landColors: ["#dcd8ec", "#d0cce4", "#e4e0f0", "#d8d4e8", "#ccc8e0"],
+  particleColor: "#7880c0",
+  particleColor2: "#c4a458",
+  starTint: "#c4c4dc",
+  coastColor: "#58a860",
+};
+
+// Family scene — warm terracotta/sage, earthy glow
+export const FAMILY_SCENE = {
+  bg: "#181210",
+  fog: "#181210",
+  sphereColor: "#f4ece0",
+  sphereEmissive: "#4c3028",
+  ambientColor: "#fcf4ec",
+  sunColor: "#fff4e8",
+  fillColor: "#f4e8d8",
+  rimColor: "#c46848",
+  bottomColor: "#509468",
+  glowColors: ["#c47050", "#c87858", "#cc8060", "#d08868", "#d49070", "#d89878", "#dca080", "#e0a888"],
+  landColors: ["#eedcc4", "#e2d0b4", "#f2e4cc", "#e6d8bc", "#dad0b0"],
+  particleColor: "#b86040",
+  particleColor2: "#5c9470",
+  starTint: "#e4d4c0",
+  coastColor: "#509858",
+};
+
+// Helper to get palette/scene for a shared world type
+export function getSharedWorldConfig(worldType) {
+  switch (worldType) {
+    case "friends": return { palette: FRIENDS_PALETTE, scene: FRIENDS_SCENE };
+    case "family":  return { palette: FAMILY_PALETTE,  scene: FAMILY_SCENE };
+    case "partner":
+    default:        return { palette: PARTNER_PALETTE, scene: PARTNER_SCENE };
+  }
+}
 
 // ============================================================
 //  SEASONAL TINTING per world
@@ -182,16 +274,16 @@ export function resolveTypes(types, palette) {
 // ============================================================
 
 export const THEME_FIELDS = [
-  { key: "space",     label: "Space Background", defaultOur: "#1e1638", defaultMy: "#161c24" },
-  { key: "globe",     label: "Globe Color",      defaultOur: "#fef4fa", defaultMy: "#f4e8d0" },
-  { key: "glow",      label: "Glow Halo",        defaultOur: "#f4c0fc", defaultMy: "#98b8d8" },
-  { key: "accent",    label: "Primary Accent",    defaultOur: "#d4a0b9", defaultMy: "#c0a068" },
-  { key: "secondary", label: "Secondary Accent",  defaultOur: "#9bb5d6", defaultMy: "#7090a8" },
-  { key: "coast",     label: "Coastlines",        defaultOur: "#a0f080", defaultMy: "#98e078" },
-  { key: "particles", label: "Particles",         defaultOur: "#f8c0d8", defaultMy: "#b8c8d8" },
-  { key: "card",      label: "Card Background",   defaultOur: "#fdfbf7", defaultMy: "#f2eee6" },
-  { key: "textColor", label: "Text Color",        defaultOur: "#3d3552", defaultMy: "#282830" },
-  { key: "gold",      label: "Gold / Highlight",  defaultOur: "#d4b078", defaultMy: "#c4a048" },
+  { key: "space",     label: "Space Background", defaultOur: "#1a1230", defaultMy: "#121820" },
+  { key: "globe",     label: "Globe Color",      defaultOur: "#fcf0f6", defaultMy: "#f0e0c8" },
+  { key: "glow",      label: "Glow Halo",        defaultOur: "#e8b0e8", defaultMy: "#88a8c8" },
+  { key: "accent",    label: "Primary Accent",    defaultOur: "#c48aa8", defaultMy: "#b89058" },
+  { key: "secondary", label: "Secondary Accent",  defaultOur: "#8ca8c8", defaultMy: "#6888a4" },
+  { key: "coast",     label: "Coastlines",        defaultOur: "#60b858", defaultMy: "#58b050" },
+  { key: "particles", label: "Particles",         defaultOur: "#e8b0cc", defaultMy: "#a4b8cc" },
+  { key: "card",      label: "Card Background",   defaultOur: "#fcf9f6", defaultMy: "#f4f0ea" },
+  { key: "textColor", label: "Text Color",        defaultOur: "#2e2440", defaultMy: "#24222c" },
+  { key: "gold",      label: "Gold / Highlight",  defaultOur: "#c8a060", defaultMy: "#b89040" },
 ];
 
 function adjustHex(hex, amt) {
@@ -213,9 +305,10 @@ function mixHex(a, b, t) {
     .map(v => Math.min(255,Math.max(0,v)).toString(16).padStart(2,"0")).join("");
 }
 
-export function deriveTheme(seeds, isMyWorld) {
-  const base = isMyWorld ? MY_WORLD_PALETTE : OUR_WORLD_PALETTE;
-  const baseScene = isMyWorld ? MY_WORLD_SCENE : OUR_WORLD_SCENE;
+export function deriveTheme(seeds, isMyWorld, sharedWorldType) {
+  const shared = (!isMyWorld && sharedWorldType) ? getSharedWorldConfig(sharedWorldType) : null;
+  const base = isMyWorld ? MY_WORLD_PALETTE : (shared ? shared.palette : OUR_WORLD_PALETTE);
+  const baseScene = isMyWorld ? MY_WORLD_SCENE : (shared ? shared.scene : OUR_WORLD_SCENE);
   const s = seeds || {};
   if (!Object.values(s).some(v => v && v.length > 0)) return { palette: base, scene: baseScene };
 

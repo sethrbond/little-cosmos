@@ -10,10 +10,11 @@ import {
   OUR_WORLD_DEFAULT_CONFIG, MY_WORLD_DEFAULT_CONFIG,
   OUR_WORLD_FIELDS, MY_WORLD_FIELDS,
   OUR_WORLD_SCENE, MY_WORLD_SCENE,
-  getSeasonalHue, resolveTypes,
+  getSeasonalHue, resolveTypes, getSharedWorldConfig,
 } from "./worldConfigs.js";
 import { sendWelcomeLetter, getMyLetters, deleteWelcomeLetter } from "./supabaseWelcomeLetters.js";
-import { loadComments, addComment, deleteComment, loadAllWorldReactions, toggleReaction } from "./supabaseWorlds.js";
+import { loadComments, addComment, deleteComment, loadAllWorldReactions, toggleReaction, getWorldMembers } from "./supabaseWorlds.js";
+import { supabase } from "./supabaseClient.js";
 
 /* =================================================================
    🌍 OUR WORLD / MY WORLD — Multi-World Globe Engine
@@ -22,18 +23,20 @@ import { loadComments, addComment, deleteComment, loadAllWorldReactions, toggleR
 
 // Mutable palette ref — stored on window to survive Vite production bundling
 // (Vite may convert top-level `let` to `const`, making reassignment throw)
-// External form components (inpSt, TBtn, Fld, etc.) read from P so they get correct world colors
+// External form components (inpSt, TBtn, Fld, etc.) read from P so they get correct world colors.
+// Initialized with Our World palette but mutated in-place by _paletteBase useMemo to match current world.
 window.__cosmosP = {
-  cream: "#faf8f4", warm: "#fef9f4", parchment: "#f5f1ea",
-  blush: "#fdf2f4", lavMist: "#f3f0ff",
-  text: "#3d3552", textMid: "#6b5e7e", textMuted: "#958ba8", textFaint: "#c4bbd4",
-  rose: "#d4a0b9", roseLight: "#f0d4e4", roseSoft: "#e8c0d4",
-  sky: "#9bb5d6", skyLight: "#c8daf0", skySoft: "#b0c8e0",
-  sage: "#a8bf94", gold: "#d4b078", goldWarm: "#e8c88a", lavender: "#b8a5cc",
-  together: "#c4a8e0", togetherSoft: "#d8c4f0", togetherLight: "#ece0f8",
-  heart: "#e07a9a", heartSoft: "#f0a0b8",
-  special: "#dfc090", specialSoft: "#eedbb0",
-  card: "rgba(253,251,247,0.96)", glass: "rgba(250,248,244,0.92)",
+  cream: "#faf7f5", warm: "#fdf8f5", parchment: "#f3ede8",
+  blush: "#faf0f2", lavMist: "#f1edf8",
+  text: "#2e2440", textMid: "#584c6e", textMuted: "#8878a0", textFaint: "#b8aec8",
+  rose: "#c48aa8", roseLight: "#e4c0d4", roseSoft: "#d8a8c0",
+  sky: "#8ca8c8", skyLight: "#b8d0e8", skySoft: "#a0bcd8",
+  sage: "#90b080", gold: "#c8a060", goldWarm: "#dab470", lavender: "#a898c0",
+  together: "#b898d0", togetherSoft: "#d0b8e4", togetherLight: "#e6d8f2",
+  heart: "#d06888", heartSoft: "#e890a8",
+  special: "#d0a870", specialSoft: "#e0c090",
+  card: "rgba(252,249,246,0.96)", glass: "rgba(248,244,240,0.92)",
+  warmMist: "#f0e6de",
 };
 const P = window.__cosmosP;
 
@@ -845,7 +848,7 @@ class OurWorldErrorBoundary extends Component {
 // ================================================================
 // MAIN
 // ================================================================
-function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, worldRole = null, onSwitchWorld }) {
+function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, worldRole = null, worldType = null, onSwitchWorld }) {
   // ---- AUTH ----
   const { user, userId, signOut } = useAuth();
   const userDisplayName = user?.user_metadata?.display_name || "";
@@ -858,11 +861,12 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const DEFAULT_CONFIG = isMyWorld ? MY_WORLD_DEFAULT_CONFIG : OUR_WORLD_DEFAULT_CONFIG;
   const FIELD_LABELS = isMyWorld ? MY_WORLD_FIELDS : OUR_WORLD_FIELDS;
   useEffect(() => {
-    document.title = isFriendWorld ? `${worldName || "Friend's World"} — My Cosmos`
-      : isMyWorld ? "My World — My Cosmos"
-      : worldName ? `${worldName} — My Cosmos`
-      : "Our World — My Cosmos";
-  }, [isMyWorld, isFriendWorld, worldName]);
+    const typeLabel = { partner: "Partner", friends: "Friends", family: "Family" }[worldType] || "";
+    document.title = isFriendWorld ? `${worldName || "Friend's World"} — Little Cosmos`
+      : isMyWorld ? "My World — Little Cosmos"
+      : worldName ? `${worldName}${typeLabel ? ` (${typeLabel})` : ""} — Little Cosmos`
+      : "Our World — Little Cosmos";
+  }, [isMyWorld, isFriendWorld, worldName, worldType]);
 
   // DB functions selected by mode, scoped to current user or shared world
   const db = useMemo(() => {
@@ -881,12 +885,23 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   // Palette & scene merge custom overrides from config (takes effect on render for UI, on reload for scene)
   // Mutates module-level P so external form components (TBtn, Fld, etc.) get correct world colors
   const _paletteBase = useMemo(() => {
-    const merged = { ...(isMyWorld ? MY_WORLD_PALETTE : OUR_WORLD_PALETTE), ...(config.customPalette || {}) };
-    // Update window.__cosmosP properties so external form components (via P ref) get correct colors
+    let basePalette = isMyWorld ? MY_WORLD_PALETTE : OUR_WORLD_PALETTE;
+    if (!isMyWorld && worldType) {
+      const shared = getSharedWorldConfig(worldType);
+      basePalette = shared.palette;
+    }
+    const merged = { ...basePalette, ...(config.customPalette || {}) };
     for (const k of Object.keys(merged)) window.__cosmosP[k] = merged[k];
     return merged;
-  }, [isMyWorld, config.customPalette]);
-  const SC = useMemo(() => ({ ...(isMyWorld ? MY_WORLD_SCENE : OUR_WORLD_SCENE), ...(config.customScene || {}) }), [isMyWorld, config.customScene]);
+  }, [isMyWorld, worldType, config.customPalette]);
+  const SC = useMemo(() => {
+    let baseScene = isMyWorld ? MY_WORLD_SCENE : OUR_WORLD_SCENE;
+    if (!isMyWorld && worldType) {
+      const shared = getSharedWorldConfig(worldType);
+      baseScene = shared.scene;
+    }
+    return { ...baseScene, ...(config.customScene || {}) };
+  }, [isMyWorld, worldType, config.customScene]);
   const TYPES = useMemo(() => resolveTypes(isMyWorld ? MY_WORLD_TYPES : OUR_WORLD_TYPES, _paletteBase), [isMyWorld, _paletteBase]);
   const DEFAULT_TYPE = isMyWorld ? TYPES.adventure : TYPES.together;
 
@@ -922,10 +937,15 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const setConfig = useCallback(partial => {
     setConfigState(prev => {
       const next = { ...prev, ...partial };
+      // Auto-update subtitle from names for shared worlds when names change
+      if (isSharedWorld && (partial.youName !== undefined || partial.partnerName !== undefined)) {
+        const yn = next.youName || '', pn = next.partnerName || '';
+        if (yn && pn) next.subtitle = `${yn} & ${pn}`;
+      }
       db.saveConfig(next);
       return next;
     });
-  }, [db]);
+  }, [db, isSharedWorld]);
 
   // Color picker — rainbow gradient + presets + hex input
   const [cpOpen, setCpOpen] = useState(null);
@@ -1075,6 +1095,12 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     return () => clearTimeout(t);
   }, [selected?.id, selected?.musicUrl]);
 
+  // Load world members for contributor avatars
+  useEffect(() => {
+    if (!isSharedWorld || !worldId) { setWorldMembers([]); return; }
+    getWorldMembers(worldId).then(setWorldMembers).catch(() => setWorldMembers([]));
+  }, [isSharedWorld, worldId]);
+
   // Load reactions for shared worlds
   useEffect(() => {
     if (!isSharedWorld || !worldId) return;
@@ -1087,18 +1113,43 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     loadComments(worldId, selected.id).then(setEntryComments).catch(() => setEntryComments([]));
   }, [isSharedWorld, worldId, selected?.id]);
 
+  // Real-time subscription — live updates for shared worlds
+  useEffect(() => {
+    if (!isSharedWorld || !worldId) return;
+    const channel = supabase
+      .channel(`world-${worldId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'entries', filter: `world_id=eq.${worldId}` }, (payload) => {
+        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+          db.loadEntries().then(entries => { if (entries) _dispatch({ type: 'LOAD', entries }); });
+        } else if (payload.eventType === 'DELETE') {
+          db.loadEntries().then(entries => { if (entries) _dispatch({ type: 'LOAD', entries }); });
+        }
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'entry_comments', filter: `world_id=eq.${worldId}` }, () => {
+        if (selected?.id) loadComments(worldId, selected.id).then(setEntryComments).catch(() => {});
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'entry_reactions', filter: `world_id=eq.${worldId}` }, () => {
+        loadAllWorldReactions(worldId).then(setWorldReactions).catch(() => {});
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [isSharedWorld, worldId, db, selected?.id]);
+
   // zoom tracked via zmR ref (used in animation loop directly)
   const [ready, setReady] = useState(false);
   const [introComplete, setIntroComplete] = useState(false);
   const onboardKey = isSharedWorld ? `cosmos_onboarded_${worldId}` : isMyWorld ? "cosmos_onboarded_my" : "cosmos_onboarded";
   const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem(onboardKey));
   const [onboardStep, setOnboardStep] = useState(0);
+  const [showCelebration, setShowCelebration] = useState(false);
   const [showPhotoJourney, setShowPhotoJourney] = useState(false);
   const [pjIndex, setPjIndex] = useState(0);
   // editMode removed — all features always active
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState(null);
   const [photoIdx, setPhotoIdx] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIdx, setLightboxIdx] = useState(0);
   const [showLetter, setShowLetter] = useState(null); // letter id to show, or null
   const [editLetter, setEditLetter] = useState(false); // show letter editor
   const [letterDraft, setLetterDraft] = useState("");
@@ -1113,6 +1164,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [wlSending, setWlSending] = useState(false);
   const [wlSent, setWlSent] = useState(false);
   const [myLetters, setMyLetters] = useState([]);
+  const [worldMembers, setWorldMembers] = useState([]);
   const [sliderDate, setSliderDate] = useState(todayStr());
   const [isAnimating, setIsAnimating] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
@@ -1169,6 +1221,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   }, [data.entries, markerFilter]);
   const togetherList = useMemo(() => sorted.filter(e => e.who === "both"), [sorted]);
   const firstBadges = useMemo(() => getFirstBadges(data.entries), [data.entries]);
+  const memberNameMap = useMemo(() => Object.fromEntries(worldMembers.map(m => [m.user_id, m.display_name || "Member"])), [worldMembers]);
   const season = useMemo(() => seasonalHue(sliderDate, isMyWorld), [sliderDate, isMyWorld]);
 
   // Auto-hide zoom hint after 4 seconds
@@ -1559,19 +1612,17 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   }, [stepDay, isPlaying, showAdd, editing, showSettings, showSearch, stopPlay, playStory, togetherList]);
 
   // ---- YEAR-IN-REVIEW RECAP ----
+  const [recapAutoPlay, setRecapAutoPlay] = useState(false);
+
   const startRecap = useCallback((year) => {
     const yearEntries = sorted.filter(e => e.dateStart?.startsWith(String(year)));
     if (yearEntries.length === 0) return;
     setShowRecap(true);
     setRecapYear(year);
-    setRecapIdx(0);
+    setRecapIdx(-1); // -1 = stats intro slide
+    setRecapAutoPlay(false);
     setShowStats(false);
     setSelected(null);
-
-    // Fly to first entry
-    const first = yearEntries[0];
-    setSliderDate(first.dateStart);
-    flyTo(first.lat, first.lng, 2.6);
   }, [sorted]);
 
   const recapEntries = useMemo(() => {
@@ -1579,18 +1630,40 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     return sorted.filter(e => e.dateStart?.startsWith(String(recapYear)));
   }, [recapYear, sorted]);
 
+  const recapYearStats = useMemo(() => {
+    if (!recapEntries.length) return null;
+    const countries = new Set();
+    let totalDays = 0, photos = 0;
+    recapEntries.forEach(e => {
+      if (e.country) countries.add(e.country);
+      (e.stops || []).forEach(s => { if (s.country) countries.add(s.country); });
+      totalDays += Math.max(1, daysBetween(e.dateStart, e.dateEnd || e.dateStart));
+      photos += (e.photos || []).length;
+    });
+    return { countries: countries.size, entries: recapEntries.length, totalDays, photos, countryNames: [...countries].slice(0, 8) };
+  }, [recapEntries]);
+
   const advanceRecap = useCallback((dir) => {
     const next = recapIdx + dir;
-    if (next < 0 || next >= recapEntries.length) {
-      setShowRecap(false); setRecapYear(null);
-      showToast("Recap complete ✨", "🎬", 3000);
+    if (next < -1 || next >= recapEntries.length) {
+      setShowRecap(false); setRecapYear(null); setRecapAutoPlay(false);
+      showToast("Recap complete", "🎬", 3000);
       return;
     }
     setRecapIdx(next);
-    const entry = recapEntries[next];
-    setSliderDate(entry.dateStart);
-    flyTo(entry.lat, entry.lng, 2.4);
+    if (next >= 0) {
+      const entry = recapEntries[next];
+      setSliderDate(entry.dateStart);
+      flyTo(entry.lat, entry.lng, 2.4);
+    }
   }, [recapIdx, recapEntries, showToast]);
+
+  // Auto-play timer for recap
+  useEffect(() => {
+    if (!recapAutoPlay || !showRecap) return;
+    const t = setTimeout(() => advanceRecap(1), 4000);
+    return () => clearTimeout(t);
+  }, [recapAutoPlay, showRecap, recapIdx, advanceRecap]);
 
   // ---- GALLERY DATA ----
   const allPhotos = useMemo(() => {
@@ -1598,6 +1671,108 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     sorted.forEach(e => (e.photos || []).forEach((url, i) => out.push({ url, id: e.id, city: e.city, date: e.dateStart })));
     return out;
   }, [sorted]);
+
+  // ---- TRIP CARD GENERATOR ----
+  const generateTripCard = useCallback(async (entry) => {
+    const W = 600, H = 400;
+    const cvs = document.createElement("canvas"); cvs.width = W; cvs.height = H;
+    const ctx = cvs.getContext("2d");
+
+    // Background gradient
+    const grad = ctx.createLinearGradient(0, 0, W, H);
+    grad.addColorStop(0, P.bg || "#0c0a12");
+    grad.addColorStop(1, P.card || "#1a1428");
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+
+    // Photo (if available)
+    let photoLoaded = false;
+    if ((entry.photos || []).length > 0) {
+      try {
+        const img = new Image(); img.crossOrigin = "anonymous";
+        await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = entry.photos[0]; });
+        // Draw photo on left half with gradient overlay
+        ctx.save();
+        ctx.beginPath(); ctx.roundRect(16, 16, 240, H - 32, 12); ctx.clip();
+        const aspect = img.width / img.height;
+        const dH = H - 32, dW = dH * aspect;
+        ctx.drawImage(img, 16 + (240 - dW) / 2, 16, dW, dH);
+        ctx.restore();
+        photoLoaded = true;
+      } catch { /* skip photo */ }
+    }
+
+    const textX = photoLoaded ? 276 : 40;
+    const textW = photoLoaded ? W - 296 : W - 80;
+
+    // Type badge
+    const t = TYPES[entry.type] || DEFAULT_TYPE;
+    ctx.fillStyle = (t.color || P.rose) + "30";
+    ctx.beginPath(); ctx.roundRect(textX, 40, 70, 18, 9); ctx.fill();
+    ctx.fillStyle = t.color || P.rose;
+    ctx.font = "11px Georgia, serif";
+    ctx.fillText(`${t.icon} ${t.label}`, textX + 8, 53);
+
+    // City name
+    ctx.fillStyle = P.text || "#e8e0d0";
+    ctx.font = "500 26px Georgia, serif";
+    ctx.fillText(entry.city || "Unknown", textX, 92);
+
+    // Country
+    ctx.fillStyle = P.textMuted || "#a098a8";
+    ctx.font = "13px Georgia, serif";
+    ctx.fillText(entry.country || "", textX, 112);
+
+    // Date
+    ctx.fillStyle = P.textMid || "#c0b8c8";
+    ctx.font = "12px Georgia, serif";
+    const dateStr = fmtDate(entry.dateStart) + (entry.dateEnd ? ` → ${fmtDate(entry.dateEnd)}` : "");
+    ctx.fillText(`📅 ${dateStr}`, textX, 140);
+
+    // Notes (truncated)
+    if (entry.notes) {
+      ctx.fillStyle = P.textMid || "#c0b8c8";
+      ctx.font = "11px Georgia, serif";
+      const lines = [];
+      let line = "";
+      for (const word of entry.notes.split(" ")) {
+        const test = line + (line ? " " : "") + word;
+        if (ctx.measureText(test).width > textW && line) { lines.push(line); line = word; }
+        else line = test;
+        if (lines.length >= 4) break;
+      }
+      if (line && lines.length < 4) lines.push(line);
+      lines.forEach((l, i) => ctx.fillText(i === 3 ? l.slice(0, -3) + "..." : l, textX, 168 + i * 16));
+    }
+
+    // Memories/highlights snippet
+    const memos = [...(entry.memories || []), ...(entry.highlights || [])].slice(0, 3);
+    if (memos.length) {
+      const mY = entry.notes ? 248 : 168;
+      ctx.fillStyle = P.textFaint || "#807888";
+      ctx.font = "10px Georgia, serif";
+      memos.forEach((m, i) => ctx.fillText(`✦ ${m}`, textX, mY + i * 14));
+    }
+
+    // Branding
+    ctx.fillStyle = P.textFaint || "#504858";
+    ctx.font = "9px Georgia, serif";
+    ctx.fillText("My Cosmos", textX, H - 28);
+
+    // Decorative line
+    ctx.strokeStyle = (P.goldWarm || "#c9a96e") + "30";
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(textX, H - 44); ctx.lineTo(textX + textW, H - 44); ctx.stroke();
+
+    // Download
+    cvs.toBlob(blob => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `${(entry.city || "trip").toLowerCase().replace(/\s+/g, "-")}-trip-card.png`;
+      a.click(); URL.revokeObjectURL(url);
+      showToast("Trip card saved!", "🎴", 2500);
+    }, "image/png");
+  }, [TYPES, P, showToast]);
 
   // ---- EXPORT / IMPORT ----
   const exportData = useCallback(() => {
@@ -2349,6 +2524,11 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                       <div style={{ fontSize: 10, fontWeight: 400, color: P.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.city}</div>
                       <div style={{ fontSize: 8, color: P.textFaint }}>{fmtDate(e.dateStart)}{e.dateEnd && e.dateEnd !== e.dateStart ? ` → ${fmtDate(e.dateEnd)}` : ""}</div>
                     </div>
+                    {isSharedWorld && e.addedBy && memberNameMap[e.addedBy] && (
+                      <div style={{ width: 16, height: 16, borderRadius: "50%", background: `linear-gradient(135deg, ${P.rose}35, ${P.sky}35)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 7, fontWeight: 600, color: P.text, flexShrink: 0 }} title={`Added by ${memberNameMap[e.addedBy]}`}>
+                        {memberNameMap[e.addedBy].charAt(0).toUpperCase()}
+                      </div>
+                    )}
                     {e.favorite && <span style={{ fontSize: 8, color: P.heart }}>♥</span>}
                   </button>
                 ))}
@@ -2411,7 +2591,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                     <span style={{ fontSize: 14 }}>{t.icon}</span>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 11, color: P.text }}>{e.city}{e.favorite ? " ♥" : ""}</div>
-                      <div style={{ fontSize: 8, color: P.textFaint }}>{fmtDate(e.dateStart)} · {e.country}</div>
+                      <div style={{ fontSize: 8, color: P.textFaint }}>{fmtDate(e.dateStart)} · {e.country}{isSharedWorld && e.addedBy && memberNameMap[e.addedBy] ? ` · ${memberNameMap[e.addedBy]}` : ""}</div>
                     </div>
                   </button>
                 );
@@ -2531,7 +2711,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         }>
           {(cur.photos || []).length > 0 && !cardGallery && (
             <div style={{ position: "relative", width: "100%", background: P.parchment, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", minHeight: 120, maxHeight: 220 }}>
-              <img loading="lazy" src={cur.photos[photoIdx % cur.photos.length]} alt={`Photo from ${cur.city || "trip"}`} style={{ maxWidth: "100%", maxHeight: 220, objectFit: "contain", display: "block", transition: "all .3s", ...(polaroidMode ? { border: "6px solid #fff", borderBottom: "28px solid #fff", boxShadow: "0 4px 16px rgba(0,0,0,.15)", borderRadius: 1, transform: `rotate(${(photoIdx % 3 - 1) * 1.5}deg)` } : {}) }} />
+              <img loading="lazy" src={cur.photos[photoIdx % cur.photos.length]} alt={`Photo from ${cur.city || "trip"}`} onClick={() => { setLightboxIdx(photoIdx % cur.photos.length); setLightboxOpen(true); }} style={{ maxWidth: "100%", maxHeight: 220, objectFit: "contain", display: "block", transition: "all .3s", cursor: "zoom-in", ...(polaroidMode ? { border: "6px solid #fff", borderBottom: "28px solid #fff", boxShadow: "0 4px 16px rgba(0,0,0,.15)", borderRadius: 1, transform: `rotate(${(photoIdx % 3 - 1) * 1.5}deg)` } : {}) }} />
               {cur.photos.length > 1 && (<><button onClick={() => setPhotoIdx(i => (i - 1 + cur.photos.length) % cur.photos.length)} style={imgN("left")}>‹</button><button onClick={() => setPhotoIdx(i => (i + 1) % cur.photos.length)} style={imgN("right")}>›</button>
                 <div style={{ position: "absolute", bottom: 6, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 3 }}>{cur.photos.map((_, i) => <div key={i} style={{ width: 4, height: 4, borderRadius: "50%", background: i === photoIdx % cur.photos.length ? "#fff" : "rgba(255,255,255,.3)" }} />)}</div></>)}
               <button onClick={() => setCardGallery(true)} style={{ position: "absolute", top: 6, right: 6, background: "rgba(255,255,255,.85)", border: "none", borderRadius: 5, padding: "2px 8px", fontSize: 9, cursor: "pointer", fontFamily: "inherit", color: P.textMid }}>📷 {cur.photos.length}</button>
@@ -2589,6 +2769,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
           <div style={{ padding: "14px 18px 18px", overflowY: "auto", flex: 1 }}>
             <div style={{ float: "right", display: "flex", gap: 2, marginTop: -4 }}>
+              <button onClick={() => generateTripCard(cur)} style={{ background: "none", border: "none", fontSize: 12, cursor: "pointer", color: P.textFaint, transition: "color .2s" }} title="Save Trip Card">🎴</button>
               <button onClick={() => toggleFavorite(cur.id)} style={{ background: "none", border: "none", fontSize: 14, cursor: "pointer", color: cur.favorite ? P.heart : P.textFaint, transition: "color .2s" }} title={cur.favorite ? "Unfavorite" : "Favorite"}>
                 {cur.favorite ? "♥" : "♡"}
               </button>
@@ -2605,6 +2786,14 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             <h2 style={{ margin: 0, fontSize: 19, fontWeight: 400, lineHeight: 1.2 }}>{cur.city}</h2>
             <p style={{ margin: "1px 0 0", fontSize: 10, color: P.textMuted }}>{cur.country}</p>
             <div style={{ fontSize: 11, color: P.textMid, marginTop: 5 }}>📅 {fmtDate(cur.dateStart)}{cur.dateEnd ? ` → ${fmtDate(cur.dateEnd)}` : ""}</div>
+            {isSharedWorld && cur.addedBy && memberNameMap[cur.addedBy] && (
+              <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5 }}>
+                <div style={{ width: 18, height: 18, borderRadius: "50%", background: `linear-gradient(135deg, ${P.rose}40, ${P.sky}40)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 600, color: P.text, flexShrink: 0 }}>
+                  {memberNameMap[cur.addedBy].charAt(0).toUpperCase()}
+                </div>
+                <span style={{ fontSize: 9, color: P.textFaint, letterSpacing: ".04em" }}>Added by {memberNameMap[cur.addedBy]}</span>
+              </div>
+            )}
 
             {/* TAB BAR */}
             <div style={{ display: "flex", gap: 0, marginTop: 10, borderBottom: `1px solid ${P.rose}12` }}>
@@ -2653,7 +2842,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               {cardTab === "photos" && (<>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))", gap: 4 }}>
                   {(cur.photos || []).map((url, i) => (
-                    <button key={i} onClick={() => { setPhotoIdx(i); setCardTab("overview"); }} style={{ padding: 0, border: "2px solid transparent", background: P.blush, cursor: "pointer", borderRadius: 6, overflow: "hidden", aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
+                    <button key={i} onClick={() => { setLightboxIdx(i); setLightboxOpen(true); }} style={{ padding: 0, border: "2px solid transparent", background: P.blush, cursor: "pointer", borderRadius: 6, overflow: "hidden", aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
                       <img loading="lazy" src={url} alt="Travel photo" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "cover", borderRadius: 4 }} />
                     </button>
                   ))}
@@ -2769,8 +2958,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       )}
 
       {/* ADD / EDIT / SETTINGS / LETTER overlays */}
-      {showAdd && <AddForm types={TYPES} defaultType={isMyWorld ? "adventure" : "together"} defaultWho={isMyWorld ? "solo" : "both"} fieldLabels={FIELD_LABELS} isMyWorld={isMyWorld} onAdd={entry => { dispatch({ type: "ADD", entry }); setShowAdd(false); showToast(`${entry.city} added to your world`, "🌍", 2500); flyTo(entry.lat, entry.lng, 2.6); setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400); }} onClose={() => setShowAdd(false)} />}
-      {quickAddMode && <QuickAddForm types={TYPES} onAdd={entry => { dispatch({ type: "ADD", entry }); setQuickAddMode(false); showToast(`${entry.city} added to your world ⚡`, "⚡", 2500); flyTo(entry.lat, entry.lng, 2.6); setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400); }} onClose={() => setQuickAddMode(false)} />}
+      {showAdd && <AddForm types={TYPES} defaultType={isMyWorld ? "adventure" : "together"} defaultWho={isMyWorld ? "solo" : "both"} fieldLabels={FIELD_LABELS} isMyWorld={isMyWorld} onAdd={entry => { const isFirst = data.entries.length === 0; dispatch({ type: "ADD", entry }); setShowAdd(false); if (isFirst) { setShowCelebration(true); setTimeout(() => setShowCelebration(false), 5000); } showToast(`${entry.city} added to your world`, "🌍", 2500); flyTo(entry.lat, entry.lng, 2.6); setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400); }} onClose={() => setShowAdd(false)} />}
+      {quickAddMode && <QuickAddForm types={TYPES} onAdd={entry => { const isFirst = data.entries.length === 0; dispatch({ type: "ADD", entry }); setQuickAddMode(false); if (isFirst) { setShowCelebration(true); setTimeout(() => setShowCelebration(false), 5000); } showToast(`${entry.city} added to your world ⚡`, "⚡", 2500); flyTo(entry.lat, entry.lng, 2.6); setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400); }} onClose={() => setQuickAddMode(false)} />}
 
       {editing && <EditForm entry={editing} types={TYPES} fieldLabels={FIELD_LABELS} onChange={setEditing}
         onSave={() => { dispatch({ type: "UPDATE", id: editing.id, data: editing }); setSelected(editing); setCardTab("overview"); setEditing(null); showToast("Entry saved", "✓", 2000); }}
@@ -3084,28 +3273,38 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         </div>
       )}
 
-      {data.entries.length === 0 && introComplete && !showAdd && (
-        <div style={{ position: "absolute", top: "46%", left: "50%", transform: "translate(-50%,-50%)", zIndex: 12, textAlign: "center", maxWidth: 320, animation: "fadeIn 1s ease" }}>
-          <div style={{ fontSize: 42, marginBottom: 12, opacity: 0.8 }}>{isMyWorld ? "🌍" : "💫"}</div>
-          <div style={{ fontSize: 18, color: P.text, letterSpacing: ".06em", fontWeight: 500, opacity: 0.7 }}>
-            {isMyWorld ? "Your world awaits" : "Your story begins here"}
+      {data.entries.length === 0 && introComplete && !showAdd && (() => {
+        const emptyMsg = {
+          partner: { icon: "💫", title: "Your story begins here", desc: "Add your first memory together to bring your shared world to life.", btn: "Add Your First Memory" },
+          friends: { icon: "🗺", title: "Adventures await", desc: "Add your first trip to start mapping your crew's adventures together.", btn: "Add Your First Trip" },
+          family:  { icon: "🏡", title: "Every journey starts here", desc: "Add your first memory to start building your family's travel story.", btn: "Add Your First Memory" },
+        };
+        const msg = isMyWorld
+          ? { icon: "🌍", title: "Your world awaits", desc: "Add your first trip to start building your personal travel map.", btn: "Add Your First Trip" }
+          : emptyMsg[worldType] || emptyMsg.partner;
+        return (
+          <div style={{ position: "absolute", top: "46%", left: "50%", transform: "translate(-50%,-50%)", zIndex: 12, textAlign: "center", maxWidth: 340, animation: "fadeIn 1s ease" }}>
+            <div style={{ position: "relative", width: 80, height: 80, margin: "0 auto 16px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: `radial-gradient(circle, ${P.rose}20, transparent 70%)`, animation: "pulse 3s ease-in-out infinite" }} />
+              <div style={{ position: "absolute", inset: 4, borderRadius: "50%", border: `1px dashed ${P.rose}30` }} />
+              <div style={{ fontSize: 36, position: "relative", zIndex: 1 }}>{msg.icon}</div>
+            </div>
+            <div style={{ fontSize: 18, color: P.text, letterSpacing: ".06em", fontWeight: 500, opacity: 0.8 }}>{msg.title}</div>
+            <div style={{ fontSize: 12, color: P.textMuted, marginTop: 8, lineHeight: 1.7, letterSpacing: ".04em" }}>{msg.desc}</div>
+            {!isViewer && (
+              <button onClick={() => setShowAdd(true)} style={{
+                marginTop: 20, padding: "10px 26px", background: `linear-gradient(135deg, ${P.rose}30, ${P.sky}30)`,
+                border: `1px solid ${P.rose}25`, borderRadius: 22, color: P.text, fontSize: 13,
+                fontFamily: "inherit", cursor: "pointer", letterSpacing: ".06em", transition: "all .3s",
+              }}
+              onMouseEnter={e => { e.target.style.background = `linear-gradient(135deg, ${P.rose}50, ${P.sky}50)`; }}
+              onMouseLeave={e => { e.target.style.background = `linear-gradient(135deg, ${P.rose}30, ${P.sky}30)`; }}>
+                + {msg.btn}
+              </button>
+            )}
           </div>
-          <div style={{ fontSize: 12, color: P.textMuted, marginTop: 8, lineHeight: 1.6, letterSpacing: ".04em" }}>
-            {isMyWorld
-              ? "Add your first trip to start building your personal travel map."
-              : "Add your first memory together to bring your shared world to life."}
-          </div>
-          <button onClick={() => setShowAdd(true)} style={{
-            marginTop: 18, padding: "10px 24px", background: `linear-gradient(135deg, ${P.rose}40, ${P.sky}40)`,
-            border: `1px solid ${P.rose}30`, borderRadius: 20, color: P.text, fontSize: 13,
-            fontFamily: "inherit", cursor: "pointer", letterSpacing: ".06em", transition: "all .3s",
-          }}
-          onMouseEnter={e => { e.target.style.background = `linear-gradient(135deg, ${P.rose}60, ${P.sky}60)`; }}
-          onMouseLeave={e => { e.target.style.background = `linear-gradient(135deg, ${P.rose}40, ${P.sky}40)`; }}>
-            + Add Your First Trip
-          </button>
-        </div>
-      )}
+        );
+      })()}
 
       {/* STATS DASHBOARD */}
       {showStats && (
@@ -3224,37 +3423,86 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       {/* YEAR-IN-REVIEW RECAP */}
       {showRecap && recapEntries.length > 0 && (
         <div style={{ position: "absolute", bottom: 115, left: 0, right: 0, zIndex: 30, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
-          <div style={{ pointerEvents: "auto", background: P.card, backdropFilter: "blur(16px)", borderRadius: 14, padding: "14px 20px", boxShadow: "0 8px 32px rgba(0,0,0,.12)", maxWidth: 380, width: "90vw", animation: "slideUp .4s ease" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-              <span style={{ fontSize: 8, color: P.goldWarm, letterSpacing: ".14em", textTransform: "uppercase" }}>🎬 {recapYear} Recap — {recapIdx + 1} of {recapEntries.length}</span>
-              <button onClick={() => { setShowRecap(false); setRecapYear(null); }} style={{ background: "none", border: "none", fontSize: 13, color: P.textFaint, cursor: "pointer" }}>×</button>
+          <div style={{ pointerEvents: "auto", background: P.card, backdropFilter: "blur(16px)", borderRadius: 14, padding: "16px 22px", boxShadow: "0 8px 32px rgba(0,0,0,.15)", maxWidth: 400, width: "90vw", animation: "slideUp .4s ease" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <span style={{ fontSize: 8, color: P.goldWarm, letterSpacing: ".14em", textTransform: "uppercase" }}>
+                🎬 {recapYear} Recap {recapIdx >= 0 ? `— ${recapIdx + 1} of ${recapEntries.length}` : ""}
+              </span>
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <button onClick={() => setRecapAutoPlay(v => !v)} style={{ background: "none", border: "none", fontSize: 11, color: recapAutoPlay ? P.goldWarm : P.textFaint, cursor: "pointer" }} title={recapAutoPlay ? "Pause auto-play" : "Auto-play"}>
+                  {recapAutoPlay ? "⏸" : "▶"}
+                </button>
+                <button onClick={() => { setShowRecap(false); setRecapYear(null); setRecapAutoPlay(false); }} style={{ background: "none", border: "none", fontSize: 13, color: P.textFaint, cursor: "pointer" }}>×</button>
+              </div>
             </div>
-            {(() => {
+
+            {/* Stats intro slide */}
+            {recapIdx === -1 && recapYearStats && (
+              <div style={{ textAlign: "center", padding: "8px 0" }}>
+                <div style={{ fontSize: 28, fontWeight: 300, color: P.text, marginBottom: 4 }}>{recapYear}</div>
+                <div style={{ fontSize: 10, color: P.textMuted, letterSpacing: ".08em", marginBottom: 14 }}>Your Year in Review</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
+                  {[
+                    { val: recapYearStats.entries, lbl: recapYearStats.entries === 1 ? "Entry" : "Entries" },
+                    { val: recapYearStats.countries, lbl: recapYearStats.countries === 1 ? "Country" : "Countries" },
+                    { val: recapYearStats.totalDays, lbl: "Days Traveling" },
+                    { val: recapYearStats.photos, lbl: "Photos" },
+                  ].map(s => (
+                    <div key={s.lbl} style={{ padding: "8px 6px", background: `${P.rose}08`, borderRadius: 8 }}>
+                      <div style={{ fontSize: 18, fontWeight: 400, color: P.goldWarm }}>{s.val}</div>
+                      <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>{s.lbl}</div>
+                    </div>
+                  ))}
+                </div>
+                {recapYearStats.countryNames.length > 0 && (
+                  <div style={{ fontSize: 9, color: P.textMid, lineHeight: 1.6 }}>{recapYearStats.countryNames.join(" · ")}</div>
+                )}
+              </div>
+            )}
+
+            {/* Entry slide */}
+            {recapIdx >= 0 && (() => {
               const e = recapEntries[recapIdx];
               const t = TYPES[e.type] || DEFAULT_TYPE;
               return (
                 <div>
+                  {(e.photos || []).length > 0 && (
+                    <div style={{ marginBottom: 8, borderRadius: 8, overflow: "hidden", maxHeight: 140 }}>
+                      <img loading="lazy" src={e.photos[0]} alt="Travel photo" style={{ width: "100%", height: 140, objectFit: "cover" }} />
+                    </div>
+                  )}
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                     <span style={{ fontSize: 20 }}>{t.icon}</span>
                     <div>
                       <div style={{ fontSize: 15, fontWeight: 400 }}>{e.city}</div>
-                      <div style={{ fontSize: 9, color: P.textMuted }}>{fmtDate(e.dateStart)}{e.dateEnd ? ` → ${fmtDate(e.dateEnd)}` : ""}</div>
+                      <div style={{ fontSize: 9, color: P.textMuted }}>{fmtDate(e.dateStart)}{e.dateEnd ? ` → ${fmtDate(e.dateEnd)}` : ""} · {e.country}</div>
                     </div>
                   </div>
-                  {e.notes && <p style={{ fontSize: 11, color: P.textMid, margin: "4px 0", lineHeight: 1.5, maxHeight: 60, overflow: "hidden" }}>{e.notes}</p>}
-                  {(e.photos || []).length > 0 && (
-                    <div style={{ display: "flex", gap: 4, marginTop: 6, overflowX: "auto" }}>
-                      {e.photos.slice(0, 4).map(url => (
-                        <img key={url} loading="lazy" src={url} alt="Travel photo" style={{ width: 60, height: 60, objectFit: "cover", borderRadius: 6 }} />
+                  {e.notes && <p style={{ fontSize: 11, color: P.textMid, margin: "4px 0", lineHeight: 1.5, maxHeight: 44, overflow: "hidden" }}>{e.notes}</p>}
+                  {(e.photos || []).length > 1 && (
+                    <div style={{ display: "flex", gap: 3, marginTop: 6, overflowX: "auto" }}>
+                      {e.photos.slice(1, 5).map(url => (
+                        <img key={url} loading="lazy" src={url} alt="" style={{ width: 50, height: 50, objectFit: "cover", borderRadius: 5 }} />
                       ))}
                     </div>
                   )}
                 </div>
               );
             })()}
-            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10 }}>
-              <button onClick={() => advanceRecap(-1)} disabled={recapIdx === 0} style={{ ...navSt(), opacity: recapIdx === 0 ? 0.3 : 1 }}>◂ Prev</button>
-              <button onClick={() => { setSelected(recapEntries[recapIdx]); setPhotoIdx(0); setCardTab("overview"); }} style={{ ...navSt(), color: P.heart }}>View Entry</button>
+
+            {/* Progress bar */}
+            <div style={{ display: "flex", gap: 2, marginTop: 10, marginBottom: 8 }}>
+              {Array.from({ length: recapEntries.length + 1 }, (_, i) => (
+                <div key={i} style={{ flex: 1, height: 2, borderRadius: 1, background: i <= recapIdx ? P.goldWarm : `${P.textFaint}30`, transition: "background .3s" }} />
+              ))}
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <button onClick={() => advanceRecap(-1)} disabled={recapIdx === -1} style={{ ...navSt(), opacity: recapIdx === -1 ? 0.3 : 1 }}>◂ Prev</button>
+              {recapIdx >= 0 && <>
+                <button onClick={() => { setSelected(recapEntries[recapIdx]); setPhotoIdx(0); setCardTab("overview"); }} style={{ ...navSt(), color: P.heart }}>View</button>
+                <button onClick={() => generateTripCard(recapEntries[recapIdx])} style={{ ...navSt(), fontSize: 10 }} title="Save Trip Card">🎴</button>
+              </>}
               <button onClick={() => advanceRecap(1)} style={navSt()}>{recapIdx === recapEntries.length - 1 ? "Finish ✨" : "Next ▸"}</button>
             </div>
           </div>
@@ -3297,51 +3545,70 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       {showOnboarding && introComplete && data.entries.length === 0 && (() => {
         const steps = isSharedWorld ? [
           { title: `Welcome to ${worldName || "Your Shared World"}`,
-            body: "This is a shared travel globe. Every adventure you add together lights up your world. Both of you can add entries, photos, and memories.",
-            icon: "🌍" },
-          { title: "What's Different Here",
-            body: "Shared worlds have love letters, love notes on entries, a love thread connecting your journeys, and constellation view. Find these in the toolbar.",
-            icon: "💕" },
-          { title: "Navigate & Add",
-            body: "Drag to spin, scroll to zoom. Click + to add your first trip together. Click any marker for details. Press play to watch your story unfold.",
-            icon: "✨" },
+            body: "This is a shared travel globe. Every adventure you add together lights up your world as a glowing marker. Both of you can add entries, photos, and memories.",
+            icon: "🌍", hint: "Your globe fills up as you add trips together" },
+          { title: "Navigate Your Globe",
+            body: "Drag to spin the globe. Scroll to zoom in and out. Click any marker to open its details — photos, notes, memories, and more.",
+            icon: "🖱", hint: "Try it! The globe is interactive" },
+          { title: "Special Features",
+            body: "Shared worlds have love letters, love notes on entries, a love thread connecting your journeys, and constellation view. Look for these in the left toolbar.",
+            icon: "💕", hint: "The toolbar has all your tools" },
+          { title: "Timeline & Story",
+            body: "Use the timeline slider at the bottom to travel through time. Press the play button to watch your story unfold, marker by marker.",
+            icon: "▶", hint: "The best part — watching your story play out" },
+          { title: "Add Your First Trip",
+            body: "Click the + button in the toolbar to add your first entry. Fill in the city, dates, type, and add photos and memories to bring it to life.",
+            icon: "✨", hint: "Start with somewhere meaningful" },
         ] : isMyWorld ? [
           { title: "Welcome to My World",
-            body: "This is your personal travel globe. Every trip you add becomes a glowing marker on your map.",
-            icon: "🌍" },
+            body: "This is your personal travel globe. Every trip you add becomes a glowing marker on your map, building a visual story of everywhere you've been.",
+            icon: "🌍", hint: "Your world grows with every adventure" },
           { title: "Navigate Your Globe",
-            body: "Drag to spin the globe. Scroll to zoom in and out. Click any marker to see its details.",
-            icon: "🖱" },
+            body: "Drag to spin the globe. Scroll to zoom in and out. Click any marker to see its full details — photos, notes, highlights, and more.",
+            icon: "🖱", hint: "Try it! The globe is interactive" },
+          { title: "Your Toolkit",
+            body: "The left toolbar has everything: search, filter by type, view your stats, see your bucket list, toggle dark mode, and customize your colors in settings.",
+            icon: "🧰", hint: "Explore the toolbar buttons" },
+          { title: "Timeline & Story",
+            body: "The timeline slider at the bottom lets you travel through time. Press play to watch your story unfold across the globe, trip by trip.",
+            icon: "▶", hint: "Best with a few entries added" },
           { title: "Add Your First Trip",
-            body: "Click the + button in the toolbar on the left to add your first entry. You can add photos, notes, and memories.",
-            icon: "✨" },
+            body: "Click the + button to add your first entry. Pick a city, choose your trip type, add dates, photos, and memories. Quick-add is there for fast entries too.",
+            icon: "✨", hint: "Start with your favorite trip" },
         ] : [
           { title: "Welcome to Our World",
-            body: "This is your shared travel globe. Every adventure you add together lights up your world.",
-            icon: "🌍" },
+            body: "This is your shared travel globe. Every adventure you add together lights up your world as a glowing marker on the map.",
+            icon: "🌍", hint: "Your love story, mapped across the world" },
           { title: "Navigate Your Globe",
-            body: "Drag to spin the globe. Scroll to zoom in and out. Click any marker to see its details.",
-            icon: "🖱" },
+            body: "Drag to spin the globe. Scroll to zoom in and out. Click any marker to open its details — photos, memories, and love notes.",
+            icon: "🖱", hint: "Try it! The globe is interactive" },
+          { title: "Your Toolkit",
+            body: "The left toolbar has everything: search, filter, stats, love letters, constellation view, dark mode, and color customization in settings.",
+            icon: "🧰", hint: "Lots to discover in the toolbar" },
+          { title: "Timeline & Story",
+            body: "Use the timeline slider to travel through time. Press play to watch your story unfold across the globe, adventure by adventure.",
+            icon: "▶", hint: "The best part — watching it all play out" },
           { title: "Add Your First Trip",
-            body: "Click the + button in the toolbar on the left to add your first entry. You can add photos, notes, and memories.",
-            icon: "✨" },
+            body: "Click the + button to add your first entry. Fill in the city, dates, and type, then add photos and memories to bring it to life.",
+            icon: "✨", hint: "Start with somewhere special to you both" },
         ];
         const step = steps[onboardStep];
         return (
-          <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .5s ease" }}>
-            <div style={{ background: "#1a1424", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: "36px 32px", width: 360, maxWidth: "90vw", textAlign: "center" }}>
-              <div style={{ fontSize: 44, marginBottom: 16 }}>{step.icon}</div>
-              <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 10, letterSpacing: ".04em" }}>{step.title}</div>
-              <div style={{ fontSize: 13, color: "#a098a8", lineHeight: 1.7, marginBottom: 24 }}>{step.body}</div>
+          <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(4,2,10,0.50)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .5s ease" }}>
+            <div style={{ background: "rgba(22,16,32,0.88)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 22, padding: "36px 32px", width: 380, maxWidth: "90vw", textAlign: "center", boxShadow: "0 8px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)" }}>
+              <div style={{ fontSize: 44, marginBottom: 14 }}>{step.icon}</div>
+              <div style={{ fontSize: 19, fontWeight: 500, color: "#e8e0d0", marginBottom: 10, letterSpacing: ".04em" }}>{step.title}</div>
+              <div style={{ fontSize: 13, color: "#a098a8", lineHeight: 1.7, marginBottom: 10 }}>{step.body}</div>
+              {step.hint && <div style={{ fontSize: 10, color: "#c9a96e", letterSpacing: "0.5px", marginBottom: 18, fontStyle: "italic" }}>{step.hint}</div>}
               <div style={{ display: "flex", justifyContent: "center", gap: 6, marginBottom: 20 }}>
                 {steps.map((_, i) => (
-                  <div key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: i === onboardStep ? "#c9a96e" : "rgba(255,255,255,0.15)", transition: "background .3s" }} />
+                  <div key={i} style={{ width: 7, height: 7, borderRadius: "50%", background: i === onboardStep ? "#c9a96e" : "rgba(255,255,255,0.12)", transition: "background .3s", boxShadow: i === onboardStep ? "0 0 6px rgba(200,170,110,0.4)" : "none" }} />
                 ))}
               </div>
               <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
                 {onboardStep > 0 && (
                   <button onClick={() => setOnboardStep(s => s - 1)}
-                    style={{ padding: "9px 20px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, color: "#a098a8", fontSize: 13, fontFamily: "inherit", cursor: "pointer" }}>
+                    style={{ padding: "9px 20px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 12, color: "#a098a8", fontSize: 13, fontFamily: "inherit", cursor: "pointer" }}>
                     Back
                   </button>
                 )}
@@ -3349,20 +3616,41 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                   if (onboardStep < steps.length - 1) { setOnboardStep(s => s + 1); }
                   else { setShowOnboarding(false); localStorage.setItem(onboardKey, "1"); }
                 }}
-                  style={{ padding: "9px 24px", background: "linear-gradient(135deg, #c9a96e, #b8944f)", border: "none", borderRadius: 10, color: "#1a1520", fontSize: 13, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }}>
+                  style={{ padding: "9px 24px", background: "linear-gradient(135deg, #c9a96e, #b8944f)", border: "none", borderRadius: 12, color: "#1a1520", fontSize: 13, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", boxShadow: "0 2px 12px rgba(200,170,110,0.2)" }}>
                   {onboardStep < steps.length - 1 ? "Next" : "Start Exploring"}
                 </button>
               </div>
               {onboardStep === 0 && (
                 <button onClick={() => { setShowOnboarding(false); localStorage.setItem(onboardKey, "1"); }}
-                  style={{ marginTop: 14, background: "none", border: "none", color: "#686070", fontSize: 11, fontFamily: "inherit", cursor: "pointer", textDecoration: "underline" }}>
-                  Skip tutorial
+                  style={{ marginTop: 14, background: "none", border: "none", color: "#605868", fontSize: 11, fontFamily: "inherit", cursor: "pointer", letterSpacing: "0.3px" }}>
+                  Skip tour
                 </button>
               )}
             </div>
           </div>
         );
       })()}
+
+      {/* FIRST ENTRY CELEBRATION */}
+      {showCelebration && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 250, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none", animation: "fadeIn .3s ease" }}
+          onClick={() => setShowCelebration(false)}>
+          <div style={{ textAlign: "center", pointerEvents: "auto", animation: "celebrationPop .6s cubic-bezier(0.34, 1.56, 0.64, 1)" }}>
+            <div style={{ fontSize: 64, marginBottom: 12, filter: "drop-shadow(0 0 20px rgba(200,170,110,0.4))" }}>&#10024;</div>
+            <div style={{ fontSize: 22, fontWeight: 500, color: "#e8e0d0", letterSpacing: "1px", textShadow: "0 0 30px rgba(200,170,110,0.4), 0 2px 10px rgba(0,0,0,0.6)", marginBottom: 8 }}>Your First Entry!</div>
+            <div style={{ fontSize: 13, color: "#b0a8b8", lineHeight: 1.6, maxWidth: 280, margin: "0 auto", textShadow: "0 1px 6px rgba(0,0,0,0.5)" }}>
+              {isMyWorld ? "Your world has its first marker. Keep adding adventures to light up your globe." : "Your shared world has its first marker. This is where your story begins."}
+            </div>
+          </div>
+        </div>
+      )}
+      <style>{`
+        @keyframes celebrationPop {
+          0% { transform: scale(0.3); opacity: 0; }
+          60% { transform: scale(1.05); opacity: 1; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+      `}</style>
 
       {/* PHOTO JOURNEY MODE */}
       {showPhotoJourney && allPhotos.length > 0 && (() => {
@@ -3398,6 +3686,46 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           </div>
         </div>
       )}
+
+      {/* FULLSCREEN PHOTO LIGHTBOX */}
+      {lightboxOpen && cur?.photos?.length > 0 && (() => {
+        const photos = cur.photos;
+        const idx = ((lightboxIdx % photos.length) + photos.length) % photos.length;
+        const prev = () => setLightboxIdx(i => ((i - 1) + photos.length) % photos.length);
+        const next = () => setLightboxIdx(i => (i + 1) % photos.length);
+        return (
+          <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.92)", backdropFilter: "blur(24px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .25s ease" }}
+            onClick={() => setLightboxOpen(false)}
+            onKeyDown={e => { if (e.key === "Escape") setLightboxOpen(false); else if (e.key === "ArrowLeft") prev(); else if (e.key === "ArrowRight") next(); }}
+            tabIndex={0} ref={el => el?.focus()}>
+            {/* Close button */}
+            <button onClick={() => setLightboxOpen(false)} style={{ position: "absolute", top: 20, right: 20, background: "none", border: "none", color: "#fff", fontSize: 28, cursor: "pointer", zIndex: 210, opacity: 0.7, lineHeight: 1 }}>×</button>
+            {/* Counter */}
+            <div style={{ position: "absolute", top: 20, left: 0, right: 0, textAlign: "center", color: "rgba(255,255,255,0.5)", fontSize: 12, letterSpacing: "1px", zIndex: 210 }}>{idx + 1} / {photos.length}</div>
+            {/* Photo */}
+            <img src={photos[idx]} alt={`Photo ${idx + 1}`} onClick={e => e.stopPropagation()}
+              style={{ maxWidth: "90vw", maxHeight: "85vh", objectFit: "contain", borderRadius: 4, boxShadow: "0 8px 40px rgba(0,0,0,0.5)", transition: "opacity .2s", cursor: "default" }} />
+            {/* Navigation arrows */}
+            {photos.length > 1 && (<>
+              <button onClick={e => { e.stopPropagation(); prev(); }} style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "50%", width: 44, height: 44, cursor: "pointer", fontSize: 20, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 210, transition: "all .2s" }}
+                onMouseEnter={e => e.target.style.background = "rgba(255,255,255,0.15)"}
+                onMouseLeave={e => e.target.style.background = "rgba(255,255,255,0.08)"}>‹</button>
+              <button onClick={e => { e.stopPropagation(); next(); }} style={{ position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "50%", width: 44, height: 44, cursor: "pointer", fontSize: 20, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 210, transition: "all .2s" }}
+                onMouseEnter={e => e.target.style.background = "rgba(255,255,255,0.15)"}
+                onMouseLeave={e => e.target.style.background = "rgba(255,255,255,0.08)"}>›</button>
+            </>)}
+            {/* Dot indicators */}
+            {photos.length > 1 && photos.length <= 20 && (
+              <div style={{ position: "absolute", bottom: 24, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 6, zIndex: 210 }}>
+                {photos.map((_, i) => <button key={i} onClick={e => { e.stopPropagation(); setLightboxIdx(i); }}
+                  style={{ width: i === idx ? 10 : 6, height: 6, borderRadius: 3, background: i === idx ? "#fff" : "rgba(255,255,255,0.3)", border: "none", padding: 0, cursor: "pointer", transition: "all .2s" }} />)}
+              </div>
+            )}
+            {/* City label */}
+            <div style={{ position: "absolute", bottom: photos.length > 1 ? 50 : 24, left: 0, right: 0, textAlign: "center", color: "rgba(255,255,255,0.4)", fontSize: 11, letterSpacing: "1px", zIndex: 210 }}>{cur.city}{cur.country ? `, ${cur.country}` : ""}</div>
+          </div>
+        );
+      })()}
 
       <style>{`
         @keyframes cardIn{from{opacity:0;transform:translateY(-50%) translateX(18px)}to{opacity:1;transform:translateY(-50%) translateX(0)}}
@@ -3823,6 +4151,6 @@ function EditForm({ entry, types, fieldLabels, onChange, onSave, onClose, onDele
 }
 
 // ---- WRAPPED EXPORT WITH ERROR BOUNDARY ----
-export default function OurWorld({ worldMode, worldId, worldName, worldRole, onSwitchWorld }) {
-  return <OurWorldErrorBoundary><OurWorldInner worldMode={worldMode} worldId={worldId} worldName={worldName} worldRole={worldRole} onSwitchWorld={onSwitchWorld} /></OurWorldErrorBoundary>;
+export default function OurWorld({ worldMode, worldId, worldName, worldRole, worldType, onSwitchWorld }) {
+  return <OurWorldErrorBoundary><OurWorldInner worldMode={worldMode} worldId={worldId} worldName={worldName} worldRole={worldRole} worldType={worldType} onSwitchWorld={onSwitchWorld} /></OurWorldErrorBoundary>;
 }

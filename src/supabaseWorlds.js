@@ -4,7 +4,7 @@ import { supabase } from './supabaseClient.js'
 
 // ---- WORLDS ----
 
-export async function createWorld(userId, name, type = 'shared') {
+export async function createWorld(userId, name, type = 'shared', { youName = '', partnerName = '' } = {}) {
   const { data, error } = await supabase
     .from('worlds')
     .insert({ name, type, created_by: userId })
@@ -18,6 +18,11 @@ export async function createWorld(userId, name, type = 'shared') {
     .insert({ world_id: data.id, user_id: userId, role: 'owner' })
   if (memErr) console.error('[createWorld] member insert:', memErr)
 
+  // Build subtitle from names if provided
+  const subtitle = (youName && partnerName)
+    ? `${youName} & ${partnerName}`
+    : 'every moment, every adventure'
+
   // Create default config for this world
   const { error: cfgErr } = await supabase
     .from('config')
@@ -26,9 +31,9 @@ export async function createWorld(userId, name, type = 'shared') {
       world_id: data.id,
       user_id: userId,
       title: name,
-      subtitle: 'every moment, every adventure',
-      you_name: '',
-      partner_name: '',
+      subtitle,
+      you_name: youName,
+      partner_name: partnerName,
       start_date: '',
       love_letter: '',
       metadata: {
@@ -62,17 +67,41 @@ export async function loadMyWorlds(userId) {
     .order('created_at', { ascending: true })
   if (error) { console.error('[loadMyWorlds]', error); return [] }
 
+  // Also fetch config data (names, subtitle) for each world
+  const { data: configs } = await supabase
+    .from('config')
+    .select('world_id, you_name, partner_name, subtitle')
+    .in('world_id', worldIds)
+  const cfgMap = Object.fromEntries((configs || []).map(c => [c.world_id, c]))
+
   const roleMap = Object.fromEntries(memberships.map(m => [m.world_id, m.role]))
-  return (worlds || []).map(w => ({
-    id: w.id,
-    name: w.name,
-    type: w.type,
-    role: roleMap[w.id] || 'member',
-    createdBy: w.created_by,
-    palette: w.palette || {},
-    scene: w.scene || {},
-    createdAt: w.created_at,
-  }))
+  return (worlds || []).map(w => {
+    const cfg = cfgMap[w.id] || {}
+    return {
+      id: w.id,
+      name: w.name,
+      type: w.type,
+      role: roleMap[w.id] || 'member',
+      createdBy: w.created_by,
+      palette: w.palette || {},
+      scene: w.scene || {},
+      createdAt: w.created_at,
+      youName: cfg.you_name || '',
+      partnerName: cfg.partner_name || '',
+      subtitle: cfg.subtitle || '',
+    }
+  })
+}
+
+// Quick fetch of My World subtitle for cosmos screen
+export async function loadMyWorldSubtitle(userId) {
+  const { data, error } = await supabase
+    .from('my_config')
+    .select('subtitle')
+    .eq('id', userId)
+    .single()
+  if (error || !data) return 'every step, every discovery'
+  return data.subtitle || 'every step, every discovery'
 }
 
 export async function updateWorld(worldId, updates) {
@@ -147,21 +176,25 @@ export async function getInviteInfo(token) {
   return data
 }
 
-// Create invite + optionally send a welcome letter to the invitee's email
+// Create invite + send a welcome letter notification to the invitee's email
+// Always creates a letter (used for in-app notifications) — uses default message if none provided
 export async function createInviteWithLetter(worldId, userId, fromName, toEmail, letterText) {
   // 1. Create the invite token
   const invite = await createInvite(worldId, userId)
   if (!invite) return null
 
-  // 2. If letter text provided, create a welcome letter for that email
-  if (letterText && letterText.trim()) {
+  // 2. Always create a welcome letter so the invitee gets an in-app notification
+  const text = (letterText && letterText.trim())
+    ? letterText.trim()
+    : `${fromName} has invited you to join a shared world on My Cosmos!`
+  if (toEmail) {
     const { error: letterErr } = await supabase
       .from('welcome_letters')
       .insert({
         from_user_id: userId,
         from_name: fromName,
         to_email: toEmail.toLowerCase(),
-        letter_text: letterText.trim(),
+        letter_text: text,
       })
     if (letterErr) console.error('[createInviteWithLetter] letter error:', letterErr)
   }
@@ -174,19 +207,96 @@ export async function createViewerInvite(worldId, userId, toEmail, letterText, f
   const invite = await createInvite(worldId, userId, 'viewer')
   if (!invite) return null
 
-  if (letterText && letterText.trim()) {
+  const name = fromName || 'A friend'
+  const text = (letterText && letterText.trim())
+    ? letterText.trim()
+    : `${name} has invited you to view their world on My Cosmos!`
+  if (toEmail) {
     const { error: letterErr } = await supabase
       .from('welcome_letters')
       .insert({
         from_user_id: userId,
-        from_name: fromName || 'A friend',
+        from_name: name,
         to_email: toEmail.toLowerCase(),
-        letter_text: letterText.trim(),
+        letter_text: text,
       })
     if (letterErr) console.error('[createViewerInvite] letter error:', letterErr)
   }
 
   return { invite, inviteLink: `${window.location.origin}?invite=${invite.token}` }
+}
+
+// ---- SENT INVITES (for tracking invite status) ----
+
+export async function getSentInvites(worldId, userId) {
+  if (!worldId || !userId) return []
+  const { data, error } = await supabase
+    .from('world_invites')
+    .select('id, token, role, max_uses, use_count, created_at')
+    .eq('world_id', worldId)
+    .eq('created_by', userId)
+    .order('created_at', { ascending: false })
+  if (error) { console.error('[getSentInvites]', error); return [] }
+  // Enrich with recipient email from welcome_letters (match by closest creation time)
+  const { data: letters } = await supabase
+    .from('welcome_letters')
+    .select('to_email, created_at')
+    .eq('from_user_id', userId)
+    .order('created_at', { ascending: false })
+  const usedLetters = new Set()
+  return (data || []).map(inv => {
+    const invTime = new Date(inv.created_at).getTime()
+    let bestMatch = null, bestDiff = Infinity
+    for (const l of (letters || [])) {
+      if (usedLetters.has(l.created_at)) continue
+      const diff = Math.abs(new Date(l.created_at).getTime() - invTime)
+      if (diff < bestDiff && diff < 60000) { bestDiff = diff; bestMatch = l }
+    }
+    if (bestMatch) usedLetters.add(bestMatch.created_at)
+    return {
+      ...inv,
+      toEmail: bestMatch?.to_email || null,
+      status: inv.use_count >= inv.max_uses ? 'accepted' : 'pending',
+    }
+  })
+}
+
+// ---- PENDING WORLD INVITES (for in-app notifications) ----
+
+export async function getPendingWorldInvites(userEmail) {
+  if (!userEmail) return []
+  // Find invites created with this email that haven't been used yet
+  // We check welcome_letters for matching email to find associated invites
+  const { data: letters, error: letErr } = await supabase
+    .from('welcome_letters')
+    .select('from_user_id, from_name, to_email, created_at')
+    .eq('to_email', userEmail.toLowerCase())
+    .eq('read', false)
+  if (letErr || !letters || letters.length === 0) return []
+
+  // For each unread letter, find the matching unused invite from that user
+  const results = []
+  for (const letter of letters) {
+    const { data: invites } = await supabase
+      .from('world_invites')
+      .select('token, world_id, max_uses, use_count, worlds(name, type)')
+      .eq('created_by', letter.from_user_id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+    if (invites && invites.length > 0) {
+      const inv = invites[0]
+      if (inv.use_count < inv.max_uses) {
+        results.push({
+          token: inv.token,
+          worldName: inv.worlds?.name || 'A Shared World',
+          worldType: inv.worlds?.type || 'shared',
+          fromName: letter.from_name || 'Someone',
+          fromEmail: letter.to_email,
+        })
+      }
+    }
+  }
+  return results
 }
 
 // ---- COMMENTS ----
@@ -262,4 +372,85 @@ export async function loadAllWorldReactions(worldId) {
     .eq('world_id', worldId)
   if (error) { console.error('[loadAllWorldReactions]', error); return [] }
   return data || []
+}
+
+// ---- ACTIVITY FEED (cross-world recent entries) ----
+
+export async function loadCrossWorldActivity(worldIds, limit = 20) {
+  if (!worldIds || worldIds.length === 0) return []
+  const { data, error } = await supabase
+    .from('entries')
+    .select('id, city, country, type, date_start, photos, user_id, world_id, created_at')
+    .in('world_id', worldIds)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  if (error) { console.error('[loadCrossWorldActivity]', error); return [] }
+  return data || []
+}
+
+export async function loadMyWorldRecentActivity(userId, limit = 10) {
+  const { data, error } = await supabase
+    .from('my_entries')
+    .select('id, city, country, type, date_start, photos, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  if (error) { console.error('[loadMyWorldActivity]', error); return [] }
+  return data || []
+}
+
+export async function loadWorldEntryCounts(worldIds) {
+  if (!worldIds || worldIds.length === 0) return {}
+  const counts = {}
+  for (const wid of worldIds) {
+    const { count, error } = await supabase
+      .from('entries')
+      .select('*', { count: 'exact', head: true })
+      .eq('world_id', wid)
+    if (!error) counts[wid] = count || 0
+  }
+  return counts
+}
+
+export async function searchCrossWorld(worldIds, userId, query, limit = 20) {
+  if (!query || query.trim().length === 0) return []
+  const q = query.trim().toLowerCase()
+  const results = []
+
+  // Search shared worlds
+  if (worldIds.length > 0) {
+    const { data, error } = await supabase
+      .from('entries')
+      .select('id, city, country, type, date_start, notes, photos, world_id')
+      .in('world_id', worldIds)
+      .or(`city.ilike.%${q}%,country.ilike.%${q}%,notes.ilike.%${q}%`)
+      .order('date_start', { ascending: false })
+      .limit(limit)
+    if (!error && data) results.push(...data.map(e => ({ ...e, source: 'shared' })))
+  }
+
+  // Search my world
+  if (userId) {
+    const { data, error } = await supabase
+      .from('my_entries')
+      .select('id, city, country, type, date_start, notes, photos')
+      .eq('user_id', userId)
+      .or(`city.ilike.%${q}%,country.ilike.%${q}%,notes.ilike.%${q}%`)
+      .order('date_start', { ascending: false })
+      .limit(limit)
+    if (!error && data) results.push(...data.map(e => ({ ...e, source: 'my', world_id: 'my' })))
+  }
+
+  // Sort combined by date descending
+  results.sort((a, b) => (b.date_start || '').localeCompare(a.date_start || ''))
+  return results.slice(0, limit)
+}
+
+export async function loadMyWorldEntryCount(userId) {
+  const { count, error } = await supabase
+    .from('my_entries')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+  if (error) return 0
+  return count || 0
 }

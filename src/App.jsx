@@ -5,7 +5,7 @@ import WorldSelector from './WorldSelector.jsx'
 import OurWorld from './OurWorld.jsx'
 import WelcomeLetterScreen from './WelcomeLetterScreen.jsx'
 import { getWelcomeLetter, markLetterRead } from './supabaseWelcomeLetters.js'
-import { loadMyWorlds, acceptInvite, getInviteInfo } from './supabaseWorlds.js'
+import { loadMyWorlds, loadMyWorldSubtitle, acceptInvite, getInviteInfo, getPendingWorldInvites } from './supabaseWorlds.js'
 import { getPendingRequests, getMyConnections } from './supabaseConnections.js'
 
 function AppInner() {
@@ -22,6 +22,9 @@ function AppInner() {
   const [activeWorldRole, setActiveWorldRole] = useState(
     () => localStorage.getItem('activeWorldRole') || null
   )
+  const [activeWorldType, setActiveWorldType] = useState(
+    () => localStorage.getItem('activeWorldType') || null
+  )
   const [welcomeLetter, setWelcomeLetter] = useState(null)
   const [letterChecked, setLetterChecked] = useState(false)
   const [worlds, setWorlds] = useState([])
@@ -29,6 +32,10 @@ function AppInner() {
   const [invitePending, setInvitePending] = useState(null)
   const [connections, setConnections] = useState([])
   const [pendingRequests, setPendingRequests] = useState([])
+  const [pendingWorldInvites, setPendingWorldInvites] = useState([])
+  const [myWorldSubtitle, setMyWorldSubtitle] = useState('every step, every discovery')
+  const [transitioning, setTransitioning] = useState(false)
+  const [transitionColor, setTransitionColor] = useState('#0c0a12')
 
   // User's display name from auth metadata
   const userDisplayName = user?.user_metadata?.display_name || ''
@@ -49,10 +56,14 @@ function AppInner() {
       loadMyWorlds(userId),
       getMyConnections(userId),
       getPendingRequests(user?.email),
-    ]).then(([w, conn, pending]) => {
+      getPendingWorldInvites(user?.email),
+      loadMyWorldSubtitle(userId),
+    ]).then(([w, conn, pending, worldInvites, mySub]) => {
       setWorlds(w)
       setConnections(conn)
       setPendingRequests(pending)
+      setPendingWorldInvites(worldInvites || [])
+      setMyWorldSubtitle(mySub || 'every step, every discovery')
       setWorldsLoaded(true)
     }).catch(err => { console.error('[loadData]', err); setWorldsLoaded(true) })
   }, [userId, user?.email])
@@ -82,7 +93,7 @@ function AppInner() {
             loadMyWorlds(userId).then(w => {
               setWorlds(w)
               const joined = w.find(x => x.id === result.world_id)
-              selectWorld('our', result.world_id, worldName, joined?.role || 'member')
+              selectWorld('our', result.world_id, worldName, joined?.role || 'member', joined?.type || 'shared')
             })
           } else {
             alert(result?.error || 'Failed to accept invite.')
@@ -102,24 +113,45 @@ function AppInner() {
     }
   }, [userId, worldsLoaded, worldMode])
 
-  const selectWorld = useCallback((mode, worldId = null, worldName = null, worldRole = null) => {
-    localStorage.setItem('worldMode', mode)
-    setWorldMode(mode)
-    if (worldId) {
-      localStorage.setItem('activeWorldId', worldId)
-      localStorage.setItem('activeWorldName', worldName || '')
-      localStorage.setItem('activeWorldRole', worldRole || 'owner')
-      setActiveWorldId(worldId)
-      setActiveWorldName(worldName)
-      setActiveWorldRole(worldRole || 'owner')
-    } else {
-      localStorage.removeItem('activeWorldId')
-      localStorage.removeItem('activeWorldName')
-      localStorage.removeItem('activeWorldRole')
-      setActiveWorldId(null)
-      setActiveWorldName(null)
-      setActiveWorldRole(null)
-    }
+  // Dynamic document title
+  useEffect(() => {
+    if (!worldMode) { document.title = 'My Cosmos — Little Cosmos'; return }
+    if (worldMode === 'my') { document.title = 'My World — Little Cosmos'; return }
+    document.title = `${activeWorldName || 'Shared World'} — Little Cosmos`
+  }, [worldMode, activeWorldName])
+
+  const selectWorld = useCallback((mode, worldId = null, worldName = null, worldRole = null, worldType = null) => {
+    // Determine accent color for zoom transition
+    const colors = { partner: '#1a1230', friends: '#0e1028', family: '#181210', my: '#121820' }
+    setTransitionColor(colors[worldType] || colors[mode] || '#0c0a12')
+    setTransitioning(true)
+
+    // Delay the actual world mount until zoom animation completes
+    setTimeout(() => {
+      localStorage.setItem('worldMode', mode)
+      setWorldMode(mode)
+      if (worldId) {
+        localStorage.setItem('activeWorldId', worldId)
+        localStorage.setItem('activeWorldName', worldName || '')
+        localStorage.setItem('activeWorldRole', worldRole || 'owner')
+        localStorage.setItem('activeWorldType', worldType || '')
+        setActiveWorldId(worldId)
+        setActiveWorldName(worldName)
+        setActiveWorldRole(worldRole || 'owner')
+        setActiveWorldType(worldType || null)
+      } else {
+        localStorage.removeItem('activeWorldId')
+        localStorage.removeItem('activeWorldName')
+        localStorage.removeItem('activeWorldRole')
+        localStorage.removeItem('activeWorldType')
+        setActiveWorldId(null)
+        setActiveWorldName(null)
+        setActiveWorldRole(null)
+        setActiveWorldType(null)
+      }
+      // Keep overlay briefly while OurWorld initializes
+      setTimeout(() => setTransitioning(false), 400)
+    }, 600)
   }, [])
 
   const switchWorld = useCallback(() => {
@@ -127,19 +159,25 @@ function AppInner() {
     localStorage.removeItem('activeWorldId')
     localStorage.removeItem('activeWorldName')
     localStorage.removeItem('activeWorldRole')
+    localStorage.removeItem('activeWorldType')
     setWorldMode(null)
     setActiveWorldId(null)
     setActiveWorldName(null)
     setActiveWorldRole(null)
+    setActiveWorldType(null)
     if (userId) {
       Promise.all([
         loadMyWorlds(userId),
         getMyConnections(userId),
         getPendingRequests(user?.email),
-      ]).then(([w, conn, pending]) => {
+        getPendingWorldInvites(user?.email),
+        loadMyWorldSubtitle(userId),
+      ]).then(([w, conn, pending, worldInvites, mySub]) => {
         setWorlds(w)
         setConnections(conn)
         setPendingRequests(pending)
+        setPendingWorldInvites(worldInvites || [])
+        setMyWorldSubtitle(mySub || 'every step, every discovery')
       }).catch(() => {})
     }
   }, [userId, user?.email])
@@ -169,30 +207,63 @@ function AppInner() {
 
   if (!worldMode) {
     return (
-      <WorldSelector
-        onSelect={selectWorld}
-        onSignOut={signOut}
-        worlds={worlds}
-        onWorldsChange={setWorlds}
-        userId={userId}
-        userEmail={user?.email}
-        userDisplayName={userDisplayName}
-        connections={connections}
-        onConnectionsChange={setConnections}
-        pendingRequests={pendingRequests}
-        onPendingRequestsChange={setPendingRequests}
-      />
+      <>
+        <WorldSelector
+          onSelect={selectWorld}
+          onSignOut={signOut}
+          worlds={worlds}
+          onWorldsChange={setWorlds}
+          userId={userId}
+          userEmail={user?.email}
+          userDisplayName={userDisplayName}
+          connections={connections}
+          onConnectionsChange={setConnections}
+          pendingRequests={pendingRequests}
+          onPendingRequestsChange={setPendingRequests}
+          pendingWorldInvites={pendingWorldInvites}
+          onPendingWorldInvitesChange={setPendingWorldInvites}
+          myWorldSubtitle={myWorldSubtitle}
+        />
+        {transitioning && (
+          <div style={{
+            position: 'fixed', inset: 0, zIndex: 9999, pointerEvents: 'none',
+            background: transitionColor,
+            animation: 'cosmosZoomIn 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards',
+          }} />
+        )}
+        <style>{`
+          @keyframes cosmosZoomIn {
+            0% { opacity: 0; transform: scale(0.3); border-radius: 50%; }
+            60% { opacity: 1; border-radius: 20%; }
+            100% { opacity: 1; transform: scale(1); border-radius: 0; }
+          }
+          @keyframes cosmosFadeOut {
+            0% { opacity: 1; }
+            100% { opacity: 0; }
+          }
+        `}</style>
+      </>
     )
   }
 
   return (
-    <OurWorld
-      worldMode={worldMode}
-      worldId={activeWorldId}
-      worldName={activeWorldName}
-      worldRole={activeWorldRole}
-      onSwitchWorld={switchWorld}
-    />
+    <>
+      <OurWorld
+        worldMode={worldMode}
+        worldId={activeWorldId}
+        worldName={activeWorldName}
+        worldRole={activeWorldRole}
+        worldType={activeWorldType}
+        onSwitchWorld={switchWorld}
+      />
+      {transitioning && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999, pointerEvents: 'none',
+          background: transitionColor,
+          animation: 'cosmosFadeOut 0.4s ease-out forwards',
+        }} />
+      )}
+    </>
   )
 }
 
