@@ -958,6 +958,8 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
   const mRef = useRef(new THREE.Vector2());
   const frameRef = useRef(0);
   const heartRef = useRef(null);
+  const easterEggRef = useRef(null);
+  const musicRef = useRef(null);
   const glowLayersRef = useRef([]);
   const particlesRef = useRef(null);
 
@@ -995,11 +997,24 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
   const [selected, setSelected] = useState(null);
   const selectedRef = useRef(null);
   useEffect(() => { selectedRef.current = selected; }, [selected]);
+
+  // Auto-play music when selecting an entry with musicUrl
+  useEffect(() => {
+    if (!selected?.musicUrl) {
+      if (musicRef.current) { musicRef.current.pause(); musicRef.current.currentTime = 0; }
+      return;
+    }
+    const t = setTimeout(() => { if (musicRef.current) musicRef.current.play().catch(() => {}); }, 600);
+    return () => clearTimeout(t);
+  }, [selected?.id, selected?.musicUrl]);
+
   // zoom tracked via zmR ref (used in animation loop directly)
   const [ready, setReady] = useState(false);
   const [introComplete, setIntroComplete] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem("cosmos_onboarded"));
   const [onboardStep, setOnboardStep] = useState(0);
+  const [showPhotoJourney, setShowPhotoJourney] = useState(false);
+  const [pjIndex, setPjIndex] = useState(0);
   // editMode removed — all features always active
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -1183,6 +1198,19 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
       showToast(`${label}: ${mem.city} ${(TYPES[mem.type] || DEFAULT_TYPE).icon}`, "💫", 5000);
     }
   }, [onThisDay, introComplete, showToast]);
+
+  // ---- GUIDED FIRST VISIT TOASTS ----
+  useEffect(() => {
+    if (!introComplete || showOnboarding || data.entries.length === 0) return;
+    const guided = localStorage.getItem("cosmos_guided");
+    if (guided) return;
+    const msgs = isMyWorld
+      ? [["This is everywhere you've been", "🌍"], ["Click any marker to explore a memory", "📍"], ["Press ▶ to watch your story unfold", "▶"]]
+      : [["This is everywhere you've been together", "💕"], ["Click any heart to explore a memory", "💜"], ["Press ▶ to watch your story unfold", "▶"]];
+    const timers = msgs.map((m, i) => setTimeout(() => showToast(m[0], m[1], 3000), 2000 + i * 3500));
+    localStorage.setItem("cosmos_guided", "1");
+    return () => timers.forEach(clearTimeout);
+  }, [introComplete, showOnboarding, data.entries.length, isMyWorld, showToast]);
 
   // ---- MILESTONES on timeline ----
   const milestones = useMemo(() => {
@@ -1753,6 +1781,9 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
       zmR.current = lerp(zmR.current, tZm.current, 0.03);
       cam.position.z = zmR.current;
 
+      // Easter egg: fade in "you are my world" when zoomed all the way out
+      if (easterEggRef.current) easterEggRef.current.style.opacity = zmR.current > 5.5 ? Math.min(1, (zmR.current - 5.5) * 2) : 0;
+
       // Zoom-based marker scaling with gentle breathing
       const mkScale = Math.min(1.2, Math.max(0.35, zmR.current / 3.5));
       const breathe = 1 + Math.sin(Date.now() * 0.0008) * 0.07;
@@ -2254,6 +2285,7 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
         {<TBtn onClick={() => { setShowSettings(true); getMyLetters(userId).then(setMyLetters); }} tip="Settings">⚙️</TBtn>}
         <TBtn a={darkMode} onClick={() => { setDarkMode(v => { const next = !v; setConfig({ darkMode: next }); return next; }); }} tip="Toggle Theme">{darkMode ? "☀️" : "🌙"}</TBtn>
         {allPhotos.length > 0 && <TBtn a={showGallery} onClick={() => setShowGallery(v => !v)} tip="Photo Gallery">📷</TBtn>}
+        {allPhotos.length > 2 && <TBtn onClick={() => { setShowPhotoJourney(true); setPjIndex(0); }} tip="Photo Journey">🎞</TBtn>}
         {data.entries.length > 0 && <TBtn a={showStats} onClick={() => setShowStats(v => !v)} tip="Stats & Insights">📊</TBtn>}
         {data.entries.length > 0 && <TBtn a={showSearch} onClick={() => setShowSearch(v => !v)} tip="Search Entries">🔍</TBtn>}
         {!isMyWorld && togetherList.length > 1 && <TBtn a={showLoveThread} onClick={() => setShowLoveThread(v => !v)} tip="Love Thread">🧵</TBtn>}
@@ -2505,7 +2537,7 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
               {cardTab === "overview" && (<>
                 {cur.notes && <p style={{ fontSize: 12, lineHeight: 1.6, margin: "0 0 8px", opacity: .85 }}>{cur.notes}</p>}
                 {(cur.stops || []).length > 0 && (<div style={{ marginTop: 8 }}><div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".16em", textTransform: "uppercase", marginBottom: 4 }}>Trip Route</div>{cur.stops.map(s => <div key={s.sid} style={{ padding: "5px 8px", background: `${P.rose}08`, borderRadius: 6, marginBottom: 4, borderLeft: `2px solid ${P.rose}30` }}><div style={{ fontSize: 11, fontWeight: 500 }}>{s.city}</div>{s.dateStart && <div style={{ fontSize: 9, color: P.textFaint }}>{fmtDate(s.dateStart)}{s.dateEnd ? ` → ${fmtDate(s.dateEnd)}` : ""}</div>}{s.notes && <p style={{ fontSize: 10, color: P.textMid, margin: "2px 0 0" }}>{s.notes}</p>}</div>)}</div>)}
-                {cur.musicUrl && <div style={{ marginTop: 8, padding: "6px 8px", background: `${P.lavender}0a`, borderRadius: 6 }}><div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 3 }}>{isMyWorld ? "Music" : "Our Song"}</div><audio controls src={cur.musicUrl} style={{ width: "100%", height: 26 }} /></div>}
+                {cur.musicUrl && <div style={{ marginTop: 8, padding: "6px 8px", background: `${P.lavender}0a`, borderRadius: 6 }}><div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 3 }}>{isMyWorld ? "Music" : "Our Song"}</div><audio ref={musicRef} controls src={cur.musicUrl} style={{ width: "100%", height: 26 }} /></div>}
                 {/* Love Note — Our World only */}
                 {!isMyWorld && <div style={{ marginTop: 10, padding: "10px 12px", background: `${P.heart}06`, borderRadius: 8, borderLeft: `2px solid ${P.heart}20` }}>
                   <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 4 }}>💌 Love Note</div>
@@ -3138,6 +3170,39 @@ function OurWorldInner({ worldMode = "our", onSwitchWorld }) {
           </div>
         );
       })()}
+
+      {/* PHOTO JOURNEY MODE */}
+      {showPhotoJourney && allPhotos.length > 0 && (() => {
+        const ph = allPhotos[pjIndex];
+        return (
+          <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "#000", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+            onClick={() => setPjIndex(i => i < allPhotos.length - 1 ? i + 1 : (setShowPhotoJourney(false), 0))}>
+            <img key={ph.url} src={ph.url} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", animation: "fadeIn .8s ease" }} />
+            <div style={{ position: "absolute", bottom: 40, left: 0, right: 0, textAlign: "center", pointerEvents: "none" }}>
+              <div style={{ fontSize: 16, color: "#e8e0d0", fontFamily: "'Palatino Linotype',serif", letterSpacing: ".08em", textShadow: "0 2px 12px rgba(0,0,0,0.8)" }}>{ph.city}</div>
+              <div style={{ fontSize: 11, color: "#a098a8", marginTop: 4, textShadow: "0 1px 8px rgba(0,0,0,0.8)" }}>{ph.date}</div>
+            </div>
+            <div style={{ position: "absolute", top: 20, right: 20, fontSize: 11, color: "#686070" }}>{pjIndex + 1} / {allPhotos.length}</div>
+            <button onClick={(e) => { e.stopPropagation(); setShowPhotoJourney(false); }}
+              style={{ position: "absolute", top: 16, left: 16, background: "rgba(255,255,255,0.1)", border: "none", borderRadius: 8, padding: "6px 14px", color: "#a098a8", fontSize: 12, fontFamily: "inherit", cursor: "pointer" }}>
+              x Close
+            </button>
+            {pjIndex > 0 && (
+              <button onClick={(e) => { e.stopPropagation(); setPjIndex(i => i - 1); }}
+                style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,0.08)", border: "none", borderRadius: "50%", width: 40, height: 40, color: "#e8e0d0", fontSize: 18, cursor: "pointer" }}>
+                &#9664;
+              </button>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* EASTER EGG — visible when zoomed all the way out (opacity updated by animation loop) */}
+      <div ref={easterEggRef} style={{ position: "absolute", top: "12%", left: "50%", transform: "translateX(-50%)", zIndex: 5, textAlign: "center", pointerEvents: "none", opacity: 0, transition: "opacity .8s" }}>
+        <div style={{ fontSize: 14, color: "#c9a96e", letterSpacing: "6px", fontWeight: 300, textShadow: "0 0 20px rgba(200,170,110,0.4), 0 0 40px rgba(200,170,110,0.2)", fontFamily: "'Palatino Linotype',serif" }}>
+          you are my world
+        </div>
+      </div>
 
       <style>{`
         @keyframes cardIn{from{opacity:0;transform:translateY(-50%) translateX(18px)}to{opacity:1;transform:translateY(-50%) translateX(0)}}
