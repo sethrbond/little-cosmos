@@ -1575,7 +1575,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       reader.readAsText(file);
     };
     input.click();
-  }, [setConfig]);
+  }, [setConfig, db, dispatch]);
 
   // Photo slideshow
   useEffect(() => {
@@ -2468,7 +2468,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         }>
           {(cur.photos || []).length > 0 && !cardGallery && (
             <div style={{ position: "relative", width: "100%", background: "#f5f0eb", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", minHeight: 120, maxHeight: 220 }}>
-              <img loading="lazy" src={cur.photos[photoIdx % cur.photos.length]} alt="" style={{ maxWidth: "100%", maxHeight: 220, objectFit: "contain", display: "block", transition: "all .3s", ...(polaroidMode ? { border: "6px solid #fff", borderBottom: "28px solid #fff", boxShadow: "0 4px 16px rgba(0,0,0,.15)", borderRadius: 1, transform: `rotate(${(photoIdx % 3 - 1) * 1.5}deg)` } : {}) }} />
+              <img loading="lazy" src={cur.photos[photoIdx % cur.photos.length]} alt={`Photo from ${cur.city || "trip"}`} style={{ maxWidth: "100%", maxHeight: 220, objectFit: "contain", display: "block", transition: "all .3s", ...(polaroidMode ? { border: "6px solid #fff", borderBottom: "28px solid #fff", boxShadow: "0 4px 16px rgba(0,0,0,.15)", borderRadius: 1, transform: `rotate(${(photoIdx % 3 - 1) * 1.5}deg)` } : {}) }} />
               {cur.photos.length > 1 && (<><button onClick={() => setPhotoIdx(i => (i - 1 + cur.photos.length) % cur.photos.length)} style={imgN("left")}>‹</button><button onClick={() => setPhotoIdx(i => (i + 1) % cur.photos.length)} style={imgN("right")}>›</button>
                 <div style={{ position: "absolute", bottom: 6, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 3 }}>{cur.photos.map((_, i) => <div key={i} style={{ width: 4, height: 4, borderRadius: "50%", background: i === photoIdx % cur.photos.length ? "#fff" : "rgba(255,255,255,.3)" }} />)}</div></>)}
               <button onClick={() => setCardGallery(true)} style={{ position: "absolute", top: 6, right: 6, background: "rgba(255,255,255,.85)", border: "none", borderRadius: 5, padding: "2px 8px", fontSize: 9, cursor: "pointer", fontFamily: "inherit", color: P.textMid }}>📷 {cur.photos.length}</button>
@@ -2489,7 +2489,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 {cur.photos.map((url, i) => (
                   <div key={i} style={{ position: "relative" }}>
                     <button onClick={() => { if (photoDeleteMode) { dispatch({ type: "REMOVE_PHOTO", id: cur.id, photoIndex: i }); setPhotoIdx(pi => pi >= i && pi > 0 ? pi - 1 : pi); showToast("Photo removed", "🗑", 2000); } else { setPhotoIdx(i); setCardGallery(false); setPhotoDeleteMode(false); } }} style={{ padding: 0, border: photoIdx === i ? `2px solid ${P.rose}` : "2px solid transparent", background: "#f0e8f0", cursor: "pointer", borderRadius: 6, overflow: "hidden", aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center", width: "100%", opacity: photoDeleteMode ? 0.7 : 1 }}>
-                      <img loading="lazy" src={url} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", borderRadius: 4 }} />
+                      <img loading="lazy" src={url} alt="Travel photo" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", borderRadius: 4 }} />
                     </button>
                     {photoDeleteMode && <div style={{ position: "absolute", top: 2, right: 2, width: 16, height: 16, borderRadius: "50%", background: "#c9777a", color: "#fff", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>×</div>}
                   </div>
@@ -2591,7 +2591,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))", gap: 4 }}>
                   {(cur.photos || []).map((url, i) => (
                     <button key={i} onClick={() => { setPhotoIdx(i); setCardTab("overview"); }} style={{ padding: 0, border: "2px solid transparent", background: "#f0e8f0", cursor: "pointer", borderRadius: 6, overflow: "hidden", aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
-                      <img loading="lazy" src={url} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "cover", borderRadius: 4 }} />
+                      <img loading="lazy" src={url} alt="Travel photo" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "cover", borderRadius: 4 }} />
                     </button>
                   ))}
                 </div>
@@ -2822,7 +2822,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                     setSliderDate(entry.dateStart);
                   }
                 }} style={{ padding: 0, border: "none", background: "none", cursor: "pointer", borderRadius: 4, overflow: "hidden", aspectRatio: "1", position: "relative" }}>
-                  <img loading="lazy" src={ph.url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 4, transition: "transform .2s" }}
+                  <img loading="lazy" src={ph.url} alt="Travel photo" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 4, transition: "transform .2s" }}
                     onMouseEnter={e => e.currentTarget.style.transform = "scale(1.05)"}
                     onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"} />
                   <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "10px 3px 2px", background: "linear-gradient(transparent, rgba(0,0,0,.5))", fontSize: 6, color: "#fff", textAlign: "center", letterSpacing: ".05em" }}>{ph.city}</div>
@@ -2894,7 +2894,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         </div>
       )}
 
-      {showSettings && (
+      {showSettings && !isViewer && (
         <div onClick={() => setShowSettings(false)} style={{ position: "absolute", inset: 0, zIndex: 45, background: "rgba(22,16,40,.88)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
           <div onClick={e => e.stopPropagation()} style={{ width: 380, maxHeight: "85vh", overflowY: "auto", padding: 26, background: P.card, borderRadius: 16, boxShadow: "0 14px 48px rgba(61,53,82,.1)", cursor: "default" }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 14 }}><h3 style={{ margin: 0, fontSize: 15, fontWeight: 400 }}>Settings</h3><button onClick={() => setShowSettings(false)} style={{ background: "none", border: "none", fontSize: 17, color: P.textFaint, cursor: "pointer" }}>×</button></div>
@@ -3177,7 +3177,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                   {(e.photos || []).length > 0 && (
                     <div style={{ display: "flex", gap: 4, marginTop: 6, overflowX: "auto" }}>
                       {e.photos.slice(0, 4).map((url, i) => (
-                        <img key={i} loading="lazy" src={url} alt="" style={{ width: 60, height: 60, objectFit: "cover", borderRadius: 6 }} />
+                        <img key={i} loading="lazy" src={url} alt="Travel photo" style={{ width: 60, height: 60, objectFit: "cover", borderRadius: 6 }} />
                       ))}
                     </div>
                   )}
@@ -3302,7 +3302,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         return (
           <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "#000", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
             onClick={() => setPjIndex(i => i < allPhotos.length - 1 ? i + 1 : (setShowPhotoJourney(false), 0))}>
-            <img key={ph.url} src={ph.url} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", animation: "fadeIn .8s ease" }} />
+            <img key={ph.url} src={ph.url} alt="Travel photo" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", animation: "fadeIn .8s ease" }} />
             <div style={{ position: "absolute", bottom: 40, left: 0, right: 0, textAlign: "center", pointerEvents: "none" }}>
               <div style={{ fontSize: 16, color: "#e8e0d0", fontFamily: "'Palatino Linotype',serif", letterSpacing: ".08em", textShadow: "0 2px 12px rgba(0,0,0,0.8)" }}>{ph.city}</div>
               <div style={{ fontSize: 11, color: "#a098a8", marginTop: 4, textShadow: "0 1px 8px rgba(0,0,0,0.8)" }}>{ph.date}</div>
