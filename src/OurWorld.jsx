@@ -1179,14 +1179,15 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'entry_comments', filter: `world_id=eq.${worldId}` }, () => {
-        if (selected?.id) loadComments(worldId, selected.id).then(setEntryComments).catch(() => {});
+        const sel = selectedRef.current;
+        if (sel?.id) loadComments(worldId, sel.id).then(setEntryComments).catch(() => {});
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'entry_reactions', filter: `world_id=eq.${worldId}` }, () => {
         loadAllWorldReactions(worldId).then(setWorldReactions).catch(() => {});
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [isSharedWorld, worldId, db, selected?.id]);
+  }, [isSharedWorld, worldId, db]);
 
   // zoom tracked via zmR ref (used in animation loop directly)
   const [ready, setReady] = useState(false);
@@ -1367,6 +1368,16 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     );
     return () => timers.forEach(clearTimeout);
   }, [toasts, dismissToast]);
+
+  // ---- OFFLINE AWARENESS ----
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  useEffect(() => {
+    const goOffline = () => { setIsOffline(true); showToast("You're offline — changes won't save", "⚠️", 5000); };
+    const goOnline = () => { setIsOffline(false); showToast("Back online", "✅", 2000); };
+    window.addEventListener("offline", goOffline);
+    window.addEventListener("online", goOnline);
+    return () => { window.removeEventListener("offline", goOffline); window.removeEventListener("online", goOnline); };
+  }, [showToast]);
 
   // ---- "ON THIS DAY" MEMORIES ----
   const onThisDay = useMemo(() => {
@@ -2562,6 +2573,13 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         {isPartnerWorld && isAnniversary && <div style={{ fontSize: 11, color: P.heart, marginTop: 6, letterSpacing: ".15em", animation: "heartPulse 2s ease infinite" }}>✨ Happy Anniversary ✨</div>}
       </div>
 
+      {/* OFFLINE INDICATOR */}
+      {isOffline && introComplete && (
+        <div style={{ position: "absolute", top: isMobile ? 70 : 80, left: "50%", transform: "translateX(-50%)", zIndex: 15, pointerEvents: "none", animation: "fadeIn .4s ease" }}>
+          <div style={{ fontSize: 10, color: "#e8c070", letterSpacing: ".1em", background: "rgba(40,30,20,0.75)", backdropFilter: "blur(8px)", borderRadius: 12, padding: "4px 14px", border: "1px solid rgba(200,170,110,0.2)" }}>Offline — changes won't save</div>
+        </div>
+      )}
+
       {/* ZOOM HINT — fades after 4 seconds */}
       {showZoomHint && introComplete && !selected && (
         <div style={{ position: "absolute", bottom: isMobile ? 115 : 130, left: "50%", transform: "translateX(-50%)", zIndex: 10, pointerEvents: "none", opacity: 0.8, animation: "fadeIn .6s ease", transition: "opacity 1s ease" }}>
@@ -3511,6 +3529,14 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 )}
               </>
             )}
+
+            <div style={{ margin: "14px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
+            <button onClick={() => { setShowSettings(false); setShowOnboarding(true); setOnboardStep(0); localStorage.removeItem(onboardKey); }}
+              style={{ width: "100%", padding: "8px", background: "transparent", border: `1px dashed ${P.textFaint}30`, borderRadius: 8, cursor: "pointer", fontSize: 10, fontFamily: "inherit", color: P.textMid, transition: "all .2s" }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = `${P.rose}40`; e.currentTarget.style.color = P.text; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = `${P.textFaint}30`; e.currentTarget.style.color = P.textMid; }}>
+              Replay Tour
+            </button>
 
             <div style={{ margin: "10px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
             <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 6 }}>Data</div>

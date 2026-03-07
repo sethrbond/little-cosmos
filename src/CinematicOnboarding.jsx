@@ -30,8 +30,9 @@ export default function CinematicOnboarding({ userId, onComplete }) {
     let W = window.innerWidth, H = window.innerHeight
     canvas.width = W; canvas.height = H
 
-    // Generate stars
-    const stars = Array.from({ length: 400 }, () => ({
+    // Generate stars (fewer on mobile for performance)
+    const isMobile = W < 768
+    const stars = Array.from({ length: isMobile ? 200 : 400 }, () => ({
       x: (Math.random() - 0.5) * 2,
       y: (Math.random() - 0.5) * 2,
       z: Math.random() * 3 + 0.5,

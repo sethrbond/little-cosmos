@@ -179,8 +179,16 @@ function AppInner() {
 
   if (loading || !letterChecked || !worldsLoaded) {
     return (
-      <div style={{ position: 'fixed', inset: 0, background: '#0c0a12', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: '"Palatino Linotype", serif', color: '#e8e0d0', fontSize: 18, opacity: 0.6 }}>
-        Loading...
+      <div style={{ position: 'fixed', inset: 0, background: '#0c0a12', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: '"Palatino Linotype", serif', color: '#e8e0d0', gap: 20 }}>
+        <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'radial-gradient(circle, rgba(200,170,110,0.12), transparent 70%)', display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'cosmosPulse 2s ease-in-out infinite' }}>
+          <div style={{ width: 20, height: 20, borderRadius: '50%', border: '2px solid rgba(200,170,110,0.3)', borderTopColor: 'rgba(200,170,110,0.8)', animation: 'cosmosSpin 1s linear infinite' }} />
+        </div>
+        <div style={{ fontSize: 13, letterSpacing: '0.15em', opacity: 0.5, animation: 'cosmosShimmer 2s ease-in-out infinite' }}>Loading your cosmos</div>
+        <style>{`
+          @keyframes cosmosSpin { to { transform: rotate(360deg); } }
+          @keyframes cosmosPulse { 0%,100% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.1); opacity: 1; } }
+          @keyframes cosmosShimmer { 0%,100% { opacity: 0.3; } 50% { opacity: 0.6; } }
+        `}</style>
       </div>
     )
   }
