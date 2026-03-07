@@ -72,10 +72,12 @@ export async function loadMyWorlds(userId) {
   if (error) { console.error('[loadMyWorlds]', error); return [] }
 
   // Also fetch config data (names, subtitle) for each world
-  const { data: configs } = await supabase
+  const { data: configs, error: cfgErr } = await supabase
     .from('config')
     .select('world_id, you_name, partner_name, subtitle')
     .in('world_id', worldIds)
+  if (cfgErr) console.error('[loadMyWorlds] config fetch error:', cfgErr.message, cfgErr.code)
+  console.log('[loadMyWorlds] configs loaded:', (configs || []).map(c => ({ world_id: c.world_id, you_name: c.you_name, partner_name: c.partner_name, subtitle: c.subtitle })))
   const cfgMap = Object.fromEntries((configs || []).map(c => [c.world_id, c]))
 
   const roleMap = Object.fromEntries(memberships.map(m => [m.world_id, m.role]))

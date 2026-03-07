@@ -987,19 +987,23 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       clearTimeout(configSaveTimer.current);
       configSaveTimer.current = setTimeout(() => {
         if (pendingConfigRef.current) {
-          db.saveConfig(pendingConfigRef.current).catch?.(err => console.error('[setConfig] save failed:', err));
+          console.log('[setConfig] debounce firing, saving config...', { youName: pendingConfigRef.current.youName, partnerName: pendingConfigRef.current.partnerName, title: pendingConfigRef.current.title });
+          db.saveConfig(pendingConfigRef.current).catch(err => console.error('[setConfig] save failed:', err));
         }
       }, 400);
       return next;
     });
   }, [db, isSharedWorld, worldType]);
 
-  // Flush any pending config save immediately (used when closing settings)
+  // Flush any pending config save immediately (used when closing settings, switching worlds)
   const flushConfigSave = useCallback(() => {
     clearTimeout(configSaveTimer.current);
     if (pendingConfigRef.current) {
-      db.saveConfig(pendingConfigRef.current).catch?.(err => console.error('[flushConfigSave] failed:', err));
+      console.log('[flushConfigSave] flushing config save...', { youName: pendingConfigRef.current.youName, partnerName: pendingConfigRef.current.partnerName, title: pendingConfigRef.current.title });
+      db.saveConfig(pendingConfigRef.current).catch(err => console.error('[flushConfigSave] failed:', err));
       pendingConfigRef.current = null;
+    } else {
+      console.log('[flushConfigSave] nothing to flush (pendingConfigRef is null)');
     }
   }, [db]);
 
@@ -2671,7 +2675,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           if (ambientPlaying) { au.pause(); setAmbientPlaying(false); }
           else { au.play().catch(() => {}); setAmbientPlaying(true); }
         }} tip={ambientPlaying ? "Pause Ambient Music" : "Play Ambient Music"}>{ambientPlaying ? "🔊" : "🎵"}</TBtn>}
-        {onSwitchWorld && <TBtn onClick={onSwitchWorld} tip="Switch World">🔄</TBtn>}
+        {onSwitchWorld && <TBtn onClick={() => { flushConfigSave(); onSwitchWorld(); }} tip="Switch World">🔄</TBtn>}
         <TBtn onClick={() => { if (window.confirm("Sign out of My Cosmos?")) signOut(); }} tip="Sign Out">🚪</TBtn>
       </div>
 

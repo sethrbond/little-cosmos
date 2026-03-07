@@ -325,13 +325,17 @@ export function createOurWorldDB(userId) {
           ambientMusicUrl: config.ambientMusicUrl || '',
         },
       }
+      console.log('[ourWorld:saveConfig] saving:', { userId, title: row.title, you_name: row.you_name, partner_name: row.partner_name })
       const { error } = await supabase.from('config').upsert(row, { onConflict: 'id' })
       if (error) {
+        console.error('[ourWorld:saveConfig] FAILED:', error.message, error.code)
         if (error.message?.includes('metadata') || error.code === '42703') {
           const { metadata, ...basic } = row
           const { error: e2 } = await supabase.from('config').upsert(basic, { onConflict: 'id' })
-          if (e2) console.error('[saveConfig] fallback error:', e2)
-        } else { console.error('[saveConfig] error:', error) }
+          if (e2) { console.error('[ourWorld:saveConfig] fallback error:', e2); throw e2 }
+        } else { throw error }
+      } else {
+        console.log('[ourWorld:saveConfig] SUCCESS')
       }
     },
 
@@ -401,8 +405,11 @@ export function createSharedWorldDB(worldId, userId) {
     },
 
     loadConfig: async () => {
+      console.log('[shared:loadConfig] loading for worldId:', worldId)
       const { data, error } = await supabase.from('config').select('*').eq('world_id', worldId).single()
-      if (error || !data) return null
+      if (error) console.error('[shared:loadConfig] ERROR:', error.message, error.code)
+      if (!data) { console.warn('[shared:loadConfig] no data returned for worldId:', worldId); return null }
+      console.log('[shared:loadConfig] loaded:', { id: data.id, you_name: data.you_name, partner_name: data.partner_name, title: data.title })
       const cfg = {
         startDate: data.start_date || '',
         title: data.title || 'Our World',
@@ -440,13 +447,23 @@ export function createSharedWorldDB(worldId, userId) {
           ambientMusicUrl: config.ambientMusicUrl || '',
         },
       }
-      const { error } = await supabase.from('config').upsert(row, { onConflict: 'id' })
+      console.log('[shared:saveConfig] saving:', { worldId, userId, title: row.title, you_name: row.you_name, partner_name: row.partner_name })
+      const { data, error } = await supabase.from('config').upsert(row, { onConflict: 'id' }).select()
       if (error) {
+        console.error('[shared:saveConfig] UPSERT FAILED:', error.message, error.code, error.details, error.hint)
         if (error.message?.includes('metadata') || error.code === '42703') {
           const { metadata, ...basic } = row
-          const { error: e2 } = await supabase.from('config').upsert(basic, { onConflict: 'id' })
-          if (e2) console.error('[shared:saveConfig] fallback error:', e2)
-        } else { console.error('[shared:saveConfig] error:', error) }
+          const { data: d2, error: e2 } = await supabase.from('config').upsert(basic, { onConflict: 'id' }).select()
+          if (e2) {
+            console.error('[shared:saveConfig] fallback also failed:', e2.message, e2.code)
+            throw e2
+          }
+          console.log('[shared:saveConfig] fallback succeeded:', d2)
+        } else {
+          throw error
+        }
+      } else {
+        console.log('[shared:saveConfig] SUCCESS:', data?.[0] ? { id: data[0].id, you_name: data[0].you_name, partner_name: data[0].partner_name, title: data[0].title } : 'no data returned')
       }
     },
 
