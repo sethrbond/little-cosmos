@@ -117,6 +117,27 @@ export async function updateWorld(worldId, updates) {
 }
 
 export async function deleteWorld(worldId) {
+  // 1. Clean up photos from Supabase Storage for all entries in this world
+  try {
+    const { data: entries } = await supabase
+      .from('entries')
+      .select('id, photos')
+      .eq('world_id', worldId)
+    if (entries && entries.length > 0) {
+      for (const entry of entries) {
+        // Delete photos folder from storage
+        const { data: files } = await supabase.storage.from('photos').list(`${entry.id}`)
+        if (files && files.length > 0) {
+          const paths = files.map(f => `${entry.id}/${f.name}`)
+          await supabase.storage.from('photos').remove(paths)
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[deleteWorld] photo cleanup error (non-blocking):', err)
+  }
+
+  // 2. Delete the world row (CASCADE handles entries, members, invites, comments, reactions)
   const { error } = await supabase.from('worlds').delete().eq('id', worldId)
   if (error) console.error('[deleteWorld]', error)
   return !error
