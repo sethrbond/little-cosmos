@@ -164,13 +164,6 @@ export async function deleteEntry(id) {
   return !error
 }
 
-// Debug: read back a single entry to verify what's actually stored
-export async function verifyEntry(id) {
-  const { data, error } = await supabase.from('entries').select('photos').eq('id', id).single()
-  if (error) return { error: error.message }
-  return { raw: data?.photos, type: typeof data?.photos, isArray: Array.isArray(data?.photos), length: Array.isArray(data?.photos) ? data.photos.length : -1 }
-}
-
 // ---- CONFIG ----
 
 export async function loadConfig() {
