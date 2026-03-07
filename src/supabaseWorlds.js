@@ -105,7 +105,7 @@ export async function loadMyWorldSubtitle(userId) {
     .from('my_config')
     .select('subtitle')
     .eq('id', userId)
-    .single()
+    .maybeSingle()
   if (error || !data) return 'every step, every discovery'
   return data.subtitle || 'every step, every discovery'
 }
@@ -202,7 +202,7 @@ export async function getInviteInfo(token) {
     .from('world_invites')
     .select('*, worlds(name, type)')
     .eq('token', token)
-    .single()
+    .maybeSingle()
   if (error) { console.error('[getInviteInfo]', error); return null }
   return data
 }
@@ -385,9 +385,9 @@ export async function toggleReaction(worldId, entryId, userId, reactionType = 'h
   if (photoUrl) query = query.eq('photo_url', photoUrl)
   else query = query.is('photo_url', null)
 
-  const { data: existing, error: queryErr } = await query.single()
+  const { data: existing, error: queryErr } = await query.maybeSingle()
 
-  if (queryErr && queryErr.code !== 'PGRST116') { console.error('[toggleReaction]', queryErr); return { action: 'error' } }
+  if (queryErr) { console.error('[toggleReaction]', queryErr); return { action: 'error' } }
   if (existing) {
     const { error: delErr } = await supabase.from('entry_reactions').delete().eq('id', existing.id)
     if (delErr) { console.error('[toggleReaction] delete:', delErr); return { action: 'error' } }

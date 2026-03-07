@@ -4356,7 +4356,7 @@ function EditForm({ entry, types, fieldLabels, onChange, onSave, onClose, onDele
   };
 
   const selectEditCity = c => {
-    onChange(p => ({ ...p, city: c[0], country: c[1], lat: c[2], lng: c[3] }));
+    onChange(p => ({ ...p, city: c[0], country: c[1], lat: parseFloat(c[2]) || 0, lng: parseFloat(c[3]) || 0 }));
     setCitySugg([]); setShowCitySugg(false);
   };
 

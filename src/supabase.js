@@ -174,7 +174,7 @@ export async function verifyEntry(id) {
 // ---- CONFIG ----
 
 export async function loadConfig() {
-  const { data, error } = await supabase.from('config').select('*').eq('id', 'main').single()
+  const { data, error } = await supabase.from('config').select('*').eq('id', 'main').maybeSingle()
   if (error || !data) return null
   const cfg = {
     startDate: data.start_date || '',

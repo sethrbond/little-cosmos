@@ -147,7 +147,7 @@ export async function deleteEntry(id) {
 // ---- CONFIG ----
 
 export async function loadConfig() {
-  const { data, error } = await supabase.from('my_config').select('*').eq('id', 'main').single()
+  const { data, error } = await supabase.from('my_config').select('*').eq('id', 'main').maybeSingle()
   if (error || !data) return null
   const cfg = {
     startDate: data.start_date || '',
@@ -302,7 +302,7 @@ export function createFriendWorldDB(friendUserId) {
       }))
     },
     loadConfig: async () => {
-      const { data, error } = await supabase.from('my_config').select('*').eq('id', friendUserId).single()
+      const { data, error } = await supabase.from('my_config').select('*').eq('id', friendUserId).maybeSingle()
       if (error || !data) return null
       const cfg = {
         startDate: data.start_date || '',
