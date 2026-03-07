@@ -115,6 +115,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const searchTimerRef = useRef(null);
+  const searchSeqRef = useRef(0);
 
   // Build friend worlds from connections
   const friendWorlds = useMemo(() => {
@@ -556,11 +557,11 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     if (!q.trim()) { setSearchResults([]); setSearching(false); return; }
     setSearching(true);
+    const seq = ++searchSeqRef.current;
     searchTimerRef.current = setTimeout(async () => {
       const worldIds = worlds.map(w => w.id);
       const results = await searchCrossWorld(worldIds, userId, q);
-      setSearchResults(results);
-      setSearching(false);
+      if (seq === searchSeqRef.current) { setSearchResults(results); setSearching(false); }
     }, 400);
   }, [worlds, userId]);
 

@@ -4,6 +4,7 @@ import AuthScreen from './AuthScreen.jsx'
 import WorldSelector from './WorldSelector.jsx'
 import OurWorld from './OurWorld.jsx'
 import WelcomeLetterScreen from './WelcomeLetterScreen.jsx'
+import CinematicOnboarding from './CinematicOnboarding.jsx'
 import { getWelcomeLetter, markLetterRead } from './supabaseWelcomeLetters.js'
 import { loadMyWorlds, loadMyWorldSubtitle, acceptInvite, getInviteInfo, getPendingWorldInvites } from './supabaseWorlds.js'
 import { getPendingRequests, getMyConnections } from './supabaseConnections.js'
@@ -30,6 +31,7 @@ function AppInner() {
   const [myWorldSubtitle, setMyWorldSubtitle] = useState(null)
   const [transitioning, setTransitioning] = useState(false)
   const [transitionColor, setTransitionColor] = useState('#0c0a12')
+  const [showCinematic, setShowCinematic] = useState(false)
 
   // User's display name from auth metadata
   const userDisplayName = user?.user_metadata?.display_name || ''
@@ -92,18 +94,17 @@ function AppInner() {
           } else {
             alert(result?.error || 'Failed to accept invite.')
           }
-        })
+        }).catch(err => { console.error('[acceptInvite]', err); alert('Something went wrong accepting the invite. Please try again.') })
       }
-    })
+    }).catch(err => { console.error('[getInviteInfo]', err); alert('Could not load invite details. Please check your connection and try again.') })
   }, [invitePending, userId])
 
-  // Auto-route brand new users straight to My World (first login ever)
+  // Brand new users: show cinematic onboarding before entering My World
   useEffect(() => {
     if (!userId || !worldsLoaded || worldMode) return
     const hasVisited = safeGet('cosmos_hasVisited')
     if (!hasVisited) {
-      safeSet('cosmos_hasVisited', '1')
-      selectWorld('my')
+      setShowCinematic(true)
     }
   }, [userId, worldsLoaded, worldMode])
 
@@ -194,6 +195,20 @@ function AppInner() {
         onEnter={() => {
           markLetterRead(welcomeLetter.id).catch(err => console.error('[markLetterRead]', err))
           setWelcomeLetter(null)
+        }}
+      />
+    )
+  }
+
+  // Cinematic onboarding for brand-new users
+  if (showCinematic) {
+    return (
+      <CinematicOnboarding
+        userId={userId}
+        onComplete={() => {
+          safeSet('cosmos_hasVisited', '1')
+          setShowCinematic(false)
+          selectWorld('my')
         }}
       />
     )

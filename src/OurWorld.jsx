@@ -906,6 +906,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [config, setConfigState] = useState(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(true);
   const [sceneReady, setSceneReady] = useState(false);
+  const loadErrorRef = useRef(false);
 
   // Palette & scene merge custom overrides from config (takes effect on render for UI, on reload for scene)
   // Mutates module-level P so external form components (TBtn, Fld, etc.) get correct world colors
@@ -955,6 +956,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         }
       } catch (err) {
         console.error("Failed to load from Supabase:", err);
+        loadErrorRef.current = true;
       }
       setLoading(false);
     })();
@@ -1222,6 +1224,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [showGallery, setShowGallery] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 });
+  const uploadLockRef = useRef(Promise.resolve()); // sequential photo upload queue
   const [cardGallery, setCardGallery] = useState(false);
   const [markerFilter, setMarkerFilter] = useState("all"); // "all", "together", "special", "home-seth", "home-rosie", "seth-solo", "rosie-solo"
   const [listRenderLimit, setListRenderLimit] = useState(100);
@@ -1389,6 +1392,13 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       showToast(`${label}: ${mem.city} ${(TYPES[mem.type] || DEFAULT_TYPE).icon}`, "💫", 5000);
     }
   }, [onThisDay, introComplete, showToast]);
+
+  // ---- CONFIG LOAD ERROR NOTIFICATION ----
+  useEffect(() => {
+    if (!introComplete || !loadErrorRef.current) return;
+    loadErrorRef.current = false;
+    showToast("Settings couldn't load — using defaults", "⚠️", 5000);
+  }, [introComplete, showToast]);
 
   // ---- GUIDED FIRST VISIT TOASTS ----
   useEffect(() => {
@@ -2467,46 +2477,49 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     document.body.appendChild(input);
     fileInputRef.current = input;
 
-    const handler = async () => {
+    const handler = () => {
       const files = Array.from(input.files);
       const id = photoEntryIdRef.current;
-      const curDb = dbRef.current;
-      const curDispatch = dispatchRef.current;
       if (files.length === 0 || !id) return;
-      setUploading(true);
-      setUploadProgress({ done: 0, total: files.length });
+      // Queue upload behind any in-progress upload to prevent read/merge/write race
+      uploadLockRef.current = uploadLockRef.current.then(async () => {
+        const curDb = dbRef.current;
+        const curDispatch = dispatchRef.current;
+        setUploading(true);
+        setUploadProgress({ done: 0, total: files.length });
 
-      // Step 1: Upload files to Supabase storage
-      const urls = [];
-      for (let i = 0; i < files.length; i++) {
-        try {
-          const url = await curDb.uploadPhoto(files[i], id);
-          if (url && typeof url === 'string') urls.push(url);
-        } catch (err) { /* skip failed uploads */ }
-        setUploadProgress({ done: i + 1, total: files.length });
-      }
-      if (urls.length === 0) { setUploading(false); input.value = ""; return; }
+        // Step 1: Upload files to Supabase storage
+        const urls = [];
+        for (let i = 0; i < files.length; i++) {
+          try {
+            const url = await curDb.uploadPhoto(files[i], id);
+            if (url && typeof url === 'string') urls.push(url);
+          } catch (err) { /* skip failed uploads */ }
+          setUploadProgress({ done: i + 1, total: files.length });
+        }
+        if (urls.length === 0) { setUploading(false); input.value = ""; return; }
 
-      // Step 2: Read current photos from DB
-      const current = await curDb.readPhotos(id);
-      const existing = current.ok ? current.photos : [];
+        // Step 2: Read current photos from DB (sequenced — no concurrent reads)
+        const current = await curDb.readPhotos(id);
+        const existing = current.ok ? current.photos : [];
 
-      // Step 3: Merge and save directly to DB
-      const merged = [...existing, ...urls];
-      const saveResult = await curDb.savePhotos(id, merged);
+        // Step 3: Merge and save directly to DB
+        const merged = [...existing, ...urls];
+        const saveResult = await curDb.savePhotos(id, merged);
 
-      // Step 4: Update local state
-      curDispatch({ type: "ADD_PHOTOS", id, urls });
+        // Step 4: Update local state
+        curDispatch({ type: "ADD_PHOTOS", id, urls });
 
-      // Step 5: Show result
-      if (saveResult.ok) {
-        showToast(`📷 ${urls.length} photo${urls.length > 1 ? "s" : ""} saved (${merged.length} total)`, "✅", 3000);
-      } else {
-        showToast(`❌ Photo save failed: ${saveResult.error}`, "⚠️", 8000);
-      }
+        // Step 5: Show result
+        if (saveResult.ok) {
+          showToast(`${urls.length} photo${urls.length > 1 ? "s" : ""} saved (${merged.length} total)`, "✅", 3000);
+        } else {
+          showToast(`Photo save failed: ${saveResult.error}`, "⚠️", 8000);
+        }
 
-      setUploading(false);
-      input.value = "";
+        setUploading(false);
+        input.value = "";
+      }).catch(err => { console.error('[photoUpload] queue error:', err); setUploading(false); });
     };
 
     input.addEventListener("change", handler);
@@ -2869,23 +2882,25 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           {!isViewer && (cur.photos || []).length === 0 && <div
             onDragOver={e => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
-            onDrop={async e => {
+            onDrop={e => {
               e.preventDefault(); setDragOver(false);
               const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/"));
               if (files.length === 0) return;
-              setUploading(true);
               const cid = cur.id;
-              const urls = [];
-              for (const file of files) { const url = await db.uploadPhoto(file, cid); if (url && typeof url === 'string') urls.push(url); }
-              if (urls.length > 0) {
-                const current = await db.readPhotos(cid);
-                const merged = [...(current.ok ? current.photos : []), ...urls];
-                const result = await db.savePhotos(cid, merged);
-                dispatch({ type: "ADD_PHOTOS", id: cid, urls });
-                if (result.ok) showToast(`📷 ${urls.length} photo${urls.length > 1 ? "s" : ""} saved (${merged.length} total)`, "✅", 3000);
-                else showToast(`❌ Photo save failed: ${result.error}`, "⚠️", 8000);
-              }
-              setUploading(false);
+              uploadLockRef.current = uploadLockRef.current.then(async () => {
+                setUploading(true);
+                const urls = [];
+                for (const file of files) { const url = await db.uploadPhoto(file, cid); if (url && typeof url === 'string') urls.push(url); }
+                if (urls.length > 0) {
+                  const current = await db.readPhotos(cid);
+                  const merged = [...(current.ok ? current.photos : []), ...urls];
+                  const result = await db.savePhotos(cid, merged);
+                  dispatch({ type: "ADD_PHOTOS", id: cid, urls });
+                  if (result.ok) showToast(`${urls.length} photo${urls.length > 1 ? "s" : ""} saved (${merged.length} total)`, "✅", 3000);
+                  else showToast(`Photo save failed: ${result.error}`, "⚠️", 8000);
+                }
+                setUploading(false);
+              }).catch(err => { console.error('[dragDrop] queue error:', err); setUploading(false); });
             }}
             onClick={() => handlePhotos(cur.id)}
             style={{ width: "100%", height: 70, background: dragOver ? `linear-gradient(135deg,${P.sky}18,${P.rose}18)` : `linear-gradient(135deg,${P.parchment},${P.blush})`, border: dragOver ? `2px dashed ${P.sky}` : "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4, color: P.textMuted, fontSize: 10, fontFamily: "inherit", flexShrink: 0, transition: "all .2s" }}>
