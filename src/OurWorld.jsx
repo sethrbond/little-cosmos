@@ -2231,11 +2231,11 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
     // ---- Person 1 ("you") position dot (from slider) ---- (partner only)
     if (isPartnerWorld && positions.seth && !areTogether) {
-      mkRef.current.push(makeDot(g, positions.seth.lat, positions.seth.lng, P.sky, 0.022, "seth-pos", false));
+      mkRef.current.push(makeDot(g, positions.seth.lat, positions.seth.lng, P.sky, 0.016, "seth-pos", false, "diamond"));
     }
     // ---- Person 2 ("partner") position dot (from slider) ---- (partner only)
     if (isPartnerWorld && positions.rosie && !areTogether) {
-      mkRef.current.push(makeDot(g, positions.rosie.lat, positions.rosie.lng, P.rose, 0.022, "rosie-pos", false));
+      mkRef.current.push(makeDot(g, positions.rosie.lat, positions.rosie.lng, P.rose, 0.016, "rosie-pos", false, "diamond"));
     }
 
     // ---- Heart on together location ---- (partner only)
@@ -2384,13 +2384,20 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     }
   }, [data.entries, locationGroups]);
   const onWheel = useCallback(e => { e.preventDefault(); tZm.current = clamp(tZm.current + e.deltaY * 0.001, MIN_Z, MAX_Z); setShowZoomHint(false); }, []);
-  // Attach wheel with passive:false so preventDefault works in all browsers
+  // Attach wheel with passive:false on both mount div and canvas for reliable zoom
   useEffect(() => {
     const el = mountRef.current;
     if (!el) return;
-    el.addEventListener("wheel", onWheel, { passive: false });
-    return () => el.removeEventListener("wheel", onWheel);
-  }, [onWheel]);
+    const opts = { passive: false };
+    el.addEventListener("wheel", onWheel, opts);
+    // Also attach to canvas child if present (Three.js renderer)
+    const canvas = el.querySelector("canvas");
+    if (canvas) canvas.addEventListener("wheel", onWheel, opts);
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+      if (canvas) canvas.removeEventListener("wheel", onWheel);
+    };
+  }, [onWheel, sceneReady]);
   const onTS = useCallback(e => {
     if (e.touches.length === 1) {
       dragR.current = true;
@@ -3214,17 +3221,15 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         <div onClick={() => setShowSettings(false)} style={{ position: "absolute", inset: 0, zIndex: 45, background: `linear-gradient(135deg, rgba(22,16,40,.82), rgba(30,24,48,.88))`, backdropFilter: "blur(24px)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", animation: "fadeIn .3s ease" }}>
           <div onClick={e => e.stopPropagation()} style={{ width: 400, maxHeight: "85vh", overflowY: "auto", padding: 30, background: P.card, borderRadius: 22, boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 24px 64px rgba(61,53,82,.1)", cursor: "default" }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}><h3 style={{ margin: 0, fontSize: 16, fontWeight: 400, letterSpacing: ".06em" }}>Settings</h3><button onClick={() => setShowSettings(false)} style={{ background: "none", border: "none", fontSize: 17, color: P.textFaint, cursor: "pointer", transition: "color .2s" }}>×</button></div>
-            <Fld l={isMyWorld ? "First Trip Date" : "Date You Met"} v={config.startDate} t="date" set={v => setConfig({ startDate: v })} />
+            <Fld l={isMyWorld ? "First Trip Date" : isPartnerWorld ? "Date You Met" : "First Trip Date"} v={config.startDate} t="date" set={v => setConfig({ startDate: v })} />
             <Fld l="Title" v={config.title} set={v => setConfig({ title: v })} />
             <Fld l="Subtitle" v={config.subtitle} set={v => setConfig({ subtitle: v })} />
             {isMyWorld
               ? <Fld l="Traveler Name" v={config.travelerName || ''} set={v => setConfig({ travelerName: v })} ph="Your name" />
-              : isPartnerWorld
-              ? <>
-                  <Fld l="Your Name" v={config.youName} set={v => setConfig({ youName: v })} ph="Enter your name" />
-                  <Fld l="Partner's Name" v={config.partnerName} set={v => setConfig({ partnerName: v })} ph="Enter their name" />
+              : <>
+                  <Fld l={isPartnerWorld ? "Your Name" : "Name / Group"} v={config.youName} set={v => setConfig({ youName: v })} ph={isPartnerWorld ? "Enter your name" : "e.g. The Squad, Sarah"} />
+                  <Fld l={isPartnerWorld ? "Partner's Name" : "& Friends / Family"} v={config.partnerName} set={v => setConfig({ partnerName: v })} ph={isPartnerWorld ? "Enter their name" : "e.g. & Co, & Jake"} />
                 </>
-              : null
             }
 
             <div style={{ margin: "14px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
