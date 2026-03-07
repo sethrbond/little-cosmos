@@ -177,12 +177,12 @@ export async function loadConfig() {
   const { data, error } = await supabase.from('config').select('*').eq('id', 'main').maybeSingle()
   if (error || !data) return null
   const cfg = {
-    startDate: data.start_date || '',
-    title: data.title || 'Our World',
-    subtitle: data.subtitle || 'every moment, every adventure',
-    loveLetter: data.love_letter || '',
-    youName: data.you_name || '',
-    partnerName: data.partner_name || '',
+    startDate: data.start_date ?? '',
+    title: data.title ?? '',
+    subtitle: data.subtitle ?? '',
+    loveLetter: data.love_letter ?? '',
+    youName: data.you_name ?? '',
+    partnerName: data.partner_name ?? '',
   }
   if (data.metadata && typeof data.metadata === 'object') {
     if (Array.isArray(data.metadata.loveLetters))       cfg.loveLetters = data.metadata.loveLetters
@@ -200,11 +200,11 @@ export async function saveConfig(config) {
   const row = {
     id: 'main',
     start_date: config.startDate || null,
-    title: config.title || '',
-    subtitle: config.subtitle || '',
-    love_letter: config.loveLetter || '',
-    you_name: config.youName || '',
-    partner_name: config.partnerName || '',
+    title: config.title ?? '',
+    subtitle: config.subtitle ?? '',
+    love_letter: config.loveLetter ?? '',
+    you_name: config.youName ?? '',
+    partner_name: config.partnerName ?? '',
     metadata: {
       loveLetters: config.loveLetters || [],
       dreamDestinations: config.dreamDestinations || [],
@@ -289,12 +289,12 @@ export function createOurWorldDB(userId) {
       const { data, error } = await supabase.from('config').select('*').eq('id', userId).maybeSingle()
       if (error || !data) return null
       const cfg = {
-        startDate: data.start_date || '',
-        title: data.title || 'Our World',
-        subtitle: data.subtitle || 'every moment, every adventure',
-        loveLetter: data.love_letter || '',
-        youName: data.you_name || '',
-        partnerName: data.partner_name || '',
+        startDate: data.start_date ?? '',
+        title: data.title ?? '',
+        subtitle: data.subtitle ?? '',
+        loveLetter: data.love_letter ?? '',
+        youName: data.you_name ?? '',
+        partnerName: data.partner_name ?? '',
       }
       if (data.metadata && typeof data.metadata === 'object') {
         if (Array.isArray(data.metadata.loveLetters))       cfg.loveLetters = data.metadata.loveLetters
@@ -312,9 +312,9 @@ export function createOurWorldDB(userId) {
       const row = {
         id: userId, user_id: userId,
         start_date: config.startDate || null,
-        title: config.title || '', subtitle: config.subtitle || '',
-        love_letter: config.loveLetter || '',
-        you_name: config.youName || '', partner_name: config.partnerName || '',
+        title: config.title ?? '', subtitle: config.subtitle ?? '',
+        love_letter: config.loveLetter ?? '',
+        you_name: config.youName ?? '', partner_name: config.partnerName ?? '',
         metadata: {
           loveLetters: config.loveLetters || [],
           dreamDestinations: config.dreamDestinations || [],
@@ -411,12 +411,12 @@ export function createSharedWorldDB(worldId, userId) {
       if (!data) { console.warn('[shared:loadConfig] no config row found for worldId:', worldId, '(will be created on first save)'); return null }
       console.log('[shared:loadConfig] loaded:', { id: data.id, you_name: data.you_name, partner_name: data.partner_name, title: data.title })
       const cfg = {
-        startDate: data.start_date || '',
-        title: data.title || 'Our World',
-        subtitle: data.subtitle || 'every moment, every adventure',
-        loveLetter: data.love_letter || '',
-        youName: data.you_name || '',
-        partnerName: data.partner_name || '',
+        startDate: data.start_date ?? '',
+        title: data.title ?? '',
+        subtitle: data.subtitle ?? '',
+        loveLetter: data.love_letter ?? '',
+        youName: data.you_name ?? '',
+        partnerName: data.partner_name ?? '',
       }
       if (data.metadata && typeof data.metadata === 'object') {
         if (Array.isArray(data.metadata.loveLetters))       cfg.loveLetters = data.metadata.loveLetters
@@ -434,9 +434,9 @@ export function createSharedWorldDB(worldId, userId) {
       const row = {
         id: worldId, user_id: userId, world_id: worldId,
         start_date: config.startDate || null,
-        title: config.title || '', subtitle: config.subtitle || '',
-        love_letter: config.loveLetter || '',
-        you_name: config.youName || '', partner_name: config.partnerName || '',
+        title: config.title ?? '', subtitle: config.subtitle ?? '',
+        love_letter: config.loveLetter ?? '',
+        you_name: config.youName ?? '', partner_name: config.partnerName ?? '',
         metadata: {
           loveLetters: config.loveLetters || [],
           dreamDestinations: config.dreamDestinations || [],

@@ -132,16 +132,16 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
   const WORLDS = useMemo(() => worlds.map((w, i) => {
     const typeColors = ORB_BY_TYPE[w.type] || ORB_BY_TYPE.shared;
     const orbit = ORB_ORBIT_PRESETS[i % ORB_ORBIT_PRESETS.length];
-    // Build subtitle: prefer partner names, then config subtitle, then type-based default
+    // Build subtitle: user-saved subtitle takes priority; only fall back to auto-generated if subtitle is null/undefined (never saved)
+    const configSub = w.subtitle;
     const namesSub = (w.youName && w.partnerName)
       ? w.type === 'family' ? `The ${w.youName} Family`
         : w.type === 'friends' ? `${w.youName}, ${w.partnerName} & friends`
         : `${w.youName} & ${w.partnerName}`
       : null;
-    const configSub = w.subtitle || null;
     const typeDefaults = { partner: "every moment, every adventure", friends: "adventures together", family: "family adventures" };
     const roleBadge = w.role === "viewer" ? " (viewing)" : "";
-    const displaySub = namesSub || configSub || typeDefaults[w.type] || "shared world";
+    const displaySub = configSub != null ? configSub : (namesSub ?? typeDefaults[w.type] ?? "shared world");
     return {
       id: w.id,
       label: w.name,
@@ -589,7 +589,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       {/* Center label */}
       <div ref={makeLabelRef("my")} data-hov="false" style={{ position: "absolute", left: 0, top: 0, transform: "translate(-50%, -50%)", textAlign: "center", pointerEvents: "none", transition: "opacity .15s", opacity: 0 }}>
         <div style={{ fontSize: hovered === "my" ? 24 : 20, fontWeight: 500, color: "#e8dcc8", letterSpacing: "2px", textShadow: "0 0 24px rgba(208,176,128,0.5), 0 2px 10px rgba(0,0,0,0.6)", transition: "font-size .2s" }}>My World</div>
-        <div style={{ fontSize: 11, color: "#d4c8b0", marginTop: 4, letterSpacing: "1.5px", fontWeight: 400, textTransform: "uppercase", textShadow: "0 0 12px rgba(208,176,128,0.4), 0 1px 6px rgba(0,0,0,0.6)" }}>{myWorldSubtitle || "Travel Diary"}</div>
+        <div style={{ fontSize: 11, color: "#d4c8b0", marginTop: 4, letterSpacing: "1.5px", fontWeight: 400, textTransform: "uppercase", textShadow: "0 0 12px rgba(208,176,128,0.4), 0 1px 6px rgba(0,0,0,0.6)" }}>{myWorldSubtitle ?? "Travel Diary"}</div>
         {myEntryCount > 0 && (
           <div style={{ fontSize: 9, color: "#c0b498", marginTop: 3, letterSpacing: "0.5px", textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}>{myEntryCount} {myEntryCount === 1 ? "entry" : "entries"}</div>
         )}

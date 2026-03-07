@@ -150,10 +150,10 @@ export async function loadConfig() {
   const { data, error } = await supabase.from('my_config').select('*').eq('id', 'main').maybeSingle()
   if (error || !data) return null
   const cfg = {
-    startDate: data.start_date || '',
-    title: data.title || 'My World',
-    subtitle: data.subtitle || 'every step, every discovery',
-    travelerName: data.traveler_name || 'Explorer',
+    startDate: data.start_date ?? '',
+    title: data.title ?? '',
+    subtitle: data.subtitle ?? '',
+    travelerName: data.traveler_name ?? '',
   }
   if (data.metadata && typeof data.metadata === 'object') {
     if (Array.isArray(data.metadata.bucketList))  cfg.bucketList = data.metadata.bucketList
@@ -170,9 +170,9 @@ export async function saveConfig(config) {
   const row = {
     id: 'main',
     start_date: config.startDate || null,
-    title: config.title || 'My World',
-    subtitle: config.subtitle || 'every step, every discovery',
-    traveler_name: config.travelerName || 'Explorer',
+    title: config.title ?? '',
+    subtitle: config.subtitle ?? '',
+    traveler_name: config.travelerName ?? '',
     metadata: {
       bucketList: config.bucketList || [],
       chapters: config.chapters || [],
@@ -240,10 +240,10 @@ export function createMyWorldDB(userId) {
       const { data, error } = await supabase.from('my_config').select('*').eq('id', userId).maybeSingle()
       if (error || !data) return null
       const cfg = {
-        startDate: data.start_date || '',
-        title: data.title || 'My World',
-        subtitle: data.subtitle || 'every step, every discovery',
-        travelerName: data.traveler_name || 'Explorer',
+        startDate: data.start_date ?? '',
+        title: data.title ?? '',
+        subtitle: data.subtitle ?? '',
+        travelerName: data.traveler_name ?? '',
       }
       if (data.metadata && typeof data.metadata === 'object') {
         if (Array.isArray(data.metadata.bucketList))  cfg.bucketList = data.metadata.bucketList
@@ -260,9 +260,9 @@ export function createMyWorldDB(userId) {
       const row = {
         id: userId, user_id: userId,
         start_date: config.startDate || null,
-        title: config.title || 'My World',
-        subtitle: config.subtitle || 'every step, every discovery',
-        traveler_name: config.travelerName || 'Explorer',
+        title: config.title ?? '',
+        subtitle: config.subtitle ?? '',
+        traveler_name: config.travelerName ?? '',
         metadata: {
           bucketList: config.bucketList || [],
           chapters: config.chapters || [],
@@ -305,10 +305,10 @@ export function createFriendWorldDB(friendUserId) {
       const { data, error } = await supabase.from('my_config').select('*').eq('id', friendUserId).maybeSingle()
       if (error || !data) return null
       const cfg = {
-        startDate: data.start_date || '',
-        title: data.title || 'My World',
-        subtitle: data.subtitle || 'every step, every discovery',
-        travelerName: data.traveler_name || 'Explorer',
+        startDate: data.start_date ?? '',
+        title: data.title ?? '',
+        subtitle: data.subtitle ?? '',
+        travelerName: data.traveler_name ?? '',
       }
       if (data.metadata && typeof data.metadata === 'object') {
         if (Array.isArray(data.metadata.bucketList))  cfg.bucketList = data.metadata.bucketList

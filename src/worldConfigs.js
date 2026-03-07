@@ -87,7 +87,7 @@ export const MY_WORLD_TYPES = {
 export const MY_WORLD_DEFAULT_CONFIG = {
   startDate: "",
   title: "My World",
-  subtitle: "every step, every discovery",
+  subtitle: "",
   travelerName: "Explorer",
   chapters: [],
   bucketList: [],
@@ -251,7 +251,7 @@ export const FRIENDS_FIELDS = {
 export const FRIENDS_DEFAULT_CONFIG = {
   startDate: "",
   title: "Friends World",
-  subtitle: "adventures together",
+  subtitle: "",
   youName: "",
   partnerName: "",
   loveLetter: "",
@@ -288,7 +288,7 @@ export const FAMILY_FIELDS = {
 export const FAMILY_DEFAULT_CONFIG = {
   startDate: "",
   title: "Family World",
-  subtitle: "family adventures",
+  subtitle: "",
   youName: "",
   partnerName: "",
   loveLetter: "",

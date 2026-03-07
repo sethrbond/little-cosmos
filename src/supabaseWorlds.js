@@ -92,9 +92,9 @@ export async function loadMyWorlds(userId) {
       palette: w.palette || {},
       scene: w.scene || {},
       createdAt: w.created_at,
-      youName: cfg.you_name || '',
-      partnerName: cfg.partner_name || '',
-      subtitle: cfg.subtitle || '',
+      youName: cfg.you_name ?? '',
+      partnerName: cfg.partner_name ?? '',
+      subtitle: cfg.subtitle ?? '',
     }
   })
 }
@@ -106,8 +106,8 @@ export async function loadMyWorldSubtitle(userId) {
     .select('subtitle')
     .eq('id', userId)
     .maybeSingle()
-  if (error || !data) return 'every step, every discovery'
-  return data.subtitle || 'every step, every discovery'
+  if (error || !data) return null
+  return data.subtitle ?? ''
 }
 
 export async function updateWorld(worldId, updates) {

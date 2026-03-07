@@ -33,7 +33,7 @@ function AppInner() {
   const [connections, setConnections] = useState([])
   const [pendingRequests, setPendingRequests] = useState([])
   const [pendingWorldInvites, setPendingWorldInvites] = useState([])
-  const [myWorldSubtitle, setMyWorldSubtitle] = useState('every step, every discovery')
+  const [myWorldSubtitle, setMyWorldSubtitle] = useState(null)
   const [transitioning, setTransitioning] = useState(false)
   const [transitionColor, setTransitionColor] = useState('#0c0a12')
 
