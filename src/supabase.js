@@ -422,6 +422,7 @@ export function createSharedWorldDB(worldId, userId) {
         if (Array.isArray(data.metadata.loveLetters))       cfg.loveLetters = data.metadata.loveLetters
         if (Array.isArray(data.metadata.dreamDestinations))  cfg.dreamDestinations = data.metadata.dreamDestinations
         if (Array.isArray(data.metadata.chapters))           cfg.chapters = data.metadata.chapters
+        if (Array.isArray(data.metadata.members))            cfg.members = data.metadata.members
         if (typeof data.metadata.darkMode === 'boolean')     cfg.darkMode = data.metadata.darkMode
         if (data.metadata.customPalette && typeof data.metadata.customPalette === 'object') cfg.customPalette = data.metadata.customPalette
         if (data.metadata.customScene && typeof data.metadata.customScene === 'object') cfg.customScene = data.metadata.customScene
@@ -441,6 +442,7 @@ export function createSharedWorldDB(worldId, userId) {
           loveLetters: config.loveLetters || [],
           dreamDestinations: config.dreamDestinations || [],
           chapters: config.chapters || [],
+          members: config.members || [],
           darkMode: config.darkMode ?? false,
           customPalette: config.customPalette || {},
           customScene: config.customScene || {},

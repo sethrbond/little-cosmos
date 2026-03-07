@@ -4,7 +4,7 @@ import { supabase } from './supabaseClient.js'
 
 // ---- WORLDS ----
 
-export async function createWorld(userId, name, type = 'shared', { youName = '', partnerName = '' } = {}) {
+export async function createWorld(userId, name, type = 'shared', { youName = '', partnerName = '', members = [] } = {}) {
   const { data, error } = await supabase
     .from('worlds')
     .insert({ name, type, created_by: userId })
@@ -18,14 +18,8 @@ export async function createWorld(userId, name, type = 'shared', { youName = '',
     .insert({ world_id: data.id, user_id: userId, role: 'owner' })
   if (memErr) console.error('[createWorld] member insert:', memErr)
 
-  // Build subtitle from names if provided
-  const subtitle = (youName && partnerName)
-    ? type === 'family' ? `The ${youName} Family`
-      : type === 'friends' ? `${youName}, ${partnerName} & friends`
-      : `${youName} & ${partnerName}`
-    : type === 'family' ? 'family adventures'
-      : type === 'friends' ? 'adventures together'
-      : 'every moment, every adventure'
+  // For partner worlds, use youName/partnerName; for group worlds, use members array
+  const isGroupWorld = type === 'friends' || type === 'family'
 
   // Create default config for this world
   const { error: cfgErr } = await supabase
@@ -35,15 +29,16 @@ export async function createWorld(userId, name, type = 'shared', { youName = '',
       world_id: data.id,
       user_id: userId,
       title: name,
-      subtitle,
-      you_name: youName,
-      partner_name: partnerName,
+      subtitle: '',
+      you_name: isGroupWorld ? '' : youName,
+      partner_name: isGroupWorld ? '' : partnerName,
       start_date: null,
       love_letter: '',
       metadata: {
         loveLetters: [],
         dreamDestinations: [],
         chapters: [],
+        members: isGroupWorld ? members : [],
         darkMode: false,
         customPalette: {},
         customScene: {},
@@ -71,18 +66,18 @@ export async function loadMyWorlds(userId) {
     .order('created_at', { ascending: true })
   if (error) { console.error('[loadMyWorlds]', error); return [] }
 
-  // Also fetch config data (names, subtitle) for each world
+  // Also fetch config data (names, subtitle, metadata for members) for each world
   const { data: configs, error: cfgErr } = await supabase
     .from('config')
-    .select('world_id, you_name, partner_name, subtitle')
+    .select('world_id, you_name, partner_name, subtitle, metadata')
     .in('world_id', worldIds)
   if (cfgErr) console.error('[loadMyWorlds] config fetch error:', cfgErr.message, cfgErr.code)
-  console.log('[loadMyWorlds] configs loaded:', (configs || []).map(c => ({ world_id: c.world_id, you_name: c.you_name, partner_name: c.partner_name, subtitle: c.subtitle })))
   const cfgMap = Object.fromEntries((configs || []).map(c => [c.world_id, c]))
 
   const roleMap = Object.fromEntries(memberships.map(m => [m.world_id, m.role]))
   return (worlds || []).map(w => {
     const cfg = cfgMap[w.id] || {}
+    const meta = cfg.metadata || {}
     return {
       id: w.id,
       name: w.name,
@@ -95,6 +90,7 @@ export async function loadMyWorlds(userId) {
       youName: cfg.you_name ?? '',
       partnerName: cfg.partner_name ?? '',
       subtitle: cfg.subtitle ?? '',
+      members: Array.isArray(meta.members) ? meta.members : [],
     }
   })
 }

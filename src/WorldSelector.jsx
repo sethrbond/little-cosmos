@@ -74,6 +74,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
   const [sharedType, setSharedType] = useState("partner");
   const [sharedYouName, setSharedYouName] = useState("");
   const [sharedPartnerName, setSharedPartnerName] = useState("");
+  const [sharedMembers, setSharedMembers] = useState([{ name: "" }, { name: "" }]);
   const [sharedStep, setSharedStep] = useState(0);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteLetter, setInviteLetter] = useState("");
@@ -134,11 +135,12 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     const orbit = ORB_ORBIT_PRESETS[i % ORB_ORBIT_PRESETS.length];
     // Build subtitle: user-saved subtitle takes priority; only fall back to auto-generated if subtitle is null/undefined (never saved)
     const configSub = w.subtitle;
-    const namesSub = (w.youName && w.partnerName)
-      ? w.type === 'family' ? `The ${w.youName} Family`
-        : w.type === 'friends' ? `${w.youName}, ${w.partnerName} & friends`
-        : `${w.youName} & ${w.partnerName}`
-      : null;
+    const memberNames = (w.members || []).map(m => m.name).filter(Boolean);
+    const namesSub = memberNames.length > 0
+      ? w.type === 'family' ? `The ${memberNames[0]} Family`
+        : memberNames.length <= 3 ? memberNames.join(', ')
+        : `${memberNames.slice(0, 2).join(', ')} & ${memberNames.length - 2} more`
+      : (w.youName && w.partnerName) ? `${w.youName} & ${w.partnerName}` : null;
     const typeDefaults = { partner: "every moment, every adventure", friends: "adventures together", family: "family adventures" };
     const roleBadge = w.role === "viewer" ? " (viewing)" : "";
     const displaySub = configSub != null ? configSub : (namesSub ?? typeDefaults[w.type] ?? "shared world");
@@ -423,9 +425,11 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
   const handleCreateShared = async () => {
     if (!sharedName.trim()) return;
     setCreatingShared(true);
+    const isGroupType = sharedType === 'friends' || sharedType === 'family';
     const world = await createWorld(userId, sharedName.trim(), sharedType, {
-      youName: sharedYouName.trim(),
-      partnerName: sharedPartnerName.trim(),
+      youName: isGroupType ? '' : sharedYouName.trim(),
+      partnerName: isGroupType ? '' : sharedPartnerName.trim(),
+      members: isGroupType ? sharedMembers.filter(m => m.name.trim()).map(m => ({ name: m.name.trim() })) : [],
     });
     setCreatingShared(false);
     if (!world) { alert("Failed to create world."); return; }
@@ -558,7 +562,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
   const closeAllModals = () => {
     setShowAddMenu(false); setShowCreatePersonal(false); setShowCreateShared(false);
     setShowInviteModal(null); setShowInviteCosmos(false); setShowAddFriend(false); setShowPendingRequests(false); setShowWorldInvites(false); setShowActivity(false); setShowSearch(false);
-    setPersonalName(""); setSharedName(""); setSharedType("partner"); setSharedYouName(""); setSharedPartnerName(""); setSharedStep(0); setInviteEmail("");
+    setPersonalName(""); setSharedName(""); setSharedType("partner"); setSharedYouName(""); setSharedPartnerName(""); setSharedMembers([{ name: "" }, { name: "" }]); setSharedStep(0); setInviteEmail("");
     setInviteLetter(""); setGeneratedLink("");
     setInviteLink(""); setExistingInviteEmail(""); setExistingInviteLetter(""); setExistingInviteRole("member");
     setCosmosInviteEmail(""); setCosmosInviteLetter(""); setCosmosInviteSent(false);
@@ -859,17 +863,42 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
               <input value={sharedName} onChange={e => setSharedName(e.target.value)}
                 placeholder={sharedType === "partner" ? "World name (e.g. Our Adventures)" : sharedType === "friends" ? "World name (e.g. Squad Trips 2024)" : "World name (e.g. Family Vacations)"}
                 style={{ ...inputSt, marginBottom: 10 }} autoFocus />
-              <div style={{ fontSize: 10, color: "#807888", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6, textAlign: "left" }}>
-                {sharedType === "partner" ? "Who's sharing this world?" : "Names (shows on your cosmos)"}
-              </div>
-              <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-                <input value={sharedYouName} onChange={e => setSharedYouName(e.target.value)}
-                  placeholder="Your name" style={{ ...inputSt, flex: 1 }} />
-                <input value={sharedPartnerName} onChange={e => setSharedPartnerName(e.target.value)}
-                  placeholder={sharedType === "partner" ? "Partner's name" : sharedType === "friends" ? "Friend / group" : "Family member"}
-                  style={{ ...inputSt, flex: 1 }}
-                  onKeyDown={e => { if (e.key === "Enter") handleCreateShared(); }} />
-              </div>
+              {sharedType === "partner" ? (<>
+                <div style={{ fontSize: 10, color: "#807888", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6, textAlign: "left" }}>
+                  Who's sharing this world?
+                </div>
+                <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+                  <input value={sharedYouName} onChange={e => setSharedYouName(e.target.value)}
+                    placeholder="Your name" style={{ ...inputSt, flex: 1 }} />
+                  <input value={sharedPartnerName} onChange={e => setSharedPartnerName(e.target.value)}
+                    placeholder="Partner's name" style={{ ...inputSt, flex: 1 }}
+                    onKeyDown={e => { if (e.key === "Enter") handleCreateShared(); }} />
+                </div>
+              </>) : (<>
+                <div style={{ fontSize: 10, color: "#807888", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6, textAlign: "left" }}>
+                  {sharedType === "family" ? "Family members" : "Who's in this group?"}
+                </div>
+                <div style={{ marginBottom: 16 }}>
+                  {sharedMembers.map((m, i) => (
+                    <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "center" }}>
+                      <input value={m.name} onChange={e => { const next = [...sharedMembers]; next[i] = { name: e.target.value }; setSharedMembers(next); }}
+                        placeholder={sharedType === "family" ? `Member ${i + 1} (e.g. ${["Mom", "Dad", "Sarah", "Jake", "Grandma"][i] || "Name"})` : `Friend ${i + 1}`}
+                        style={{ ...inputSt, flex: 1, marginBottom: 0 }}
+                        onKeyDown={e => { if (e.key === "Enter") { if (i === sharedMembers.length - 1 && m.name.trim()) setSharedMembers([...sharedMembers, { name: "" }]); else handleCreateShared(); } }} />
+                      {sharedMembers.length > 2 && (
+                        <button onClick={() => setSharedMembers(sharedMembers.filter((_, j) => j !== i))}
+                          style={{ background: "none", border: "none", color: "#685868", fontSize: 16, cursor: "pointer", padding: "0 4px", lineHeight: 1 }}>×</button>
+                      )}
+                    </div>
+                  ))}
+                  {sharedMembers.length < 20 && (
+                    <button onClick={() => setSharedMembers([...sharedMembers, { name: "" }])}
+                      style={{ background: "none", border: "1px dashed rgba(255,255,255,0.12)", borderRadius: 8, color: "#807888", fontSize: 11, padding: "6px 12px", cursor: "pointer", width: "100%", fontFamily: F, marginTop: 2 }}>
+                      + Add {sharedType === "family" ? "family member" : "friend"}
+                    </button>
+                  )}
+                </div>
+              </>)}
               <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
                 <button onClick={closeAllModals} style={btnS}>Cancel</button>
                 <button onClick={handleCreateShared} disabled={creatingShared || !sharedName.trim()}

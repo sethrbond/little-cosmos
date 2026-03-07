@@ -3285,10 +3285,35 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             <Fld l="Subtitle" v={config.subtitle} set={v => setConfig({ subtitle: v })} />
             {isMyWorld
               ? <Fld l="Traveler Name" v={config.travelerName || ''} set={v => setConfig({ travelerName: v })} ph="Your name" />
-              : <>
-                  <Fld l={isPartnerWorld ? "Your Name" : worldType === "family" ? "Family Name" : "Your Name"} v={config.youName} set={v => setConfig({ youName: v })} ph={isPartnerWorld ? "Enter your name" : worldType === "family" ? "e.g. Bond, Smith" : "e.g. Sarah"} />
-                  <Fld l={isPartnerWorld ? "Partner's Name" : worldType === "family" ? "Members" : "Group / Friends"} v={config.partnerName} set={v => setConfig({ partnerName: v })} ph={isPartnerWorld ? "Enter their name" : worldType === "family" ? "e.g. Seth, Sarah, Mom, Dad" : "e.g. Jake, Alex & Co"} />
-                </>
+              : isPartnerWorld
+                ? <>
+                    <Fld l="Your Name" v={config.youName} set={v => setConfig({ youName: v })} ph="Enter your name" />
+                    <Fld l="Partner's Name" v={config.partnerName} set={v => setConfig({ partnerName: v })} ph="Enter their name" />
+                  </>
+                : (() => {
+                    const members = config.members || [];
+                    const updateMember = (i, name) => { const next = [...members]; next[i] = { name }; setConfig({ members: next }); };
+                    const addMember = () => setConfig({ members: [...members, { name: "" }] });
+                    const removeMember = (i) => setConfig({ members: members.filter((_, j) => j !== i) });
+                    return <div style={{ marginBottom: 12 }}>
+                      <Lbl>{worldType === "family" ? "Family Members" : "Group Members"}</Lbl>
+                      {members.map((m, i) => (
+                        <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "center" }}>
+                          <input value={m.name || ""} onChange={e => updateMember(i, e.target.value)}
+                            placeholder={worldType === "family" ? `Member ${i + 1}` : `Friend ${i + 1}`}
+                            style={inpSt()} />
+                          {members.length > 1 && (
+                            <button onClick={() => removeMember(i)}
+                              style={{ background: "none", border: "none", color: P.textFaint, fontSize: 15, cursor: "pointer", padding: "0 4px" }}>×</button>
+                          )}
+                        </div>
+                      ))}
+                      <button onClick={addMember}
+                        style={{ background: "none", border: `1px dashed ${P.rose}30`, borderRadius: 6, color: P.textMid, fontSize: 10, padding: "5px 10px", cursor: "pointer", width: "100%", fontFamily: "inherit", marginTop: 2 }}>
+                        + Add {worldType === "family" ? "family member" : "friend"}
+                      </button>
+                    </div>;
+                  })()
             }
 
             <div style={{ margin: "14px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
