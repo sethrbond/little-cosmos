@@ -970,6 +970,10 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
   const configSaveTimer = useRef(null);
   const pendingConfigRef = useRef(null);
+  // Clean up pending config save timer when db changes (prevents saving to wrong world)
+  useEffect(() => {
+    return () => { clearTimeout(configSaveTimer.current); pendingConfigRef.current = null; };
+  }, [db]);
   const setConfig = useCallback(partial => {
     setConfigState(prev => {
       const next = { ...prev, ...partial };
@@ -2477,7 +2481,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       for (let i = 0; i < files.length; i++) {
         try {
           const url = await curDb.uploadPhoto(files[i], id);
-          if (url) urls.push(url);
+          if (url && typeof url === 'string') urls.push(url);
         } catch (err) { /* skip failed uploads */ }
         setUploadProgress({ done: i + 1, total: files.length });
       }
@@ -2872,7 +2876,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               setUploading(true);
               const cid = cur.id;
               const urls = [];
-              for (const file of files) { const url = await db.uploadPhoto(file, cid); if (url) urls.push(url); }
+              for (const file of files) { const url = await db.uploadPhoto(file, cid); if (url && typeof url === 'string') urls.push(url); }
               if (urls.length > 0) {
                 const current = await db.readPhotos(cid);
                 const merged = [...(current.ok ? current.photos : []), ...urls];

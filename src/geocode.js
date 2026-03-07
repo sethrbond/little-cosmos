@@ -18,6 +18,7 @@ export function geocodeSearch(query, callback) {
       const res = await fetch(`${NOMINATIM}?${params}`, { headers: { 'User-Agent': 'OurWorldGlobe/7.9 (personal anniversary gift)' } })
       if (!res.ok) { callback([]); return }
       const data = await res.json()
+      if (!Array.isArray(data)) { callback([]); return }
       const results = data.map(item => {
         const addr = item.address || {}
         const name = addr.city || addr.town || addr.village || addr.hamlet || addr.county || addr.state || addr.municipality || item.name || query

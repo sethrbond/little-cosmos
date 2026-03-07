@@ -183,7 +183,10 @@ export async function saveConfig(config) {
     },
   }
   const { error } = await supabase.from('my_config').upsert(row, { onConflict: 'id' })
-  if (error) console.error('[my:saveConfig] error:', error)
+  if (error) {
+    console.error('[my:saveConfig] error:', error)
+    throw error
+  }
 }
 
 // ---- USER-SCOPED FACTORY (Phase 1 Auth) ----
@@ -273,7 +276,10 @@ export function createMyWorldDB(userId) {
         },
       }
       const { error } = await supabase.from('my_config').upsert(row, { onConflict: 'id' })
-      if (error) console.error('[my:saveConfig] error:', error)
+      if (error) {
+        console.error('[my:saveConfig] error:', error)
+        throw error
+      }
     },
 
     uploadPhoto, deletePhoto, savePhotos, readPhotos,
