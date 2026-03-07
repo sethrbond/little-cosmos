@@ -973,15 +973,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const setConfig = useCallback(partial => {
     setConfigState(prev => {
       const next = { ...prev, ...partial };
-      // Auto-update subtitle from names for shared worlds when names change
-      if (isSharedWorld && (partial.youName !== undefined || partial.partnerName !== undefined)) {
-        const yn = next.youName || '', pn = next.partnerName || '';
-        if (yn && pn) {
-          if (worldType === 'family') next.subtitle = `The ${yn} Family`;
-          else if (worldType === 'friends') next.subtitle = `${yn}, ${pn} & friends`;
-          else next.subtitle = `${yn} & ${pn}`;
-        }
-      }
       // Store latest config in ref so debounced save always gets the newest version
       pendingConfigRef.current = next;
       clearTimeout(configSaveTimer.current);
