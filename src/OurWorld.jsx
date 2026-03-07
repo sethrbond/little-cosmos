@@ -2244,7 +2244,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   useEffect(() => {
     const g = globeRef.current; if (!g || !sceneReady) return;
     mkRef.current.forEach(m => [m.dot, m.ring, m.glow].forEach(o => {
-      if (!o) return; g.remove(o); o.geometry?.dispose(); o.material?.dispose();
+      if (!o) return; g.remove(o); if (o.material?.map) o.material.map.dispose(); o.geometry?.dispose(); o.material?.dispose();
     }));
     mkRef.current = [];
     rtRef.current.forEach(r => { if (r.line) { g.remove(r.line); r.line.geometry?.dispose(); r.line.material?.dispose(); } });
@@ -2338,7 +2338,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     }
 
     // ---- CONSTELLATION — minimum spanning tree lines ----
-    constellationRef.current.forEach(l => { if (l.parent) l.parent.remove(l); l.geometry?.dispose(); l.material?.dispose(); });
+    constellationRef.current.forEach(l => { g.remove(l); l.geometry?.dispose(); l.material?.dispose(); });
     constellationRef.current = [];
     if (showConstellation) {
       constellationData.forEach(({ from, to }) => {
@@ -2363,7 +2363,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         mkRef.current.push(makeDot(g, letter.lat, letter.lng, "#e8a878", 0.018, `love-${letter.id}`, false, "love-letter"));
       });
     }
-  }, [sliderDate, data, getPositions, areTogether, locationGroups, selected, sceneReady, showLoveThread, loveThreadData, showConstellation, constellationData, config.dreamDestinations, config.loveLetters, isPartnerWorld]);
+  }, [sliderDate, data, getPositions, areTogether, locationGroups, selected, sceneReady, showLoveThread, loveThreadData, showConstellation, constellationData, config.dreamDestinations, config.loveLetters, isPartnerWorld, isMyWorld]);
 
   function makeDot(group, lat, lng, color, size, id, faint = false, symbolType = null) {
     const p = ll2v(lat, lng, RAD * 1.012);
@@ -2890,7 +2890,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               uploadLockRef.current = uploadLockRef.current.then(async () => {
                 setUploading(true);
                 const urls = [];
-                for (const file of files) { const url = await db.uploadPhoto(file, cid); if (url && typeof url === 'string') urls.push(url); }
+                for (const file of files) { try { const url = await db.uploadPhoto(file, cid); if (url && typeof url === 'string') urls.push(url); } catch (err) { /* skip failed */ } }
                 if (urls.length > 0) {
                   const current = await db.readPhotos(cid);
                   const merged = [...(current.ok ? current.photos : []), ...urls];
