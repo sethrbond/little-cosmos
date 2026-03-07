@@ -38,7 +38,7 @@ export async function createWorld(userId, name, type = 'shared', { youName = '',
       subtitle,
       you_name: youName,
       partner_name: partnerName,
-      start_date: '',
+      start_date: null,
       love_letter: '',
       metadata: {
         loveLetters: [],

@@ -199,7 +199,7 @@ export async function loadConfig() {
 export async function saveConfig(config) {
   const row = {
     id: 'main',
-    start_date: config.startDate || '',
+    start_date: config.startDate || null,
     title: config.title || '',
     subtitle: config.subtitle || '',
     love_letter: config.loveLetter || '',
@@ -286,7 +286,7 @@ export function createOurWorldDB(userId) {
     },
 
     loadConfig: async () => {
-      const { data, error } = await supabase.from('config').select('*').eq('id', userId).single()
+      const { data, error } = await supabase.from('config').select('*').eq('id', userId).maybeSingle()
       if (error || !data) return null
       const cfg = {
         startDate: data.start_date || '',
@@ -311,7 +311,7 @@ export function createOurWorldDB(userId) {
     saveConfig: async (config) => {
       const row = {
         id: userId, user_id: userId,
-        start_date: config.startDate || '',
+        start_date: config.startDate || null,
         title: config.title || '', subtitle: config.subtitle || '',
         love_letter: config.loveLetter || '',
         you_name: config.youName || '', partner_name: config.partnerName || '',
@@ -406,9 +406,9 @@ export function createSharedWorldDB(worldId, userId) {
 
     loadConfig: async () => {
       console.log('[shared:loadConfig] loading for worldId:', worldId)
-      const { data, error } = await supabase.from('config').select('*').eq('world_id', worldId).single()
+      const { data, error } = await supabase.from('config').select('*').eq('world_id', worldId).maybeSingle()
       if (error) console.error('[shared:loadConfig] ERROR:', error.message, error.code)
-      if (!data) { console.warn('[shared:loadConfig] no data returned for worldId:', worldId); return null }
+      if (!data) { console.warn('[shared:loadConfig] no config row found for worldId:', worldId, '(will be created on first save)'); return null }
       console.log('[shared:loadConfig] loaded:', { id: data.id, you_name: data.you_name, partner_name: data.partner_name, title: data.title })
       const cfg = {
         startDate: data.start_date || '',
@@ -433,7 +433,7 @@ export function createSharedWorldDB(worldId, userId) {
     saveConfig: async (config) => {
       const row = {
         id: worldId, user_id: userId, world_id: worldId,
-        start_date: config.startDate || '',
+        start_date: config.startDate || null,
         title: config.title || '', subtitle: config.subtitle || '',
         love_letter: config.loveLetter || '',
         you_name: config.youName || '', partner_name: config.partnerName || '',

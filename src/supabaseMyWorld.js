@@ -169,7 +169,7 @@ export async function loadConfig() {
 export async function saveConfig(config) {
   const row = {
     id: 'main',
-    start_date: config.startDate || '',
+    start_date: config.startDate || null,
     title: config.title || 'My World',
     subtitle: config.subtitle || 'every step, every discovery',
     traveler_name: config.travelerName || 'Explorer',
@@ -237,7 +237,7 @@ export function createMyWorldDB(userId) {
     },
 
     loadConfig: async () => {
-      const { data, error } = await supabase.from('my_config').select('*').eq('id', userId).single()
+      const { data, error } = await supabase.from('my_config').select('*').eq('id', userId).maybeSingle()
       if (error || !data) return null
       const cfg = {
         startDate: data.start_date || '',
@@ -259,7 +259,7 @@ export function createMyWorldDB(userId) {
     saveConfig: async (config) => {
       const row = {
         id: userId, user_id: userId,
-        start_date: config.startDate || '',
+        start_date: config.startDate || null,
         title: config.title || 'My World',
         subtitle: config.subtitle || 'every step, every discovery',
         traveler_name: config.travelerName || 'Explorer',
