@@ -222,6 +222,22 @@ function makeSymbolTexture(type, color) {
     ctx.fillRect(cx - 12, cy - 6, 24, 16);
     ctx.fillStyle = "#fff8f0"; ctx.globalAlpha = 0.4;
     ctx.fillRect(cx - 5, cy - 10, 10, 6);
+  } else if (type === "star") {
+    // 5-point star
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const a = (i * Math.PI) / 5 - Math.PI / 2;
+      const r = i % 2 === 0 ? 16 : 7;
+      ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+    }
+    ctx.closePath(); ctx.fill();
+  } else if (type === "heart") {
+    // Heart shape (family tradition)
+    ctx.beginPath();
+    ctx.moveTo(cx, cy + 12);
+    ctx.bezierCurveTo(cx - 16, cy, cx - 16, cy - 14, cx, cy - 6);
+    ctx.bezierCurveTo(cx + 16, cy - 14, cx + 16, cy, cx, cy + 12);
+    ctx.fill();
   } else if (type === "house") {
     // House (reused for My World home)
     ctx.beginPath();
@@ -944,16 +960,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     })();
   }, [db]);
 
-  // Real-time sync for shared worlds — reload entries when another user makes changes
-  useEffect(() => {
-    if (!isSharedWorld || !worldId) return;
-    const channel = supabase.channel(`entries-${worldId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'entries', filter: `world_id=eq.${worldId}` },
-        () => { db.loadEntries().then(entries => { if (entries) dispatch({ type: "LOAD", entries }); }); })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [isSharedWorld, worldId, db, dispatch]);
-
   // Mobile detection
   const [isMobile, setIsMobile] = useState(window.innerWidth < 600);
   useEffect(() => {
@@ -1297,20 +1303,21 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
   // Stats
   const stats = useMemo(() => {
+    const statList = isPartnerWorld ? togetherList : sorted;
     let daysTog = 0, totalMiles = 0;
     const countries = new Set();
-    togetherList.forEach((e, i) => {
+    statList.forEach((e, i) => {
       const end = e.dateEnd || e.dateStart;
       daysTog += Math.max(1, daysBetween(e.dateStart, end));
       if (e.country) countries.add(e.country);
       (e.stops || []).forEach(s => { if (s.country) countries.add(s.country); });
       if (i > 0) {
-        const prev = togetherList[i - 1];
+        const prev = statList[i - 1];
         totalMiles += haversine(prev.lat, prev.lng, e.lat, e.lng);
       }
     });
-    return { daysTog, countries: countries.size, trips: togetherList.length, totalMiles, photos: data.entries.reduce((s, e) => s + (e.photos || []).length, 0) };
-  }, [data.entries, togetherList]);
+    return { daysTog, countries: countries.size, trips: statList.length, totalMiles, photos: data.entries.reduce((s, e) => s + (e.photos || []).length, 0) };
+  }, [data.entries, togetherList, sorted, isPartnerWorld]);
 
   // Together entry count
   const togetherIndex = useCallback(id => {
@@ -1394,7 +1401,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
   // ---- EXPANDED STATS for dashboard ----
   const expandedStats = useMemo(() => {
-    const longestTrip = togetherList.reduce((best, e) => {
+    const tripList = isPartnerWorld ? togetherList : sorted;
+    const longestTrip = tripList.reduce((best, e) => {
       const d = e.dateEnd ? daysBetween(e.dateStart, e.dateEnd) : 1;
       return d > best.days ? { days: d, entry: e } : best;
     }, { days: 0, entry: null });
@@ -1411,7 +1419,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     }
 
     const cityVisits = {};
-    togetherList.forEach(e => { cityVisits[e.city] = (cityVisits[e.city] || 0) + 1; });
+    tripList.forEach(e => { cityVisits[e.city] = (cityVisits[e.city] || 0) + 1; });
     const topCity = Object.entries(cityVisits).sort((a, b) => b[1] - a[1])[0];
 
     const countryList = new Set();
@@ -1419,20 +1427,22 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     data.entries.forEach(e => { if (e.country) countryList.add(e.country); if (e.city) citySet.add(e.city); (e.stops || []).forEach(s => { if (s.country) countryList.add(s.country); if (s.city) citySet.add(s.city); }); });
 
     let longestApart = 0;
-    for (let i = 1; i < togetherList.length; i++) {
-      const gap = daysBetween(togetherList[i - 1].dateEnd || togetherList[i - 1].dateStart, togetherList[i].dateStart);
-      if (gap > longestApart) longestApart = gap;
+    if (isPartnerWorld) {
+      for (let i = 1; i < togetherList.length; i++) {
+        const gap = daysBetween(togetherList[i - 1].dateEnd || togetherList[i - 1].dateStart, togetherList[i].dateStart);
+        if (gap > longestApart) longestApart = gap;
+      }
     }
 
-    const avgTripLength = togetherList.length > 0
-      ? Math.round(togetherList.reduce((s, e) => s + Math.max(1, e.dateEnd ? daysBetween(e.dateStart, e.dateEnd) : 1), 0) / togetherList.length)
+    const avgTripLength = tripList.length > 0
+      ? Math.round(tripList.reduce((s, e) => s + Math.max(1, e.dateEnd ? daysBetween(e.dateStart, e.dateEnd) : 1), 0) / tripList.length)
       : 0;
 
     // Available years for recap
     const years = [...new Set(data.entries.map(e => parseInt(e.dateStart?.slice(0, 4))).filter(Boolean))].sort();
 
     return { longestTrip, farthestApart, topCity, countryList: [...countryList], cityCount: citySet.size, longestApart, avgTripLength, years };
-  }, [data.entries, togetherList, sorted]);
+  }, [data.entries, togetherList, sorted, isPartnerWorld]);
 
   // ---- SEARCH ----
   const searchResults = useMemo(() => {
@@ -1554,7 +1564,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
   const jumpNext = useCallback(dir => {
     if (isAnimating) return;
-    const cands = dir > 0 ? togetherList.filter(e => e.dateStart > sliderDate) : [...togetherList].reverse().filter(e => e.dateStart < sliderDate);
+    const jumpList = isPartnerWorld ? togetherList : sorted;
+    const cands = dir > 0 ? jumpList.filter(e => e.dateStart > sliderDate) : [...jumpList].reverse().filter(e => e.dateStart < sliderDate);
     if (cands.length === 0) return;
     const target = cands[0];
     setIsAnimating(true);
@@ -1580,7 +1591,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       }
     };
     animRef.current = requestAnimationFrame(anim);
-  }, [sliderDate, togetherList, isAnimating]);
+  }, [sliderDate, togetherList, sorted, isPartnerWorld, isAnimating]);
 
   // ---- PLAY OUR STORY ----
   const stopPlay = useCallback(() => {
@@ -1590,7 +1601,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   }, []);
 
   const playStory = useCallback(() => {
-    const playList = isMyWorld ? sorted : togetherList;
+    const playList = isPartnerWorld ? togetherList : sorted;
     if (playList.length === 0 || isPlaying) return;
     setIsPlaying(true);
     setSelected(null);
@@ -1624,7 +1635,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       }, 1400);
     };
     step();
-  }, [togetherList, sorted, isMyWorld, isPlaying, stopPlay]);
+  }, [togetherList, sorted, isPartnerWorld, isPlaying, stopPlay]);
 
   // Keyboard shortcuts (must be after stopPlay/playStory declarations)
   useEffect(() => {
@@ -1633,18 +1644,18 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       if (inInput && e.key !== "Escape") return;
       if (e.key === "ArrowLeft") { e.preventDefault(); stepDay(-1); }
       if (e.key === "ArrowRight") { e.preventDefault(); stepDay(1); }
-      if (e.key === "Escape") { setSelected(null); setEditing(null); setShowAdd(false); setQuickAddMode(false); setShowLetter(null); setShowSettings(false); setShowGallery(false); setCardGallery(false); setShowFilter(false); setMarkerFilter("all"); setLocationList(null); setShowStats(false); setShowRecap(false); setShowSearch(false); setSearchQuery(""); setShowDreams(false); setConfirmDelete(null); setLightboxOpen(false); setShowShortcuts(false); tSpinSpd.current = 0.002; if (isPlaying) stopPlay(); }
+      if (e.key === "Escape") { setSelected(null); setEditing(null); setShowAdd(false); setQuickAddMode(false); setShowLetter(null); setShowSettings(false); setShowGallery(false); setCardGallery(false); setShowFilter(false); setMarkerFilter("all"); setLocationList(null); setShowStats(false); setShowRecap(false); setShowSearch(false); setSearchQuery(""); setShowDreams(false); setConfirmDelete(null); setLightboxOpen(false); setShowShortcuts(false); setShowPhotoJourney(false); setShowCelebration(false); setShowOnboarding(false); localStorage.setItem(onboardKey, "1"); tSpinSpd.current = 0.002; if (isPlaying) stopPlay(); }
       if (e.key === "?" && !showAdd && !editing && !showSettings) setShowShortcuts(v => !v);
       if (e.key === "f" && !showAdd && !editing && !showSettings) { setShowFilter(v => { if (v) { setMarkerFilter("all"); setLocationList(null); } return !v; }); }
       if (e.key === "i" && !showAdd && !editing && !showSettings) setShowStats(v => !v);
       if (e.key === "s" && !showAdd && !editing && !showSettings && !showSearch) { e.preventDefault(); setShowSearch(true); }
       if (e.key === "g" && !showAdd && !editing && !showSettings) setShowGallery(v => !v);
       if (e.key === "t" && !showAdd && !editing && !showSettings) setSliderDate(todayStr());
-      if (e.key === " " && !showAdd && !editing && !showSettings && !showSearch) { e.preventDefault(); if (isPlaying) stopPlay(); else if (togetherList.length > 0) playStory(); }
+      if (e.key === " " && !showAdd && !editing && !showSettings && !showSearch) { e.preventDefault(); if (isPlaying) stopPlay(); else if ((isPartnerWorld ? togetherList : sorted).length > 0) playStory(); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [stepDay, isPlaying, showAdd, editing, showSettings, showSearch, stopPlay, playStory, togetherList]);
+  }, [stepDay, isPlaying, showAdd, editing, showSettings, showSearch, stopPlay, playStory, togetherList, sorted, isPartnerWorld]);
 
   // ---- YEAR-IN-REVIEW RECAP ----
   const [recapAutoPlay, setRecapAutoPlay] = useState(false);
@@ -2591,6 +2602,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                       <div style={{ fontSize: 10, fontWeight: 400, color: P.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.city}</div>
                       <div style={{ fontSize: 8, color: P.textFaint }}>{fmtDate(e.dateStart)}{e.dateEnd && e.dateEnd !== e.dateStart ? ` → ${fmtDate(e.dateEnd)}` : ""}</div>
                     </div>
+                    {(e.photos || []).length > 0 && <span style={{ fontSize: 7, color: P.textFaint }}>📷{(e.photos || []).length}</span>}
                     {isSharedWorld && e.addedBy && memberNameMap[e.addedBy] && (
                       <div style={{ width: 16, height: 16, borderRadius: "50%", background: `linear-gradient(135deg, ${P.rose}35, ${P.sky}35)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 7, fontWeight: 600, color: P.text, flexShrink: 0 }} title={`Added by ${memberNameMap[e.addedBy]}`}>
                         {memberNameMap[e.addedBy].charAt(0).toUpperCase()}
@@ -2618,7 +2630,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         {isPartnerWorld && togetherList.length > 1 && <TBtn a={showLoveThread} onClick={() => setShowLoveThread(v => !v)} tip="Love Thread">🧵</TBtn>}
         {data.entries.length > 2 && <TBtn a={showConstellation} onClick={() => setShowConstellation(v => !v)} tip="Constellation">⭐</TBtn>}
         {<TBtn a={showDreams} onClick={() => setShowDreams(v => !v)} tip={isMyWorld ? "Bucket List" : isPartnerWorld ? "Dream Destinations" : "Wish List"}>{isMyWorld ? "🗺" : "✦"}</TBtn>}
-        {(isPartnerWorld ? togetherList.length > 0 : data.entries.length > 0) && !isPlaying && <TBtn onClick={playStory} tip={isMyWorld ? "Play My Story" : isPartnerWorld ? "Play Our Story" : "Play Story"}>▶</TBtn>}
+        {(isPartnerWorld ? togetherList.length > 0 : sorted.length > 0) && !isPlaying && <TBtn onClick={playStory} tip={isPartnerWorld ? "Play Our Story" : "Play Story"}>▶</TBtn>}
         {isPlaying && <TBtn onClick={stopPlay} a tip="Stop Playback">⏹</TBtn>}
         {config.ambientMusicUrl && <TBtn a={ambientPlaying} onClick={() => {
           const au = ambientRef.current;
@@ -2685,7 +2697,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       {/* SLIDER */}
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 105, background: P.glass, backdropFilter: "blur(16px)", borderTop: `1px solid ${P.rose}10`, zIndex: 15, display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 22px" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 6 }}>
-          {isPartnerWorld && <button onClick={() => jumpNext(-1)} disabled={isAnimating} style={navSt()} title="Previous together">💕◂</button>}
+          <button onClick={() => jumpNext(-1)} disabled={isAnimating} style={navSt()} title={isPartnerWorld ? "Previous together" : "Previous entry"}>{isPartnerWorld ? "💕◂" : "⏮"}</button>
           <button onClick={() => stepDay(-1)} disabled={isAnimating} style={navSt()}>◂</button>
           <div style={{ minWidth: 150, textAlign: "center" }}>
             <div style={{ fontSize: 15, color: P.text, fontWeight: 400 }}>{fmtDate(sliderDate)}</div>
@@ -2699,7 +2711,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             </div>
           </div>
           <button onClick={() => stepDay(1)} disabled={isAnimating} style={navSt()}>▸</button>
-          {isPartnerWorld && <button onClick={() => jumpNext(1)} disabled={isAnimating} style={navSt()} title="Next together">▸💕</button>}
+          <button onClick={() => jumpNext(1)} disabled={isAnimating} style={navSt()} title={isPartnerWorld ? "Next together" : "Next entry"}>{isPartnerWorld ? "▸💕" : "⏭"}</button>
         </div>
         <div style={{ position: "relative", width: "100%", height: 24, display: "flex", alignItems: "center" }}>
           <input type="range" min={0} max={totalDays} value={clamp(sliderVal, 0, totalDays)}
@@ -3027,7 +3039,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       )}
 
       {/* ADD / EDIT / SETTINGS / LETTER overlays */}
-      {showAdd && <AddForm types={TYPES} defaultType={isMyWorld ? "adventure" : "together"} defaultWho={isMyWorld ? "solo" : "both"} fieldLabels={FIELD_LABELS} isMyWorld={isMyWorld} onAdd={entry => { const isFirst = data.entries.length === 0; dispatch({ type: "ADD", entry }); setShowAdd(false); if (isFirst) { setShowCelebration(true); setTimeout(() => setShowCelebration(false), 5000); } showToast(`${entry.city} added to your world`, "🌍", 2500); flyTo(entry.lat, entry.lng, 2.6); setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400); }} onClose={() => setShowAdd(false)} />}
+      {showAdd && <AddForm types={TYPES} defaultType={isMyWorld ? "adventure" : "together"} defaultWho={isMyWorld ? "solo" : "both"} fieldLabels={FIELD_LABELS} isMyWorld={isMyWorld} worldName={worldName} onAdd={entry => { const isFirst = data.entries.length === 0; dispatch({ type: "ADD", entry }); setShowAdd(false); if (isFirst) { setShowCelebration(true); setTimeout(() => setShowCelebration(false), 5000); } showToast(`${entry.city} added to your world`, "🌍", 2500); flyTo(entry.lat, entry.lng, 2.6); setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400); }} onClose={() => setShowAdd(false)} />}
       {quickAddMode && <QuickAddForm types={TYPES} onAdd={entry => { const isFirst = data.entries.length === 0; dispatch({ type: "ADD", entry }); setQuickAddMode(false); if (isFirst) { setShowCelebration(true); setTimeout(() => setShowCelebration(false), 5000); } showToast(`${entry.city} added to your world ⚡`, "⚡", 2500); flyTo(entry.lat, entry.lng, 2.6); setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400); }} onClose={() => setQuickAddMode(false)} />}
 
       {editing && <EditForm entry={editing} types={TYPES} fieldLabels={FIELD_LABELS} onChange={setEditing}
@@ -3604,7 +3616,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
       {/* TOAST NOTIFICATIONS (stacked) */}
       {toasts.length > 0 && (
-        <div style={{ position: "absolute", bottom: 120, left: "50%", transform: "translateX(-50%)", zIndex: 55, display: "flex", flexDirection: "column-reverse", gap: 6, alignItems: "center" }}>
+        <div style={{ position: "absolute", bottom: 120, left: "50%", transform: "translateX(-50%)", zIndex: 55, display: "flex", flexDirection: "column-reverse", gap: 6, alignItems: "center", maxHeight: "30vh", overflow: "hidden", maxWidth: "90vw" }}>
           {toasts.map((t, i) => (
             <div key={t.key} style={{ pointerEvents: t.undoAction ? "auto" : "none", animation: "fadeIn .3s ease", opacity: i < toasts.length - 1 ? 0.7 : 1, transform: `scale(${i < toasts.length - 1 ? 0.95 : 1})`, transition: "opacity .2s, transform .2s" }}>
               <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 18px", background: P.card, backdropFilter: "blur(16px)", borderRadius: 24, boxShadow: "0 4px 20px rgba(0,0,0,.1)", border: `1px solid ${P.rose}15`, fontSize: 12, color: P.text, letterSpacing: ".05em", whiteSpace: "nowrap" }}>
@@ -3640,15 +3652,31 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
       {/* ONBOARDING OVERLAY */}
       {showOnboarding && introComplete && data.entries.length === 0 && (() => {
-        const steps = isSharedWorld ? [
+        const steps = isSharedWorld && !isPartnerWorld ? [
           { title: `Welcome to ${worldName || "Your Shared World"}`,
-            body: "This is a shared travel globe. Every adventure you add together lights up your world as a glowing marker. Both of you can add entries, photos, and memories.",
+            body: "This is a shared travel globe. Every adventure you add together lights up your world as a glowing marker. Everyone in this world can add entries, photos, and memories.",
+            icon: "🌍", hint: "Your globe fills up as you add trips together" },
+          { title: "Navigate Your Globe",
+            body: "Drag to spin the globe. Scroll to zoom in and out. Click any marker to open its details — photos, notes, memories, and more.",
+            icon: "🖱", hint: "Try it! The globe is interactive" },
+          { title: "Your Toolkit",
+            body: "The toolbar has everything: search, filter by type, stats dashboard, constellation view, gallery, and color customization in settings.",
+            icon: "🧰", hint: "The toolbar has all your tools" },
+          { title: "Timeline & Story",
+            body: "Use the timeline slider at the bottom to travel through time. Press the play button to watch your story unfold, marker by marker.",
+            icon: "▶", hint: "The best part — watching your story play out" },
+          { title: "Add Your First Trip",
+            body: "Click the + button in the toolbar to add your first entry. Fill in the city, dates, type, and add photos and memories to bring it to life.",
+            icon: "✨", hint: "Start with somewhere meaningful" },
+        ] : isSharedWorld && isPartnerWorld ? [
+          { title: `Welcome to ${worldName || "Your Shared World"}`,
+            body: "This is your shared travel globe. Every adventure you add together lights up your world as a glowing marker. Both of you can add entries, photos, and memories.",
             icon: "🌍", hint: "Your globe fills up as you add trips together" },
           { title: "Navigate Your Globe",
             body: "Drag to spin the globe. Scroll to zoom in and out. Click any marker to open its details — photos, notes, memories, and more.",
             icon: "🖱", hint: "Try it! The globe is interactive" },
           { title: "Special Features",
-            body: "Shared worlds have love letters, love notes on entries, a love thread connecting your journeys, and constellation view. Look for these in the left toolbar.",
+            body: "Partner worlds have love letters, love notes on entries, a love thread connecting your journeys, and constellation view. Look for these in the left toolbar.",
             icon: "💕", hint: "The toolbar has all your tools" },
           { title: "Timeline & Story",
             body: "Use the timeline slider at the bottom to travel through time. Press the play button to watch your story unfold, marker by marker.",
@@ -3728,6 +3756,25 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         );
       })()}
 
+      {/* EMPTY STATE — friendly prompt when no entries */}
+      {data.entries.length === 0 && introComplete && !showOnboarding && !showAdd && !quickAddMode && (
+        <div style={{ position: "absolute", bottom: 120, left: "50%", transform: "translateX(-50%)", zIndex: 12, textAlign: "center", animation: "fadeIn .8s ease", pointerEvents: "auto" }}>
+          <div style={{ animation: "emptyFloat 3s ease-in-out infinite", marginBottom: 12 }}>
+            <div style={{ fontSize: 36, filter: "drop-shadow(0 0 12px rgba(200,170,110,0.3))" }}>🌍</div>
+          </div>
+          <div style={{ fontSize: 14, color: "#e8e0d0", letterSpacing: ".06em", marginBottom: 6, textShadow: "0 1px 8px rgba(0,0,0,0.6)" }}>
+            Your globe is waiting
+          </div>
+          <div style={{ fontSize: 11, color: "#a098a8", marginBottom: 14, textShadow: "0 1px 6px rgba(0,0,0,0.5)" }}>
+            Add your first entry to light up the map
+          </div>
+          <button onClick={() => setShowAdd(true)}
+            style={{ padding: "10px 24px", background: "linear-gradient(135deg, #c9a96e, #b8944f)", border: "none", borderRadius: 14, color: "#1a1520", fontSize: 13, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", boxShadow: "0 2px 16px rgba(200,170,110,0.3)", letterSpacing: ".06em" }}>
+            + Add First Entry
+          </button>
+        </div>
+      )}
+
       {/* FIRST ENTRY CELEBRATION */}
       {showCelebration && (
         <div style={{ position: "fixed", inset: 0, zIndex: 250, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "auto", animation: "fadeIn .3s ease", cursor: "pointer" }}
@@ -3797,7 +3844,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             </div>
             {[
               ["←  →", "Step through timeline"],
-              ["Space", isMyWorld ? "Play My Story" : "Play Our Story"],
+              ["Space", isPartnerWorld ? "Play Our Story" : "Play Story"],
               ["F", "Toggle filter panel"],
               ["S", "Open search"],
               ["G", "Toggle gallery"],
@@ -3832,15 +3879,15 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             <div style={{ position: "absolute", top: 20, left: 0, right: 0, textAlign: "center", color: "rgba(255,255,255,0.5)", fontSize: 12, letterSpacing: "1px", zIndex: 210 }}>{idx + 1} / {photos.length}</div>
             {/* Photo with Ken Burns effect */}
             <img key={photos[idx]} src={photos[idx]} alt={`Photo ${idx + 1}`} onClick={e => e.stopPropagation()}
-              style={{ maxWidth: "90vw", maxHeight: "85vh", objectFit: "contain", borderRadius: 4, boxShadow: "0 8px 40px rgba(0,0,0,0.5)", cursor: "default", animation: "lbFadeIn .35s ease, kenBurns 12s ease-in-out infinite alternate" }} />
+              style={{ maxWidth: "90vw", maxHeight: "85vh", objectFit: "contain", borderRadius: 4, boxShadow: "0 8px 40px rgba(0,0,0,0.5)", cursor: "default", animation: "lbFadeOpacity .35s ease, kenBurns 12s ease-in-out infinite alternate" }} />
             {/* Navigation arrows */}
             {photos.length > 1 && (<>
               <button onClick={e => { e.stopPropagation(); prev(); }} style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "50%", width: 44, height: 44, cursor: "pointer", fontSize: 20, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 210, transition: "all .2s" }}
-                onMouseEnter={e => e.target.style.background = "rgba(255,255,255,0.15)"}
-                onMouseLeave={e => e.target.style.background = "rgba(255,255,255,0.08)"}>‹</button>
+                onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.15)"}
+                onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.08)"}>‹</button>
               <button onClick={e => { e.stopPropagation(); next(); }} style={{ position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "50%", width: 44, height: 44, cursor: "pointer", fontSize: 20, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 210, transition: "all .2s" }}
-                onMouseEnter={e => e.target.style.background = "rgba(255,255,255,0.15)"}
-                onMouseLeave={e => e.target.style.background = "rgba(255,255,255,0.08)"}>›</button>
+                onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.15)"}
+                onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.08)"}>›</button>
             </>)}
             {/* Dot indicators */}
             {photos.length > 1 && photos.length <= 20 && (
@@ -3861,6 +3908,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         @keyframes fadeIn{from{opacity:0}to{opacity:1}}
         @keyframes heartPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
         @keyframes lbFadeIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
+        @keyframes lbFadeOpacity{from{opacity:0}to{opacity:1}}
         @keyframes kenBurns{0%{transform:scale(1) translate(0,0)}100%{transform:scale(1.04) translate(-0.5%,-0.3%)}}
         *{box-sizing:border-box}
         ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:${P.textFaint}22;border-radius:2px}
@@ -3993,7 +4041,7 @@ function DreamAddForm({ onAdd, isMyWorld }) {
 }
 
 // ---- ADD FORM ----
-function AddForm({ types, defaultType = "together", defaultWho = "both", fieldLabels, isMyWorld, onAdd, onClose }) {
+function AddForm({ types, defaultType = "together", defaultWho = "both", fieldLabels, isMyWorld, worldName, onAdd, onClose }) {
   const [f, sf] = useState({ city: "", country: "", lat: "", lng: "", dateStart: "", dateEnd: "", type: defaultType, who: defaultWho, zoomLevel: 1, notes: "", memories: "", museums: "", restaurants: "", highlights: "", musicUrl: "", stops: [] });
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -4152,7 +4200,7 @@ function AddForm({ types, defaultType = "together", defaultWho = "both", fieldLa
         restaurants: f.restaurants.split("\n").filter(Boolean), highlights: f.highlights.split("\n").filter(Boolean),
         photos: [], stops: f.stops, musicUrl: f.musicUrl || null,
       }); }} style={{ width: "100%", padding: "12px 0", background: ok ? `linear-gradient(135deg, ${P.rose}, ${P.sky})` : `${P.textFaint}60`, color: "#fff", border: "none", borderRadius: 14, cursor: ok ? "pointer" : "default", fontSize: 12, letterSpacing: ".1em", fontFamily: "inherit", transition: "all .3s", boxShadow: ok ? `0 2px 8px ${P.rose}30, 0 4px 16px ${P.rose}15` : "none" }}>
-        {ok ? (isMyWorld ? "Add to My World 🌍" : "Add to Our World 💕") : "Fill required fields to continue"}
+        {ok ? `Add to ${worldName || (isMyWorld ? "My World" : "Our World")} ${isMyWorld ? "🌍" : "💕"}` : "Fill required fields to continue"}
       </button>
       {!ok && <p style={{ fontSize: 8, color: validationMsg.includes("must be") ? "#c9777a" : P.textFaint, textAlign: "center", marginTop: 5, letterSpacing: ".08em" }}>
         {validationMsg || "Fill required fields to continue"}

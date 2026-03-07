@@ -406,7 +406,7 @@ export async function loadWorldEntryCounts(worldIds) {
 
 export async function searchCrossWorld(worldIds, userId, query, limit = 20) {
   if (!query || query.trim().length === 0) return []
-  const q = query.trim().toLowerCase().replace(/[%_,.*()]/g, '')
+  const q = query.trim().toLowerCase().replace(/[%_,.*()\\]/g, '')
   if (!q) return []
   const results = []
 

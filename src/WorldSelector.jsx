@@ -346,6 +346,13 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       window.removeEventListener("pointerup", onUp);
       mount.removeEventListener("pointerdown", onDown);
       mount.removeEventListener("wheel", onWheelEvt);
+      scene.traverse(obj => {
+        if (obj.geometry) obj.geometry.dispose();
+        if (obj.material) {
+          if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
+          else obj.material.dispose();
+        }
+      });
       rend.dispose();
       if (mount.contains(rend.domElement)) mount.removeChild(rend.domElement);
     };
