@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import * as THREE from "three";
-import { createWorld, loadMyWorlds, createInvite, createInviteWithLetter, acceptInvite, createViewerInvite, getSentInvites, loadCrossWorldActivity, loadWorldEntryCounts, loadMyWorldEntryCount, searchCrossWorld } from "./supabaseWorlds.js";
+import { createWorld, loadMyWorlds, createInvite, createInviteWithLetter, acceptInvite, createViewerInvite, getSentInvites, loadCrossWorldActivity, loadWorldEntryCounts, loadMyWorldEntryCount, searchCrossWorld, deleteWorld, leaveWorld } from "./supabaseWorlds.js";
 import { sendConnectionRequest, acceptConnection, declineConnection, getMyConnections, getPendingRequests } from "./supabaseConnections.js";
 import { sendWelcomeLetter } from "./supabaseWelcomeLetters.js";
 
@@ -149,6 +149,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       label: w.name,
       sub: displaySub + roleBadge,
       isViewer: w.role === "viewer",
+      role: w.role || "member",
       worldType: w.type || "shared",
       ...typeColors,
       ...orbit,
@@ -191,6 +192,10 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     const mount = mountRef.current;
     if (!mount) return;
     let W = mount.clientWidth, H = mount.clientHeight;
+
+    const canvas = document.createElement("canvas");
+    const gl = canvas.getContext("webgl2") || canvas.getContext("webgl");
+    if (!gl) { mount.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#e8e0d0;font-family:serif;font-size:16px;text-align:center;padding:20px">Your browser doesn\'t support WebGL.<br/>Please use a modern browser to view My Cosmos.</div>'; return; }
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color("#08060e");
@@ -615,10 +620,32 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
             <div style={{ fontSize: 9, color: `${w.glowColor || w.color}`, marginTop: 2, letterSpacing: "0.5px", opacity: 0.7, textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}>{entryCounts[w.id]} {entryCounts[w.id] === 1 ? "entry" : "entries"}</div>
           )}
           {hovered === w.id && !w.id.startsWith("friend-") && (
-            <button onClick={(e) => { e.stopPropagation(); const ww = worlds.find(x => x.id === w.id); if (!ww) return; setShowInviteModal(ww); setInviteLink(""); setExistingInviteEmail(""); setExistingInviteLetter(""); getSentInvites(ww.id, userId).then(setSentInvites).catch(() => setSentInvites([])); }}
-              style={{ marginTop: 6, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 12, padding: "3px 10px", color: "#c0b8c8", fontSize: 9, fontFamily: F, cursor: "pointer", pointerEvents: "auto", letterSpacing: "0.5px" }}>
-              Invite
-            </button>
+            <div style={{ display: "flex", gap: 6, marginTop: 6, justifyContent: "center" }}>
+              {!w.isViewer && <button onClick={(e) => { e.stopPropagation(); const ww = worlds.find(x => x.id === w.id); if (!ww) return; setShowInviteModal(ww); setInviteLink(""); setExistingInviteEmail(""); setExistingInviteLetter(""); getSentInvites(ww.id, userId).then(setSentInvites).catch(() => setSentInvites([])); }}
+                style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 12, padding: "3px 10px", color: "#c0b8c8", fontSize: 9, fontFamily: F, cursor: "pointer", pointerEvents: "auto", letterSpacing: "0.5px" }}>
+                Invite
+              </button>}
+              <button onClick={async (e) => {
+                  e.stopPropagation();
+                  const ww = worlds.find(x => x.id === w.id);
+                  if (!ww) return;
+                  if (w.role === "owner") {
+                    if (!window.confirm(`Permanently delete "${w.label}"? All entries, photos, and settings will be lost.`)) return;
+                    if (!window.confirm("This cannot be undone. Are you sure?")) return;
+                    const ok = await deleteWorld(w.id);
+                    if (ok) { onWorldsChange(worlds.filter(x => x.id !== w.id)); }
+                    else { alert("Failed to delete world."); }
+                  } else {
+                    if (!window.confirm(`Leave "${w.label}"? You'll lose access to this world.`)) return;
+                    const ok = await leaveWorld(w.id, userId);
+                    if (ok) { onWorldsChange(worlds.filter(x => x.id !== w.id)); }
+                    else { alert("Failed to leave world."); }
+                  }
+                }}
+                style={{ background: "rgba(200,100,100,0.08)", border: "1px solid rgba(200,100,100,0.20)", borderRadius: 12, padding: "3px 10px", color: "#c09090", fontSize: 9, fontFamily: F, cursor: "pointer", pointerEvents: "auto", letterSpacing: "0.5px" }}>
+                {w.role === "owner" ? "Delete" : "Leave"}
+              </button>
+            </div>
           )}
         </div>
       ))}

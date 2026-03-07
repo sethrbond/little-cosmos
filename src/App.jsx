@@ -10,21 +10,15 @@ import { getPendingRequests, getMyConnections } from './supabaseConnections.js'
 
 function AppInner() {
   const { user, userId, loading, signOut } = useAuth()
-  const [worldMode, setWorldMode] = useState(
-    () => localStorage.getItem('worldMode') || null
-  )
-  const [activeWorldId, setActiveWorldId] = useState(
-    () => localStorage.getItem('activeWorldId') || null
-  )
-  const [activeWorldName, setActiveWorldName] = useState(
-    () => localStorage.getItem('activeWorldName') || null
-  )
-  const [activeWorldRole, setActiveWorldRole] = useState(
-    () => localStorage.getItem('activeWorldRole') || null
-  )
-  const [activeWorldType, setActiveWorldType] = useState(
-    () => localStorage.getItem('activeWorldType') || null
-  )
+  const safeGet = (key) => { try { return localStorage.getItem(key) } catch { return null } }
+  const safeSet = (key, val) => { try { localStorage.setItem(key, val) } catch {} }
+  const safeRemove = (key) => { try { localStorage.removeItem(key) } catch {} }
+
+  const [worldMode, setWorldMode] = useState(() => safeGet('worldMode'))
+  const [activeWorldId, setActiveWorldId] = useState(() => safeGet('activeWorldId'))
+  const [activeWorldName, setActiveWorldName] = useState(() => safeGet('activeWorldName'))
+  const [activeWorldRole, setActiveWorldRole] = useState(() => safeGet('activeWorldRole'))
+  const [activeWorldType, setActiveWorldType] = useState(() => safeGet('activeWorldType'))
   const [welcomeLetter, setWelcomeLetter] = useState(null)
   const [letterChecked, setLetterChecked] = useState(false)
   const [worlds, setWorlds] = useState([])
@@ -63,7 +57,7 @@ function AppInner() {
       setConnections(conn)
       setPendingRequests(pending)
       setPendingWorldInvites(worldInvites || [])
-      setMyWorldSubtitle(mySub || 'every step, every discovery')
+      setMyWorldSubtitle(mySub)
       setWorldsLoaded(true)
     }).catch(err => { console.error('[loadData]', err); setWorldsLoaded(true) })
   }, [userId, user?.email])
@@ -106,9 +100,9 @@ function AppInner() {
   // Auto-route brand new users straight to My World (first login ever)
   useEffect(() => {
     if (!userId || !worldsLoaded || worldMode) return
-    const hasVisited = localStorage.getItem('cosmos_hasVisited')
+    const hasVisited = safeGet('cosmos_hasVisited')
     if (!hasVisited) {
-      localStorage.setItem('cosmos_hasVisited', '1')
+      safeSet('cosmos_hasVisited', '1')
       selectWorld('my')
     }
   }, [userId, worldsLoaded, worldMode])
@@ -128,22 +122,22 @@ function AppInner() {
 
     // Delay the actual world mount until zoom animation completes
     setTimeout(() => {
-      localStorage.setItem('worldMode', mode)
+      safeSet('worldMode', mode)
       setWorldMode(mode)
       if (worldId) {
-        localStorage.setItem('activeWorldId', worldId)
-        localStorage.setItem('activeWorldName', worldName || '')
-        localStorage.setItem('activeWorldRole', worldRole || 'owner')
-        localStorage.setItem('activeWorldType', worldType || '')
+        safeSet('activeWorldId', worldId)
+        safeSet('activeWorldName', worldName || '')
+        safeSet('activeWorldRole', worldRole || 'owner')
+        safeSet('activeWorldType', worldType || '')
         setActiveWorldId(worldId)
         setActiveWorldName(worldName)
         setActiveWorldRole(worldRole || 'owner')
         setActiveWorldType(worldType || null)
       } else {
-        localStorage.removeItem('activeWorldId')
-        localStorage.removeItem('activeWorldName')
-        localStorage.removeItem('activeWorldRole')
-        localStorage.removeItem('activeWorldType')
+        safeRemove('activeWorldId')
+        safeRemove('activeWorldName')
+        safeRemove('activeWorldRole')
+        safeRemove('activeWorldType')
         setActiveWorldId(null)
         setActiveWorldName(null)
         setActiveWorldRole(null)
@@ -155,11 +149,11 @@ function AppInner() {
   }, [])
 
   const switchWorld = useCallback(() => {
-    localStorage.removeItem('worldMode')
-    localStorage.removeItem('activeWorldId')
-    localStorage.removeItem('activeWorldName')
-    localStorage.removeItem('activeWorldRole')
-    localStorage.removeItem('activeWorldType')
+    safeRemove('worldMode')
+    safeRemove('activeWorldId')
+    safeRemove('activeWorldName')
+    safeRemove('activeWorldRole')
+    safeRemove('activeWorldType')
     setWorldMode(null)
     setActiveWorldId(null)
     setActiveWorldName(null)
@@ -177,8 +171,8 @@ function AppInner() {
         setConnections(conn)
         setPendingRequests(pending)
         setPendingWorldInvites(worldInvites || [])
-        setMyWorldSubtitle(mySub || 'every step, every discovery')
-      }).catch(() => {})
+        setMyWorldSubtitle(mySub)
+      }).catch(err => console.error('[switchWorld] refresh error:', err))
     }
   }, [userId, user?.email])
 

@@ -92,6 +92,8 @@ export const MY_WORLD_DEFAULT_CONFIG = {
   chapters: [],
   bucketList: [],
   darkMode: false,
+  customPalette: {},
+  customScene: {},
 };
 
 export const MY_WORLD_FIELDS = {
@@ -328,9 +330,10 @@ export function getSeasonalHue(dateStr, isMyWorld) {
     return { glow: "#88a078", particle: "#789068" };                        // spring: fresh sage
   }
 
-  if (m >= 4 && m <= 7)  return { glow: "#f0c8e0", particle: "#f0a0c0" };
-  if (m >= 8 || m <= 1)  return { glow: "#d0c0f0", particle: "#c0a8e0" };
-  return { glow: "#f0d0e8", particle: "#e8b0d0" };
+  if (m >= 4 && m <= 7)  return { glow: "#f0c8e0", particle: "#f0a0c0" };  // summer: rosy warmth
+  if (m >= 8 && m <= 10) return { glow: "#e0c8a8", particle: "#d0b898" };  // autumn: warm amber
+  if (m >= 11 || m <= 1) return { glow: "#d0c0f0", particle: "#c0a8e0" };  // winter: cool lavender
+  return { glow: "#f0d0e8", particle: "#e8b0d0" };                         // spring: soft pink
 }
 
 // ============================================================
