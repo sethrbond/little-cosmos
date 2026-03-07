@@ -2333,7 +2333,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         mkRef.current.push(makeDot(g, letter.lat, letter.lng, "#e8a878", 0.018, `love-${letter.id}`, false, "love-letter"));
       });
     }
-  }, [sliderDate, data, getPositions, areTogether, locationGroups, selected, sceneReady, showLoveThread, loveThreadData, showConstellation, constellationData, config.dreamDestinations, config.loveLetters]);
+  }, [sliderDate, data, getPositions, areTogether, locationGroups, selected, sceneReady, showLoveThread, loveThreadData, showConstellation, constellationData, config.dreamDestinations, config.loveLetters, isPartnerWorld]);
 
   function makeDot(group, lat, lng, color, size, id, faint = false, symbolType = null) {
     const p = ll2v(lat, lng, RAD * 1.012);
@@ -3049,8 +3049,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         onAddStop={stop => { const updated = { ...editing, stops: [...(editing.stops || []), stop] }; setEditing(updated); dispatch({ type: "UPDATE", id: editing.id, data: { stops: updated.stops } }); }} />}
 
       {confirmDelete && (
-        <div style={{ position: "absolute", inset: 0, zIndex: 60, background: `linear-gradient(135deg, rgba(22,16,40,.82), rgba(30,24,48,.88))`, backdropFilter: "blur(20px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .2s ease" }}>
-          <div style={{ background: P.card, borderRadius: 20, padding: 32, maxWidth: 340, textAlign: "center", boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 20px 56px rgba(61,53,82,.1)" }}>
+        <div onClick={() => setConfirmDelete(null)} style={{ position: "fixed", inset: 0, zIndex: 60, background: `linear-gradient(135deg, rgba(22,16,40,.82), rgba(30,24,48,.88))`, backdropFilter: "blur(20px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .2s ease" }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: P.card, borderRadius: 20, padding: 32, maxWidth: 340, textAlign: "center", boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 20px 56px rgba(61,53,82,.1)" }}>
             <p style={{ fontSize: 14, margin: "0 0 16px" }}>Delete this memory forever?</p>
             <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
               <button onClick={() => {
@@ -3089,8 +3089,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       })()}
 
       {isPartnerWorld && editLetter && (
-        <div style={{ position: "absolute", inset: 0, zIndex: 55, background: P.card, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ width: 420, padding: 28, background: P.card, borderRadius: 16, boxShadow: "0 14px 48px rgba(61,53,82,.1)" }}>
+        <div onClick={() => setEditLetter(false)} style={{ position: "fixed", inset: 0, zIndex: 55, background: "rgba(22,16,40,.82)", backdropFilter: "blur(20px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .2s ease" }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: 420, padding: 28, background: P.card, borderRadius: 16, boxShadow: "0 14px 48px rgba(61,53,82,.1)" }}>
             <h3 style={{ margin: "0 0 10px", fontSize: 16, fontWeight: 400 }}>💌 {letterEditId ? "Edit" : "New"} Love Letter</h3>
             <p style={{ fontSize: 9, color: P.textMuted, marginBottom: 12, fontStyle: "italic" }}>Hidden as an easter egg ❀ on the globe — she'll discover it!</p>
             <div style={{ marginBottom: 8, position: "relative" }}>
@@ -3756,24 +3756,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         );
       })()}
 
-      {/* EMPTY STATE — friendly prompt when no entries */}
-      {data.entries.length === 0 && introComplete && !showOnboarding && !showAdd && !quickAddMode && (
-        <div style={{ position: "absolute", bottom: 120, left: "50%", transform: "translateX(-50%)", zIndex: 12, textAlign: "center", animation: "fadeIn .8s ease", pointerEvents: "auto" }}>
-          <div style={{ animation: "emptyFloat 3s ease-in-out infinite", marginBottom: 12 }}>
-            <div style={{ fontSize: 36, filter: "drop-shadow(0 0 12px rgba(200,170,110,0.3))" }}>🌍</div>
-          </div>
-          <div style={{ fontSize: 14, color: "#e8e0d0", letterSpacing: ".06em", marginBottom: 6, textShadow: "0 1px 8px rgba(0,0,0,0.6)" }}>
-            Your globe is waiting
-          </div>
-          <div style={{ fontSize: 11, color: "#a098a8", marginBottom: 14, textShadow: "0 1px 6px rgba(0,0,0,0.5)" }}>
-            Add your first entry to light up the map
-          </div>
-          <button onClick={() => setShowAdd(true)}
-            style={{ padding: "10px 24px", background: "linear-gradient(135deg, #c9a96e, #b8944f)", border: "none", borderRadius: 14, color: "#1a1520", fontSize: 13, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", boxShadow: "0 2px 16px rgba(200,170,110,0.3)", letterSpacing: ".06em" }}>
-            + Add First Entry
-          </button>
-        </div>
-      )}
 
       {/* FIRST ENTRY CELEBRATION */}
       {showCelebration && (
@@ -4202,7 +4184,7 @@ function AddForm({ types, defaultType = "together", defaultWho = "both", fieldLa
       }); }} style={{ width: "100%", padding: "12px 0", background: ok ? `linear-gradient(135deg, ${P.rose}, ${P.sky})` : `${P.textFaint}60`, color: "#fff", border: "none", borderRadius: 14, cursor: ok ? "pointer" : "default", fontSize: 12, letterSpacing: ".1em", fontFamily: "inherit", transition: "all .3s", boxShadow: ok ? `0 2px 8px ${P.rose}30, 0 4px 16px ${P.rose}15` : "none" }}>
         {ok ? `Add to ${worldName || (isMyWorld ? "My World" : "Our World")} ${isMyWorld ? "🌍" : "💕"}` : "Fill required fields to continue"}
       </button>
-      {!ok && <p style={{ fontSize: 8, color: validationMsg.includes("must be") ? "#c9777a" : P.textFaint, textAlign: "center", marginTop: 5, letterSpacing: ".08em" }}>
+      {!ok && <p style={{ fontSize: 8, color: validationMsg ? "#c9777a" : P.textFaint, textAlign: "center", marginTop: 5, letterSpacing: ".08em" }}>
         {validationMsg || "Fill required fields to continue"}
       </p>}
     </div>

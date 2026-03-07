@@ -353,8 +353,9 @@ export async function toggleReaction(worldId, entryId, userId, reactionType = 'h
   if (photoUrl) query = query.eq('photo_url', photoUrl)
   else query = query.is('photo_url', null)
 
-  const { data: existing } = await query.single()
+  const { data: existing, error: queryErr } = await query.single()
 
+  if (queryErr && queryErr.code !== 'PGRST116') { console.error('[toggleReaction]', queryErr); return { action: 'error' } }
   if (existing) {
     await supabase.from('entry_reactions').delete().eq('id', existing.id)
     return { action: 'removed' }
