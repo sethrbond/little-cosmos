@@ -20,8 +20,12 @@ export async function createWorld(userId, name, type = 'shared', { youName = '',
 
   // Build subtitle from names if provided
   const subtitle = (youName && partnerName)
-    ? `${youName} & ${partnerName}`
-    : 'every moment, every adventure'
+    ? type === 'family' ? `The ${youName} Family`
+      : type === 'friends' ? `${youName}, ${partnerName} & friends`
+      : `${youName} & ${partnerName}`
+    : type === 'family' ? 'family adventures'
+      : type === 'friends' ? 'adventures together'
+      : 'every moment, every adventure'
 
   // Create default config for this world
   const { error: cfgErr } = await supabase
@@ -138,6 +142,29 @@ export async function leaveWorld(worldId, userId) {
     .eq('world_id', worldId)
     .eq('user_id', userId)
   if (error) console.error('[leaveWorld]', error)
+  return !error
+}
+
+export async function removeWorldMember(worldId, memberId) {
+  const { error } = await supabase
+    .from('world_members')
+    .delete()
+    .eq('world_id', worldId)
+    .eq('id', memberId)
+  if (error) console.error('[removeWorldMember]', error)
+  return !error
+}
+
+export async function updateMemberRole(memberId, newRole) {
+  if (!['owner', 'member', 'viewer'].includes(newRole)) {
+    console.error('[updateMemberRole] Invalid role:', newRole)
+    return false
+  }
+  const { error } = await supabase
+    .from('world_members')
+    .update({ role: newRole })
+    .eq('id', memberId)
+  if (error) console.error('[updateMemberRole]', error)
   return !error
 }
 
@@ -276,26 +303,29 @@ export async function getPendingWorldInvites(userEmail) {
     .eq('read', false)
   if (letErr || !letters || letters.length === 0) return []
 
-  // For each unread letter, find the matching unused invite from that user
+  // For each unread letter, find the matching unused invite from that user (closest in time)
   const results = []
   for (const letter of letters) {
     const { data: invites } = await supabase
       .from('world_invites')
-      .select('token, world_id, max_uses, use_count, worlds(name, type)')
+      .select('token, world_id, max_uses, use_count, created_at, worlds(name, type)')
       .eq('created_by', letter.from_user_id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-    if (invites && invites.length > 0) {
-      const inv = invites[0]
-      if (inv.use_count < inv.max_uses) {
-        results.push({
-          token: inv.token,
-          worldName: inv.worlds?.name || 'A Shared World',
-          worldType: inv.worlds?.type || 'shared',
-          fromName: letter.from_name || 'Someone',
-          fromEmail: letter.to_email,
-        })
-      }
+    if (!invites || invites.length === 0) continue
+    // Match by closest creation time to the letter
+    const letterTime = new Date(letter.created_at).getTime()
+    let best = null, bestDiff = Infinity
+    for (const inv of invites) {
+      if (inv.use_count >= inv.max_uses) continue
+      const diff = Math.abs(new Date(inv.created_at).getTime() - letterTime)
+      if (diff < bestDiff) { bestDiff = diff; best = inv }
+    }
+    if (best && bestDiff < 120000) {
+      results.push({
+        token: best.token,
+        worldName: best.worlds?.name || 'A Shared World',
+        worldType: best.worlds?.type || 'shared',
+        fromName: letter.from_name || 'Someone',
+      })
     }
   }
   return results
@@ -357,12 +387,14 @@ export async function toggleReaction(worldId, entryId, userId, reactionType = 'h
 
   if (queryErr && queryErr.code !== 'PGRST116') { console.error('[toggleReaction]', queryErr); return { action: 'error' } }
   if (existing) {
-    await supabase.from('entry_reactions').delete().eq('id', existing.id)
+    const { error: delErr } = await supabase.from('entry_reactions').delete().eq('id', existing.id)
+    if (delErr) { console.error('[toggleReaction] delete:', delErr); return { action: 'error' } }
     return { action: 'removed' }
   } else {
     const row = { world_id: worldId, entry_id: entryId, user_id: userId, reaction_type: reactionType }
     if (photoUrl) row.photo_url = photoUrl
-    await supabase.from('entry_reactions').insert(row)
+    const { error: insErr } = await supabase.from('entry_reactions').insert(row)
+    if (insErr) { console.error('[toggleReaction] insert:', insErr); return { action: 'error' } }
     return { action: 'added' }
   }
 }
@@ -407,7 +439,7 @@ export async function loadWorldEntryCounts(worldIds) {
 
 export async function searchCrossWorld(worldIds, userId, query, limit = 20) {
   if (!query || query.trim().length === 0) return []
-  const q = query.trim().toLowerCase().replace(/[%_,.*()\\]/g, '')
+  const q = query.trim().toLowerCase().replace(/[%_,.*()\\'";\n\r\t]/g, '')
   if (!q) return []
   const results = []
 

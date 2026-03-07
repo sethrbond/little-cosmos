@@ -16,7 +16,7 @@ import {
   getSeasonalHue, resolveTypes, getSharedWorldConfig,
 } from "./worldConfigs.js";
 import { sendWelcomeLetter, getMyLetters, deleteWelcomeLetter } from "./supabaseWelcomeLetters.js";
-import { loadComments, addComment, deleteComment, loadAllWorldReactions, toggleReaction, getWorldMembers } from "./supabaseWorlds.js";
+import { loadComments, addComment, deleteComment, loadAllWorldReactions, toggleReaction, getWorldMembers, removeWorldMember, updateMemberRole, deleteWorld, leaveWorld, updateWorld } from "./supabaseWorlds.js";
 
 /* =================================================================
    🌍 OUR WORLD / MY WORLD — Multi-World Globe Engine
@@ -968,18 +968,40 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     return () => window.removeEventListener("resize", check);
   }, []);
 
+  const configSaveTimer = useRef(null);
+  const pendingConfigRef = useRef(null);
   const setConfig = useCallback(partial => {
     setConfigState(prev => {
       const next = { ...prev, ...partial };
       // Auto-update subtitle from names for shared worlds when names change
       if (isSharedWorld && (partial.youName !== undefined || partial.partnerName !== undefined)) {
         const yn = next.youName || '', pn = next.partnerName || '';
-        if (yn && pn) next.subtitle = `${yn} & ${pn}`;
+        if (yn && pn) {
+          if (worldType === 'family') next.subtitle = `The ${yn} Family`;
+          else if (worldType === 'friends') next.subtitle = `${yn}, ${pn} & friends`;
+          else next.subtitle = `${yn} & ${pn}`;
+        }
       }
-      db.saveConfig(next);
+      // Store latest config in ref so debounced save always gets the newest version
+      pendingConfigRef.current = next;
+      clearTimeout(configSaveTimer.current);
+      configSaveTimer.current = setTimeout(() => {
+        if (pendingConfigRef.current) {
+          db.saveConfig(pendingConfigRef.current).catch?.(err => console.error('[setConfig] save failed:', err));
+        }
+      }, 400);
       return next;
     });
-  }, [db, isSharedWorld]);
+  }, [db, isSharedWorld, worldType]);
+
+  // Flush any pending config save immediately (used when closing settings)
+  const flushConfigSave = useCallback(() => {
+    clearTimeout(configSaveTimer.current);
+    if (pendingConfigRef.current) {
+      db.saveConfig(pendingConfigRef.current).catch?.(err => console.error('[flushConfigSave] failed:', err));
+      pendingConfigRef.current = null;
+    }
+  }, [db]);
 
   // Color picker — rainbow gradient + presets + hex input
   const [cpOpen, setCpOpen] = useState(null);
@@ -1204,8 +1226,10 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [showGallery, setShowGallery] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 });
   const [cardGallery, setCardGallery] = useState(false);
   const [markerFilter, setMarkerFilter] = useState("all"); // "all", "together", "special", "home-seth", "home-rosie", "seth-solo", "rosie-solo"
+  const [listRenderLimit, setListRenderLimit] = useState(100);
   const [showFilter, setShowFilter] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [toasts, setToasts] = useState([]);
@@ -1214,6 +1238,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [recapYear, setRecapYear] = useState(null);
   const [recapIdx, setRecapIdx] = useState(0);
   const [photoDeleteMode, setPhotoDeleteMode] = useState(false);
+  const photoDragRef = useRef({ from: -1, to: -1 });
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [showLoveThread, setShowLoveThread] = useState(false);
@@ -1644,7 +1669,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       if (inInput && e.key !== "Escape") return;
       if (e.key === "ArrowLeft") { e.preventDefault(); stepDay(-1); }
       if (e.key === "ArrowRight") { e.preventDefault(); stepDay(1); }
-      if (e.key === "Escape") { setSelected(null); setEditing(null); setShowAdd(false); setQuickAddMode(false); setShowLetter(null); setShowSettings(false); setShowGallery(false); setCardGallery(false); setShowFilter(false); setMarkerFilter("all"); setLocationList(null); setShowStats(false); setShowRecap(false); setShowSearch(false); setSearchQuery(""); setShowDreams(false); setConfirmDelete(null); setLightboxOpen(false); setShowShortcuts(false); setShowPhotoJourney(false); setShowCelebration(false); setShowOnboarding(false); localStorage.setItem(onboardKey, "1"); tSpinSpd.current = 0.002; if (isPlaying) stopPlay(); }
+      if (e.key === "Escape") { flushConfigSave(); setSelected(null); setEditing(null); setShowAdd(false); setQuickAddMode(false); setShowLetter(null); setShowSettings(false); setShowGallery(false); setCardGallery(false); setShowFilter(false); setMarkerFilter("all"); setLocationList(null); setShowStats(false); setShowRecap(false); setShowSearch(false); setSearchQuery(""); setShowDreams(false); setConfirmDelete(null); setLightboxOpen(false); setShowShortcuts(false); setShowPhotoJourney(false); setShowCelebration(false); setShowOnboarding(false); localStorage.setItem(onboardKey, "1"); tSpinSpd.current = 0.002; if (isPlaying) stopPlay(); }
       if (e.key === "?" && !showAdd && !editing && !showSettings) setShowShortcuts(v => !v);
       if (e.key === "f" && !showAdd && !editing && !showSettings) { setShowFilter(v => { if (v) { setMarkerFilter("all"); setLocationList(null); } return !v; }); }
       if (e.key === "i" && !showAdd && !editing && !showSettings) setShowStats(v => !v);
@@ -2454,14 +2479,16 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       const curDispatch = dispatchRef.current;
       if (files.length === 0 || !id) return;
       setUploading(true);
+      setUploadProgress({ done: 0, total: files.length });
 
       // Step 1: Upload files to Supabase storage
       const urls = [];
-      for (const file of files) {
+      for (let i = 0; i < files.length; i++) {
         try {
-          const url = await curDb.uploadPhoto(file, id);
+          const url = await curDb.uploadPhoto(files[i], id);
           if (url) urls.push(url);
         } catch (err) { /* skip failed uploads */ }
+        setUploadProgress({ done: i + 1, total: files.length });
       }
       if (urls.length === 0) { setUploading(false); input.value = ""; return; }
 
@@ -2570,7 +2597,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                   { key: "favorites", icon: "♥", label: "Favorites", count: favorites.length },
                   ...Object.entries(TYPES).map(([k, v]) => ({ key: k, icon: v.icon, label: v.label, count: data.entries.filter(e => e.type === k).length }))
                 ].filter(f => f.count > 0 || f.key === "favorites").map(f => (
-                  <button key={f.key} onClick={() => { setMarkerFilter(f.key); setShowFilter(false); }}
+                  <button key={f.key} onClick={() => { setMarkerFilter(f.key); setShowFilter(false); setListRenderLimit(100); }}
                     style={{ display: "flex", width: "100%", alignItems: "center", gap: 8, padding: "7px 12px", border: "none", borderBottom: `1px solid ${P.parchment}`, background: markerFilter === f.key ? P.blush : "transparent", cursor: "pointer", fontFamily: "inherit", fontSize: 9, color: markerFilter === f.key ? P.text : P.textMid, textAlign: "left" }}
                     onMouseEnter={e => { if (markerFilter !== f.key) e.currentTarget.style.background = P.lavMist; }}
                     onMouseLeave={e => { if (markerFilter !== f.key) e.currentTarget.style.background = "transparent"; }}
@@ -2588,7 +2615,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 <div style={{ padding: "6px 10px 4px", fontSize: 7, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", borderBottom: `1px solid ${P.parchment}`, position: "sticky", top: 0, background: P.card, zIndex: 1 }}>
                   {filteredList.length} {markerFilter === "all" ? "entries" : markerFilter === "favorites" ? "favorites" : (TYPES[markerFilter]?.label || "entries").toLowerCase()} · newest first
                 </div>
-                {filteredList.map(e => (
+                {filteredList.slice(0, listRenderLimit).map(e => (
                   <button key={e.id} onClick={() => {
                     setSelected(e); setPhotoIdx(0); setCardTab("overview"); setLocationList(null); setSliderDate(e.dateStart);
                     flyTo(e.lat, e.lng, 2.5);
@@ -2611,6 +2638,12 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                     {e.favorite && <span style={{ fontSize: 8, color: P.heart }}>♥</span>}
                   </button>
                 ))}
+                {filteredList.length > listRenderLimit && (
+                  <button onClick={() => setListRenderLimit(v => v + 100)}
+                    style={{ width: "100%", padding: "8px", border: "none", background: P.lavMist, cursor: "pointer", fontSize: 9, color: P.textMid, fontFamily: "inherit", letterSpacing: ".06em" }}>
+                    Show more ({filteredList.length - listRenderLimit} remaining)
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -2811,9 +2844,25 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(90px, 1fr))", gap: 4 }}>
                 {cur.photos.map((url, i) => (
-                  <div key={i} style={{ position: "relative" }}>
-                    <button onClick={() => { if (photoDeleteMode) { dispatch({ type: "REMOVE_PHOTO", id: cur.id, photoIndex: i }); setPhotoIdx(pi => pi >= i && pi > 0 ? pi - 1 : pi); showToast("Photo removed", "🗑", 2000); } else { setPhotoIdx(i); setCardGallery(false); setPhotoDeleteMode(false); } }} style={{ padding: 0, border: photoIdx === i ? `2px solid ${P.rose}` : "2px solid transparent", background: P.blush, cursor: "pointer", borderRadius: 6, overflow: "hidden", aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center", width: "100%", opacity: photoDeleteMode ? 0.7 : 1 }}>
-                      <img loading="lazy" src={url} alt="Travel photo" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", borderRadius: 4 }} />
+                  <div key={i} style={{ position: "relative" }}
+                    draggable={!photoDeleteMode && !isViewer}
+                    onDragStart={e => { photoDragRef.current.from = i; e.dataTransfer.effectAllowed = "move"; e.currentTarget.style.opacity = "0.4"; }}
+                    onDragEnd={e => { e.currentTarget.style.opacity = "1"; }}
+                    onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}
+                    onDrop={e => {
+                      e.preventDefault();
+                      const from = photoDragRef.current.from;
+                      if (from === i || from < 0) return;
+                      const reordered = [...cur.photos];
+                      const [moved] = reordered.splice(from, 1);
+                      reordered.splice(i, 0, moved);
+                      dispatch({ type: "UPDATE", id: cur.id, updates: { photos: reordered } });
+                      db.savePhotos(cur.id, reordered);
+                      showToast("Photos reordered", "↕️", 1500);
+                      photoDragRef.current.from = -1;
+                    }}>
+                    <button onClick={() => { if (photoDeleteMode) { dispatch({ type: "REMOVE_PHOTO", id: cur.id, photoIndex: i }); setPhotoIdx(pi => pi >= i && pi > 0 ? pi - 1 : pi); showToast("Photo removed", "🗑", 2000); } else { setPhotoIdx(i); setCardGallery(false); setPhotoDeleteMode(false); } }} style={{ padding: 0, border: photoIdx === i ? `2px solid ${P.rose}` : "2px solid transparent", background: P.blush, cursor: photoDeleteMode ? "pointer" : "grab", borderRadius: 6, overflow: "hidden", aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center", width: "100%", opacity: photoDeleteMode ? 0.7 : 1 }}>
+                      <img loading="lazy" src={url} alt="Travel photo" draggable={false} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", borderRadius: 4 }} />
                     </button>
                     {photoDeleteMode && <div style={{ position: "absolute", top: 2, right: 2, width: 16, height: 16, borderRadius: "50%", background: "#c9777a", color: "#fff", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>×</div>}
                   </div>
@@ -3170,8 +3219,11 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       {/* UPLOAD INDICATOR */}
       {uploading && (
         <div style={{ position: "absolute", top: 70, left: 0, right: 0, textAlign: "center", zIndex: 50, pointerEvents: "none" }}>
-          <div style={{ display: "inline-block", padding: "6px 18px", background: P.card, backdropFilter: "blur(12px)", borderRadius: 20, fontSize: 11, color: P.textMid, letterSpacing: ".1em", boxShadow: "0 4px 16px rgba(0,0,0,.08)" }}>
-            📷 Uploading photos...
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "6px 18px", background: P.card, backdropFilter: "blur(12px)", borderRadius: 20, fontSize: 11, color: P.textMid, letterSpacing: ".1em", boxShadow: "0 4px 16px rgba(0,0,0,.08)" }}>
+            <span>📷 Uploading {uploadProgress.total > 1 ? `${uploadProgress.done}/${uploadProgress.total}` : ""}...</span>
+            {uploadProgress.total > 1 && <div style={{ width: 60, height: 4, background: "rgba(255,255,255,.1)", borderRadius: 2, overflow: "hidden" }}>
+              <div style={{ width: `${(uploadProgress.done / uploadProgress.total) * 100}%`, height: "100%", background: P.rose, borderRadius: 2, transition: "width .3s ease" }} />
+            </div>}
           </div>
         </div>
       )}
@@ -3230,17 +3282,17 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       )}
 
       {showSettings && !isViewer && (
-        <div onClick={() => setShowSettings(false)} style={{ position: "absolute", inset: 0, zIndex: 45, background: `linear-gradient(135deg, rgba(22,16,40,.82), rgba(30,24,48,.88))`, backdropFilter: "blur(24px)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", animation: "fadeIn .3s ease" }}>
+        <div onClick={() => { flushConfigSave(); setShowSettings(false); }} style={{ position: "absolute", inset: 0, zIndex: 45, background: `linear-gradient(135deg, rgba(22,16,40,.82), rgba(30,24,48,.88))`, backdropFilter: "blur(24px)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", animation: "fadeIn .3s ease" }}>
           <div onClick={e => e.stopPropagation()} style={{ width: 400, maxHeight: "85vh", overflowY: "auto", padding: 30, background: P.card, borderRadius: 22, boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 24px 64px rgba(61,53,82,.1)", cursor: "default" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}><h3 style={{ margin: 0, fontSize: 16, fontWeight: 400, letterSpacing: ".06em" }}>Settings</h3><button onClick={() => setShowSettings(false)} style={{ background: "none", border: "none", fontSize: 17, color: P.textFaint, cursor: "pointer", transition: "color .2s" }}>×</button></div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}><h3 style={{ margin: 0, fontSize: 16, fontWeight: 400, letterSpacing: ".06em" }}>Settings</h3><button onClick={() => { flushConfigSave(); setShowSettings(false); }} style={{ background: "none", border: "none", fontSize: 17, color: P.textFaint, cursor: "pointer", transition: "color .2s" }}>×</button></div>
             <Fld l={isMyWorld ? "First Trip Date" : isPartnerWorld ? "Date You Met" : "First Trip Date"} v={config.startDate} t="date" set={v => setConfig({ startDate: v })} />
             <Fld l="Title" v={config.title} set={v => setConfig({ title: v })} />
             <Fld l="Subtitle" v={config.subtitle} set={v => setConfig({ subtitle: v })} />
             {isMyWorld
               ? <Fld l="Traveler Name" v={config.travelerName || ''} set={v => setConfig({ travelerName: v })} ph="Your name" />
               : <>
-                  <Fld l={isPartnerWorld ? "Your Name" : "Name / Group"} v={config.youName} set={v => setConfig({ youName: v })} ph={isPartnerWorld ? "Enter your name" : "e.g. The Squad, Sarah"} />
-                  <Fld l={isPartnerWorld ? "Partner's Name" : "& Friends / Family"} v={config.partnerName} set={v => setConfig({ partnerName: v })} ph={isPartnerWorld ? "Enter their name" : "e.g. & Co, & Jake"} />
+                  <Fld l={isPartnerWorld ? "Your Name" : worldType === "family" ? "Family Name" : "Your Name"} v={config.youName} set={v => setConfig({ youName: v })} ph={isPartnerWorld ? "Enter your name" : worldType === "family" ? "e.g. Bond, Smith" : "e.g. Sarah"} />
+                  <Fld l={isPartnerWorld ? "Partner's Name" : worldType === "family" ? "Members" : "Group / Friends"} v={config.partnerName} set={v => setConfig({ partnerName: v })} ph={isPartnerWorld ? "Enter their name" : worldType === "family" ? "e.g. Seth, Sarah, Mom, Dad" : "e.g. Jake, Alex & Co"} />
                 </>
             }
 
@@ -3345,6 +3397,86 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               </div>
             )}
 
+            {isSharedWorld && (
+              <>
+                <div style={{ margin: "14px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
+                <div style={{ fontSize: 8, color: P.textMid, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 6, fontWeight: 500 }}>Members</div>
+                {worldMembers.length > 0 ? (
+                  <div style={{ marginBottom: 8 }}>
+                    {worldMembers.map(m => (
+                      <div key={m.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 8px", borderBottom: `1px solid ${P.textFaint}12`, gap: 8 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 11, color: P.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.display_name || "Member"}{m.user_id === userId ? " (you)" : ""}</div>
+                          <div style={{ fontSize: 8, color: P.textFaint, textTransform: "uppercase", letterSpacing: ".08em" }}>{m.role}</div>
+                        </div>
+                        {worldRole === "owner" && m.user_id !== userId && (
+                          <div style={{ display: "flex", gap: 4 }}>
+                            <select value={m.role} onChange={async (e) => {
+                              const ok = await updateMemberRole(m.id, e.target.value);
+                              if (ok) { const members = await getWorldMembers(worldId); setWorldMembers(members); }
+                            }} style={{ padding: "2px 4px", background: `${P.parchment}`, border: `1px solid ${P.textFaint}30`, borderRadius: 4, fontSize: 9, color: P.textMid, fontFamily: "inherit" }}>
+                              <option value="owner">Owner</option>
+                              <option value="member">Member</option>
+                              <option value="viewer">Viewer</option>
+                            </select>
+                            <button onClick={async () => {
+                              if (!confirm(`Remove this member from the world?`)) return;
+                              const ok = await removeWorldMember(worldId, m.id);
+                              if (ok) { const members = await getWorldMembers(worldId); setWorldMembers(members); }
+                            }} style={{ background: "none", border: "none", color: "#c9777a", cursor: "pointer", fontSize: 11, padding: "0 4px" }}>×</button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 10, color: P.textFaint, marginBottom: 8 }}>Loading members...</div>
+                )}
+
+                <div style={{ margin: "14px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
+                <div style={{ fontSize: 8, color: P.textMid, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 6, fontWeight: 500 }}>World Management</div>
+                {worldRole === "owner" && (
+                  <button onClick={async () => {
+                    const newName = prompt("Rename this world:", worldName || "");
+                    if (!newName || !newName.trim() || newName.trim() === worldName) return;
+                    const ok = await updateWorld(worldId, { name: newName.trim() });
+                    if (ok) {
+                      localStorage.setItem('activeWorldName', newName.trim());
+                      window.location.reload();
+                    } else { alert("Failed to rename world."); }
+                  }} style={{ width: "100%", padding: "8px", background: `${P.parchment}`, border: `1px solid ${P.textFaint}30`, borderRadius: 8, cursor: "pointer", fontSize: 10, fontFamily: "inherit", color: P.textMid, marginBottom: 6, transition: "all .2s" }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = `${P.rose}40`; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = `${P.textFaint}30`; }}>
+                    Rename World
+                  </button>
+                )}
+                {worldRole === "owner" ? (
+                  <button onClick={async () => {
+                    if (!confirm(`Are you sure you want to permanently delete "${worldName}"? This cannot be undone. All entries, photos, and settings will be lost.`)) return;
+                    if (!confirm("This is permanent. Type the world name to confirm.")) return;
+                    const ok = await deleteWorld(worldId);
+                    if (ok) { flushConfigSave(); setShowSettings(false); onSwitchWorld(); }
+                    else { alert("Failed to delete world."); }
+                  }} style={{ width: "100%", padding: "8px", background: "transparent", border: "1px solid rgba(200,100,100,0.25)", borderRadius: 8, cursor: "pointer", fontSize: 10, fontFamily: "inherit", color: "#c97777", marginBottom: 6, transition: "all .2s" }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(200,100,100,0.5)"; e.currentTarget.style.background = "rgba(200,100,100,0.06)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(200,100,100,0.25)"; e.currentTarget.style.background = "transparent"; }}>
+                    Delete World
+                  </button>
+                ) : (
+                  <button onClick={async () => {
+                    if (!confirm(`Leave "${worldName}"? You'll lose access to this world.`)) return;
+                    const ok = await leaveWorld(worldId, userId);
+                    if (ok) { flushConfigSave(); setShowSettings(false); onSwitchWorld(); }
+                    else { alert("Failed to leave world."); }
+                  }} style={{ width: "100%", padding: "8px", background: "transparent", border: "1px solid rgba(200,160,100,0.25)", borderRadius: 8, cursor: "pointer", fontSize: 10, fontFamily: "inherit", color: "#c9a077", marginBottom: 6, transition: "all .2s" }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(200,160,100,0.5)"; e.currentTarget.style.background = "rgba(200,160,100,0.06)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(200,160,100,0.25)"; e.currentTarget.style.background = "transparent"; }}>
+                    Leave World
+                  </button>
+                )}
+              </>
+            )}
+
             <div style={{ margin: "10px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
             <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 6 }}>Data</div>
             <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
@@ -3357,7 +3489,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             </div>
             <div style={{ fontSize: 7, color: P.textFaint, fontStyle: "italic", marginBottom: 8 }}>Export saves all entries, photos, and settings as a JSON file</div>
 
-            <button onClick={() => setShowSettings(false)} style={{ width: "100%", padding: "11px", background: `linear-gradient(135deg, ${P.rose}, ${P.sky})`, color: "#fff", border: "none", borderRadius: 12, cursor: "pointer", fontSize: 11, fontFamily: "inherit", marginTop: 8, letterSpacing: ".06em", boxShadow: `0 2px 8px ${P.rose}30, 0 4px 16px ${P.rose}15`, transition: "all .25s" }}
+            <button onClick={() => { flushConfigSave(); setShowSettings(false); }} style={{ width: "100%", padding: "11px", background: `linear-gradient(135deg, ${P.rose}, ${P.sky})`, color: "#fff", border: "none", borderRadius: 12, cursor: "pointer", fontSize: 11, fontFamily: "inherit", marginTop: 8, letterSpacing: ".06em", boxShadow: `0 2px 8px ${P.rose}30, 0 4px 16px ${P.rose}15`, transition: "all .25s" }}
               onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = `0 4px 12px ${P.rose}40, 0 8px 24px ${P.rose}20`; }}
               onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = `0 2px 8px ${P.rose}30, 0 4px 16px ${P.rose}15`; }}>Done</button>
           </div>
@@ -3654,8 +3786,13 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       {showOnboarding && introComplete && data.entries.length === 0 && (() => {
         const steps = isSharedWorld && !isPartnerWorld ? [
           { title: `Welcome to ${worldName || "Your Shared World"}`,
-            body: "This is a shared travel globe. Every adventure you add together lights up your world as a glowing marker. Everyone in this world can add entries, photos, and memories.",
-            icon: "🌍", hint: "Your globe fills up as you add trips together" },
+            body: worldType === "family"
+              ? "This is your family's travel globe. Every trip, vacation, and reunion becomes a glowing marker. Everyone in the family can add entries, photos, and memories."
+              : worldType === "friends"
+              ? "This is your crew's travel globe. Group trips, meetups, and adventures all light up as markers. Everyone can add entries, photos, and memories."
+              : "This is a shared travel globe. Every adventure you add together lights up your world as a glowing marker. Everyone in this world can add entries, photos, and memories.",
+            icon: worldType === "family" ? "👨‍👩‍👧‍👦" : worldType === "friends" ? "👯" : "🌍",
+            hint: worldType === "family" ? "Every family adventure in one place" : worldType === "friends" ? "Your squad's adventures, all mapped out" : "Your globe fills up as you add trips together" },
           { title: "Navigate Your Globe",
             body: "Drag to spin the globe. Scroll to zoom in and out. Click any marker to open its details — photos, notes, memories, and more.",
             icon: "🖱", hint: "Try it! The globe is interactive" },

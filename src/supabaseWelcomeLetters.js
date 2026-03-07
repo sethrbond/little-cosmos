@@ -17,10 +17,12 @@ export async function getWelcomeLetter(email) {
 
 // Mark a welcome letter as read
 export async function markLetterRead(letterId) {
-  await supabase
+  const { error } = await supabase
     .from('welcome_letters')
     .update({ read: true, read_at: new Date().toISOString() })
     .eq('id', letterId)
+  if (error) console.error('[markLetterRead]', error)
+  return !error
 }
 
 // Send a welcome letter (from current user to a specific email)
@@ -52,8 +54,10 @@ export async function getMyLetters(userId) {
 
 // Delete a letter the current user wrote
 export async function deleteWelcomeLetter(letterId) {
-  await supabase
+  const { error } = await supabase
     .from('welcome_letters')
     .delete()
     .eq('id', letterId)
+  if (error) console.error('[deleteWelcomeLetter]', error)
+  return !error
 }

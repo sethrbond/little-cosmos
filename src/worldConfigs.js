@@ -7,7 +7,7 @@
 export const OUR_WORLD_PALETTE = {
   cream: "#faf7f5", warm: "#fdf8f5", parchment: "#f3ede8",
   blush: "#faf0f2", lavMist: "#f1edf8",
-  text: "#2e2440", textMid: "#584c6e", textMuted: "#8878a0", textFaint: "#b8aec8",
+  text: "#2e2440", textMid: "#584c6e", textMuted: "#7a6a94", textFaint: "#b8aec8",
   rose: "#c48aa8", roseLight: "#e4c0d4", roseSoft: "#d8a8c0",
   sky: "#8ca8c8", skyLight: "#b8d0e8", skySoft: "#a0bcd8",
   sage: "#90b080", gold: "#c8a060", goldWarm: "#dab470", lavender: "#a898c0",
@@ -56,7 +56,7 @@ export const OUR_WORLD_FIELDS = {
 export const MY_WORLD_PALETTE = {
   cream: "#f5f2ee", warm: "#f8f4ee", parchment: "#ece6de",
   blush: "#ede8e0", lavMist: "#e4e0d8",
-  text: "#24222c", textMid: "#484450", textMuted: "#747080", textFaint: "#a09ca8",
+  text: "#24222c", textMid: "#484450", textMuted: "#6c6876", textFaint: "#a09ca8",
   rose: "#b89058",       // warm amber accent (richer, deeper)
   roseLight: "#d0b080", roseSoft: "#c4a070",
   sky: "#6888a4",        // deeper slate blue
@@ -252,6 +252,10 @@ export const FRIENDS_DEFAULT_CONFIG = {
   startDate: "",
   title: "Friends World",
   subtitle: "adventures together",
+  youName: "",
+  partnerName: "",
+  loveLetter: "",
+  loveLetters: [],
   chapters: [],
   dreamDestinations: [],
   darkMode: false,
@@ -285,6 +289,10 @@ export const FAMILY_DEFAULT_CONFIG = {
   startDate: "",
   title: "Family World",
   subtitle: "family adventures",
+  youName: "",
+  partnerName: "",
+  loveLetter: "",
+  loveLetters: [],
   chapters: [],
   dreamDestinations: [],
   darkMode: false,

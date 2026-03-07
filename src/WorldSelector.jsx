@@ -84,6 +84,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
   // Invite from existing world
   const [inviteLink, setInviteLink] = useState("");
   const [inviteGenerating, setInviteGenerating] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [existingInviteEmail, setExistingInviteEmail] = useState("");
   const [existingInviteLetter, setExistingInviteLetter] = useState("");
   const [existingInviteRole, setExistingInviteRole] = useState("member");
@@ -132,7 +133,11 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     const typeColors = ORB_BY_TYPE[w.type] || ORB_BY_TYPE.shared;
     const orbit = ORB_ORBIT_PRESETS[i % ORB_ORBIT_PRESETS.length];
     // Build subtitle: prefer partner names, then config subtitle, then type-based default
-    const namesSub = (w.youName && w.partnerName) ? `${w.youName} & ${w.partnerName}` : null;
+    const namesSub = (w.youName && w.partnerName)
+      ? w.type === 'family' ? `The ${w.youName} Family`
+        : w.type === 'friends' ? `${w.youName}, ${w.partnerName} & friends`
+        : `${w.youName} & ${w.partnerName}`
+      : null;
     const configSub = w.subtitle || null;
     const typeDefaults = { partner: "every moment, every adventure", friends: "adventures together", family: "family adventures" };
     const roleBadge = w.role === "viewer" ? " (viewing)" : "";
@@ -558,7 +563,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     setInviteLink(""); setExistingInviteEmail(""); setExistingInviteLetter(""); setExistingInviteRole("member");
     setCosmosInviteEmail(""); setCosmosInviteLetter(""); setCosmosInviteSent(false);
     setFriendEmail(""); setFriendLetter(""); setFriendSent(false);
-    setInviteGenerating(false); setSentInvites([]);
+    setInviteGenerating(false); setSentInvites([]); setLinkCopied(false);
   };
 
   // Style constants
@@ -606,7 +611,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
             <div style={{ fontSize: 9, color: `${w.glowColor || w.color}`, marginTop: 2, letterSpacing: "0.5px", opacity: 0.7, textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}>{entryCounts[w.id]} {entryCounts[w.id] === 1 ? "entry" : "entries"}</div>
           )}
           {hovered === w.id && !w.id.startsWith("friend-") && (
-            <button onClick={(e) => { e.stopPropagation(); const ww = worlds.find(x => x.id === w.id); setShowInviteModal(ww); setInviteLink(""); setExistingInviteEmail(""); setExistingInviteLetter(""); getSentInvites(ww.id, userId).then(setSentInvites).catch(() => setSentInvites([])); }}
+            <button onClick={(e) => { e.stopPropagation(); const ww = worlds.find(x => x.id === w.id); if (!ww) return; setShowInviteModal(ww); setInviteLink(""); setExistingInviteEmail(""); setExistingInviteLetter(""); getSentInvites(ww.id, userId).then(setSentInvites).catch(() => setSentInvites([])); }}
               style={{ marginTop: 6, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 12, padding: "3px 10px", color: "#c0b8c8", fontSize: 9, fontFamily: F, cursor: "pointer", pointerEvents: "auto", letterSpacing: "0.5px" }}>
               Invite
             </button>
@@ -614,20 +619,28 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
         </div>
       ))}
 
-      {/* Pending requests notification — glassmorphic */}
-      {pendingRequests.length > 0 && (
-        <button onClick={(e) => { e.stopPropagation(); setShowPendingRequests(true); }}
-          style={{ position: "absolute", top: 16, left: 16, background: "rgba(200,170,110,0.10)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", border: "1px solid rgba(200,170,110,0.2)", borderRadius: 14, padding: "6px 14px", color: "#c9a96e", fontSize: 10, fontFamily: F, cursor: "pointer", opacity: ready ? 1 : 0, transition: "all .5s", zIndex: 10, letterSpacing: "0.6px", boxShadow: "0 2px 12px rgba(0,0,0,0.2)" }}>
-          {pendingRequests.length} sharing invite{pendingRequests.length > 1 ? "s" : ""}
-        </button>
-      )}
-
-      {/* Pending world invite notification — glassmorphic */}
-      {pendingWorldInvites.length > 0 && (
-        <button onClick={(e) => { e.stopPropagation(); setShowWorldInvites(true); }}
-          style={{ position: "absolute", top: pendingRequests.length > 0 ? 48 : 16, left: 16, background: "rgba(232,184,208,0.10)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", border: "1px solid rgba(232,184,208,0.2)", borderRadius: 14, padding: "6px 14px", color: "#e8b8d0", fontSize: 10, fontFamily: F, cursor: "pointer", opacity: ready ? 1 : 0, transition: "all .5s", zIndex: 10, letterSpacing: "0.6px", boxShadow: "0 2px 12px rgba(0,0,0,0.2)" }}>
-          {pendingWorldInvites.length} world invite{pendingWorldInvites.length > 1 ? "s" : ""}
-        </button>
+      {/* Notification badges — glassmorphic, top-left */}
+      {(pendingRequests.length > 0 || pendingWorldInvites.length > 0) && (
+        <div style={{ position: "absolute", top: 16, left: 16, display: "flex", flexDirection: "column", gap: 6, opacity: ready ? 1 : 0, transition: "all .5s", zIndex: 10 }}>
+          {pendingRequests.length > 0 && (
+            <button onClick={(e) => { e.stopPropagation(); setShowPendingRequests(true); }}
+              style={{ background: "rgba(200,170,110,0.10)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", border: "1px solid rgba(200,170,110,0.2)", borderRadius: 14, padding: "6px 14px", color: "#c9a96e", fontSize: 10, fontFamily: F, cursor: "pointer", letterSpacing: "0.6px", boxShadow: "0 2px 12px rgba(0,0,0,0.2)", display: "flex", alignItems: "center", gap: 6, transition: "all .3s" }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(200,170,110,0.4)"; e.currentTarget.style.background = "rgba(200,170,110,0.16)"; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(200,170,110,0.2)"; e.currentTarget.style.background = "rgba(200,170,110,0.10)"; }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#c9a96e", display: "inline-block", animation: "pulse 2s ease-in-out infinite" }} />
+              {pendingRequests.length} sharing invite{pendingRequests.length > 1 ? "s" : ""}
+            </button>
+          )}
+          {pendingWorldInvites.length > 0 && (
+            <button onClick={(e) => { e.stopPropagation(); setShowWorldInvites(true); }}
+              style={{ background: "rgba(232,184,208,0.10)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", border: "1px solid rgba(232,184,208,0.2)", borderRadius: 14, padding: "6px 14px", color: "#e8b8d0", fontSize: 10, fontFamily: F, cursor: "pointer", letterSpacing: "0.6px", boxShadow: "0 2px 12px rgba(0,0,0,0.2)", display: "flex", alignItems: "center", gap: 6, transition: "all .3s" }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(232,184,208,0.4)"; e.currentTarget.style.background = "rgba(232,184,208,0.16)"; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(232,184,208,0.2)"; e.currentTarget.style.background = "rgba(232,184,208,0.10)"; }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#e8b8d0", display: "inline-block", animation: "pulse 2s ease-in-out infinite" }} />
+              {pendingWorldInvites.length} world invite{pendingWorldInvites.length > 1 ? "s" : ""}
+            </button>
+          )}
+        </div>
       )}
 
       {/* Bottom controls — glassmorphic bar */}
@@ -898,7 +911,10 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
                 {generatedLink}
               </div>
               <div style={{ display: "flex", gap: 10, justifyContent: "center", marginBottom: 8 }}>
-                <button onClick={() => navigator.clipboard.writeText(generatedLink)} style={btnP}>Copy Link</button>
+                <button onClick={() => { navigator.clipboard.writeText(generatedLink); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2000); }}
+                  style={{ ...btnP, background: linkCopied ? "linear-gradient(135deg, #7ab87a, #5a9a5a)" : btnP.background, transition: "all .3s" }}>
+                  {linkCopied ? "Copied!" : "Copy Link"}
+                </button>
               </div>
               <div style={{ fontSize: 10, color: "#807888", marginBottom: 16 }}>
                 {inviteLetter ? "Your letter will appear when they first log in." : ""} Link expires in 7 days.
@@ -1036,6 +1052,9 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
                   </div>
                   <div style={{ fontSize: 10, color: "#807888", marginBottom: 8 }}>{inv.worldType === "partner" ? "Partner World" : inv.worldType === "friends" ? "Friends World" : inv.worldType === "family" ? "Family World" : "Shared World"}</div>
                   <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                    <button onClick={() => {
+                      if (onPendingWorldInvitesChange) onPendingWorldInvitesChange(prev => prev.filter((_, i) => i !== idx));
+                    }} style={{ ...btnS, padding: "5px 14px", fontSize: 11 }}>Decline</button>
                     <button onClick={async () => {
                       const result = await acceptInvite(inv.token);
                       if (result?.ok) {
@@ -1106,7 +1125,10 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
               <div style={{ ...inputSt, marginBottom: 12, textAlign: "left", wordBreak: "break-all", fontSize: 12, lineHeight: 1.5, background: "rgba(200,170,110,0.08)", borderColor: "rgba(200,170,110,0.25)" }}>
                 {inviteLink}
               </div>
-              <button onClick={() => navigator.clipboard.writeText(inviteLink)} style={{ ...btnP, marginBottom: 8 }}>Copy Link</button>
+              <button onClick={() => { navigator.clipboard.writeText(inviteLink); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2000); }}
+                style={{ ...btnP, marginBottom: 8, background: linkCopied ? "linear-gradient(135deg, #7ab87a, #5a9a5a)" : btnP.background, transition: "all .3s" }}>
+                {linkCopied ? "Copied!" : "Copy Link"}
+              </button>
               <div style={{ fontSize: 10, color: "#807888", marginTop: 4 }}>
                 {existingInviteLetter.trim() ? "Your letter will appear when they first log in. " : ""}Link expires in 7 days.
               </div>
@@ -1200,7 +1222,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
         );
       })()}
 
-      <style>{`@keyframes fadeIn{from{opacity:0}to{opacity:1}}`}</style>
+      <style>{`@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}`}</style>
     </div>
   );
 }

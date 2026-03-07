@@ -56,6 +56,19 @@ export default function WelcomeLetterScreen({ letter, onEnter }) {
 
         {/* Letter content */}
         <div style={{ position: "relative", zIndex: 1 }}>
+          {/* Wax seal */}
+          <div style={{
+            position: "absolute", top: -28, right: -12,
+            width: 48, height: 48, borderRadius: "50%",
+            background: "radial-gradient(circle at 35% 35%, #d4645a, #a03830 60%, #7a2822)",
+            boxShadow: "0 3px 10px rgba(120,30,20,0.4), inset 0 1px 2px rgba(255,200,180,0.3)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 20, color: "rgba(255,220,200,0.7)",
+            transform: "rotate(-12deg)",
+          }}>
+            {letter.from_name ? letter.from_name.charAt(0).toUpperCase() : "♥"}
+          </div>
+
           <div style={{
             fontSize: 15, color: "#3d3552", lineHeight: 2.0,
             whiteSpace: "pre-wrap", fontStyle: "italic",
@@ -65,8 +78,8 @@ export default function WelcomeLetterScreen({ letter, onEnter }) {
           </div>
 
           <div style={{
-            marginTop: 28, fontSize: 13, color: "#6b5e7e",
-            letterSpacing: "0.08em",
+            marginTop: 28, fontSize: 14, color: "#6b5e7e",
+            letterSpacing: "0.08em", fontWeight: 500,
           }}>
             — {letter.from_name || "Someone who loves you"}
           </div>

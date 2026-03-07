@@ -199,12 +199,12 @@ export async function loadConfig() {
 export async function saveConfig(config) {
   const row = {
     id: 'main',
-    start_date: config.startDate,
-    title: config.title,
-    subtitle: config.subtitle,
+    start_date: config.startDate || '',
+    title: config.title || '',
+    subtitle: config.subtitle || '',
     love_letter: config.loveLetter || '',
-    you_name: config.youName,
-    partner_name: config.partnerName,
+    you_name: config.youName || '',
+    partner_name: config.partnerName || '',
     metadata: {
       loveLetters: config.loveLetters || [],
       dreamDestinations: config.dreamDestinations || [],
@@ -311,10 +311,10 @@ export function createOurWorldDB(userId) {
     saveConfig: async (config) => {
       const row = {
         id: userId, user_id: userId,
-        start_date: config.startDate,
-        title: config.title, subtitle: config.subtitle,
+        start_date: config.startDate || '',
+        title: config.title || '', subtitle: config.subtitle || '',
         love_letter: config.loveLetter || '',
-        you_name: config.youName, partner_name: config.partnerName,
+        you_name: config.youName || '', partner_name: config.partnerName || '',
         metadata: {
           loveLetters: config.loveLetters || [],
           dreamDestinations: config.dreamDestinations || [],
@@ -426,10 +426,10 @@ export function createSharedWorldDB(worldId, userId) {
     saveConfig: async (config) => {
       const row = {
         id: worldId, user_id: userId, world_id: worldId,
-        start_date: config.startDate,
-        title: config.title, subtitle: config.subtitle,
+        start_date: config.startDate || '',
+        title: config.title || '', subtitle: config.subtitle || '',
         love_letter: config.loveLetter || '',
-        you_name: config.youName, partner_name: config.partnerName,
+        you_name: config.youName || '', partner_name: config.partnerName || '',
         metadata: {
           loveLetters: config.loveLetters || [],
           dreamDestinations: config.dreamDestinations || [],
