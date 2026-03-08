@@ -536,6 +536,13 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     }
   };
 
+  // Toast system
+  const [toast, setToast] = useState(null);
+  const showToast = useCallback((msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3000);
+  }, []);
+
   // Accept/decline pending requests
   const handleAcceptRequest = async (req) => {
     const result = await acceptConnection(req.id);
@@ -543,6 +550,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       if (onPendingRequestsChange) onPendingRequestsChange(prev => prev.filter(r => r.id !== req.id));
       const conn = await getMyConnections(userId);
       if (onConnectionsChange) onConnectionsChange(conn);
+      showToast(`You and ${req.requester_name || "your friend"} are now connected!`);
     } else {
       alert(result?.error || "Failed to accept request.");
     }
@@ -552,6 +560,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     const ok = await declineConnection(req.id);
     if (ok) {
       if (onPendingRequestsChange) onPendingRequestsChange(prev => prev.filter(r => r.id !== req.id));
+      showToast("Request declined.");
     }
   };
 
@@ -1287,6 +1296,23 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
           </div>
         );
       })()}
+
+      {/* Empty cosmos guidance — show when user has 0 shared worlds */}
+      {worlds.length === 0 && ready && (
+        <div style={{ position: "absolute", bottom: "18%", left: "50%", transform: "translateX(-50%)", textAlign: "center", opacity: 0, animation: "fadeIn 1.5s 2s forwards", pointerEvents: "none" }}>
+          <div style={{ fontSize: 13, color: "#a098a8", fontFamily: F, letterSpacing: "0.5px", lineHeight: 1.7 }}>
+            Your cosmos is just beginning.<br />
+            <span style={{ color: "#c9a96e" }}>Add a World</span> to start building it together.
+          </div>
+        </div>
+      )}
+
+      {/* Toast notification */}
+      {toast && (
+        <div style={{ position: "absolute", top: "10%", left: "50%", transform: "translateX(-50%)", background: "rgba(20,16,30,0.85)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", border: "1px solid rgba(200,170,110,0.25)", borderRadius: 16, padding: "12px 24px", color: "#e8e0d0", fontSize: 13, fontFamily: F, letterSpacing: "0.3px", boxShadow: "0 8px 32px rgba(0,0,0,0.4)", zIndex: 100, animation: "fadeIn 0.3s ease", pointerEvents: "none" }}>
+          {toast}
+        </div>
+      )}
 
       <style>{`@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}@keyframes notifySlideIn{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}`}</style>
     </div>

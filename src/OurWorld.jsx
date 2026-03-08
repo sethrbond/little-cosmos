@@ -1242,6 +1242,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [showSearch, setShowSearch] = useState(false);
   const [showLoveThread, setShowLoveThread] = useState(false);
   const [showConstellation, setShowConstellation] = useState(false);
+  const [showRoutes, setShowRoutes] = useState(false);
   const [showDreams, setShowDreams] = useState(false);
   const [cardTab, setCardTab] = useState("overview"); // overview, memories, places, photos
   // Comments & Reactions (shared/viewer worlds)
@@ -1258,6 +1259,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const auroraRef = useRef(null);
   const loveThreadRef = useRef([]);
   const constellationRef = useRef([]);
+  const routesRef = useRef([]);
   const mouseRef = useRef({ x: 0, y: 0 });
 
   // Theme colors (always light mode)
@@ -1279,7 +1281,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     return [...list].sort((a, b) => (b.dateStart || "").localeCompare(a.dateStart || "")); // newest first
   }, [data.entries, markerFilter]);
   const togetherList = useMemo(() => sorted.filter(e => e.who === "both"), [sorted]);
-  const firstBadges = useMemo(() => getFirstBadges(data.entries), [data.entries]);
+  const firstBadges = useMemo(() => isPartnerWorld ? getFirstBadges(data.entries) : {}, [data.entries, isPartnerWorld]);
   const memberNameMap = useMemo(() => Object.fromEntries(worldMembers.map(m => [m.user_id, m.display_name || "Member"])), [worldMembers]);
   const season = useMemo(() => seasonalHue(sliderDate, isMyWorld), [sliderDate, isMyWorld]);
 
@@ -1578,6 +1580,19 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     }
     return lines;
   }, [data.entries, showConstellation]);
+
+  // ---- TRAVEL ROUTES — chronological dotted paths between entries ----
+  const routeData = useMemo(() => {
+    if (!showRoutes) return [];
+    const s = sorted.filter(e => e.dateStart && e.dateStart <= sliderDate);
+    if (s.length < 2) return [];
+    const pairs = [];
+    for (let i = 1; i < s.length; i++) {
+      if (s[i].lat === s[i - 1].lat && s[i].lng === s[i - 1].lng) continue;
+      pairs.push({ from: s[i - 1], to: s[i] });
+    }
+    return pairs;
+  }, [sorted, showRoutes, sliderDate]);
 
   // ---- MONTHLY CHECK-IN PROMPT ----
   useEffect(() => {
@@ -2363,6 +2378,27 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       });
     }
 
+    // ---- TRAVEL ROUTES — dotted paths between sequential entries ----
+    routesRef.current.forEach(l => { g.remove(l); l.geometry?.dispose(); l.material?.dispose(); });
+    routesRef.current = [];
+    if (showRoutes) {
+      routeData.forEach(({ from, to }) => {
+        const f = ll2v(from.lat, from.lng, RAD * 1.025);
+        const t = ll2v(to.lat, to.lng, RAD * 1.025);
+        const mid = f.clone().add(t).multiplyScalar(0.5);
+        mid.normalize().multiplyScalar(RAD * 1.03 + f.distanceTo(t) * 0.12);
+        const curve = new THREE.QuadraticBezierCurve3(f, mid, t);
+        const pts = curve.getPoints(30);
+        const geom = new THREE.BufferGeometry().setFromPoints(pts);
+        const mat = new THREE.LineDashedMaterial({ color: isMyWorld ? "#a0c0a0" : P.sky, transparent: true, opacity: 0.55, dashSize: 0.02, gapSize: 0.015, depthTest: false });
+        const line = new THREE.Line(geom, mat);
+        line.computeLineDistances();
+        line.renderOrder = 1;
+        g.add(line);
+        routesRef.current.push(line);
+      });
+    }
+
     // ---- DREAM DESTINATIONS — ethereal ghost markers ----
     (config.dreamDestinations || []).forEach(dream => {
       mkRef.current.push(makeDot(g, dream.lat, dream.lng, P.goldWarm, 0.016, `dream-${dream.id}`, true, "dream"));
@@ -2374,7 +2410,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         mkRef.current.push(makeDot(g, letter.lat, letter.lng, "#e8a878", 0.018, `love-${letter.id}`, false, "love-letter"));
       });
     }
-  }, [sliderDate, data, getPositions, areTogether, locationGroups, selected, sceneReady, showLoveThread, loveThreadData, showConstellation, constellationData, config.dreamDestinations, config.loveLetters, isPartnerWorld, isMyWorld]);
+  }, [sliderDate, data, getPositions, areTogether, locationGroups, selected, sceneReady, showLoveThread, loveThreadData, showConstellation, constellationData, showRoutes, routeData, config.dreamDestinations, config.loveLetters, isPartnerWorld, isMyWorld]);
 
   function makeDot(group, lat, lng, color, size, id, faint = false, symbolType = null) {
     const p = ll2v(lat, lng, RAD * 1.012);
@@ -2688,6 +2724,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         {data.entries.length > 0 && <TBtn a={showSearch} onClick={() => setShowSearch(v => !v)} tip="Search Entries">🔍</TBtn>}
         {isPartnerWorld && togetherList.length > 1 && <TBtn a={showLoveThread} onClick={() => setShowLoveThread(v => !v)} tip="Love Thread">🧵</TBtn>}
         {data.entries.length > 2 && <TBtn a={showConstellation} onClick={() => setShowConstellation(v => !v)} tip="Constellation">⭐</TBtn>}
+        {sorted.length > 1 && <TBtn a={showRoutes} onClick={() => setShowRoutes(v => !v)} tip="Travel Routes">🛤</TBtn>}
         {<TBtn a={showDreams} onClick={() => setShowDreams(v => !v)} tip={isMyWorld ? "Bucket List" : isPartnerWorld ? "Dream Destinations" : "Wish List"}>{isMyWorld ? "🗺" : "✦"}</TBtn>}
         {(isPartnerWorld ? togetherList.length > 0 : sorted.length > 0) && !isPlaying && <TBtn onClick={playStory} tip={isPartnerWorld ? "Play Our Story" : "Play Story"}>▶</TBtn>}
         {isPlaying && <TBtn onClick={stopPlay} a tip="Stop Playback">⏹</TBtn>}
