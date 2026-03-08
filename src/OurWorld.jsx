@@ -1280,6 +1280,28 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     const list = markerFilter === "all" ? data.entries : markerFilter === "favorites" ? data.entries.filter(e => e.favorite) : data.entries.filter(e => e.type === markerFilter);
     return [...list].sort((a, b) => (b.dateStart || "").localeCompare(a.dateStart || "")); // newest first
   }, [data.entries, markerFilter]);
+  // Trip grouping — cluster entries within 3 days of each other
+  const tripGroups = useMemo(() => {
+    if (filteredList.length < 2) return null;
+    const groups = [];
+    let cur = [filteredList[0]];
+    for (let i = 1; i < filteredList.length; i++) {
+      const prev = cur[cur.length - 1];
+      const prevEnd = prev.dateEnd || prev.dateStart;
+      const gap = prevEnd && filteredList[i].dateStart ? Math.abs(daysBetween(prevEnd, filteredList[i].dateStart)) : 999;
+      if (gap <= 3) {
+        cur.push(filteredList[i]);
+      } else {
+        groups.push(cur);
+        cur = [filteredList[i]];
+      }
+    }
+    groups.push(cur);
+    // Only return if there are actual multi-entry trips
+    return groups.some(g => g.length > 1) ? groups : null;
+  }, [filteredList]);
+  const [collapsedTrips, setCollapsedTrips] = useState({});
+
   const togetherList = useMemo(() => sorted.filter(e => e.who === "both"), [sorted]);
   const firstBadges = useMemo(() => isPartnerWorld ? getFirstBadges(data.entries) : {}, [data.entries, isPartnerWorld]);
   const memberNameMap = useMemo(() => Object.fromEntries(worldMembers.map(m => [m.user_id, m.display_name || "Member"])), [worldMembers]);
@@ -1412,6 +1434,19 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     loadErrorRef.current = false;
     showToast("Settings couldn't load — using defaults", "⚠️", 5000);
   }, [introComplete, showToast]);
+
+  // ---- AUTO-FLY TO HOME on first visit ----
+  useEffect(() => {
+    if (!introComplete || !data.entries.length) return;
+    const flyKey = isSharedWorld ? `v2_cosmos_firstfly_${worldId}` : isMyWorld ? `v2_cosmos_firstfly_my_${userId}` : `v2_cosmos_firstfly_${userId}`;
+    if (localStorage.getItem(flyKey)) return;
+    localStorage.setItem(flyKey, "1");
+    // Find a home entry, or fall back to the first entry
+    const home = data.entries.find(e => e.type === "home") || data.entries[0];
+    if (home) {
+      setTimeout(() => flyTo(home.lat, home.lng, 2.8), 800);
+    }
+  }, [introComplete, data.entries, flyTo, isSharedWorld, isMyWorld, worldId, userId]);
 
   // ---- GUIDED FIRST VISIT TOASTS ----
   useEffect(() => {
@@ -2671,43 +2706,70 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 ))}
               </div>
             )}
-            {/* Scrollable chronological entry list */}
-            {filteredList.length > 0 && (
+            {/* Scrollable entry list — grouped by trip when possible */}
+            {filteredList.length > 0 && (() => {
+              const entryRow = (e) => (
+                <button key={e.id} onClick={() => {
+                  setSelected(e); setPhotoIdx(0); setCardTab("overview"); setLocationList(null); setSliderDate(e.dateStart);
+                  flyTo(e.lat, e.lng, 2.5);
+                }}
+                  style={{ display: "flex", width: "100%", alignItems: "center", gap: 8, padding: "6px 10px", border: "none", borderBottom: `1px solid ${P.parchment}60`, background: selected?.id === e.id ? P.blush : "transparent", cursor: "pointer", fontFamily: "inherit", textAlign: "left", transition: "background .15s" }}
+                  onMouseEnter={ev => { if (selected?.id !== e.id) ev.currentTarget.style.background = P.lavMist; }}
+                  onMouseLeave={ev => { if (selected?.id !== e.id) ev.currentTarget.style.background = "transparent"; }}
+                >
+                  <span style={{ fontSize: 12, flexShrink: 0 }}>{(TYPES[e.type] || {}).icon || "📍"}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 10, fontWeight: 400, color: P.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.city}</div>
+                    <div style={{ fontSize: 8, color: P.textFaint }}>{fmtDate(e.dateStart)}{e.dateEnd && e.dateEnd !== e.dateStart ? ` → ${fmtDate(e.dateEnd)}` : ""}</div>
+                  </div>
+                  {(e.photos || []).length > 0 && <span style={{ fontSize: 7, color: P.textFaint }}>📷{(e.photos || []).length}</span>}
+                  {isSharedWorld && e.addedBy && memberNameMap[e.addedBy] && (
+                    <div style={{ width: 16, height: 16, borderRadius: "50%", background: `linear-gradient(135deg, ${P.rose}35, ${P.sky}35)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 7, fontWeight: 600, color: P.text, flexShrink: 0 }} title={`Added by ${memberNameMap[e.addedBy]}`}>
+                      {memberNameMap[e.addedBy].charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  {e.favorite && <span style={{ fontSize: 8, color: P.heart }}>♥</span>}
+                </button>
+              );
+              return (
               <div style={{ marginTop: 6, background: P.card, backdropFilter: "blur(12px)", borderRadius: 10, border: `1px solid ${P.rose}10`, maxHeight: "calc(100vh - 340px)", overflowY: "auto", boxShadow: "0 4px 16px rgba(61,53,82,.06)" }}>
                 <div style={{ padding: "6px 10px 4px", fontSize: 7, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", borderBottom: `1px solid ${P.parchment}`, position: "sticky", top: 0, background: P.card, zIndex: 1 }}>
                   {filteredList.length} {markerFilter === "all" ? "entries" : markerFilter === "favorites" ? "favorites" : (TYPES[markerFilter]?.label || "entries").toLowerCase()} · newest first
                 </div>
-                {filteredList.slice(0, listRenderLimit).map(e => (
-                  <button key={e.id} onClick={() => {
-                    setSelected(e); setPhotoIdx(0); setCardTab("overview"); setLocationList(null); setSliderDate(e.dateStart);
-                    flyTo(e.lat, e.lng, 2.5);
-                  }}
-                    style={{ display: "flex", width: "100%", alignItems: "center", gap: 8, padding: "6px 10px", border: "none", borderBottom: `1px solid ${P.parchment}60`, background: selected?.id === e.id ? P.blush : "transparent", cursor: "pointer", fontFamily: "inherit", textAlign: "left", transition: "background .15s" }}
-                    onMouseEnter={ev => { if (selected?.id !== e.id) ev.currentTarget.style.background = P.lavMist; }}
-                    onMouseLeave={ev => { if (selected?.id !== e.id) ev.currentTarget.style.background = "transparent"; }}
-                  >
-                    <span style={{ fontSize: 12, flexShrink: 0 }}>{(TYPES[e.type] || {}).icon || "📍"}</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 10, fontWeight: 400, color: P.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.city}</div>
-                      <div style={{ fontSize: 8, color: P.textFaint }}>{fmtDate(e.dateStart)}{e.dateEnd && e.dateEnd !== e.dateStart ? ` → ${fmtDate(e.dateEnd)}` : ""}</div>
+                {tripGroups ? tripGroups.map((group, gi) => {
+                  if (group.length === 1) return entryRow(group[0]);
+                  const cities = [...new Set(group.map(e => e.city))];
+                  const countries = [...new Set(group.map(e => e.country).filter(Boolean))];
+                  const photos = group.reduce((s, e) => s + (e.photos || []).length, 0);
+                  const firstDate = group[group.length - 1].dateStart;
+                  const lastDate = group[0].dateEnd || group[0].dateStart;
+                  const collapsed = collapsedTrips[gi];
+                  const tripLabel = cities.length <= 3 ? cities.join(" → ") : `${cities[0]} + ${cities.length - 1} stops`;
+                  return (
+                    <div key={`trip-${gi}`}>
+                      <button onClick={() => setCollapsedTrips(p => ({ ...p, [gi]: !p[gi] }))}
+                        style={{ display: "flex", width: "100%", alignItems: "center", gap: 8, padding: "7px 10px", border: "none", borderBottom: `1px solid ${P.parchment}`, background: `linear-gradient(90deg, ${P.lavMist}, transparent)`, cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}>
+                        <span style={{ fontSize: 6, color: P.textMuted, flexShrink: 0 }}>{collapsed ? "▶" : "▼"}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 10, fontWeight: 500, color: P.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{tripLabel}</div>
+                          <div style={{ fontSize: 7, color: P.textFaint }}>{fmtDate(firstDate)} → {fmtDate(lastDate)} · {countries.join(", ")}</div>
+                        </div>
+                        <span style={{ fontSize: 7, color: P.textFaint, background: `${P.parchment}`, borderRadius: 8, padding: "1px 5px" }}>{group.length}</span>
+                        {photos > 0 && <span style={{ fontSize: 7, color: P.textFaint }}>📷{photos}</span>}
+                      </button>
+                      {!collapsed && group.map(e => entryRow(e))}
                     </div>
-                    {(e.photos || []).length > 0 && <span style={{ fontSize: 7, color: P.textFaint }}>📷{(e.photos || []).length}</span>}
-                    {isSharedWorld && e.addedBy && memberNameMap[e.addedBy] && (
-                      <div style={{ width: 16, height: 16, borderRadius: "50%", background: `linear-gradient(135deg, ${P.rose}35, ${P.sky}35)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 7, fontWeight: 600, color: P.text, flexShrink: 0 }} title={`Added by ${memberNameMap[e.addedBy]}`}>
-                        {memberNameMap[e.addedBy].charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                    {e.favorite && <span style={{ fontSize: 8, color: P.heart }}>♥</span>}
-                  </button>
-                ))}
-                {filteredList.length > listRenderLimit && (
+                  );
+                }) : filteredList.slice(0, listRenderLimit).map(e => entryRow(e))}
+                {!tripGroups && filteredList.length > listRenderLimit && (
                   <button onClick={() => setListRenderLimit(v => v + 100)}
                     style={{ width: "100%", padding: "8px", border: "none", background: P.lavMist, cursor: "pointer", fontSize: 9, color: P.textMid, fontFamily: "inherit", letterSpacing: ".06em" }}>
                     Show more ({filteredList.length - listRenderLimit} remaining)
                   </button>
                 )}
               </div>
-            )}
+              );
+            })()}
           </div>
         )}
       </div>
