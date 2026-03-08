@@ -1,14 +1,23 @@
 -- ============================================================
---  MY COSMOS — FULL DATABASE REBUILD
---  Run this in Supabase SQL Editor on a FRESH project
---  Created after accidental project deletion 2026-03-08
+--  MY COSMOS — COMPLETE DATABASE SETUP
+--  v2.0 | March 2026
 --
---  ORDER: Tables → Triggers → Indexes → RLS → Storage → Functions → Realtime
+--  IDEMPOTENT: Safe to run on fresh OR existing database.
+--  All CREATE use IF NOT EXISTS, all policies DROP before CREATE.
+--
+--  Run this ONE file in Supabase SQL Editor.
+--  It covers: Tables, Triggers, Indexes, RLS, Storage, Functions,
+--             Realtime, and Email triggers.
+--
+--  PREREQUISITES:
+--  - Enable pg_net extension (Database → Extensions) for emails
+--  - Add RESEND_API_KEY to Vault (Settings → Vault) for emails
+--  - Set Site URL to https://our-world-kohl.vercel.app (Auth → URL Config)
 -- ============================================================
 
 
 -- ============================================================
---  1. BASE FUNCTION (shared by all triggers)
+--  1. BASE FUNCTION (shared by all updated_at triggers)
 -- ============================================================
 
 CREATE OR REPLACE FUNCTION update_updated_at()
@@ -51,6 +60,7 @@ CREATE TABLE IF NOT EXISTS entries (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+DROP TRIGGER IF EXISTS entries_updated ON entries;
 CREATE TRIGGER entries_updated
   BEFORE UPDATE ON entries
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -74,6 +84,7 @@ CREATE TABLE IF NOT EXISTS config (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+DROP TRIGGER IF EXISTS config_updated ON config;
 CREATE TRIGGER config_updated
   BEFORE UPDATE ON config
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -107,6 +118,7 @@ CREATE TABLE IF NOT EXISTS my_entries (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+DROP TRIGGER IF EXISTS my_entries_updated ON my_entries;
 CREATE TRIGGER my_entries_updated
   BEFORE UPDATE ON my_entries
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -127,6 +139,7 @@ CREATE TABLE IF NOT EXISTS my_config (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+DROP TRIGGER IF EXISTS my_config_updated ON my_config;
 CREATE TRIGGER my_config_updated
   BEFORE UPDATE ON my_config
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -147,14 +160,10 @@ CREATE TABLE IF NOT EXISTS worlds (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE OR REPLACE FUNCTION update_worlds_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN NEW.updated_at = NOW(); RETURN NEW; END;
-$$ LANGUAGE plpgsql;
-
+DROP TRIGGER IF EXISTS worlds_updated_at ON worlds;
 CREATE TRIGGER worlds_updated_at
   BEFORE UPDATE ON worlds
-  FOR EACH ROW EXECUTE FUNCTION update_worlds_updated_at();
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 
 -- ============================================================
@@ -255,10 +264,9 @@ CREATE TABLE IF NOT EXISTS cosmos_connections (
 
 
 -- ============================================================
---  13. ADD FOREIGN KEYS (entries/config → worlds)
+--  13. FOREIGN KEYS (entries/config → worlds)
 -- ============================================================
 
--- These reference the worlds table which now exists
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.table_constraints
@@ -303,7 +311,7 @@ CREATE INDEX IF NOT EXISTS idx_cosmos_connections_target ON cosmos_connections(t
 
 
 -- ============================================================
---  15. ROW LEVEL SECURITY — Enable on all tables
+--  15. ENABLE ROW LEVEL SECURITY ON ALL TABLES
 -- ============================================================
 
 ALTER TABLE entries ENABLE ROW LEVEL SECURITY;
@@ -320,10 +328,97 @@ ALTER TABLE cosmos_connections ENABLE ROW LEVEL SECURITY;
 
 
 -- ============================================================
---  16. RLS POLICIES — entries (user's own + shared world)
+--  16. DROP ALL EXISTING POLICIES (safe — IF EXISTS)
+--  This makes the entire script re-runnable.
 -- ============================================================
 
--- Personal entries (user_id based, no world_id)
+-- entries (8)
+DROP POLICY IF EXISTS "entries_select" ON entries;
+DROP POLICY IF EXISTS "entries_insert" ON entries;
+DROP POLICY IF EXISTS "entries_update" ON entries;
+DROP POLICY IF EXISTS "entries_delete" ON entries;
+DROP POLICY IF EXISTS "entries_world_select" ON entries;
+DROP POLICY IF EXISTS "entries_world_insert" ON entries;
+DROP POLICY IF EXISTS "entries_world_update" ON entries;
+DROP POLICY IF EXISTS "entries_world_delete" ON entries;
+
+-- config (7)
+DROP POLICY IF EXISTS "config_select" ON config;
+DROP POLICY IF EXISTS "config_insert" ON config;
+DROP POLICY IF EXISTS "config_update" ON config;
+DROP POLICY IF EXISTS "config_world_select" ON config;
+DROP POLICY IF EXISTS "config_world_insert" ON config;
+DROP POLICY IF EXISTS "config_world_update" ON config;
+DROP POLICY IF EXISTS "config_world_delete" ON config;
+
+-- my_entries (5)
+DROP POLICY IF EXISTS "my_entries_select" ON my_entries;
+DROP POLICY IF EXISTS "my_entries_insert" ON my_entries;
+DROP POLICY IF EXISTS "my_entries_update" ON my_entries;
+DROP POLICY IF EXISTS "my_entries_delete" ON my_entries;
+DROP POLICY IF EXISTS "my_entries_friend_access" ON my_entries;
+
+-- my_config (4)
+DROP POLICY IF EXISTS "my_config_select" ON my_config;
+DROP POLICY IF EXISTS "my_config_insert" ON my_config;
+DROP POLICY IF EXISTS "my_config_update" ON my_config;
+DROP POLICY IF EXISTS "my_config_friend_access" ON my_config;
+
+-- worlds (4)
+DROP POLICY IF EXISTS "worlds_select" ON worlds;
+DROP POLICY IF EXISTS "worlds_insert" ON worlds;
+DROP POLICY IF EXISTS "worlds_update" ON worlds;
+DROP POLICY IF EXISTS "worlds_delete" ON worlds;
+
+-- world_members (4)
+DROP POLICY IF EXISTS "world_members_select" ON world_members;
+DROP POLICY IF EXISTS "world_members_insert" ON world_members;
+DROP POLICY IF EXISTS "world_members_update" ON world_members;
+DROP POLICY IF EXISTS "world_members_delete" ON world_members;
+
+-- world_invites (4)
+DROP POLICY IF EXISTS "world_invites_select" ON world_invites;
+DROP POLICY IF EXISTS "world_invites_insert" ON world_invites;
+DROP POLICY IF EXISTS "world_invites_update" ON world_invites;
+DROP POLICY IF EXISTS "world_invites_delete" ON world_invites;
+
+-- entry_comments (3)
+DROP POLICY IF EXISTS "entry_comments_select" ON entry_comments;
+DROP POLICY IF EXISTS "entry_comments_insert" ON entry_comments;
+DROP POLICY IF EXISTS "entry_comments_delete" ON entry_comments;
+
+-- entry_reactions (3)
+DROP POLICY IF EXISTS "entry_reactions_select" ON entry_reactions;
+DROP POLICY IF EXISTS "entry_reactions_insert" ON entry_reactions;
+DROP POLICY IF EXISTS "entry_reactions_delete" ON entry_reactions;
+
+-- welcome_letters (6)
+DROP POLICY IF EXISTS "letters_insert" ON welcome_letters;
+DROP POLICY IF EXISTS "letters_select_author" ON welcome_letters;
+DROP POLICY IF EXISTS "letters_update_author" ON welcome_letters;
+DROP POLICY IF EXISTS "letters_delete_author" ON welcome_letters;
+DROP POLICY IF EXISTS "letters_select_recipient" ON welcome_letters;
+DROP POLICY IF EXISTS "letters_update_recipient" ON welcome_letters;
+
+-- cosmos_connections (5)
+DROP POLICY IF EXISTS "connections_insert" ON cosmos_connections;
+DROP POLICY IF EXISTS "connections_select_requester" ON cosmos_connections;
+DROP POLICY IF EXISTS "connections_select_target" ON cosmos_connections;
+DROP POLICY IF EXISTS "connections_update_target" ON cosmos_connections;
+DROP POLICY IF EXISTS "connections_select_accepted" ON cosmos_connections;
+
+-- storage (3)
+DROP POLICY IF EXISTS "photos_read" ON storage.objects;
+DROP POLICY IF EXISTS "photos_upload" ON storage.objects;
+DROP POLICY IF EXISTS "photos_delete" ON storage.objects;
+
+
+-- ============================================================
+--  17. CREATE ALL POLICIES — entries (8)
+--  Personal entries: auth.uid() = user_id
+--  Shared world entries: member of world via world_members
+-- ============================================================
+
 CREATE POLICY "entries_select" ON entries FOR SELECT
   USING (auth.uid() = user_id);
 CREATE POLICY "entries_insert" ON entries FOR INSERT
@@ -333,7 +428,6 @@ CREATE POLICY "entries_update" ON entries FOR UPDATE
 CREATE POLICY "entries_delete" ON entries FOR DELETE
   USING (auth.uid() = user_id);
 
--- Shared world entries (world_id based)
 CREATE POLICY "entries_world_select" ON entries FOR SELECT USING (
   world_id IS NOT NULL AND
   world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid())
@@ -356,7 +450,7 @@ CREATE POLICY "entries_world_delete" ON entries FOR DELETE USING (
 
 
 -- ============================================================
---  17. RLS POLICIES — config
+--  18. CREATE ALL POLICIES — config (7)
 -- ============================================================
 
 CREATE POLICY "config_select" ON config FOR SELECT
@@ -385,7 +479,7 @@ CREATE POLICY "config_world_delete" ON config FOR DELETE USING (
 
 
 -- ============================================================
---  18. RLS POLICIES — my_entries / my_config
+--  19. CREATE ALL POLICIES — my_entries (5) + my_config (4)
 -- ============================================================
 
 CREATE POLICY "my_entries_select" ON my_entries FOR SELECT
@@ -422,83 +516,83 @@ CREATE POLICY "my_config_friend_access" ON my_config FOR SELECT USING (
 
 
 -- ============================================================
---  19. RLS POLICIES — worlds / members / invites
+--  20. CREATE ALL POLICIES — worlds (4) + members (4) + invites (4)
 -- ============================================================
 
-CREATE POLICY worlds_select ON worlds FOR SELECT USING (
+CREATE POLICY "worlds_select" ON worlds FOR SELECT USING (
   id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid())
 );
-CREATE POLICY worlds_insert ON worlds FOR INSERT WITH CHECK (
+CREATE POLICY "worlds_insert" ON worlds FOR INSERT WITH CHECK (
   created_by = auth.uid()
 );
-CREATE POLICY worlds_update ON worlds FOR UPDATE USING (
+CREATE POLICY "worlds_update" ON worlds FOR UPDATE USING (
   id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid() AND role = 'owner')
 );
-CREATE POLICY worlds_delete ON worlds FOR DELETE USING (
+CREATE POLICY "worlds_delete" ON worlds FOR DELETE USING (
   created_by = auth.uid()
 );
 
-CREATE POLICY world_members_select ON world_members FOR SELECT USING (
+CREATE POLICY "world_members_select" ON world_members FOR SELECT USING (
   world_id IN (SELECT wm.world_id FROM world_members wm WHERE wm.user_id = auth.uid())
 );
-CREATE POLICY world_members_insert ON world_members FOR INSERT WITH CHECK (
+CREATE POLICY "world_members_insert" ON world_members FOR INSERT WITH CHECK (
   user_id = auth.uid() OR
   world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid() AND role = 'owner')
 );
-CREATE POLICY world_members_delete ON world_members FOR DELETE USING (
-  user_id = auth.uid() OR
-  world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid() AND role = 'owner')
-);
-CREATE POLICY world_members_update ON world_members FOR UPDATE USING (
+CREATE POLICY "world_members_update" ON world_members FOR UPDATE USING (
   world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid() AND role = 'owner')
 ) WITH CHECK (
   world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid() AND role = 'owner')
 );
+CREATE POLICY "world_members_delete" ON world_members FOR DELETE USING (
+  user_id = auth.uid() OR
+  world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid() AND role = 'owner')
+);
 
-CREATE POLICY world_invites_select ON world_invites FOR SELECT USING (
+CREATE POLICY "world_invites_select" ON world_invites FOR SELECT USING (
   created_by = auth.uid() OR
   world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid())
 );
-CREATE POLICY world_invites_insert ON world_invites FOR INSERT WITH CHECK (
+CREATE POLICY "world_invites_insert" ON world_invites FOR INSERT WITH CHECK (
   world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid() AND role IN ('owner', 'member'))
 );
-CREATE POLICY world_invites_update ON world_invites FOR UPDATE USING (
+CREATE POLICY "world_invites_update" ON world_invites FOR UPDATE USING (
   world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid() AND role IN ('owner', 'member'))
 );
-CREATE POLICY world_invites_delete ON world_invites FOR DELETE USING (
+CREATE POLICY "world_invites_delete" ON world_invites FOR DELETE USING (
   created_by = auth.uid()
 );
 
 
 -- ============================================================
---  20. RLS POLICIES — comments / reactions
+--  21. CREATE ALL POLICIES — comments (3) + reactions (3)
 -- ============================================================
 
-CREATE POLICY entry_comments_select ON entry_comments FOR SELECT USING (
+CREATE POLICY "entry_comments_select" ON entry_comments FOR SELECT USING (
   world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid())
 );
-CREATE POLICY entry_comments_insert ON entry_comments FOR INSERT WITH CHECK (
+CREATE POLICY "entry_comments_insert" ON entry_comments FOR INSERT WITH CHECK (
   user_id = auth.uid() AND
   world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid())
 );
-CREATE POLICY entry_comments_delete ON entry_comments FOR DELETE USING (
+CREATE POLICY "entry_comments_delete" ON entry_comments FOR DELETE USING (
   user_id = auth.uid()
 );
 
-CREATE POLICY entry_reactions_select ON entry_reactions FOR SELECT USING (
+CREATE POLICY "entry_reactions_select" ON entry_reactions FOR SELECT USING (
   world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid())
 );
-CREATE POLICY entry_reactions_insert ON entry_reactions FOR INSERT WITH CHECK (
+CREATE POLICY "entry_reactions_insert" ON entry_reactions FOR INSERT WITH CHECK (
   user_id = auth.uid() AND
   world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid())
 );
-CREATE POLICY entry_reactions_delete ON entry_reactions FOR DELETE USING (
+CREATE POLICY "entry_reactions_delete" ON entry_reactions FOR DELETE USING (
   user_id = auth.uid()
 );
 
 
 -- ============================================================
---  21. RLS POLICIES — welcome_letters
+--  22. CREATE ALL POLICIES — welcome_letters (6)
 -- ============================================================
 
 CREATE POLICY "letters_insert" ON welcome_letters FOR INSERT
@@ -517,7 +611,7 @@ CREATE POLICY "letters_update_recipient" ON welcome_letters FOR UPDATE
 
 
 -- ============================================================
---  22. RLS POLICIES — cosmos_connections
+--  23. CREATE ALL POLICIES — cosmos_connections (5)
 -- ============================================================
 
 CREATE POLICY "connections_insert" ON cosmos_connections FOR INSERT
@@ -533,7 +627,7 @@ CREATE POLICY "connections_select_accepted" ON cosmos_connections FOR SELECT
 
 
 -- ============================================================
---  23. PHOTO STORAGE BUCKET
+--  24. PHOTO STORAGE BUCKET + POLICIES (3)
 -- ============================================================
 
 INSERT INTO storage.buckets (id, name, public)
@@ -549,7 +643,7 @@ CREATE POLICY "photos_delete" ON storage.objects
 
 
 -- ============================================================
---  24. HELPER FUNCTION: Accept world invite
+--  25. RPC FUNCTION: Accept world invite
 -- ============================================================
 
 CREATE OR REPLACE FUNCTION accept_world_invite(invite_token TEXT)
@@ -581,7 +675,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 
 -- ============================================================
---  25. HELPER FUNCTION: Accept friend connection
+--  26. RPC FUNCTION: Accept friend connection
 -- ============================================================
 
 CREATE OR REPLACE FUNCTION accept_cosmos_connection(connection_id UUID)
@@ -610,18 +704,30 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 
 -- ============================================================
---  26. REALTIME
+--  27. REALTIME (safe — ignores if already added)
 -- ============================================================
 
-ALTER PUBLICATION supabase_realtime ADD TABLE entries;
-ALTER PUBLICATION supabase_realtime ADD TABLE entry_comments;
-ALTER PUBLICATION supabase_realtime ADD TABLE entry_reactions;
+DO $$ BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE entries;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE entry_comments;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE entry_reactions;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 
 -- ============================================================
---  27. EMAIL TRIGGERS (requires pg_net extension enabled first)
---  If pg_net is not enabled, these will fail silently — that's OK,
---  you can re-run just this section after enabling pg_net.
+--  28. EMAIL TRIGGER: World invite (welcome_letters)
+--  Requires: pg_net extension + RESEND_API_KEY in Vault
+--  If pg_net is not enabled, this function is created but the
+--  net.http_post call will fail at runtime (silently returns NEW).
 -- ============================================================
 
 CREATE OR REPLACE FUNCTION notify_invite_email()
@@ -645,7 +751,7 @@ BEGIN
       "from": "My Cosmos <onboarding@resend.dev>",
       "to": ["%s"],
       "subject": "%s has invited you to My Cosmos",
-      "html": "<div style=\"font-family: Georgia, serif; max-width: 520px; margin: 0 auto; padding: 40px 24px; background: #0c0a12; color: #e8e0d0;\"><div style=\"text-align: center; margin-bottom: 32px;\"><div style=\"font-size: 12px; letter-spacing: 4px; color: #d0c8e0; text-transform: uppercase;\">My Cosmos</div></div><div style=\"background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 28px 24px; text-align: center;\"><div style=\"font-size: 18px; font-weight: 500; color: #e8e0d0; margin-bottom: 12px;\">%s sent you an invitation</div><div style=\"font-size: 13px; color: #a098a8; line-height: 1.8; margin-bottom: 20px;\">%s</div><a href=\"%s\" style=\"display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, rgba(200,170,110,0.2), rgba(200,170,110,0.1)); border: 1px solid rgba(200,170,110,0.3); border-radius: 24px; color: #c9a96e; text-decoration: none; font-size: 13px; letter-spacing: 1px;\">Open My Cosmos</a></div><div style=\"text-align: center; margin-top: 24px; font-size: 10px; color: #504858;\">A place to map your adventures on a beautiful 3D globe</div></div>"
+      "html": "<div style=\"font-family: Georgia, serif; max-width: 520px; margin: 0 auto; padding: 40px 24px; background: #0c0a12; color: #e8e0d0;\"><div style=\"text-align: center; margin-bottom: 32px;\"><div style=\"font-size: 28px; margin-bottom: 8px;\">&#10022;</div><div style=\"font-size: 11px; letter-spacing: 5px; color: #c9a96e; text-transform: uppercase;\">My Cosmos</div></div><div style=\"background: rgba(255,255,255,0.03); border: 1px solid rgba(200,170,110,0.15); border-radius: 16px; padding: 28px 24px; text-align: center;\"><div style=\"font-size: 18px; font-weight: 400; color: #e8e0d0; margin-bottom: 12px;\">%s sent you an invitation</div><div style=\"font-size: 13px; color: #a098a8; line-height: 1.8; margin-bottom: 20px;\">%s</div><a href=\"%s\" style=\"display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, rgba(200,170,110,0.25), rgba(200,170,110,0.1)); border: 1px solid rgba(200,170,110,0.4); border-radius: 24px; color: #c9a96e; text-decoration: none; font-size: 13px; letter-spacing: 1px;\">Open My Cosmos</a></div><div style=\"text-align: center; margin-top: 24px; font-size: 10px; color: #504858;\">A place to map your adventures on a beautiful 3D globe</div></div>"
     }',
     NEW.to_email,
     COALESCE(NEW.from_name, 'Someone'),
@@ -673,6 +779,11 @@ CREATE TRIGGER on_welcome_letter_send_email
   FOR EACH ROW
   EXECUTE FUNCTION notify_invite_email();
 
+
+-- ============================================================
+--  29. EMAIL TRIGGER: Friend connection request
+-- ============================================================
+
 CREATE OR REPLACE FUNCTION notify_connection_email()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -697,7 +808,7 @@ BEGIN
       "from": "My Cosmos <onboarding@resend.dev>",
       "to": ["%s"],
       "subject": "%s wants to share worlds with you on My Cosmos",
-      "html": "<div style=\"font-family: Georgia, serif; max-width: 520px; margin: 0 auto; padding: 40px 24px; background: #0c0a12; color: #e8e0d0;\"><div style=\"text-align: center; margin-bottom: 32px;\"><div style=\"font-size: 12px; letter-spacing: 4px; color: #d0c8e0; text-transform: uppercase;\">My Cosmos</div></div><div style=\"background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 28px 24px; text-align: center;\"><div style=\"font-size: 18px; font-weight: 500; color: #e8e0d0; margin-bottom: 12px;\">%s wants to share worlds</div><div style=\"font-size: 13px; color: #a098a8; line-height: 1.8; margin-bottom: 8px;\">Accept their invite and you will both see each other''s travel worlds in your cosmos.</div>%s<a href=\"%s\" style=\"display: inline-block; margin-top: 16px; padding: 12px 32px; background: linear-gradient(135deg, rgba(160,192,232,0.2), rgba(160,192,232,0.1)); border: 1px solid rgba(160,192,232,0.3); border-radius: 24px; color: #a0c0e8; text-decoration: none; font-size: 13px; letter-spacing: 1px;\">Open My Cosmos</a></div><div style=\"text-align: center; margin-top: 24px; font-size: 10px; color: #504858;\">A place to map your adventures on a beautiful 3D globe</div></div>"
+      "html": "<div style=\"font-family: Georgia, serif; max-width: 520px; margin: 0 auto; padding: 40px 24px; background: #0c0a12; color: #e8e0d0;\"><div style=\"text-align: center; margin-bottom: 32px;\"><div style=\"font-size: 28px; margin-bottom: 8px;\">&#10022;</div><div style=\"font-size: 11px; letter-spacing: 5px; color: #c9a96e; text-transform: uppercase;\">My Cosmos</div></div><div style=\"background: rgba(255,255,255,0.03); border: 1px solid rgba(200,170,110,0.15); border-radius: 16px; padding: 28px 24px; text-align: center;\"><div style=\"font-size: 18px; font-weight: 400; color: #e8e0d0; margin-bottom: 12px;\">%s wants to share worlds</div><div style=\"font-size: 13px; color: #a098a8; line-height: 1.8; margin-bottom: 8px;\">Accept their invite and you will both see each other''s travel worlds in your cosmos.</div>%s<a href=\"%s\" style=\"display: inline-block; margin-top: 16px; padding: 12px 32px; background: linear-gradient(135deg, rgba(160,192,232,0.25), rgba(160,192,232,0.1)); border: 1px solid rgba(160,192,232,0.3); border-radius: 24px; color: #a0c0e8; text-decoration: none; font-size: 13px; letter-spacing: 1px;\">Open My Cosmos</a></div><div style=\"text-align: center; margin-top: 24px; font-size: 10px; color: #504858;\">A place to map your adventures on a beautiful 3D globe</div></div>"
     }',
     NEW.target_email,
     from_name,
@@ -730,8 +841,29 @@ CREATE TRIGGER on_connection_send_email
 
 
 -- ============================================================
---  DONE! Verify with:
+--  30. CLEANUP: Remove orphaned data
 -- ============================================================
-SELECT table_name FROM information_schema.tables
-WHERE table_schema = 'public'
-ORDER BY table_name;
+
+DELETE FROM worlds WHERE id NOT IN (SELECT world_id FROM world_members);
+DELETE FROM config WHERE world_id IS NOT NULL AND world_id NOT IN (SELECT id FROM worlds);
+
+
+-- ============================================================
+--  31. VERIFY
+-- ============================================================
+
+-- Public policies (should be 53)
+SELECT tablename, policyname, cmd
+FROM pg_policies
+WHERE schemaname = 'public'
+ORDER BY tablename, policyname;
+
+-- Storage policies (should be 3)
+-- SELECT tablename, policyname, cmd
+-- FROM pg_policies
+-- WHERE schemaname = 'storage'
+-- ORDER BY policyname;
+
+-- Tables (should be 11)
+-- SELECT table_name FROM information_schema.tables
+-- WHERE table_schema = 'public' ORDER BY table_name;
