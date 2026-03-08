@@ -162,15 +162,8 @@ export default function CinematicOnboarding({ userId, onComplete }) {
     return () => clearTimeout(t)
   }, [phase])
 
-  // Phase 4 → 5: orbs float for a moment, then zoom into My World
-  useEffect(() => {
-    if (phase !== 4) return
-    const t = setTimeout(() => {
-      setPhase(5)
-      orbZoomRef.current = true
-    }, 2200)
-    return () => clearTimeout(t)
-  }, [phase])
+  // Phase 4: orbs float — user clicks "Explore My Cosmos" to proceed
+  // (no auto-advance — wait for user interaction)
 
   // Phase 5: zoom completes → transition to My World
   useEffect(() => {
@@ -235,7 +228,7 @@ export default function CinematicOnboarding({ userId, onComplete }) {
       {/* Starfield canvas */}
       <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0 }} />
 
-      {/* Phase 5: zoom overlay that grows from center orb */}
+      {/* Phase 5: zoom overlay — cosmos transition */}
       {phase === 5 && (
         <div style={{
           position: 'absolute', inset: 0, zIndex: 30,
@@ -245,9 +238,9 @@ export default function CinematicOnboarding({ userId, onComplete }) {
           <div style={{
             width: 60, height: 60,
             borderRadius: '50%',
-            background: 'radial-gradient(circle, #7ca8c4, #3a6080 60%, #121820)',
+            background: 'radial-gradient(circle, #c9a96e, #806030 60%, #0c0a12)',
             animation: 'orbZoomExpand 1.5s cubic-bezier(0.4, 0, 0.2, 1) forwards',
-            boxShadow: '0 0 80px rgba(124,168,196,0.6), 0 0 200px rgba(124,168,196,0.2)',
+            boxShadow: '0 0 80px rgba(200,170,110,0.4), 0 0 200px rgba(200,170,110,0.15)',
           }} />
         </div>
       )}
@@ -513,12 +506,13 @@ export default function CinematicOnboarding({ userId, onComplete }) {
             </div>
           ))}
 
-          {/* Subtle text */}
+          {/* "Explore My Cosmos" button — user-initiated */}
           <div style={{
             position: 'absolute', bottom: '15%', left: '50%',
             transform: 'translateX(-50%)',
             textAlign: 'center',
-            animation: 'cineSlideUp 1s ease 1s both',
+            animation: 'cineSlideUp 1s ease 1.2s both',
+            pointerEvents: 'auto',
           }}>
             <div style={{
               fontSize: 'clamp(16px, 3vw, 22px)',
@@ -526,16 +520,41 @@ export default function CinematicOnboarding({ userId, onComplete }) {
               letterSpacing: '0.12em',
               color: '#e8e0d0',
               textShadow: '0 0 30px rgba(200,170,110,0.15)',
-              marginBottom: 8,
+              marginBottom: 20,
             }}>
               Your cosmos awaits
             </div>
-            <div style={{
-              fontSize: 12, color: '#807888',
-              letterSpacing: '0.06em',
-            }}>
-              Entering your world...
-            </div>
+            <button
+              onClick={() => {
+                setPhase(5)
+                orbZoomRef.current = true
+              }}
+              style={{
+                padding: '14px 40px',
+                background: 'linear-gradient(135deg, rgba(200,170,110,0.18), rgba(200,170,110,0.08))',
+                border: '1px solid rgba(200,170,110,0.3)',
+                borderRadius: 28,
+                color: '#c9a96e',
+                fontSize: 15,
+                fontFamily: F,
+                cursor: 'pointer',
+                letterSpacing: '0.1em',
+                transition: 'all 0.4s ease',
+                boxShadow: '0 4px 24px rgba(200,170,110,0.1)',
+              }}
+              onMouseEnter={e => {
+                e.target.style.background = 'linear-gradient(135deg, rgba(200,170,110,0.3), rgba(200,170,110,0.15))'
+                e.target.style.boxShadow = '0 6px 36px rgba(200,170,110,0.2)'
+                e.target.style.transform = 'translateY(-2px)'
+              }}
+              onMouseLeave={e => {
+                e.target.style.background = 'linear-gradient(135deg, rgba(200,170,110,0.18), rgba(200,170,110,0.08))'
+                e.target.style.boxShadow = '0 4px 24px rgba(200,170,110,0.1)'
+                e.target.style.transform = 'none'
+              }}
+            >
+              Explore My Cosmos
+            </button>
           </div>
         </div>
       )}

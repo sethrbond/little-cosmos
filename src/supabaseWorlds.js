@@ -327,6 +327,30 @@ export async function getPendingWorldInvites(userEmail) {
   return results
 }
 
+// Find world invites associated with a specific welcome letter (by sender + time proximity)
+export async function getPendingWorldInvitesForLetter(letter) {
+  if (!letter?.from_user_id) return []
+  const { data: invites } = await supabase
+    .from('world_invites')
+    .select('token, world_id, max_uses, use_count, created_at, worlds(name, type)')
+    .eq('created_by', letter.from_user_id)
+  if (!invites || invites.length === 0) return []
+  const letterTime = new Date(letter.created_at).getTime()
+  const results = []
+  for (const inv of invites) {
+    if (inv.max_uses && inv.use_count >= inv.max_uses) continue
+    const diff = Math.abs(new Date(inv.created_at).getTime() - letterTime)
+    if (diff < 300000) { // within 5 minutes
+      results.push({
+        token: inv.token,
+        worldName: inv.worlds?.name || 'A Shared World',
+        worldType: inv.worlds?.type || 'shared',
+      })
+    }
+  }
+  return results
+}
+
 // ---- COMMENTS ----
 
 export async function loadComments(worldId, entryId) {

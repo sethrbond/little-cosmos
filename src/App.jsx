@@ -6,7 +6,7 @@ import OurWorld from './OurWorld.jsx'
 import WelcomeLetterScreen from './WelcomeLetterScreen.jsx'
 import CinematicOnboarding from './CinematicOnboarding.jsx'
 import { getWelcomeLetter, markLetterRead } from './supabaseWelcomeLetters.js'
-import { loadMyWorlds, loadMyWorldSubtitle, acceptInvite, getInviteInfo, getPendingWorldInvites } from './supabaseWorlds.js'
+import { loadMyWorlds, loadMyWorldSubtitle, acceptInvite, getInviteInfo, getPendingWorldInvites, getPendingWorldInvitesForLetter } from './supabaseWorlds.js'
 import { getPendingRequests, getMyConnections } from './supabaseConnections.js'
 
 function AppInner() {
@@ -88,8 +88,13 @@ function AppInner() {
           if (result?.ok) {
             loadMyWorlds(userId).then(w => {
               setWorlds(w)
-              const joined = w.find(x => x.id === result.world_id)
-              selectWorld('our', result.world_id, worldName, joined?.role || 'member', joined?.type || 'shared')
+              // If brand-new user, don't navigate — let cinematic play first.
+              // The world will appear on their cosmos screen after cinematic.
+              const isNewUser = !safeGet(`cosmos_hasVisited_${userId}`)
+              if (!isNewUser) {
+                const joined = w.find(x => x.id === result.world_id)
+                selectWorld('our', result.world_id, worldName, joined?.role || 'member', joined?.type || 'shared')
+              }
             })
           } else {
             alert(result?.error || 'Failed to accept invite.')
@@ -99,14 +104,19 @@ function AppInner() {
     }).catch(err => { console.error('[getInviteInfo]', err); alert('Could not load invite details. Please check your connection and try again.') })
   }, [invitePending, userId])
 
-  // Brand new users: show cinematic onboarding before entering My World
+  // Brand new users: show cinematic onboarding (always, regardless of how they arrived)
   useEffect(() => {
-    if (!userId || !worldsLoaded || worldMode) return
+    if (!userId || !worldsLoaded) return
     const hasVisited = safeGet(`cosmos_hasVisited_${userId}`)
     if (!hasVisited) {
+      // Clear any worldMode that invite processing might have set
+      if (worldMode) {
+        safeRemove('worldMode')
+        setWorldMode(null)
+      }
       setShowCinematic(true)
     }
-  }, [userId, worldsLoaded, worldMode])
+  }, [userId, worldsLoaded])
 
   // Dynamic document title
   useEffect(() => {
@@ -218,24 +228,39 @@ function AppInner() {
     return (
       <WelcomeLetterScreen
         letter={welcomeLetter}
-        onEnter={() => {
+        onEnter={async () => {
           markLetterRead(welcomeLetter.id).catch(err => console.error('[markLetterRead]', err))
+          // Auto-accept any world invite associated with this letter
+          try {
+            const invites = await getPendingWorldInvitesForLetter(welcomeLetter)
+            for (const inv of invites) {
+              const result = await acceptInvite(inv.token)
+              if (result?.ok) console.log('[welcomeLetter] auto-accepted invite to', inv.worldName)
+            }
+            // Refresh worlds list so the shared world appears on cosmos
+            if (userId) {
+              const w = await loadMyWorlds(userId)
+              setWorlds(w)
+            }
+          } catch (err) {
+            console.error('[welcomeLetter] auto-accept error:', err)
+          }
           setWelcomeLetter(null)
         }}
       />
     )
   }
 
-  // Cinematic onboarding for brand-new users
+  // Cinematic onboarding for brand-new users — lands on cosmos screen after
   if (showCinematic) {
     return (
       <CinematicOnboarding
         userId={userId}
         onComplete={() => {
           safeSet(`cosmos_hasVisited_${userId}`, '1')
-          safeSet(`cosmos_tour_done_${userId}`, '1')
           setShowCinematic(false)
-          selectWorld('my')
+          // worldMode stays null → user lands on cosmos screen
+          // Each world's own onboarding tour plays on first entry
         }}
       />
     )
