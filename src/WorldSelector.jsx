@@ -51,8 +51,9 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
   const dragRef = useRef({ dragging: false, moved: false, prevX: 0, prevY: 0 });
   const camAngleRef = useRef({ theta: 0.3, phi: 1.2, radius: 5.8 });
 
-  // Cosmos tour (first visit)
-  const [showCosmosTour, setShowCosmosTour] = useState(() => !localStorage.getItem("cosmos_tour_done"));
+  // Cosmos tour (first visit, per-user)
+  const cosmosTourKey = userId ? `cosmos_tour_done_${userId}` : "cosmos_tour_done";
+  const [showCosmosTour, setShowCosmosTour] = useState(() => !localStorage.getItem(userId ? `cosmos_tour_done_${userId}` : "cosmos_tour_done"));
   const [cosmosTourStep, setCosmosTourStep] = useState(0);
 
   // Modal states
@@ -714,7 +715,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
           onMouseLeave={e => { if (!showActivity) { e.target.style.color = "#706878"; e.target.style.borderColor = "rgba(255,255,255,0.06)"; }}}>
           Activity
         </button>
-        <button onClick={(e) => { e.stopPropagation(); setCosmosTourStep(0); setShowCosmosTour(true); localStorage.removeItem("cosmos_tour_done"); }}
+        <button onClick={(e) => { e.stopPropagation(); setCosmosTourStep(0); setShowCosmosTour(true); localStorage.removeItem(cosmosTourKey); }}
           style={{ background: "rgba(255,255,255,0.03)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "5px 14px", color: "#706878", fontSize: 9, fontFamily: F, letterSpacing: "0.8px", cursor: "pointer", transition: "all .3s", textTransform: "uppercase" }}
           onMouseEnter={e => { e.target.style.color = "#b0a8b8"; e.target.style.borderColor = "rgba(255,255,255,0.15)"; }}
           onMouseLeave={e => { e.target.style.color = "#706878"; e.target.style.borderColor = "rgba(255,255,255,0.06)"; }}>
@@ -1268,14 +1269,14 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
                 )}
                 <button onClick={() => {
                   if (cosmosTourStep < steps.length - 1) { setCosmosTourStep(s => s + 1); }
-                  else { setShowCosmosTour(false); localStorage.setItem("cosmos_tour_done", "1"); }
+                  else { setShowCosmosTour(false); localStorage.setItem(cosmosTourKey, "1"); }
                 }}
                   style={{ padding: "9px 24px", background: "linear-gradient(135deg, #c9a96e, #b8944f)", border: "none", borderRadius: 12, color: "#1a1520", fontSize: 13, fontWeight: 600, fontFamily: F, cursor: "pointer", boxShadow: "0 2px 12px rgba(200,170,110,0.2)" }}>
                   {cosmosTourStep < steps.length - 1 ? "Next" : "Explore My Cosmos"}
                 </button>
               </div>
               {cosmosTourStep === 0 && (
-                <button onClick={() => { setShowCosmosTour(false); localStorage.setItem("cosmos_tour_done", "1"); }}
+                <button onClick={() => { setShowCosmosTour(false); localStorage.setItem(cosmosTourKey, "1"); }}
                   style={{ marginTop: 14, background: "none", border: "none", color: "#605868", fontSize: 11, fontFamily: F, cursor: "pointer", letterSpacing: "0.3px" }}>
                   Skip tour
                 </button>

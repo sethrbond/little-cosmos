@@ -1192,7 +1192,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   // zoom tracked via zmR ref (used in animation loop directly)
   const [ready, setReady] = useState(false);
   const [introComplete, setIntroComplete] = useState(false);
-  const onboardKey = isSharedWorld ? `cosmos_onboarded_${worldId}` : isMyWorld ? "cosmos_onboarded_my" : "cosmos_onboarded";
+  const onboardKey = isSharedWorld ? `cosmos_onboarded_${worldId}` : isMyWorld ? `cosmos_onboarded_my_${userId}` : `cosmos_onboarded_${userId}`;
   const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem(onboardKey));
   const [onboardStep, setOnboardStep] = useState(0);
   const [showCelebration, setShowCelebration] = useState(false);
@@ -1414,7 +1414,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   // ---- GUIDED FIRST VISIT TOASTS ----
   useEffect(() => {
     if (!introComplete || showOnboarding || data.entries.length === 0) return;
-    const guidedKey = isSharedWorld ? `cosmos_guided_${worldId}` : isMyWorld ? "cosmos_guided_my" : "cosmos_guided";
+    const guidedKey = isSharedWorld ? `cosmos_guided_${worldId}` : isMyWorld ? `cosmos_guided_my_${userId}` : `cosmos_guided_${userId}`;
     if (localStorage.getItem(guidedKey)) return;
     const msgs = isMyWorld
       ? [["This is everywhere you've been", "🌍"], ["Click any marker to explore a memory", "📍"], ["Press ▶ to watch your story unfold", "▶"]]
@@ -3844,7 +3844,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       )}
 
       {/* ONBOARDING OVERLAY */}
-      {showOnboarding && introComplete && data.entries.length === 0 && (() => {
+      {showOnboarding && introComplete && (() => {
         const steps = isSharedWorld && !isPartnerWorld ? [
           { title: `Welcome to ${worldName || "Your Shared World"}`,
             body: worldType === "family"

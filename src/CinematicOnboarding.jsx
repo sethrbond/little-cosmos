@@ -4,16 +4,27 @@ import { createMyWorldDB } from './supabaseMyWorld.js'
 
 /* CinematicOnboarding.jsx — Immersive first-time experience
    Shown once for brand-new users before they enter their cosmos.
-   Starfield zoom → typography reveal → "Where's home?" → enter world */
+   Starfield zoom → typography reveal → "Where's home?" → orbs appear → zoom into My World */
 
 const F = "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif"
+
+// Floating orb definitions — My World center, two distant decorative orbs
+const ORBS = [
+  { id: 'my', label: 'My World', x: 50, y: 50, size: 54, color: '#7ca8c4', glow: 'rgba(124,168,196,0.35)', delay: 0 },
+  { id: 'deco1', label: '', x: 22, y: 38, size: 18, color: '#9070a8', glow: 'rgba(144,112,168,0.2)', delay: 0.3 },
+  { id: 'deco2', label: '', x: 76, y: 62, size: 14, color: '#c9a96e', glow: 'rgba(200,170,110,0.2)', delay: 0.5 },
+  { id: 'deco3', label: '', x: 35, y: 72, size: 11, color: '#e8b8d0', glow: 'rgba(232,184,208,0.15)', delay: 0.7 },
+  { id: 'deco4', label: '', x: 68, y: 30, size: 13, color: '#a0c0e8', glow: 'rgba(160,192,232,0.15)', delay: 0.6 },
+]
 
 export default function CinematicOnboarding({ userId, onComplete }) {
   const [phase, setPhase] = useState(0)
   // 0 = starfield zoom + title reveal
-  // 1 = subtitle + "where's home" prompt
+  // 1 = subtitle + "Begin" button
   // 2 = city search active
-  // 3 = city selected, saving + transitioning out
+  // 3 = city selected, brief confirmation
+  // 4 = text fades, orbs appear from starfield
+  // 5 = zoom into My World orb → transition out
   const canvasRef = useRef(null)
   const animRef = useRef(null)
   const [query, setQuery] = useState('')
@@ -21,6 +32,7 @@ export default function CinematicOnboarding({ userId, onComplete }) {
   const [selectedCity, setSelectedCity] = useState(null)
   const [saving, setSaving] = useState(false)
   const inputRef = useRef(null)
+  const orbZoomRef = useRef(false)
 
   // Star field animation
   useEffect(() => {
@@ -30,7 +42,6 @@ export default function CinematicOnboarding({ userId, onComplete }) {
     let W = window.innerWidth, H = window.innerHeight
     canvas.width = W; canvas.height = H
 
-    // Generate stars (fewer on mobile for performance)
     const isMobile = W < 768
     const stars = Array.from({ length: isMobile ? 200 : 400 }, () => ({
       x: (Math.random() - 0.5) * 2,
@@ -47,9 +58,14 @@ export default function CinematicOnboarding({ userId, onComplete }) {
       ctx.fillStyle = '#06040c'
       ctx.fillRect(0, 0, W, H)
 
-      // Accelerate over first 2 seconds, then cruise
-      if (t < 120) speed = 0.004 + (t / 120) * 0.012
-      else speed = 0.016
+      // Slow down stars during orb phase, speed up during zoom
+      if (orbZoomRef.current) {
+        speed = Math.min(speed + 0.002, 0.06)
+      } else if (t < 120) {
+        speed = 0.004 + (t / 120) * 0.012
+      } else {
+        speed = 0.016
+      }
 
       for (const star of stars) {
         star.z -= speed
@@ -65,7 +81,6 @@ export default function CinematicOnboarding({ userId, onComplete }) {
         const r = Math.max(0.3, star.size * scale)
         const alpha = Math.min(1, star.brightness * scale * 1.2)
 
-        // Draw star with glow
         ctx.save()
         ctx.globalAlpha = alpha * 0.3
         ctx.beginPath()
@@ -80,7 +95,6 @@ export default function CinematicOnboarding({ userId, onComplete }) {
         ctx.fill()
         ctx.restore()
 
-        // Streak effect for close stars
         if (star.z < 0.8) {
           const streakLen = (1 - star.z) * 15
           ctx.save()
@@ -97,7 +111,7 @@ export default function CinematicOnboarding({ userId, onComplete }) {
         }
       }
 
-      // Subtle nebula glow in center
+      // Nebula glow
       const gradient = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, W * 0.35)
       gradient.addColorStop(0, 'rgba(100, 60, 140, 0.04)')
       gradient.addColorStop(0.5, 'rgba(60, 40, 100, 0.02)')
@@ -121,7 +135,7 @@ export default function CinematicOnboarding({ userId, onComplete }) {
     }
   }, [])
 
-  // Phase progression timers
+  // Phase progression: auto-advance from 0 to 1
   useEffect(() => {
     const t1 = setTimeout(() => setPhase(1), 2800)
     return () => clearTimeout(t1)
@@ -129,7 +143,10 @@ export default function CinematicOnboarding({ userId, onComplete }) {
 
   // Focus input when phase 2 appears
   useEffect(() => {
-    if (phase === 2) setTimeout(() => inputRef.current?.focus(), 300)
+    if (phase === 2) {
+      const t = setTimeout(() => inputRef.current?.focus(), 300)
+      return () => clearTimeout(t)
+    }
   }, [phase])
 
   // Geocode search
@@ -137,6 +154,33 @@ export default function CinematicOnboarding({ userId, onComplete }) {
     if (!query || query.length < 2) { setResults([]); return }
     geocodeSearch(query, setResults)
   }, [query])
+
+  // Phase 3 → 4: city confirmation shows briefly, then orbs appear
+  useEffect(() => {
+    if (phase !== 3) return
+    const t = setTimeout(() => setPhase(4), 1800)
+    return () => clearTimeout(t)
+  }, [phase])
+
+  // Phase 4 → 5: orbs float for a moment, then zoom into My World
+  useEffect(() => {
+    if (phase !== 4) return
+    const t = setTimeout(() => {
+      setPhase(5)
+      orbZoomRef.current = true
+    }, 2200)
+    return () => clearTimeout(t)
+  }, [phase])
+
+  // Phase 5: zoom completes → transition to My World
+  useEffect(() => {
+    if (phase !== 5) return
+    const t = setTimeout(() => {
+      setSaving(false)
+      onComplete()
+    }, 1600)
+    return () => clearTimeout(t)
+  }, [phase, onComplete])
 
   const handleSelectCity = useCallback(async (city) => {
     if (!userId) return
@@ -173,18 +217,14 @@ export default function CinematicOnboarding({ userId, onComplete }) {
     } catch (err) {
       console.error('[onboarding] save home entry:', err)
     }
-
-    // Transition out after a beat
-    setTimeout(() => {
-      setSaving(false)
-      onComplete()
-    }, 2200)
-  }, [userId, onComplete])
+  }, [userId])
 
   const handleSkip = useCallback(() => {
-    setPhase(3)
-    setTimeout(() => onComplete(), 800)
-  }, [onComplete])
+    setPhase(4)
+  }, [])
+
+  // Whether text content (title, subtitle, search) should be visible
+  const showText = phase <= 3
 
   return (
     <div style={{
@@ -195,21 +235,32 @@ export default function CinematicOnboarding({ userId, onComplete }) {
       {/* Starfield canvas */}
       <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0 }} />
 
-      {/* Phase 3: fade out overlay */}
-      {phase === 3 && (
+      {/* Phase 5: zoom overlay that grows from center orb */}
+      {phase === 5 && (
         <div style={{
-          position: 'absolute', inset: 0, zIndex: 20,
-          background: '#06040c',
-          animation: 'cineFadeIn 1.5s ease forwards',
-        }} />
+          position: 'absolute', inset: 0, zIndex: 30,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          pointerEvents: 'none',
+        }}>
+          <div style={{
+            width: 60, height: 60,
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, #7ca8c4, #3a6080 60%, #121820)',
+            animation: 'orbZoomExpand 1.5s cubic-bezier(0.4, 0, 0.2, 1) forwards',
+            boxShadow: '0 0 80px rgba(124,168,196,0.6), 0 0 200px rgba(124,168,196,0.2)',
+          }} />
+        </div>
       )}
 
-      {/* Content overlay */}
+      {/* Content overlay — text phases */}
       <div style={{
         position: 'relative', zIndex: 10,
         display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center',
         height: '100%', padding: 20,
+        opacity: showText ? 1 : 0,
+        transition: 'opacity 0.8s ease',
+        pointerEvents: showText ? 'auto' : 'none',
       }}>
 
         {/* Phase 0+: Main title */}
@@ -233,7 +284,7 @@ export default function CinematicOnboarding({ userId, onComplete }) {
         </div>
 
         {/* Phase 1+: Subtitle + prompt */}
-        {phase >= 1 && (
+        {phase >= 1 && phase <= 2 && (
           <div style={{
             textAlign: 'center',
             animation: 'cineSlideUp 1.5s ease forwards',
@@ -322,7 +373,6 @@ export default function CinematicOnboarding({ userId, onComplete }) {
                 onBlur={e => e.target.style.borderColor = 'rgba(200,170,110,0.2)'}
               />
 
-              {/* Search results */}
               {results.length > 0 && (
                 <div style={{
                   position: 'absolute', top: '100%', left: 0, right: 0,
@@ -362,7 +412,6 @@ export default function CinematicOnboarding({ userId, onComplete }) {
               )}
             </div>
 
-            {/* Skip option */}
             <button
               onClick={handleSkip}
               style={{
@@ -376,7 +425,7 @@ export default function CinematicOnboarding({ userId, onComplete }) {
           </div>
         )}
 
-        {/* Phase 3: Selected city confirmation */}
+        {/* Phase 3: Selected city confirmation (brief) */}
         {phase === 3 && selectedCity && (
           <div style={{
             position: 'absolute', inset: 0,
@@ -419,6 +468,78 @@ export default function CinematicOnboarding({ userId, onComplete }) {
         )}
       </div>
 
+      {/* Phase 4+: Floating orbs emerge from the cosmos */}
+      {phase >= 4 && phase < 5 && (
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 15,
+          pointerEvents: 'none',
+        }}>
+          {ORBS.map((orb) => (
+            <div key={orb.id} style={{
+              position: 'absolute',
+              left: `${orb.x}%`, top: `${orb.y}%`,
+              transform: 'translate(-50%, -50%)',
+              animation: `orbAppear 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) ${orb.delay}s both, orbFloat 4s ease-in-out ${orb.delay + 1.2}s infinite`,
+            }}>
+              {/* Glow ring */}
+              <div style={{
+                position: 'absolute', inset: -orb.size * 0.4,
+                borderRadius: '50%',
+                background: `radial-gradient(circle, ${orb.glow}, transparent 70%)`,
+                animation: `orbPulse 3s ease-in-out ${orb.delay}s infinite`,
+              }} />
+              {/* Orb body */}
+              <div style={{
+                width: orb.size, height: orb.size,
+                borderRadius: '50%',
+                background: `radial-gradient(circle at 35% 35%, ${orb.color}dd, ${orb.color}60 50%, ${orb.color}20 80%)`,
+                boxShadow: `0 0 ${orb.size * 0.6}px ${orb.glow}, inset 0 -${orb.size * 0.15}px ${orb.size * 0.3}px rgba(0,0,0,0.3)`,
+                border: `1px solid ${orb.color}30`,
+              }} />
+              {/* Label for My World orb */}
+              {orb.label && (
+                <div style={{
+                  position: 'absolute', top: '100%', left: '50%',
+                  transform: 'translateX(-50%)',
+                  marginTop: 10,
+                  fontSize: 11, letterSpacing: '0.12em',
+                  color: '#c9d0dc', whiteSpace: 'nowrap',
+                  textShadow: '0 0 12px rgba(124,168,196,0.4)',
+                  animation: `cineSlideUp 0.8s ease ${orb.delay + 0.4}s both`,
+                }}>
+                  {orb.label}
+                </div>
+              )}
+            </div>
+          ))}
+
+          {/* Subtle text */}
+          <div style={{
+            position: 'absolute', bottom: '15%', left: '50%',
+            transform: 'translateX(-50%)',
+            textAlign: 'center',
+            animation: 'cineSlideUp 1s ease 1s both',
+          }}>
+            <div style={{
+              fontSize: 'clamp(16px, 3vw, 22px)',
+              fontWeight: 300,
+              letterSpacing: '0.12em',
+              color: '#e8e0d0',
+              textShadow: '0 0 30px rgba(200,170,110,0.15)',
+              marginBottom: 8,
+            }}>
+              Your cosmos awaits
+            </div>
+            <div style={{
+              fontSize: 12, color: '#807888',
+              letterSpacing: '0.06em',
+            }}>
+              Entering your world...
+            </div>
+          </div>
+        </div>
+      )}
+
       <style>{`
         @keyframes cineSlideUp {
           from { opacity: 0; transform: translateY(20px); }
@@ -435,6 +556,25 @@ export default function CinematicOnboarding({ userId, onComplete }) {
         @keyframes cineFloat {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-6px); }
+        }
+        @keyframes orbAppear {
+          0% { opacity: 0; transform: translate(-50%, -50%) scale(0); }
+          60% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+          100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+        @keyframes orbFloat {
+          0%, 100% { transform: translate(-50%, -50%) translateY(0); }
+          50% { transform: translate(-50%, -50%) translateY(-8px); }
+        }
+        @keyframes orbPulse {
+          0%, 100% { opacity: 0.6; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.08); }
+        }
+        @keyframes orbZoomExpand {
+          0% { transform: scale(1); opacity: 1; border-radius: 50%; }
+          40% { transform: scale(3); opacity: 1; border-radius: 50%; }
+          70% { transform: scale(12); opacity: 1; border-radius: 40%; }
+          100% { transform: scale(60); opacity: 1; border-radius: 0; }
         }
       `}</style>
     </div>
