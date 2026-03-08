@@ -1685,8 +1685,18 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   }, [sliderDate, togetherList, sorted, isPartnerWorld, isAnimating]);
 
   // ---- PLAY OUR STORY ----
+  // Cinema state for Play Story overlay
+  const [cinemaEntry, setCinemaEntry] = useState(null); // currently showing entry
+  const [cinemaPhotoIdx, setCinemaPhotoIdx] = useState(0); // cycle through photos
+  const [cinemaProgress, setCinemaProgress] = useState(0); // 0-1 progress
+  const [cinemaTotal, setCinemaTotal] = useState(0);
+  const [cinemaIdx, setCinemaIdx] = useState(0);
+  const [cinemaPhase, setCinemaPhase] = useState('fly'); // 'fly' | 'show' | 'transition'
+
   const stopPlay = useCallback(() => {
     setIsPlaying(false);
+    setCinemaEntry(null);
+    setCinemaPhase('fly');
     if (playRef.current) { clearTimeout(playRef.current); playRef.current = null; }
     tSpinSpd.current = 0.001;
   }, []);
@@ -1697,36 +1707,68 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     setIsPlaying(true);
     setSelected(null);
     setShowGallery(false);
+    setCinemaTotal(playList.length);
     let idx = 0;
 
     const step = () => {
-      if (idx >= playList.length) { stopPlay(); return; }
+      if (idx >= playList.length) { stopPlay(); showToast("Story complete", "✨", 3000); return; }
       const entry = playList[idx];
+      setCinemaIdx(idx);
+      setCinemaProgress(idx / playList.length);
+      setCinemaPhase('fly');
+      setCinemaEntry(entry);
+      setCinemaPhotoIdx(0);
       setSliderDate(entry.dateStart);
-
-      // Fly to
       flyTo(entry.lat, entry.lng, 2.4);
-      // spin stopped by flyTo
 
+      // After fly-to settles, show the full cinema card
       playRef.current = setTimeout(() => {
-        tSpinSpd.current = 0;
+        setCinemaPhase('show');
         setSelected(entry);
         setPhotoIdx(0);
         setCardTab("overview");
 
-        playRef.current = setTimeout(() => {
-          setSelected(null);
-          idx++;
-          if (idx < playList.length) {
-            tSpinSpd.current = 0.02; // gentle spin between entries
-            tZm.current = 3.2;
-            playRef.current = setTimeout(step, 1200);
-          } else { stopPlay(); }
-        }, 4500);
-      }, 1400);
+        // Cycle through photos during display
+        const photos = entry.photos || [];
+        if (photos.length > 1) {
+          let pIdx = 0;
+          const photoTimer = setInterval(() => {
+            pIdx = (pIdx + 1) % photos.length;
+            setCinemaPhotoIdx(pIdx);
+          }, 2000);
+          playRef.current = setTimeout(() => {
+            clearInterval(photoTimer);
+            setCinemaPhase('transition');
+            setSelected(null);
+            idx++;
+            if (idx < playList.length) {
+              tSpinSpd.current = 0.015;
+              tZm.current = 3.0;
+              playRef.current = setTimeout(step, 1000);
+            } else {
+              setCinemaProgress(1);
+              playRef.current = setTimeout(() => { stopPlay(); showToast("Story complete", "✨", 3000); }, 800);
+            }
+          }, Math.min(5000, 2000 + photos.length * 1200));
+        } else {
+          playRef.current = setTimeout(() => {
+            setCinemaPhase('transition');
+            setSelected(null);
+            idx++;
+            if (idx < playList.length) {
+              tSpinSpd.current = 0.015;
+              tZm.current = 3.0;
+              playRef.current = setTimeout(step, 1000);
+            } else {
+              setCinemaProgress(1);
+              playRef.current = setTimeout(() => { stopPlay(); showToast("Story complete", "✨", 3000); }, 800);
+            }
+          }, 4000);
+        }
+      }, 1600);
     };
     step();
-  }, [togetherList, sorted, isPartnerWorld, isPlaying, stopPlay]);
+  }, [togetherList, sorted, isPartnerWorld, isPlaying, stopPlay, showToast]);
 
   // Keyboard shortcuts (must be after stopPlay/playStory declarations)
   useEffect(() => {
@@ -3376,14 +3418,85 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         </div>
       )}
 
-      {/* PLAY MODE INDICATOR */}
-      {isPlaying && (
-        <div style={{ position: "absolute", top: 70, left: 0, right: 0, textAlign: "center", zIndex: 12, pointerEvents: "none" }}>
-          <div style={{ display: "inline-block", padding: "4px 16px", background: P.glass, backdropFilter: "blur(12px)", borderRadius: 20, fontSize: 10, color: P.heart, letterSpacing: ".15em", animation: "heartPulse 2s ease infinite" }}>
-            ▶ {isMyWorld ? "Playing My Story..." : "Playing Our Story..."}
+      {/* CINEMA OVERLAY — Play Our Story */}
+      {isPlaying && cinemaEntry && (() => {
+        const ce = cinemaEntry;
+        const ct = TYPES[ce.type] || DEFAULT_TYPE;
+        const photos = ce.photos || [];
+        const hasPhotos = photos.length > 0;
+        return (
+          <div style={{ position: "absolute", inset: 0, zIndex: 12, pointerEvents: "none" }}>
+            {/* Top bar: title + progress */}
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, padding: "16px 24px 12px", background: `linear-gradient(180deg, ${SC.bg || '#0c0a12'}cc, transparent)`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ fontSize: 8, letterSpacing: ".2em", color: P.goldWarm, textTransform: "uppercase", opacity: 0.7 }}>
+                  {isMyWorld ? "My Story" : isPartnerWorld ? "Our Story" : "Our Journey"}
+                </div>
+                <div style={{ fontSize: 9, color: P.textFaint }}>{cinemaIdx + 1} / {cinemaTotal}</div>
+              </div>
+              <button onClick={stopPlay} style={{ pointerEvents: "auto", background: P.glass, backdropFilter: "blur(12px)", border: `1px solid ${P.textFaint}20`, borderRadius: 16, padding: "4px 14px", fontSize: 9, color: P.textMid, cursor: "pointer", fontFamily: "inherit", transition: "all .2s" }}
+                onMouseEnter={e => e.currentTarget.style.borderColor = P.rose} onMouseLeave={e => e.currentTarget.style.borderColor = `${P.textFaint}20`}>
+                ⏹ Stop
+              </button>
+            </div>
+
+            {/* Progress bar */}
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `${P.textFaint}15`, zIndex: 2 }}>
+              <div style={{ height: "100%", background: `linear-gradient(90deg, ${P.goldWarm}, ${P.rose})`, width: `${cinemaProgress * 100}%`, transition: "width .8s ease", borderRadius: "0 1px 1px 0" }} />
+            </div>
+
+            {/* Bottom cinema card */}
+            <div style={{ position: "absolute", bottom: 90, left: 0, right: 0, display: "flex", justifyContent: "center" }}>
+              <div style={{
+                maxWidth: 440, width: "90vw", borderRadius: 18, overflow: "hidden",
+                background: P.card, backdropFilter: "blur(20px)",
+                boxShadow: `0 8px 32px ${SC.bg || '#0c0a12'}50`,
+                border: `1px solid ${P.rose}08`,
+                opacity: cinemaPhase === 'show' ? 1 : cinemaPhase === 'fly' ? 0 : 0,
+                transform: cinemaPhase === 'show' ? 'translateY(0)' : 'translateY(20px)',
+                transition: "all .6s cubic-bezier(0.16,1,0.3,1)",
+              }}>
+                {/* Photo with crossfade */}
+                {hasPhotos && (
+                  <div style={{ position: "relative", height: 180, overflow: "hidden" }}>
+                    {photos.map((url, i) => (
+                      <img key={url} src={url} alt="" style={{
+                        position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover",
+                        opacity: i === cinemaPhotoIdx ? 1 : 0,
+                        transition: "opacity 1s ease",
+                      }} />
+                    ))}
+                    {/* Photo gradient overlay */}
+                    <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 60, background: `linear-gradient(transparent, ${P.card})` }} />
+                    {photos.length > 1 && (
+                      <div style={{ position: "absolute", bottom: 8, right: 12, display: "flex", gap: 3 }}>
+                        {photos.slice(0, 8).map((_, i) => (
+                          <div key={i} style={{ width: 4, height: 4, borderRadius: 2, background: i === cinemaPhotoIdx ? P.goldWarm : `${P.textFaint}40`, transition: "background .4s" }} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Entry info */}
+                <div style={{ padding: hasPhotos ? "8px 20px 16px" : "18px 20px 16px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                    <span style={{ fontSize: 26, filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.15))" }}>{ct.icon}</span>
+                    <div>
+                      <div style={{ fontSize: 18, fontWeight: 400, color: P.text, letterSpacing: ".02em" }}>{ce.city}</div>
+                      <div style={{ fontSize: 10, color: P.textMuted, letterSpacing: ".03em" }}>
+                        {fmtDate(ce.dateStart)}{ce.dateEnd && ce.dateEnd !== ce.dateStart ? ` → ${fmtDate(ce.dateEnd)}` : ""}{ce.country ? `  ·  ${ce.country}` : ""}
+                      </div>
+                    </div>
+                  </div>
+                  {ce.notes && <p style={{ fontSize: 11, color: P.textMid, margin: "6px 0 0", lineHeight: 1.6, maxHeight: 36, overflow: "hidden", opacity: 0.85 }}>{ce.notes}</p>}
+                  {ce.loveNote && isPartnerWorld && <p style={{ fontSize: 10, color: P.heart, margin: "4px 0 0", fontStyle: "italic", opacity: 0.8 }}>"{ce.loveNote}"</p>}
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* DREAM DESTINATIONS PANEL */}
       {showDreams && (
