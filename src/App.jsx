@@ -233,6 +233,7 @@ function AppInner() {
         userId={userId}
         onComplete={() => {
           safeSet(`cosmos_hasVisited_${userId}`, '1')
+          safeSet(`cosmos_tour_done_${userId}`, '1')
           setShowCinematic(false)
           selectWorld('my')
         }}

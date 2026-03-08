@@ -158,7 +158,7 @@ Both entry tables have a BEFORE UPDATE trigger that sets `updated_at = NOW()`. I
 - Love Letters, Love Notes (Our World only)
 - Stats dashboard (adapted per world)
 - Search, favorites, filter, keyboard shortcuts
-- Dark mode (persists)
+- Dark mode NOT IMPLEMENTED (was planned, never built — app is light-only with cosmic dark aesthetic already)
 - Custom color palette (10 pickers, persists)
 - World selector ("My Cosmos") with orbital camera
 - Import/export JSON backup

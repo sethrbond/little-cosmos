@@ -654,24 +654,24 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
         </div>
       ))}
 
-      {/* Notification badges — glassmorphic, top-left */}
+      {/* Notification badges — prominent, top-left */}
       {(pendingRequests.length > 0 || pendingWorldInvites.length > 0) && (
-        <div style={{ position: "absolute", top: 16, left: 16, display: "flex", flexDirection: "column", gap: 6, opacity: ready ? 1 : 0, transition: "all .5s", zIndex: 10 }}>
+        <div style={{ position: "absolute", top: 16, left: 16, display: "flex", flexDirection: "column", gap: 8, opacity: ready ? 1 : 0, transition: "all .5s", zIndex: 10 }}>
           {pendingRequests.length > 0 && (
             <button onClick={(e) => { e.stopPropagation(); setShowPendingRequests(true); }}
-              style={{ background: "rgba(200,170,110,0.10)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", border: "1px solid rgba(200,170,110,0.2)", borderRadius: 14, padding: "6px 14px", color: "#c9a96e", fontSize: 10, fontFamily: F, cursor: "pointer", letterSpacing: "0.6px", boxShadow: "0 2px 12px rgba(0,0,0,0.2)", display: "flex", alignItems: "center", gap: 6, transition: "all .3s" }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(200,170,110,0.4)"; e.currentTarget.style.background = "rgba(200,170,110,0.16)"; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(200,170,110,0.2)"; e.currentTarget.style.background = "rgba(200,170,110,0.10)"; }}>
-              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#c9a96e", display: "inline-block", animation: "pulse 2s ease-in-out infinite" }} />
-              {pendingRequests.length} sharing invite{pendingRequests.length > 1 ? "s" : ""}
+              style={{ background: "rgba(200,170,110,0.15)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", border: "1px solid rgba(200,170,110,0.35)", borderRadius: 16, padding: "10px 18px", color: "#c9a96e", fontSize: 12, fontFamily: F, cursor: "pointer", letterSpacing: "0.5px", boxShadow: "0 4px 20px rgba(200,170,110,0.15), 0 2px 8px rgba(0,0,0,0.3)", display: "flex", alignItems: "center", gap: 8, transition: "all .3s", animation: "notifySlideIn 0.6s ease forwards" }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(200,170,110,0.5)"; e.currentTarget.style.background = "rgba(200,170,110,0.22)"; e.currentTarget.style.transform = "scale(1.03)"; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(200,170,110,0.35)"; e.currentTarget.style.background = "rgba(200,170,110,0.15)"; e.currentTarget.style.transform = "scale(1)"; }}>
+              <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#c9a96e", display: "inline-block", animation: "pulse 1.5s ease-in-out infinite", boxShadow: "0 0 6px rgba(200,170,110,0.6)" }} />
+              {pendingRequests.length} friend request{pendingRequests.length > 1 ? "s" : ""}
             </button>
           )}
           {pendingWorldInvites.length > 0 && (
             <button onClick={(e) => { e.stopPropagation(); setShowWorldInvites(true); }}
-              style={{ background: "rgba(232,184,208,0.10)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", border: "1px solid rgba(232,184,208,0.2)", borderRadius: 14, padding: "6px 14px", color: "#e8b8d0", fontSize: 10, fontFamily: F, cursor: "pointer", letterSpacing: "0.6px", boxShadow: "0 2px 12px rgba(0,0,0,0.2)", display: "flex", alignItems: "center", gap: 6, transition: "all .3s" }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(232,184,208,0.4)"; e.currentTarget.style.background = "rgba(232,184,208,0.16)"; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(232,184,208,0.2)"; e.currentTarget.style.background = "rgba(232,184,208,0.10)"; }}>
-              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#e8b8d0", display: "inline-block", animation: "pulse 2s ease-in-out infinite" }} />
+              style={{ background: "rgba(232,184,208,0.15)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", border: "1px solid rgba(232,184,208,0.35)", borderRadius: 16, padding: "10px 18px", color: "#e8b8d0", fontSize: 12, fontFamily: F, cursor: "pointer", letterSpacing: "0.5px", boxShadow: "0 4px 20px rgba(232,184,208,0.15), 0 2px 8px rgba(0,0,0,0.3)", display: "flex", alignItems: "center", gap: 8, transition: "all .3s", animation: "notifySlideIn 0.8s ease forwards" }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(232,184,208,0.5)"; e.currentTarget.style.background = "rgba(232,184,208,0.22)"; e.currentTarget.style.transform = "scale(1.03)"; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(232,184,208,0.35)"; e.currentTarget.style.background = "rgba(232,184,208,0.15)"; e.currentTarget.style.transform = "scale(1)"; }}>
+              <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#e8b8d0", display: "inline-block", animation: "pulse 1.5s ease-in-out infinite", boxShadow: "0 0 6px rgba(232,184,208,0.6)" }} />
               {pendingWorldInvites.length} world invite{pendingWorldInvites.length > 1 ? "s" : ""}
             </button>
           )}
@@ -691,7 +691,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
             style={{ background: "rgba(160,192,232,0.06)", border: "1px solid rgba(160,192,232,0.15)", borderRadius: 16, padding: "7px 18px", color: "#a0c0e8", fontSize: 10, fontFamily: F, letterSpacing: "1px", cursor: "pointer", transition: "all .3s" }}
             onMouseEnter={e => { e.target.style.borderColor = "rgba(160,192,232,0.35)"; }}
             onMouseLeave={e => { e.target.style.borderColor = "rgba(160,192,232,0.15)"; }}>
-            Share Worlds
+            Add a Friend
           </button>
           <button onClick={(e) => { e.stopPropagation(); setShowInviteCosmos(true); }}
             style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 16, padding: "7px 18px", color: "#908898", fontSize: 10, fontFamily: F, letterSpacing: "1px", cursor: "pointer", transition: "all .3s" }}
@@ -1034,9 +1034,9 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
         <div style={modalBg} onClick={(e) => { e.stopPropagation(); closeAllModals(); }}>
           <div style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
             {!friendSent ? (<>
-              <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Share Worlds</div>
+              <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Add a Friend</div>
               <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 20 }}>
-                Send an invite to share worlds with a friend. Once both of you approve, your worlds will appear in each other's cosmos.
+                Connect with a friend so you can see each other's worlds orbiting in your cosmos.
               </div>
               <input value={friendEmail} onChange={e => setFriendEmail(e.target.value)}
                 placeholder="Their email address"
@@ -1288,7 +1288,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
         );
       })()}
 
-      <style>{`@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}`}</style>
+      <style>{`@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}@keyframes notifySlideIn{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}`}</style>
     </div>
   );
 }
