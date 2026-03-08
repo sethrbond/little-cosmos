@@ -280,25 +280,14 @@ CREATE TABLE IF NOT EXISTS cosmos_connections (
 --  13. FOREIGN KEYS (entries/config → worlds)
 -- ============================================================
 
-DO $$ BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.table_constraints
-    WHERE constraint_name = 'entries_world_id_fkey'
-  ) THEN
-    ALTER TABLE entries ADD CONSTRAINT entries_world_id_fkey
-      FOREIGN KEY (world_id) REFERENCES worlds(id);
-  END IF;
-END $$;
+-- Drop and recreate with CASCADE to match other world-linked tables
+ALTER TABLE entries DROP CONSTRAINT IF EXISTS entries_world_id_fkey;
+ALTER TABLE entries ADD CONSTRAINT entries_world_id_fkey
+  FOREIGN KEY (world_id) REFERENCES worlds(id) ON DELETE CASCADE;
 
-DO $$ BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.table_constraints
-    WHERE constraint_name = 'config_world_id_fkey'
-  ) THEN
-    ALTER TABLE config ADD CONSTRAINT config_world_id_fkey
-      FOREIGN KEY (world_id) REFERENCES worlds(id);
-  END IF;
-END $$;
+ALTER TABLE config DROP CONSTRAINT IF EXISTS config_world_id_fkey;
+ALTER TABLE config ADD CONSTRAINT config_world_id_fkey
+  FOREIGN KEY (world_id) REFERENCES worlds(id) ON DELETE CASCADE;
 
 
 -- ============================================================
