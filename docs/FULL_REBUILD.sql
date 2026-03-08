@@ -28,6 +28,19 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Helper: get user's world IDs bypassing RLS (prevents infinite recursion
+-- in world_members policies that would otherwise self-reference)
+CREATE OR REPLACE FUNCTION get_user_world_ids(uid UUID)
+RETURNS SETOF UUID AS $$
+  SELECT world_id FROM world_members WHERE user_id = uid;
+$$ LANGUAGE sql SECURITY DEFINER STABLE;
+
+-- Helper: get user's world IDs filtered by role (bypasses RLS)
+CREATE OR REPLACE FUNCTION get_user_world_ids_by_role(uid UUID, allowed_roles TEXT[])
+RETURNS SETOF UUID AS $$
+  SELECT world_id FROM world_members WHERE user_id = uid AND role = ANY(allowed_roles);
+$$ LANGUAGE sql SECURITY DEFINER STABLE;
+
 
 -- ============================================================
 --  2. ENTRIES TABLE (Our World / Shared Worlds)
@@ -430,22 +443,22 @@ CREATE POLICY "entries_delete" ON entries FOR DELETE
 
 CREATE POLICY "entries_world_select" ON entries FOR SELECT USING (
   world_id IS NOT NULL AND
-  world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid())
+  world_id IN (SELECT get_user_world_ids(auth.uid()))
 );
 CREATE POLICY "entries_world_insert" ON entries FOR INSERT WITH CHECK (
   world_id IS NOT NULL AND
-  world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid() AND role IN ('owner', 'member'))
+  world_id IN (SELECT get_user_world_ids_by_role(auth.uid(), ARRAY['owner', 'member']))
 );
 CREATE POLICY "entries_world_update" ON entries FOR UPDATE USING (
   world_id IS NOT NULL AND
-  world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid() AND role IN ('owner', 'member'))
+  world_id IN (SELECT get_user_world_ids_by_role(auth.uid(), ARRAY['owner', 'member']))
 ) WITH CHECK (
   world_id IS NOT NULL AND
-  world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid() AND role IN ('owner', 'member'))
+  world_id IN (SELECT get_user_world_ids_by_role(auth.uid(), ARRAY['owner', 'member']))
 );
 CREATE POLICY "entries_world_delete" ON entries FOR DELETE USING (
   world_id IS NOT NULL AND
-  world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid() AND role IN ('owner', 'member'))
+  world_id IN (SELECT get_user_world_ids_by_role(auth.uid(), ARRAY['owner', 'member']))
 );
 
 
@@ -462,19 +475,19 @@ CREATE POLICY "config_update" ON config FOR UPDATE
 
 CREATE POLICY "config_world_select" ON config FOR SELECT USING (
   world_id IS NOT NULL AND
-  world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid())
+  world_id IN (SELECT get_user_world_ids(auth.uid()))
 );
 CREATE POLICY "config_world_insert" ON config FOR INSERT WITH CHECK (
   world_id IS NOT NULL AND
-  world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid() AND role IN ('owner', 'member'))
+  world_id IN (SELECT get_user_world_ids_by_role(auth.uid(), ARRAY['owner', 'member']))
 );
 CREATE POLICY "config_world_update" ON config FOR UPDATE USING (
   world_id IS NOT NULL AND
-  world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid() AND role IN ('owner', 'member'))
+  world_id IN (SELECT get_user_world_ids_by_role(auth.uid(), ARRAY['owner', 'member']))
 );
 CREATE POLICY "config_world_delete" ON config FOR DELETE USING (
   world_id IS NOT NULL AND
-  world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid() AND role = 'owner')
+  world_id IN (SELECT get_user_world_ids_by_role(auth.uid(), ARRAY['owner']))
 );
 
 
@@ -520,44 +533,44 @@ CREATE POLICY "my_config_friend_access" ON my_config FOR SELECT USING (
 -- ============================================================
 
 CREATE POLICY "worlds_select" ON worlds FOR SELECT USING (
-  id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid())
+  id IN (SELECT get_user_world_ids(auth.uid()))
 );
 CREATE POLICY "worlds_insert" ON worlds FOR INSERT WITH CHECK (
   created_by = auth.uid()
 );
 CREATE POLICY "worlds_update" ON worlds FOR UPDATE USING (
-  id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid() AND role = 'owner')
+  id IN (SELECT get_user_world_ids_by_role(auth.uid(), ARRAY['owner']))
 );
 CREATE POLICY "worlds_delete" ON worlds FOR DELETE USING (
   created_by = auth.uid()
 );
 
 CREATE POLICY "world_members_select" ON world_members FOR SELECT USING (
-  world_id IN (SELECT wm.world_id FROM world_members wm WHERE wm.user_id = auth.uid())
+  world_id IN (SELECT get_user_world_ids(auth.uid()))
 );
 CREATE POLICY "world_members_insert" ON world_members FOR INSERT WITH CHECK (
   user_id = auth.uid() OR
-  world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid() AND role = 'owner')
+  world_id IN (SELECT get_user_world_ids_by_role(auth.uid(), ARRAY['owner']))
 );
 CREATE POLICY "world_members_update" ON world_members FOR UPDATE USING (
-  world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid() AND role = 'owner')
+  world_id IN (SELECT get_user_world_ids_by_role(auth.uid(), ARRAY['owner']))
 ) WITH CHECK (
-  world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid() AND role = 'owner')
+  world_id IN (SELECT get_user_world_ids_by_role(auth.uid(), ARRAY['owner']))
 );
 CREATE POLICY "world_members_delete" ON world_members FOR DELETE USING (
   user_id = auth.uid() OR
-  world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid() AND role = 'owner')
+  world_id IN (SELECT get_user_world_ids_by_role(auth.uid(), ARRAY['owner']))
 );
 
 CREATE POLICY "world_invites_select" ON world_invites FOR SELECT USING (
   created_by = auth.uid() OR
-  world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid())
+  world_id IN (SELECT get_user_world_ids(auth.uid()))
 );
 CREATE POLICY "world_invites_insert" ON world_invites FOR INSERT WITH CHECK (
-  world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid() AND role IN ('owner', 'member'))
+  world_id IN (SELECT get_user_world_ids_by_role(auth.uid(), ARRAY['owner', 'member']))
 );
 CREATE POLICY "world_invites_update" ON world_invites FOR UPDATE USING (
-  world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid() AND role IN ('owner', 'member'))
+  world_id IN (SELECT get_user_world_ids_by_role(auth.uid(), ARRAY['owner', 'member']))
 );
 CREATE POLICY "world_invites_delete" ON world_invites FOR DELETE USING (
   created_by = auth.uid()
@@ -569,22 +582,22 @@ CREATE POLICY "world_invites_delete" ON world_invites FOR DELETE USING (
 -- ============================================================
 
 CREATE POLICY "entry_comments_select" ON entry_comments FOR SELECT USING (
-  world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid())
+  world_id IN (SELECT get_user_world_ids(auth.uid()))
 );
 CREATE POLICY "entry_comments_insert" ON entry_comments FOR INSERT WITH CHECK (
   user_id = auth.uid() AND
-  world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid())
+  world_id IN (SELECT get_user_world_ids(auth.uid()))
 );
 CREATE POLICY "entry_comments_delete" ON entry_comments FOR DELETE USING (
   user_id = auth.uid()
 );
 
 CREATE POLICY "entry_reactions_select" ON entry_reactions FOR SELECT USING (
-  world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid())
+  world_id IN (SELECT get_user_world_ids(auth.uid()))
 );
 CREATE POLICY "entry_reactions_insert" ON entry_reactions FOR INSERT WITH CHECK (
   user_id = auth.uid() AND
-  world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid())
+  world_id IN (SELECT get_user_world_ids(auth.uid()))
 );
 CREATE POLICY "entry_reactions_delete" ON entry_reactions FOR DELETE USING (
   user_id = auth.uid()
