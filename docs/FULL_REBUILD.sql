@@ -1,18 +1,20 @@
 -- ============================================================
 --  MY COSMOS — COMPLETE DATABASE SETUP
---  v2.0 | March 2026
+--  v2.1 | March 2026
 --
 --  IDEMPOTENT: Safe to run on fresh OR existing database.
 --  All CREATE use IF NOT EXISTS, all policies DROP before CREATE.
+--  Safe to run MULTIPLE TIMES — will not delete or corrupt data.
 --
 --  Run this ONE file in Supabase SQL Editor.
 --  It covers: Tables, Triggers, Indexes, RLS, Storage, Functions,
 --             Realtime, and Email triggers.
 --
---  PREREQUISITES:
---  - Enable pg_net extension (Database → Extensions) for emails
---  - Add RESEND_API_KEY to Vault (Settings → Vault) for emails
+--  OPTIONAL PREREQUISITES (for email notifications):
+--  - Enable pg_net extension (Database → Extensions)
+--  - Add RESEND_API_KEY to Vault (Settings → Vault)
 --  - Set Site URL to https://our-world-kohl.vercel.app (Auth → URL Config)
+--  Without these, everything works except automated email sending.
 -- ============================================================
 
 
@@ -274,6 +276,27 @@ CREATE TABLE IF NOT EXISTS cosmos_connections (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   responded_at TIMESTAMPTZ
 );
+
+
+-- ============================================================
+--  12b. SAFE COLUMN ADDITIONS (for existing databases)
+--  If tables already exist without these columns, add them.
+-- ============================================================
+
+DO $$ BEGIN
+  ALTER TABLE entries ADD COLUMN IF NOT EXISTS user_id UUID;
+  ALTER TABLE entries ADD COLUMN IF NOT EXISTS world_id UUID;
+  ALTER TABLE entries ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+  ALTER TABLE entries ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+  ALTER TABLE config ADD COLUMN IF NOT EXISTS user_id UUID;
+  ALTER TABLE config ADD COLUMN IF NOT EXISTS world_id UUID;
+  ALTER TABLE config ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+  ALTER TABLE my_entries ADD COLUMN IF NOT EXISTS user_id UUID;
+  ALTER TABLE my_entries ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+  ALTER TABLE my_entries ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+  ALTER TABLE my_config ADD COLUMN IF NOT EXISTS user_id UUID;
+  ALTER TABLE my_config ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+END $$;
 
 
 -- ============================================================
@@ -797,10 +820,16 @@ DECLARE
   site_url TEXT := 'https://our-world-kohl.vercel.app';
   email_body TEXT;
 BEGIN
-  SELECT decrypted_secret INTO resend_key
-  FROM vault.decrypted_secrets
-  WHERE name = 'RESEND_API_KEY'
-  LIMIT 1;
+  -- Safely try to read Resend API key from Vault
+  -- If vault extension is not enabled, silently skip email
+  BEGIN
+    SELECT decrypted_secret INTO resend_key
+    FROM vault.decrypted_secrets
+    WHERE name = 'RESEND_API_KEY'
+    LIMIT 1;
+  EXCEPTION WHEN OTHERS THEN
+    RETURN NEW;
+  END;
 
   IF resend_key IS NULL OR resend_key = '' THEN
     RETURN NEW;
@@ -820,14 +849,21 @@ BEGIN
     site_url
   );
 
-  PERFORM net.http_post(
-    url := 'https://api.resend.com/emails',
-    headers := jsonb_build_object(
-      'Authorization', 'Bearer ' || resend_key,
-      'Content-Type', 'application/json'
-    ),
-    body := email_body::jsonb
-  );
+  -- Safely try to send email via pg_net
+  -- If pg_net extension is not enabled, silently skip
+  BEGIN
+    PERFORM net.http_post(
+      url := 'https://api.resend.com/emails',
+      headers := jsonb_build_object(
+        'Authorization', 'Bearer ' || resend_key,
+        'Content-Type', 'application/json'
+      ),
+      body := email_body::jsonb
+    );
+  EXCEPTION WHEN OTHERS THEN
+    -- pg_net not available, skip email silently
+    NULL;
+  END;
 
   RETURN NEW;
 END;
@@ -852,10 +888,15 @@ DECLARE
   email_body TEXT;
   from_name TEXT;
 BEGIN
-  SELECT decrypted_secret INTO resend_key
-  FROM vault.decrypted_secrets
-  WHERE name = 'RESEND_API_KEY'
-  LIMIT 1;
+  -- Safely try to read Resend API key from Vault
+  BEGIN
+    SELECT decrypted_secret INTO resend_key
+    FROM vault.decrypted_secrets
+    WHERE name = 'RESEND_API_KEY'
+    LIMIT 1;
+  EXCEPTION WHEN OTHERS THEN
+    RETURN NEW;
+  END;
 
   IF resend_key IS NULL OR resend_key = '' THEN
     RETURN NEW;
@@ -880,14 +921,18 @@ BEGIN
     site_url
   );
 
-  PERFORM net.http_post(
-    url := 'https://api.resend.com/emails',
-    headers := jsonb_build_object(
-      'Authorization', 'Bearer ' || resend_key,
-      'Content-Type', 'application/json'
-    ),
-    body := email_body::jsonb
-  );
+  BEGIN
+    PERFORM net.http_post(
+      url := 'https://api.resend.com/emails',
+      headers := jsonb_build_object(
+        'Authorization', 'Bearer ' || resend_key,
+        'Content-Type', 'application/json'
+      ),
+      body := email_body::jsonb
+    );
+  EXCEPTION WHEN OTHERS THEN
+    NULL;
+  END;
 
   RETURN NEW;
 END;
@@ -901,29 +946,40 @@ CREATE TRIGGER on_connection_send_email
 
 
 -- ============================================================
---  30. CLEANUP: Remove orphaned data
+--  30. CLEANUP: Remove orphaned data (safe — only removes broken refs)
 -- ============================================================
 
-DELETE FROM worlds WHERE id NOT IN (SELECT world_id FROM world_members);
+-- Only clean up worlds with zero members (orphaned from failed create_world)
+DELETE FROM worlds WHERE id NOT IN (SELECT DISTINCT world_id FROM world_members);
+-- Only clean up config rows pointing to deleted worlds
 DELETE FROM config WHERE world_id IS NOT NULL AND world_id NOT IN (SELECT id FROM worlds);
 
 
 -- ============================================================
---  31. VERIFY
+--  31. VERIFY — Results appear in SQL Editor output
 -- ============================================================
 
--- Public policies (should be 53)
-SELECT tablename, policyname, cmd
-FROM pg_policies
-WHERE schemaname = 'public'
-ORDER BY tablename, policyname;
+-- Tables (expect 11: config, cosmos_connections, entries, entry_comments,
+--   entry_reactions, my_config, my_entries, welcome_letters, world_invites,
+--   world_members, worlds)
+SELECT '--- TABLES ---' AS section;
+SELECT table_name FROM information_schema.tables
+WHERE table_schema = 'public' ORDER BY table_name;
 
--- Storage policies (should be 3)
--- SELECT tablename, policyname, cmd
--- FROM pg_policies
--- WHERE schemaname = 'storage'
--- ORDER BY policyname;
+-- Public policies (expect 53)
+SELECT '--- POLICIES (' || COUNT(*) || ' total) ---' AS section
+FROM pg_policies WHERE schemaname = 'public';
 
--- Tables (should be 11)
--- SELECT table_name FROM information_schema.tables
--- WHERE table_schema = 'public' ORDER BY table_name;
+-- RPC functions (expect 6: update_updated_at, get_user_world_ids,
+--   get_user_world_ids_by_role, create_world, accept_world_invite,
+--   accept_cosmos_connection)
+SELECT '--- RPC FUNCTIONS ---' AS section;
+SELECT routine_name FROM information_schema.routines
+WHERE routine_schema = 'public' AND routine_type = 'FUNCTION'
+ORDER BY routine_name;
+
+-- Storage bucket
+SELECT '--- STORAGE ---' AS section;
+SELECT id, name, public FROM storage.buckets WHERE id = 'photos';
+
+SELECT '--- SETUP COMPLETE ---' AS section;
