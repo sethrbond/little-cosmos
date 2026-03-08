@@ -9,11 +9,15 @@ import { getWelcomeLetter, markLetterRead } from './supabaseWelcomeLetters.js'
 import { loadMyWorlds, loadMyWorldSubtitle, acceptInvite, getInviteInfo, getPendingWorldInvites, getPendingWorldInvitesForLetter } from './supabaseWorlds.js'
 import { getPendingRequests, getMyConnections } from './supabaseConnections.js'
 
+// Bump this to reset all onboarding/tour flags for every user
+const ONBOARD_VERSION = 'v2'
+
 function AppInner() {
   const { user, userId, loading, signOut } = useAuth()
   const safeGet = (key) => { try { return localStorage.getItem(key) } catch { return null } }
   const safeSet = (key, val) => { try { localStorage.setItem(key, val) } catch {} }
   const safeRemove = (key) => { try { localStorage.removeItem(key) } catch {} }
+  const obKey = (name) => `${ONBOARD_VERSION}_${name}`
 
   const [worldMode, setWorldMode] = useState(() => safeGet('worldMode'))
   const [activeWorldId, setActiveWorldId] = useState(() => safeGet('activeWorldId'))
@@ -90,7 +94,7 @@ function AppInner() {
               setWorlds(w)
               // If brand-new user, don't navigate — let cinematic play first.
               // The world will appear on their cosmos screen after cinematic.
-              const isNewUser = !safeGet(`cosmos_hasVisited_${userId}`)
+              const isNewUser = !safeGet(obKey(`cosmos_hasVisited_${userId}`))
               if (!isNewUser) {
                 const joined = w.find(x => x.id === result.world_id)
                 selectWorld('our', result.world_id, worldName, joined?.role || 'member', joined?.type || 'shared')
@@ -107,7 +111,7 @@ function AppInner() {
   // Brand new users: show cinematic onboarding (always, regardless of how they arrived)
   useEffect(() => {
     if (!userId || !worldsLoaded) return
-    const hasVisited = safeGet(`cosmos_hasVisited_${userId}`)
+    const hasVisited = safeGet(obKey(`cosmos_hasVisited_${userId}`))
     if (!hasVisited) {
       // Clear any worldMode that invite processing might have set
       if (worldMode) {
@@ -257,7 +261,7 @@ function AppInner() {
       <CinematicOnboarding
         userId={userId}
         onComplete={() => {
-          safeSet(`cosmos_hasVisited_${userId}`, '1')
+          safeSet(obKey(`cosmos_hasVisited_${userId}`), '1')
           setShowCinematic(false)
           // worldMode stays null → user lands on cosmos screen
           // Each world's own onboarding tour plays on first entry

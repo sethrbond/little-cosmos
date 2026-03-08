@@ -51,9 +51,9 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
   const dragRef = useRef({ dragging: false, moved: false, prevX: 0, prevY: 0 });
   const camAngleRef = useRef({ theta: 0.3, phi: 1.2, radius: 5.8 });
 
-  // Cosmos tour (first visit, per-user)
-  const cosmosTourKey = userId ? `cosmos_tour_done_${userId}` : "cosmos_tour_done";
-  const [showCosmosTour, setShowCosmosTour] = useState(() => !localStorage.getItem(userId ? `cosmos_tour_done_${userId}` : "cosmos_tour_done"));
+  // Cosmos tour (first visit, per-user) — versioned so bumping ONBOARD_VERSION resets for all
+  const cosmosTourKey = userId ? `v2_cosmos_tour_done_${userId}` : "v2_cosmos_tour_done";
+  const [showCosmosTour, setShowCosmosTour] = useState(() => !localStorage.getItem(cosmosTourKey));
   const [cosmosTourStep, setCosmosTourStep] = useState(0);
 
   // Modal states
@@ -529,10 +529,11 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     setFriendSending(true);
     const result = await sendConnectionRequest(userId, userDisplayName || "", friendEmail.trim(), true, friendLetter);
     setFriendSending(false);
-    if (result) {
+    if (result && !result._error) {
       setFriendSent(true);
+      showToast("Friend request sent!");
     } else {
-      alert("Failed to send friend request.");
+      alert("Failed to send friend request" + (result?._error ? ": " + result._error : "."));
     }
   };
 
@@ -577,7 +578,27 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     }, 400);
   }, [worlds, userId]);
 
-  const closeAllModals = () => {
+  // Check if any modal has unsaved user input worth protecting
+  const hasUnsavedInput = useCallback(() => {
+    if (personalName.trim()) return true
+    if (sharedName.trim() || sharedYouName.trim() || sharedPartnerName.trim()) return true
+    if (sharedMembers.some(m => m.name?.trim())) return true
+    if (inviteEmail.trim() || inviteLetter.trim()) return true
+    if (existingInviteEmail.trim() || existingInviteLetter.trim()) return true
+    if (cosmosInviteEmail.trim() || cosmosInviteLetter.trim()) return true
+    if (friendEmail.trim() || friendLetter.trim()) return true
+    return false
+  }, [personalName, sharedName, sharedYouName, sharedPartnerName, sharedMembers, inviteEmail, inviteLetter, existingInviteEmail, existingInviteLetter, cosmosInviteEmail, cosmosInviteLetter, friendEmail, friendLetter])
+
+  // safeDismiss: used on backdrop clicks — confirms if there's unsaved input
+  const safeDismiss = useCallback(() => {
+    if (hasUnsavedInput()) {
+      if (!window.confirm("You have unsaved changes. Are you sure you want to close?")) return
+    }
+    closeAllModals(true)
+  }, [hasUnsavedInput])
+
+  const closeAllModals = (force = false) => {
     setShowAddMenu(false); setShowCreatePersonal(false); setShowCreateShared(false);
     setShowInviteModal(null); setShowInviteCosmos(false); setShowAddFriend(false); setShowPendingRequests(false); setShowWorldInvites(false); setShowActivity(false); setShowSearch(false);
     setPersonalName(""); setSharedName(""); setSharedType("partner"); setSharedYouName(""); setSharedPartnerName(""); setSharedMembers([{ name: "" }, { name: "" }]); setSharedStep(0); setInviteEmail("");
@@ -831,7 +852,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
 
       {/* ====== ADD A WORLD MENU ====== */}
       {showAddMenu && (
-        <div style={modalBg} onClick={(e) => { e.stopPropagation(); closeAllModals(); }}>
+        <div style={modalBg} onClick={(e) => { e.stopPropagation(); safeDismiss(); }}>
           <div style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Add a World</div>
             <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 24 }}>
@@ -860,7 +881,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
 
       {/* ====== CREATE PERSONAL WORLD ====== */}
       {showCreatePersonal && (
-        <div style={modalBg} onClick={(e) => { e.stopPropagation(); closeAllModals(); }}>
+        <div style={modalBg} onClick={(e) => { e.stopPropagation(); safeDismiss(); }}>
           <div style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Create a Personal World</div>
             <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 20 }}>
@@ -883,7 +904,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
 
       {/* ====== CREATE SHARED WORLD (multi-step) ====== */}
       {showCreateShared && (
-        <div style={modalBg} onClick={(e) => { e.stopPropagation(); if (sharedStep < 2) closeAllModals(); }}>
+        <div style={modalBg} onClick={(e) => { e.stopPropagation(); if (sharedStep < 2) safeDismiss(); }}>
           <div style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
             {sharedStep === 0 && (<>
               <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Create a Shared World</div>
@@ -1002,7 +1023,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
 
       {/* ====== INVITE TO COSMOS (platform invite) ====== */}
       {showInviteCosmos && (
-        <div style={modalBg} onClick={(e) => { e.stopPropagation(); closeAllModals(); }}>
+        <div style={modalBg} onClick={(e) => { e.stopPropagation(); safeDismiss(); }}>
           <div style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
             {!cosmosInviteSent ? (<>
               <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Invite to Little Cosmos</div>
@@ -1040,7 +1061,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
 
       {/* ====== ADD A FRIEND ====== */}
       {showAddFriend && (
-        <div style={modalBg} onClick={(e) => { e.stopPropagation(); closeAllModals(); }}>
+        <div style={modalBg} onClick={(e) => { e.stopPropagation(); safeDismiss(); }}>
           <div style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
             {!friendSent ? (<>
               <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Add a Friend</div>
@@ -1078,7 +1099,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
 
       {/* ====== PENDING FRIEND REQUESTS ====== */}
       {showPendingRequests && (
-        <div style={modalBg} onClick={(e) => { e.stopPropagation(); closeAllModals(); }}>
+        <div style={modalBg} onClick={(e) => { e.stopPropagation(); safeDismiss(); }}>
           <div style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>World Sharing Invites</div>
             <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 20 }}>
@@ -1113,7 +1134,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
 
       {/* ====== PENDING WORLD INVITES ====== */}
       {showWorldInvites && (
-        <div style={modalBg} onClick={(e) => { e.stopPropagation(); closeAllModals(); }}>
+        <div style={modalBg} onClick={(e) => { e.stopPropagation(); safeDismiss(); }}>
           <div style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>World Invites</div>
             <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 20 }}>
@@ -1155,7 +1176,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
 
       {/* ====== INVITE FROM EXISTING WORLD ====== */}
       {showInviteModal && (
-        <div style={modalBg} onClick={(e) => { e.stopPropagation(); closeAllModals(); }}>
+        <div style={modalBg} onClick={(e) => { e.stopPropagation(); safeDismiss(); }}>
           <div style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Invite to "{showInviteModal.name}"</div>
             <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 16 }}>

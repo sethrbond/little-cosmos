@@ -15,7 +15,10 @@ export async function sendConnectionRequest(fromUserId, fromName, toEmail, share
     })
     .select()
     .single()
-  if (error) { console.error('[sendConnectionRequest]', error); return null }
+  if (error) {
+    console.error('[sendConnectionRequest]', error.message, error.details, error.hint, error.code)
+    return { _error: error.message }
+  }
   return data
 }
 
