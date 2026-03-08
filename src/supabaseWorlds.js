@@ -5,57 +5,24 @@ import { supabase } from './supabaseClient.js'
 // ---- WORLDS ----
 
 export async function createWorld(userId, name, type = 'shared', { youName = '', partnerName = '', members = [] } = {}) {
-  console.log('[createWorld] starting:', { userId, name, type })
-  const { data, error } = await supabase
-    .from('worlds')
-    .insert({ name, type, created_by: userId })
-    .select()
-    .single()
-  if (error) { console.error('[createWorld] worlds insert failed:', error.message, error.details, error.hint); return { _error: `worlds insert: ${error.message}` } }
-
-  console.log('[createWorld] world created:', data.id)
-  // Add creator as owner — MUST succeed before config insert (RLS depends on membership)
-  const { error: memErr } = await supabase
-    .from('world_members')
-    .insert({ world_id: data.id, user_id: userId, role: 'owner' })
-  if (memErr) {
-    console.error('[createWorld] member insert failed:', memErr.message, memErr.details, memErr.hint)
-    // Clean up the orphaned world
-    await supabase.from('worlds').delete().eq('id', data.id)
-    return { _error: `member insert: ${memErr.message}` }
-  }
-
-  // For partner worlds, use youName/partnerName; for group worlds, use members array
   const isGroupWorld = type === 'friends' || type === 'family'
+  const memberNames = isGroupWorld ? members.map(m => ({ name: m.name || m })) : []
 
-  // Create default config for this world
-  const { error: cfgErr } = await supabase
-    .from('config')
-    .insert({
-      id: data.id,
-      world_id: data.id,
-      user_id: userId,
-      title: name,
-      subtitle: '',
-      you_name: isGroupWorld ? '' : youName,
-      partner_name: isGroupWorld ? '' : partnerName,
-      start_date: null,
-      love_letter: '',
-      metadata: {
-        loveLetters: [],
-        dreamDestinations: [],
-        chapters: [],
-        members: isGroupWorld ? members : [],
-        darkMode: false,
-        customPalette: {},
-        customScene: {},
-      },
-    })
-  if (cfgErr) {
-    console.error('[createWorld] config insert:', cfgErr)
-    // World + member exist but config failed — not fatal, config will be created on first save
+  console.log('[createWorld] calling RPC:', { name, type })
+  const { data, error } = await supabase.rpc('create_world', {
+    world_name: name,
+    world_type: type,
+    you_name: isGroupWorld ? '' : youName,
+    partner_name: isGroupWorld ? '' : partnerName,
+    member_names: memberNames,
+  })
+
+  if (error) {
+    console.error('[createWorld] RPC failed:', error.message, error.details, error.hint)
+    return { _error: error.message }
   }
 
+  console.log('[createWorld] success:', data)
   return data
 }
 

@@ -420,13 +420,15 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     setCreatingPersonal(true);
     const world = await createWorld(userId, personalName.trim(), "personal");
     setCreatingPersonal(false);
-    if (world) {
+    if (!world || world._error) {
+      alert("Failed to create world: " + (world?._error || "unknown error"));
+    } else {
       const updated = await loadMyWorlds(userId);
       if (onWorldsChange) onWorldsChange(updated);
       setShowCreatePersonal(false);
       setPersonalName("");
       onSelect("our", world.id, world.name, "owner", "personal");
-    } else { alert("Failed to create world. Please try again."); }
+    }
   };
 
   const handleCreateShared = async () => {

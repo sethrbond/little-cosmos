@@ -656,7 +656,65 @@ CREATE POLICY "photos_delete" ON storage.objects
 
 
 -- ============================================================
---  25. RPC FUNCTION: Accept world invite
+--  25a. RPC FUNCTION: Create world (atomic, bypasses RLS)
+--  Creates world + owner membership + config in one transaction.
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION create_world(
+  world_name TEXT,
+  world_type TEXT DEFAULT 'shared',
+  you_name TEXT DEFAULT '',
+  partner_name TEXT DEFAULT '',
+  member_names JSONB DEFAULT '[]'::jsonb
+)
+RETURNS JSONB AS $$
+DECLARE
+  new_world_id UUID;
+  is_group BOOLEAN;
+BEGIN
+  is_group := world_type IN ('friends', 'family');
+
+  INSERT INTO worlds (name, type, created_by)
+  VALUES (world_name, world_type, auth.uid())
+  RETURNING id INTO new_world_id;
+
+  INSERT INTO world_members (world_id, user_id, role)
+  VALUES (new_world_id, auth.uid(), 'owner');
+
+  INSERT INTO config (id, world_id, user_id, title, subtitle, you_name, partner_name, metadata)
+  VALUES (
+    new_world_id::text,
+    new_world_id,
+    auth.uid(),
+    world_name,
+    '',
+    CASE WHEN is_group THEN '' ELSE you_name END,
+    CASE WHEN is_group THEN '' ELSE partner_name END,
+    jsonb_build_object(
+      'loveLetters', '[]'::jsonb,
+      'dreamDestinations', '[]'::jsonb,
+      'chapters', '[]'::jsonb,
+      'members', CASE WHEN is_group THEN member_names ELSE '[]'::jsonb END,
+      'darkMode', false,
+      'customPalette', '{}'::jsonb,
+      'customScene', '{}'::jsonb,
+      'ambientMusicUrl', ''
+    )
+  );
+
+  RETURN jsonb_build_object(
+    'id', new_world_id,
+    'name', world_name,
+    'type', world_type,
+    'created_by', auth.uid(),
+    'created_at', NOW()
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+
+-- ============================================================
+--  25b. RPC FUNCTION: Accept world invite
 -- ============================================================
 
 CREATE OR REPLACE FUNCTION accept_world_invite(invite_token TEXT)
