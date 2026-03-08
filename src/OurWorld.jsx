@@ -1172,10 +1172,11 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     const channel = supabase
       .channel(`world-${worldId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'entries', filter: `world_id=eq.${worldId}` }, (payload) => {
-        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-          db.loadEntries().then(entries => { if (entries) _dispatch({ type: 'LOAD', entries }); });
-        } else if (payload.eventType === 'DELETE') {
-          db.loadEntries().then(entries => { if (entries) _dispatch({ type: 'LOAD', entries }); });
+        db.loadEntries().then(entries => { if (entries) _dispatch({ type: 'LOAD', entries }); });
+        // Notify when someone else adds a new entry
+        if (payload.eventType === 'INSERT' && payload.new && payload.new.user_id !== userId) {
+          const city = payload.new.city || 'somewhere new';
+          showToast(`New entry added: ${city}`, "✨", 4000);
         }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'entry_comments', filter: `world_id=eq.${worldId}` }, () => {
@@ -1196,8 +1197,10 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem(onboardKey));
   const [onboardStep, setOnboardStep] = useState(0);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [celebrationData, setCelebrationData] = useState(null); // { type: 'first'|'anniversary'|'milestone', message, sub }
   const [showPhotoJourney, setShowPhotoJourney] = useState(false);
   const [pjIndex, setPjIndex] = useState(0);
+  const [pjAutoPlay, setPjAutoPlay] = useState(false);
   // editMode removed — all features always active
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -1321,6 +1324,22 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     const today = sliderDate.slice(5);
     return sd === today && sliderDate !== config.startDate;
   }, [sliderDate, config.startDate]);
+
+  // Auto-trigger anniversary/milestone celebration (once per session per world)
+  useEffect(() => {
+    if (!introComplete || !isAnniversary || !isPartnerWorld) return;
+    const annivKey = `v2_anniv_${worldId || userId}_${todayStr()}`;
+    if (localStorage.getItem(annivKey)) return;
+    localStorage.setItem(annivKey, '1');
+    const years = Math.floor(daysBetween(config.startDate, todayStr()) / 365);
+    setCelebrationData({
+      type: 'anniversary',
+      message: years === 1 ? '1 Year Together' : `${years} Years Together`,
+      sub: `${stats.trips} adventures, ${stats.countries} countries, ${Math.round(stats.totalMiles).toLocaleString()} miles`,
+    });
+    setShowCelebration(true);
+    setTimeout(() => setShowCelebration(false), 8000);
+  }, [introComplete, isAnniversary, isPartnerWorld, config.startDate, worldId, userId]);
 
   // Positions on slider date
   const getPositions = useCallback(date => {
@@ -1868,9 +1887,19 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   // ---- GALLERY DATA ----
   const allPhotos = useMemo(() => {
     const out = [];
-    sorted.forEach(e => (e.photos || []).forEach((url, i) => out.push({ url, id: e.id, city: e.city, date: e.dateStart })));
+    sorted.forEach(e => (e.photos || []).forEach(url => out.push({ url, id: e.id, city: e.city, country: e.country, date: e.dateStart })));
     return out;
   }, [sorted]);
+
+  // ---- PHOTO JOURNEY AUTO-PLAY ----
+  useEffect(() => {
+    if (!pjAutoPlay || !showPhotoJourney) return;
+    const t = setTimeout(() => {
+      if (pjIndex >= allPhotos.length - 1) { setShowPhotoJourney(false); setPjAutoPlay(false); showToast("Photo journey complete", "🎞", 3000); }
+      else setPjIndex(i => i + 1);
+    }, 3500);
+    return () => clearTimeout(t);
+  }, [pjAutoPlay, showPhotoJourney, pjIndex, allPhotos.length]);
 
   // ---- TRIP CARD GENERATOR ----
   const generateTripCard = useCallback(async (entry) => {
@@ -3278,8 +3307,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       )}
 
       {/* ADD / EDIT / SETTINGS / LETTER overlays */}
-      {showAdd && <div onClick={() => setShowAdd(false)} style={{ position: "fixed", inset: 0, zIndex: 39 }}><div onClick={e => e.stopPropagation()}><AddForm types={TYPES} defaultType={isMyWorld ? "adventure" : "together"} defaultWho={isMyWorld ? "solo" : "both"} fieldLabels={FIELD_LABELS} isMyWorld={isMyWorld} worldName={worldName} onAdd={entry => { const isFirst = data.entries.length === 0; dispatch({ type: "ADD", entry }); setShowAdd(false); if (isFirst) { setShowCelebration(true); setTimeout(() => setShowCelebration(false), 5000); } showToast(`${entry.city} added to your world`, "🌍", 2500); flyTo(entry.lat, entry.lng, 2.6); setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400); }} onClose={() => setShowAdd(false)} /></div></div>}
-      {quickAddMode && <div onClick={() => setQuickAddMode(false)} style={{ position: "fixed", inset: 0, zIndex: 39 }}><div onClick={e => e.stopPropagation()}><QuickAddForm types={TYPES} onAdd={entry => { const isFirst = data.entries.length === 0; dispatch({ type: "ADD", entry }); setQuickAddMode(false); if (isFirst) { setShowCelebration(true); setTimeout(() => setShowCelebration(false), 5000); } showToast(`${entry.city} added to your world ⚡`, "⚡", 2500); flyTo(entry.lat, entry.lng, 2.6); setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400); }} onClose={() => setQuickAddMode(false)} /></div></div>}
+      {showAdd && <div onClick={() => setShowAdd(false)} style={{ position: "fixed", inset: 0, zIndex: 39 }}><div onClick={e => e.stopPropagation()}><AddForm types={TYPES} defaultType={isMyWorld ? "adventure" : "together"} defaultWho={isMyWorld ? "solo" : "both"} fieldLabels={FIELD_LABELS} isMyWorld={isMyWorld} worldName={worldName} onAdd={entry => { const isFirst = data.entries.length === 0; dispatch({ type: "ADD", entry }); setShowAdd(false); if (isFirst) { setCelebrationData({ type: 'first', message: 'Your First Entry!', sub: isMyWorld ? 'Your world has its first marker. Keep adding adventures to light up your globe.' : 'Your shared world has its first marker. This is where your story begins.' }); setShowCelebration(true); setTimeout(() => setShowCelebration(false), 6000); } showToast(`${entry.city} added to your world`, "🌍", 2500); flyTo(entry.lat, entry.lng, 2.6); setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400); }} onClose={() => setShowAdd(false)} /></div></div>}
+      {quickAddMode && <div onClick={() => setQuickAddMode(false)} style={{ position: "fixed", inset: 0, zIndex: 39 }}><div onClick={e => e.stopPropagation()}><QuickAddForm types={TYPES} onAdd={entry => { const isFirst = data.entries.length === 0; dispatch({ type: "ADD", entry }); setQuickAddMode(false); if (isFirst) { setCelebrationData({ type: 'first', message: 'Your First Entry!', sub: isMyWorld ? 'Your world has its first marker. Keep adding adventures to light up your globe.' : 'Your shared world has its first marker. This is where your story begins.' }); setShowCelebration(true); setTimeout(() => setShowCelebration(false), 6000); } showToast(`${entry.city} added to your world ⚡`, "⚡", 2500); flyTo(entry.lat, entry.lng, 2.6); setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400); }} onClose={() => setQuickAddMode(false)} /></div></div>}
 
       {editing && <div onClick={() => setEditing(null)} style={{ position: "fixed", inset: 0, zIndex: 29 }}><div onClick={e => e.stopPropagation()}><EditForm entry={editing} types={TYPES} fieldLabels={FIELD_LABELS} onChange={setEditing}
         onSave={() => { dispatch({ type: "UPDATE", id: editing.id, data: editing }); setSelected(editing); setCardTab("overview"); setEditing(null); showToast("Entry saved", "✓", 2000); }}
@@ -4409,19 +4438,49 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
 
       {/* FIRST ENTRY CELEBRATION */}
-      {showCelebration && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 250, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "auto", animation: "fadeIn .3s ease", cursor: "pointer" }}
-          onClick={() => setShowCelebration(false)}>
-          <div style={{ textAlign: "center", animation: "celebrationPop .6s cubic-bezier(0.34, 1.56, 0.64, 1)" }}>
-            <div style={{ fontSize: 64, marginBottom: 12, filter: "drop-shadow(0 0 20px rgba(200,170,110,0.4))" }}>&#10024;</div>
-            <div style={{ fontSize: 22, fontWeight: 500, color: "#e8e0d0", letterSpacing: "1px", textShadow: "0 0 30px rgba(200,170,110,0.4), 0 2px 10px rgba(0,0,0,0.6)", marginBottom: 8 }}>Your First Entry!</div>
-            <div style={{ fontSize: 13, color: "#b0a8b8", lineHeight: 1.6, maxWidth: 280, margin: "0 auto", textShadow: "0 1px 6px rgba(0,0,0,0.5)" }}>
-              {isMyWorld ? "Your world has its first marker. Keep adding adventures to light up your globe." : "Your shared world has its first marker. This is where your story begins."}
+      {showCelebration && (() => {
+        const cd = celebrationData || { type: 'first', message: 'Your First Entry!', sub: '' };
+        const isAnniv = cd.type === 'anniversary';
+        return (
+          <div style={{ position: "fixed", inset: 0, zIndex: 250, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "auto", cursor: "pointer", background: isAnniv ? `radial-gradient(ellipse at center, ${P.heart}15, transparent 70%)` : 'transparent', animation: "fadeIn .4s ease" }}
+            onClick={() => setShowCelebration(false)}>
+            {/* Confetti particles */}
+            {isAnniv && Array.from({ length: 24 }, (_, i) => (
+              <div key={i} style={{
+                position: "absolute",
+                left: `${10 + Math.random() * 80}%`,
+                top: "-5%",
+                width: 6 + Math.random() * 6,
+                height: 6 + Math.random() * 6,
+                borderRadius: Math.random() > 0.5 ? "50%" : "2px",
+                background: [P.heart, P.goldWarm, P.rose, P.sky, P.lavender, '#f0c0d0'][i % 6],
+                opacity: 0.8,
+                animation: `confettiFall ${2 + Math.random() * 3}s ${Math.random() * 1.5}s ease-in forwards`,
+              }} />
+            ))}
+            <div style={{ textAlign: "center", animation: "celebrationPop .6s cubic-bezier(0.34, 1.56, 0.64, 1)", zIndex: 1 }}>
+              <div style={{ fontSize: isAnniv ? 80 : 64, marginBottom: 12, filter: `drop-shadow(0 0 20px ${isAnniv ? P.heart : P.goldWarm}60)`, animation: isAnniv ? "heartPulse 1.5s ease infinite" : "none" }}>
+                {isAnniv ? "💕" : "✨"}
+              </div>
+              <div style={{ fontSize: isAnniv ? 28 : 22, fontWeight: isAnniv ? 300 : 500, color: P.text, letterSpacing: isAnniv ? ".12em" : "1px", textShadow: `0 0 30px ${isAnniv ? P.heart : P.goldWarm}40, 0 2px 10px rgba(0,0,0,0.6)`, marginBottom: 8, fontFamily: "'Palatino Linotype', Georgia, serif" }}>
+                {cd.message}
+              </div>
+              {cd.sub && <div style={{ fontSize: 12, color: P.textMid, lineHeight: 1.7, maxWidth: 320, margin: "0 auto", textShadow: "0 1px 6px rgba(0,0,0,0.5)" }}>{cd.sub}</div>}
+              {isAnniv && config.startDate && (
+                <div style={{ fontSize: 10, color: P.textFaint, marginTop: 12, letterSpacing: ".1em" }}>
+                  Since {fmtDate(config.startDate)}
+                </div>
+              )}
+              <div style={{ fontSize: 9, color: P.textFaint, marginTop: 16, opacity: 0.5 }}>tap anywhere to continue</div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
       <style>{`
+        @keyframes confettiFall {
+          0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+          100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
         @keyframes celebrationPop {
           0% { transform: scale(0.3); opacity: 0; }
           60% { transform: scale(1.05); opacity: 1; }
@@ -4434,23 +4493,49 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       {/* PHOTO JOURNEY MODE */}
       {showPhotoJourney && allPhotos.length > 0 && (() => {
         const ph = allPhotos[pjIndex];
+        const prevPh = pjIndex > 0 ? allPhotos[pjIndex - 1] : null;
+        const entry = sorted.find(e => e.city === ph.city);
+        const note = entry?.notes || '';
         return (
-          <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "#000", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
-            onClick={() => { if (pjIndex < allPhotos.length - 1) setPjIndex(i => i + 1); else setShowPhotoJourney(false); }}>
-            <img key={ph.url} src={ph.url} alt="Travel photo" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", animation: "fadeIn .8s ease" }} />
-            <div style={{ position: "absolute", bottom: 40, left: 0, right: 0, textAlign: "center", pointerEvents: "none" }}>
-              <div style={{ fontSize: 16, color: "#e8e0d0", fontFamily: "'Palatino Linotype',serif", letterSpacing: ".08em", textShadow: "0 2px 12px rgba(0,0,0,0.8)" }}>{ph.city}</div>
-              <div style={{ fontSize: 11, color: "#a098a8", marginTop: 4, textShadow: "0 1px 8px rgba(0,0,0,0.8)" }}>{ph.date}</div>
+          <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}
+            onClick={() => { if (pjAutoPlay) { setPjAutoPlay(false); } else if (pjIndex < allPhotos.length - 1) setPjIndex(i => i + 1); else { setShowPhotoJourney(false); setPjAutoPlay(false); } }}>
+            {/* Crossfade: previous image fades out behind current */}
+            {prevPh && <img src={prevPh.url} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", opacity: 0, transition: "opacity 0.8s ease", pointerEvents: "none" }} />}
+            <img key={ph.url} src={ph.url} alt="Travel photo" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", animation: "fadeIn .8s ease", transition: "opacity .8s ease" }} />
+            {/* Bottom info overlay */}
+            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(transparent, rgba(0,0,0,0.7) 40%, rgba(0,0,0,0.85))", padding: "60px 24px 28px", pointerEvents: "none" }}>
+              <div style={{ fontSize: 18, color: "#e8e0d0", fontFamily: "'Palatino Linotype',serif", letterSpacing: ".08em", textShadow: "0 2px 12px rgba(0,0,0,0.8)", textAlign: "center" }}>{ph.city}</div>
+              <div style={{ fontSize: 11, color: "#a098a8", marginTop: 4, textShadow: "0 1px 8px rgba(0,0,0,0.8)", textAlign: "center" }}>{ph.date}{ph.country ? ` · ${ph.country}` : ''}</div>
+              {note && <div style={{ fontSize: 11, color: "#c8c0b0", marginTop: 10, textAlign: "center", maxWidth: 400, margin: "10px auto 0", lineHeight: 1.6, fontStyle: "italic", opacity: 0.85 }}>"{note}"</div>}
             </div>
-            <div style={{ position: "absolute", top: 20, right: 20, fontSize: 11, color: "#686070" }}>{pjIndex + 1} / {allPhotos.length}</div>
-            <button onClick={(e) => { e.stopPropagation(); setShowPhotoJourney(false); }}
-              style={{ position: "absolute", top: 16, left: 16, background: "rgba(255,255,255,0.1)", border: "none", borderRadius: 8, padding: "6px 14px", color: "#a098a8", fontSize: 12, fontFamily: "inherit", cursor: "pointer" }}>
-              x Close
+            {/* Progress bar */}
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: "rgba(255,255,255,0.1)" }}>
+              <div style={{ height: "100%", width: `${((pjIndex + 1) / allPhotos.length) * 100}%`, background: `linear-gradient(90deg, ${P.goldWarm}, ${P.rose || P.accent})`, transition: "width .5s ease" }} />
+            </div>
+            {/* Counter + auto-play toggle */}
+            <div style={{ position: "absolute", top: 14, right: 16, display: "flex", alignItems: "center", gap: 10 }}>
+              <button onClick={(e) => { e.stopPropagation(); setPjAutoPlay(a => !a); }}
+                style={{ background: pjAutoPlay ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.08)", border: "none", borderRadius: 6, padding: "5px 10px", color: pjAutoPlay ? "#e8e0d0" : "#686070", fontSize: 11, cursor: "pointer", fontFamily: "inherit", transition: "all .3s" }}>
+                {pjAutoPlay ? "⏸ Pause" : "▶ Auto"}
+              </button>
+              <span style={{ fontSize: 11, color: "#686070" }}>{pjIndex + 1} / {allPhotos.length}</span>
+            </div>
+            {/* Close */}
+            <button onClick={(e) => { e.stopPropagation(); setShowPhotoJourney(false); setPjAutoPlay(false); }}
+              style={{ position: "absolute", top: 12, left: 16, background: "rgba(255,255,255,0.1)", border: "none", borderRadius: 8, padding: "6px 14px", color: "#a098a8", fontSize: 12, fontFamily: "inherit", cursor: "pointer" }}>
+              ✕ Close
             </button>
+            {/* Navigation arrows */}
             {pjIndex > 0 && (
               <button onClick={(e) => { e.stopPropagation(); setPjIndex(i => i - 1); }}
-                style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,0.08)", border: "none", borderRadius: "50%", width: 40, height: 40, color: "#e8e0d0", fontSize: 18, cursor: "pointer" }}>
+                style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,0.08)", border: "none", borderRadius: "50%", width: 44, height: 44, color: "#e8e0d0", fontSize: 18, cursor: "pointer", transition: "background .2s" }}>
                 &#9664;
+              </button>
+            )}
+            {pjIndex < allPhotos.length - 1 && (
+              <button onClick={(e) => { e.stopPropagation(); setPjIndex(i => i + 1); }}
+                style={{ position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,0.08)", border: "none", borderRadius: "50%", width: 44, height: 44, color: "#e8e0d0", fontSize: 18, cursor: "pointer", transition: "background .2s" }}>
+                &#9654;
               </button>
             )}
           </div>

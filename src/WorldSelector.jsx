@@ -771,25 +771,36 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
               No activity yet. Add entries to your worlds to see them here.
             </div>
           )}
-          {activityData.map((a, i) => (
-            <div key={a.id || i} style={{ display: "flex", gap: 10, padding: "8px 6px", borderBottom: i < activityData.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", alignItems: "flex-start" }}>
+          {activityData.map((a, i) => {
+            const typeIcons = { together: "💕", special: "⭐", adventure: "🏔", "road-trip": "🚗", city: "🏙", beach: "🏖", cruise: "🚢", nature: "🌲", friends: "👋", family: "👨‍👩‍👧", event: "🎉", work: "💼", home: "🏠", backpacking: "🎒" };
+            const icon = typeIcons[a.type] || "📍";
+            const ago = a.date_start ? (() => { const d = Math.floor((Date.now() - new Date(a.date_start + "T00:00:00").getTime()) / 86400000); return d === 0 ? "today" : d === 1 ? "yesterday" : d < 30 ? `${d}d ago` : d < 365 ? `${Math.floor(d / 30)}mo ago` : `${Math.floor(d / 365)}y ago`; })() : "";
+            return (
+            <div key={a.id || i} onClick={() => { const wId = a.world_id; if (wId) onSelect(wId === userId ? "my" : wId); }}
+              style={{ display: "flex", gap: 10, padding: "10px 8px", borderBottom: i < activityData.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", alignItems: "flex-start", cursor: "pointer", borderRadius: 10, transition: "background .2s" }}
+              onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"}
+              onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
               {a.photos && a.photos.length > 0 ? (
-                <img src={a.photos[0]} alt="" style={{ width: 32, height: 32, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
+                <img src={a.photos[0]} alt="" style={{ width: 36, height: 36, borderRadius: 10, objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.06)" }} />
               ) : (
-                <div style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>
-                  🌍
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0 }}>
+                  {icon}
                 </div>
               )}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 12, color: "#d0c8d8", fontFamily: F, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                   {a.city}{a.country ? `, ${a.country}` : ""}
                 </div>
-                <div style={{ fontSize: 9, color: "#686070", fontFamily: F, marginTop: 2 }}>
-                  {worldNameMap[a.world_id] || "Shared World"} · {a.date_start ? new Date(a.date_start + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }) : ""}
+                <div style={{ fontSize: 9, color: "#686070", fontFamily: F, marginTop: 3, display: "flex", gap: 6, alignItems: "center" }}>
+                  <span style={{ color: "#807888" }}>{worldNameMap[a.world_id] || "Shared World"}</span>
+                  <span style={{ opacity: 0.4 }}>·</span>
+                  <span>{ago}</span>
+                  {a.photos && a.photos.length > 1 && <><span style={{ opacity: 0.4 }}>·</span><span>📷 {a.photos.length}</span></>}
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
           {activityData.length > 0 && (
             <div style={{ fontSize: 9, color: "#504860", textAlign: "center", marginTop: 10, fontFamily: F, letterSpacing: "0.5px" }}>
               {Object.values(entryCounts).reduce((s, c) => s + c, 0) + myEntryCount} total entries across {worlds.length + 1} world{worlds.length !== 0 ? "s" : ""}
