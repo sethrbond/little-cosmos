@@ -127,21 +127,21 @@ export const FRIENDS_PALETTE = {
   warmMist: "#d8d4ec",
 };
 
-// Family shared worlds — rich terracotta / deep sage (premium warm)
+// Family shared worlds — vivid terracotta / deep forest (warm & grounded)
 export const FAMILY_PALETTE = {
-  cream: "#faf5f0", warm: "#fcf7f2", parchment: "#f0e8e0",
-  blush: "#f8ede6", lavMist: "#ecf2ea",
-  text: "#241c18", textMid: "#4c3c34", textMuted: "#7c6c60", textFaint: "#a89c90",
-  rose: "#c46040",       // rich terracotta accent
-  roseLight: "#dc8868", roseSoft: "#d07450",
-  sky: "#3c7c5c",        // deep sage/forest secondary
-  skyLight: "#5c9c78", skySoft: "#4c8c68",
-  sage: "#6c9460", gold: "#c09840", goldWarm: "#d4ac50", lavender: "#988878",
-  together: "#887060", togetherSoft: "#a08878", togetherLight: "#bca898",
-  heart: "#b84828", heartSoft: "#d06848",
-  special: "#c89840", specialSoft: "#dcb058",
-  card: "rgba(250,245,240,0.97)", glass: "rgba(244,238,230,0.93)",
-  warmMist: "#dcd0c4",
+  cream: "#fcf5ee", warm: "#fef7f0", parchment: "#f4e8da",
+  blush: "#fce8dc", lavMist: "#e4eee6",
+  text: "#2c1c14", textMid: "#583828", textMuted: "#885c48", textFaint: "#b0907c",
+  rose: "#d05030",       // vivid terracotta-red accent (distinct from My World amber)
+  roseLight: "#e87058", roseSoft: "#d86040",
+  sky: "#2c7048",        // deep forest green secondary
+  skyLight: "#48905c", skySoft: "#388050",
+  sage: "#5c8c4c", gold: "#c89030", goldWarm: "#d8a440", lavender: "#907060",
+  together: "#986850", togetherSoft: "#b08068", togetherLight: "#c89880",
+  heart: "#c03818", heartSoft: "#d85838",
+  special: "#c89030", specialSoft: "#dca848",
+  card: "rgba(252,245,238,0.97)", glass: "rgba(248,240,230,0.93)",
+  warmMist: "#e0cbb8",
 };
 
 // ============================================================
@@ -207,23 +207,23 @@ export const FRIENDS_SCENE = {
   coastColor: "#58a860",
 };
 
-// Family scene — warm terracotta/sage, earthy glow
+// Family scene — vivid terracotta/forest, distinctly warm (not blue-slate like My World)
 export const FAMILY_SCENE = {
-  bg: "#181210",
-  fog: "#181210",
-  sphereColor: "#f4ece0",
-  sphereEmissive: "#4c3028",
-  ambientColor: "#fcf4ec",
-  sunColor: "#fff4e8",
-  fillColor: "#f4e8d8",
-  rimColor: "#c46848",
-  bottomColor: "#509468",
-  glowColors: ["#c47050", "#c87858", "#cc8060", "#d08868", "#d49070", "#d89878", "#dca080", "#e0a888"],
-  landColors: ["#eedcc4", "#e2d0b4", "#f2e4cc", "#e6d8bc", "#dad0b0"],
-  particleColor: "#b86040",
-  particleColor2: "#5c9470",
-  starTint: "#e4d4c0",
-  coastColor: "#509858",
+  bg: "#1c0e08",
+  fog: "#1c0e08",
+  sphereColor: "#f8e8d0",
+  sphereEmissive: "#6c3020",
+  ambientColor: "#fcf0e0",
+  sunColor: "#fff0dc",
+  fillColor: "#f4e0c8",
+  rimColor: "#d05838",
+  bottomColor: "#388c50",
+  glowColors: ["#d06040", "#d46848", "#d87050", "#dc7858", "#e08060", "#e48868", "#e89070", "#ec9878"],
+  landColors: ["#f0d8b8", "#e4cca8", "#f4e0c0", "#e8d4b0", "#dcc8a0"],
+  particleColor: "#cc5030",
+  particleColor2: "#48905c",
+  starTint: "#e8ccb0",
+  coastColor: "#48a050",
 };
 
 // ============================================================

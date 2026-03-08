@@ -22,7 +22,7 @@ const CENTER = {
 const ORB_BY_TYPE = {
   partner: { color: "#d8a0c0", glowColor: "#f0d0e4", emissive: "#884870" },   // rose — matches refreshed partner palette
   friends: { color: "#7880c0", glowColor: "#a8b0d8", emissive: "#343c80" },   // deep sapphire — matches friends palette
-  family:  { color: "#cc7450", glowColor: "#e8a880", emissive: "#803018" },   // rich terracotta — matches family palette
+  family:  { color: "#d05030", glowColor: "#e87058", emissive: "#8c2010" },   // vivid terracotta-red — matches refreshed family palette
   shared:  { color: "#d8a0c0", glowColor: "#f0d0e4", emissive: "#884870" },   // fallback = partner
 };
 const ORB_ORBIT_PRESETS = [
