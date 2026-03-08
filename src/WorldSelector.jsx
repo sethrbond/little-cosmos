@@ -881,7 +881,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
               <div style={{ display: "flex", gap: 8, marginBottom: 16, justifyContent: "center", flexWrap: "wrap" }}>
                 {[
                   { key: "partner", label: "Partner", icon: "\u{1F495}", desc: "A romantic partner", accent: "#e8b8d0", accentBg: "rgba(232,184,208,0.12)", accentBorder: "rgba(232,184,208,0.4)" },
-                  { key: "friends", label: "Friends", icon: "\u{1F91D}", desc: "Close friends", accent: "#9898e0", accentBg: "rgba(108,108,204,0.12)", accentBorder: "rgba(108,108,204,0.4)" },
+                  { key: "friends", label: "Friends", icon: "\u{1FAC2}", desc: "Close friends", accent: "#9898e0", accentBg: "rgba(108,108,204,0.12)", accentBorder: "rgba(108,108,204,0.4)" },
                   { key: "family",  label: "Family",  icon: "\u{1F46A}", desc: "Family members", accent: "#e09070", accentBg: "rgba(208,112,80,0.12)", accentBorder: "rgba(208,112,80,0.4)" },
                 ].map(t => (
                   <div key={t.key} onClick={() => setSharedType(t.key)}

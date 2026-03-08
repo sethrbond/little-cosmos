@@ -345,6 +345,9 @@ CREATE POLICY "entries_world_insert" ON entries FOR INSERT WITH CHECK (
 CREATE POLICY "entries_world_update" ON entries FOR UPDATE USING (
   world_id IS NOT NULL AND
   world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid() AND role IN ('owner', 'member'))
+) WITH CHECK (
+  world_id IS NOT NULL AND
+  world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid() AND role IN ('owner', 'member'))
 );
 CREATE POLICY "entries_world_delete" ON entries FOR DELETE USING (
   world_id IS NOT NULL AND
@@ -393,6 +396,14 @@ CREATE POLICY "my_entries_update" ON my_entries FOR UPDATE
   USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "my_entries_delete" ON my_entries FOR DELETE
   USING (auth.uid() = user_id);
+CREATE POLICY "my_entries_friend_access" ON my_entries FOR SELECT USING (
+  user_id IN (
+    SELECT CASE WHEN requester_id = auth.uid() THEN target_user_id ELSE requester_id END
+    FROM cosmos_connections
+    WHERE status = 'accepted'
+      AND (requester_id = auth.uid() OR target_user_id = auth.uid())
+  )
+);
 
 CREATE POLICY "my_config_select" ON my_config FOR SELECT
   USING (auth.uid() = user_id);
@@ -400,6 +411,14 @@ CREATE POLICY "my_config_insert" ON my_config FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "my_config_update" ON my_config FOR UPDATE
   USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "my_config_friend_access" ON my_config FOR SELECT USING (
+  user_id IN (
+    SELECT CASE WHEN requester_id = auth.uid() THEN target_user_id ELSE requester_id END
+    FROM cosmos_connections
+    WHERE status = 'accepted'
+      AND (requester_id = auth.uid() OR target_user_id = auth.uid())
+  )
+);
 
 
 -- ============================================================
@@ -430,8 +449,16 @@ CREATE POLICY world_members_delete ON world_members FOR DELETE USING (
   user_id = auth.uid() OR
   world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid() AND role = 'owner')
 );
+CREATE POLICY world_members_update ON world_members FOR UPDATE USING (
+  world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid() AND role = 'owner')
+) WITH CHECK (
+  world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid() AND role = 'owner')
+);
 
-CREATE POLICY world_invites_select ON world_invites FOR SELECT USING (true);
+CREATE POLICY world_invites_select ON world_invites FOR SELECT USING (
+  created_by = auth.uid() OR
+  world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid())
+);
 CREATE POLICY world_invites_insert ON world_invites FOR INSERT WITH CHECK (
   world_id IN (SELECT world_id FROM world_members WHERE user_id = auth.uid() AND role IN ('owner', 'member'))
 );

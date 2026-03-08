@@ -12,11 +12,16 @@ export async function createWorld(userId, name, type = 'shared', { youName = '',
     .single()
   if (error) { console.error('[createWorld]', error); return null }
 
-  // Add creator as owner
+  // Add creator as owner — MUST succeed before config insert (RLS depends on membership)
   const { error: memErr } = await supabase
     .from('world_members')
     .insert({ world_id: data.id, user_id: userId, role: 'owner' })
-  if (memErr) console.error('[createWorld] member insert:', memErr)
+  if (memErr) {
+    console.error('[createWorld] member insert:', memErr)
+    // Clean up the orphaned world
+    await supabase.from('worlds').delete().eq('id', data.id)
+    return null
+  }
 
   // For partner worlds, use youName/partnerName; for group worlds, use members array
   const isGroupWorld = type === 'friends' || type === 'family'
@@ -44,7 +49,10 @@ export async function createWorld(userId, name, type = 'shared', { youName = '',
         customScene: {},
       },
     })
-  if (cfgErr) console.error('[createWorld] config insert:', cfgErr)
+  if (cfgErr) {
+    console.error('[createWorld] config insert:', cfgErr)
+    // World + member exist but config failed — not fatal, config will be created on first save
+  }
 
   return data
 }
