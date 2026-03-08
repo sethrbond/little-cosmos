@@ -5,22 +5,24 @@ import { supabase } from './supabaseClient.js'
 // ---- WORLDS ----
 
 export async function createWorld(userId, name, type = 'shared', { youName = '', partnerName = '', members = [] } = {}) {
+  console.log('[createWorld] starting:', { userId, name, type })
   const { data, error } = await supabase
     .from('worlds')
     .insert({ name, type, created_by: userId })
     .select()
     .single()
-  if (error) { console.error('[createWorld]', error); return null }
+  if (error) { console.error('[createWorld] worlds insert failed:', error.message, error.details, error.hint); return { _error: `worlds insert: ${error.message}` } }
 
+  console.log('[createWorld] world created:', data.id)
   // Add creator as owner — MUST succeed before config insert (RLS depends on membership)
   const { error: memErr } = await supabase
     .from('world_members')
     .insert({ world_id: data.id, user_id: userId, role: 'owner' })
   if (memErr) {
-    console.error('[createWorld] member insert:', memErr)
+    console.error('[createWorld] member insert failed:', memErr.message, memErr.details, memErr.hint)
     // Clean up the orphaned world
     await supabase.from('worlds').delete().eq('id', data.id)
-    return null
+    return { _error: `member insert: ${memErr.message}` }
   }
 
   // For partner worlds, use youName/partnerName; for group worlds, use members array

@@ -439,7 +439,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       members: isGroupType ? sharedMembers.filter(m => m.name.trim()).map(m => ({ name: m.name.trim() })) : [],
     });
     setCreatingShared(false);
-    if (!world) { alert("Failed to create world."); return; }
+    if (!world || world._error) { alert("Failed to create world: " + (world?._error || "unknown error")); return; }
     setCreatedWorldId(world.id);
     setSharedStep(1);
   };
