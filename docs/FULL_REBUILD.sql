@@ -808,9 +808,7 @@ END $$;
 
 -- ============================================================
 --  28. EMAIL TRIGGER: World invite (welcome_letters)
---  Requires: pg_net extension + RESEND_API_KEY in Vault
---  If pg_net is not enabled, this function is created but the
---  net.http_post call will fail at runtime (silently returns NEW).
+--  Safely handles missing pg_net / Vault extensions.
 -- ============================================================
 
 CREATE OR REPLACE FUNCTION notify_invite_email()
@@ -861,7 +859,6 @@ BEGIN
       body := email_body::jsonb
     );
   EXCEPTION WHEN OTHERS THEN
-    -- pg_net not available, skip email silently
     NULL;
   END;
 
@@ -878,6 +875,7 @@ CREATE TRIGGER on_welcome_letter_send_email
 
 -- ============================================================
 --  29. EMAIL TRIGGER: Friend connection request
+--  Safely handles missing pg_net / Vault extensions.
 -- ============================================================
 
 CREATE OR REPLACE FUNCTION notify_connection_email()
@@ -921,6 +919,7 @@ BEGIN
     site_url
   );
 
+  -- Safely try to send email via pg_net
   BEGIN
     PERFORM net.http_post(
       url := 'https://api.resend.com/emails',
