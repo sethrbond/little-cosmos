@@ -320,16 +320,21 @@ export async function createInviteWithLetter(worldId, userId, fromName, toEmail,
     ? letterText.trim()
     : `${fromName} has invited you to join a shared world on My Cosmos!`
   if (toEmail) {
-    const { error: letterErr } = await supabase
-      .from('welcome_letters')
-      .insert({
-        from_user_id: userId,
-        from_name: fromName,
-        to_email: toEmail.toLowerCase(),
-        letter_text: text,
-        invite_token: invite.token,
-      })
-    if (letterErr) console.error('[createInviteWithLetter] letter error:', letterErr)
+    const letterRow = {
+      from_user_id: userId, from_name: fromName,
+      to_email: toEmail.toLowerCase(), letter_text: text,
+      invite_token: invite.token,
+    }
+    const { error: letterErr } = await supabase.from('welcome_letters').insert(letterRow)
+    // If invite_token column doesn't exist yet, retry without it
+    if (letterErr && (letterErr.message?.includes('invite_token') || letterErr.code === '42703')) {
+      console.warn('[createInviteWithLetter] invite_token column missing, retrying without it')
+      const { invite_token, ...safeRow } = letterRow
+      const { error: e2 } = await supabase.from('welcome_letters').insert(safeRow)
+      if (e2) console.error('[createInviteWithLetter] letter retry error:', e2)
+    } else if (letterErr) {
+      console.error('[createInviteWithLetter] letter error:', letterErr)
+    }
   }
 
   return { invite, inviteLink: `${window.location.origin}?invite=${invite.token}` }
@@ -345,16 +350,20 @@ export async function createViewerInvite(worldId, userId, toEmail, letterText, f
     ? letterText.trim()
     : `${name} has invited you to view their world on My Cosmos!`
   if (toEmail) {
-    const { error: letterErr } = await supabase
-      .from('welcome_letters')
-      .insert({
-        from_user_id: userId,
-        from_name: name,
-        to_email: toEmail.toLowerCase(),
-        letter_text: text,
-        invite_token: invite.token,
-      })
-    if (letterErr) console.error('[createViewerInvite] letter error:', letterErr)
+    const letterRow = {
+      from_user_id: userId, from_name: name,
+      to_email: toEmail.toLowerCase(), letter_text: text,
+      invite_token: invite.token,
+    }
+    const { error: letterErr } = await supabase.from('welcome_letters').insert(letterRow)
+    if (letterErr && (letterErr.message?.includes('invite_token') || letterErr.code === '42703')) {
+      console.warn('[createViewerInvite] invite_token column missing, retrying without it')
+      const { invite_token, ...safeRow } = letterRow
+      const { error: e2 } = await supabase.from('welcome_letters').insert(safeRow)
+      if (e2) console.error('[createViewerInvite] letter retry error:', e2)
+    } else if (letterErr) {
+      console.error('[createViewerInvite] letter error:', letterErr)
+    }
   }
 
   return { invite, inviteLink: `${window.location.origin}?invite=${invite.token}` }
