@@ -1317,6 +1317,24 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     return () => clearTimeout(t);
   }, [introComplete, showZoomHint]);
 
+  // Stats (must be before anniversary/milestone effects that reference it)
+  const stats = useMemo(() => {
+    const statList = isPartnerWorld ? togetherList : sorted;
+    let daysTog = 0, totalMiles = 0;
+    const countries = new Set();
+    statList.forEach((e, i) => {
+      const end = e.dateEnd || e.dateStart;
+      daysTog += Math.max(1, daysBetween(e.dateStart, end));
+      if (e.country) countries.add(e.country);
+      (e.stops || []).forEach(s => { if (s.country) countries.add(s.country); });
+      if (i > 0) {
+        const prev = statList[i - 1];
+        totalMiles += haversine(prev.lat, prev.lng, e.lat, e.lng);
+      }
+    });
+    return { daysTog, countries: countries.size, trips: statList.length, totalMiles, photos: data.entries.reduce((s, e) => s + (e.photos || []).length, 0) };
+  }, [data.entries, togetherList, sorted, isPartnerWorld]);
+
   // Anniversary check
   const isAnniversary = useMemo(() => {
     if (!config.startDate) return false;
@@ -1400,24 +1418,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const nextTogether = useMemo(() => {
     return togetherList.find(e => e.dateStart > todayStr());
   }, [togetherList]);
-
-  // Stats
-  const stats = useMemo(() => {
-    const statList = isPartnerWorld ? togetherList : sorted;
-    let daysTog = 0, totalMiles = 0;
-    const countries = new Set();
-    statList.forEach((e, i) => {
-      const end = e.dateEnd || e.dateStart;
-      daysTog += Math.max(1, daysBetween(e.dateStart, end));
-      if (e.country) countries.add(e.country);
-      (e.stops || []).forEach(s => { if (s.country) countries.add(s.country); });
-      if (i > 0) {
-        const prev = statList[i - 1];
-        totalMiles += haversine(prev.lat, prev.lng, e.lat, e.lng);
-      }
-    });
-    return { daysTog, countries: countries.size, trips: statList.length, totalMiles, photos: data.entries.reduce((s, e) => s + (e.photos || []).length, 0) };
-  }, [data.entries, togetherList, sorted, isPartnerWorld]);
 
   // Together entry count
   const togetherIndex = useCallback(id => {
