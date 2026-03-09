@@ -435,14 +435,13 @@ export async function loadCrossWorldActivity(worldIds, limit = 20) {
 export async function loadWorldEntryCounts(worldIds) {
   if (!worldIds || worldIds.length === 0) return {}
   const counts = {}
-  const results = await Promise.all(worldIds.map(async wid => {
+  for (const wid of worldIds) {
     const { count, error } = await supabase
       .from('entries')
       .select('*', { count: 'exact', head: true })
       .eq('world_id', wid)
-    return { wid, count: error ? 0 : (count || 0) }
-  }))
-  results.forEach(r => { counts[r.wid] = r.count })
+    if (!error) counts[wid] = count || 0
+  }
   return counts
 }
 

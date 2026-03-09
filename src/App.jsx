@@ -19,12 +19,11 @@ function AppInner() {
   const safeRemove = (key) => { try { localStorage.removeItem(key) } catch {} }
   const obKey = (name) => `${ONBOARD_VERSION}_${name}`
 
-  // Always start at the cosmos screen (never resume into a world from localStorage)
-  const [worldMode, setWorldMode] = useState(null)
-  const [activeWorldId, setActiveWorldId] = useState(null)
-  const [activeWorldName, setActiveWorldName] = useState(null)
-  const [activeWorldRole, setActiveWorldRole] = useState(null)
-  const [activeWorldType, setActiveWorldType] = useState(null)
+  const [worldMode, setWorldMode] = useState(() => safeGet('worldMode'))
+  const [activeWorldId, setActiveWorldId] = useState(() => safeGet('activeWorldId'))
+  const [activeWorldName, setActiveWorldName] = useState(() => safeGet('activeWorldName'))
+  const [activeWorldRole, setActiveWorldRole] = useState(() => safeGet('activeWorldRole'))
+  const [activeWorldType, setActiveWorldType] = useState(() => safeGet('activeWorldType'))
   const [welcomeLetter, setWelcomeLetter] = useState(null)
   const [letterChecked, setLetterChecked] = useState(false)
   const [worlds, setWorlds] = useState([])
@@ -123,10 +122,12 @@ function AppInner() {
     }
   }, [userId, worldsLoaded])
 
-  // Document title set by OurWorld.jsx when a world is active
+  // Dynamic document title
   useEffect(() => {
-    if (!worldMode) document.title = 'My Cosmos — Little Cosmos'
-  }, [worldMode])
+    if (!worldMode) { document.title = 'My Cosmos — Little Cosmos'; return }
+    if (worldMode === 'my') { document.title = 'My World — Little Cosmos'; return }
+    document.title = `${activeWorldName || 'Shared World'} — Little Cosmos`
+  }, [worldMode, activeWorldName])
 
   const selectWorld = useCallback((mode, worldId = null, worldName = null, worldRole = null, worldType = null) => {
     // Determine accent color for zoom transition
