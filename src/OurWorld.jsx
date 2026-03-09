@@ -1195,7 +1195,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [isSharedWorld, worldId, db, showToast]);
+  }, [isSharedWorld, worldId, db]); // showToast omitted — stable ref ([] deps), including it causes TDZ in production
 
   // zoom tracked via zmR ref (used in animation loop directly)
   const [ready, setReady] = useState(false);
