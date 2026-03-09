@@ -1734,19 +1734,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   }, [searchQuery, data.entries]);
 
   // Sync search matches to ref for animation loop access
-  // Include group marker IDs so location groups with matches also glow
   useEffect(() => {
-    const ids = new Set(searchResults.map(e => e.id));
-    // Also add group IDs for matching entries
-    if (ids.size > 0) {
-      locationGroups.forEach(g => {
-        if (g.entries.length > 1 && g.entries.some(e => ids.has(e.id))) {
-          ids.add(`group-${g.lat.toFixed(2)}-${g.lng.toFixed(2)}`);
-        }
-      });
-    }
-    searchMatchIdsRef.current = ids;
-  }, [searchResults, locationGroups]);
+    searchMatchIdsRef.current = new Set(searchResults.map(e => e.id));
+  }, [searchResults]);
 
   // ---- FAVORITES ----
   const toggleFavorite = useCallback((id, currentFavorite) => {
@@ -2556,7 +2546,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       const searchActive = searchMatchIdsRef.current.size > 0;
       const searchPulse = searchActive ? 1 + Math.sin(Date.now() * 0.004) * 0.3 : 1;
       mkRef.current.forEach((m) => {
-        const isMatch = searchActive && searchMatchIdsRef.current.has(m.entryId);
+        const isMatch = searchActive && (searchMatchIdsRef.current.has(m.entryId) || (m.entryIds && m.entryIds.some(id => searchMatchIdsRef.current.has(id))));
         const scale = isMatch ? mkScale * searchPulse * 1.4 : mkScale * breathe;
         const dimmed = searchActive && !isMatch;
         if (m.dot) {
@@ -2995,7 +2985,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       const size = isMulti ? 0.02 : 0.014;
       const entryId = isMulti ? `group-${loc.lat.toFixed(2)}-${loc.lng.toFixed(2)}` : loc.entries[0].id;
 
-      mkRef.current.push(makeDot(g, loc.lat, loc.lng, color, size, entryId, false, icon));
+      const mk = makeDot(g, loc.lat, loc.lng, color, size, entryId, false, icon);
+      mk.entryIds = loc.entries.map(e => e.id); // all entry IDs at this location (for search glow)
+      mkRef.current.push(mk);
     });
 
     // ---- Person 1 ("you") position dot (from slider) ---- (partner only)
