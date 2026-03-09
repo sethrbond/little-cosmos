@@ -1206,39 +1206,62 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   useEffect(() => {
     const count = data.entries.length;
     if (prevEntryCountRef.current > 0 && count > prevEntryCountRef.current && sceneReady) {
-      // A new entry was just added — find it (last one in array)
       const newest = data.entries[data.entries.length - 1];
       if (newest && newest.lat != null && newest.lng != null && !cometRef.current) {
         const target = ll2v(newest.lat, newest.lng, RAD * 1.015);
-        // Origin: random point in the upper sky
-        const angle = Math.random() * Math.PI * 2;
+        // Origin: further out, always visible (camera-forward bias)
+        const camZ = camRef.current ? camRef.current.position.z : 4;
         const origin = new THREE.Vector3(
-          Math.cos(angle) * 6 + (Math.random() - 0.5) * 2,
-          3 + Math.random() * 4,
-          Math.sin(angle) * 6 + (Math.random() - 0.5) * 2
+          (Math.random() - 0.5) * 4,
+          2 + Math.random() * 3,
+          camZ * 0.5 + Math.random() * 2
         );
         const typeInfo = TYPES[newest.type];
         const color = typeInfo ? (P[typeInfo.color] || typeInfo.color || P.gold) : P.gold;
-        // Create comet head
-        const headGeo = new THREE.SphereGeometry(0.03, 12, 12);
-        const headMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8 });
+
+        // Comet head — larger, glowing
+        const headGeo = new THREE.SphereGeometry(0.045, 16, 16);
+        const headMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9 });
         const head = new THREE.Mesh(headGeo, headMat);
         head.position.copy(origin);
         head.renderOrder = 15;
         scnRef.current.add(head);
-        // Create comet trail
-        const trailPositions = new Float32Array(6);
+        // Head glow halo
+        const haloGeo = new THREE.SphereGeometry(0.12, 16, 16);
+        const haloMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.15, side: THREE.BackSide });
+        const halo = new THREE.Mesh(haloGeo, haloMat);
+        head.add(halo);
+
+        // Multi-segment trail (16 points for smooth fade)
+        const TRAIL_LEN = 16;
+        const trailPositions = new Float32Array(TRAIL_LEN * 3);
+        for (let ti = 0; ti < TRAIL_LEN * 3; ti++) trailPositions[ti] = origin.x; // init all to origin
         const trailGeo = new THREE.BufferGeometry();
         trailGeo.setAttribute("position", new THREE.BufferAttribute(trailPositions, 3));
-        const trailMat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.5 });
+        const trailMat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.6 });
         const trail = new THREE.Line(trailGeo, trailMat);
         trail.renderOrder = 14;
         scnRef.current.add(trail);
 
+        // Curved path via control point for dramatic arc
+        const mid = origin.clone().add(target).multiplyScalar(0.5);
+        mid.y += 1.5 + Math.random(); // arc upward
+        const curve = new THREE.QuadraticBezierCurve3(origin, mid, target);
+
+        // Impact flash mesh (starts invisible)
+        const flashGeo = new THREE.SphereGeometry(0.2, 24, 24);
+        const flashMat = new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0, side: THREE.FrontSide });
+        const flash = new THREE.Mesh(flashGeo, flashMat);
+        flash.position.copy(target);
+        flash.renderOrder = 16;
+        scnRef.current.add(flash);
+
         cometRef.current = {
           active: true, progress: 0,
-          origin, target, color,
-          head, trail, trailGeo, trailPositions,
+          origin, target, color, curve,
+          head, trail, trailGeo, trailPositions, TRAIL_LEN,
+          flash, halo,
+          history: [], // position history for trail
           burst: null, burstAge: 0,
         };
       }
@@ -2273,16 +2296,39 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.06, side: THREE.FrontSide })
     ));
 
-    // Night shadow — real-time day/night terminator
-    const nightGeo = new THREE.SphereGeometry(RAD * 1.004, 64, 64, 0, Math.PI); // half-sphere
-    const nightMat = new THREE.MeshBasicMaterial({ color: "#0a0820", transparent: true, opacity: 0.22, side: THREE.FrontSide, depthTest: true });
+    // Night shadow — smooth gradient day/night terminator using custom shader
+    const nightGeo = new THREE.SphereGeometry(RAD * 1.005, 64, 64);
+    const nightMat = new THREE.ShaderMaterial({
+      transparent: true, depthTest: true, side: THREE.FrontSide,
+      uniforms: {
+        sunDir: { value: new THREE.Vector3(1, 0, 0) },
+        nightColor: { value: new THREE.Color("#080618") },
+        strength: { value: 0.28 },
+      },
+      vertexShader: `
+        varying vec3 vNormal;
+        void main() {
+          vNormal = normalize(normalMatrix * normal);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform vec3 sunDir;
+        uniform vec3 nightColor;
+        uniform float strength;
+        varying vec3 vNormal;
+        void main() {
+          float facing = dot(vNormal, sunDir);
+          // Smooth gradient: fully lit → twilight → dark
+          float shadow = smoothstep(0.15, -0.4, facing);
+          gl_FragColor = vec4(nightColor, shadow * strength);
+        }
+      `,
+    });
     const nightMesh = new THREE.Mesh(nightGeo, nightMat);
-    // Position based on current UTC hour — the sun is roughly overhead at noon UTC at 0° longitude
-    const utcHour = new Date().getUTCHours() + new Date().getUTCMinutes() / 60;
-    nightMesh.rotation.y = ((utcHour / 24) * Math.PI * 2) + Math.PI; // dark side opposite the sun
     nightMesh.renderOrder = 1;
     globe.add(nightMesh);
-    nightShadowRef.current = nightMesh;
+    nightShadowRef.current = { mesh: nightMesh, material: nightMat };
 
     // Glow layers — 12-layer deep halo for ethereal radiance
     const glowRadii = [1.01, 1.025, 1.045, 1.07, 1.10, 1.14, 1.20, 1.28, 1.40, 1.55, 1.75, 2.0];
@@ -2677,78 +2723,122 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         pr.mesh.material.opacity = (1 - pr.age) * 0.25; // fade out
       }
 
-      // Night shadow — slowly rotate with real time
-      if (nightShadowRef.current) {
+      // Night shadow — update sun direction based on real UTC time
+      if (nightShadowRef.current?.material) {
         const uh = new Date().getUTCHours() + new Date().getUTCMinutes() / 60 + new Date().getUTCSeconds() / 3600;
-        nightShadowRef.current.rotation.y = ((uh / 24) * Math.PI * 2) + Math.PI;
+        const sunAngle = (uh / 24) * Math.PI * 2 - Math.PI / 2; // noon UTC = sun at 0° longitude
+        nightShadowRef.current.material.uniforms.sunDir.value.set(
+          Math.cos(sunAngle), 0.15, Math.sin(sunAngle)
+        ).normalize();
       }
 
-      // Comet animation — streak from sky to globe surface
+      // Comet animation — dramatic arc from sky to globe surface
       if (cometRef.current && cometRef.current.active) {
         const c = cometRef.current;
-        c.progress += 0.015;
+        // Accelerate: slow at start, fast at impact
+        c.progress += 0.008 + c.progress * 0.025;
         if (c.progress >= 1) {
-          // Impact! Create starburst
+          // IMPACT!
           c.active = false;
           c.head.visible = false;
           c.trail.visible = false;
-          // Spawn burst particles at impact point
-          const burstN = 24;
+          // Flash: bright white sphere expands and fades
+          c.flash.material.opacity = 0.7;
+          c.flash.scale.setScalar(0.3);
+          // Spawn burst particles — more, bigger, faster
+          const burstN = 36;
           const burstGroup = new THREE.Group();
           const burstParticles = [];
+          const normal = c.target.clone().normalize();
           for (let bi = 0; bi < burstN; bi++) {
-            const bGeo = new THREE.SphereGeometry(0.008, 6, 6);
-            const bMat = new THREE.MeshBasicMaterial({ color: c.color, transparent: true, opacity: 0.8 });
+            const bGeo = new THREE.SphereGeometry(0.012 + Math.random() * 0.008, 8, 8);
+            const bColor = bi < burstN / 3 ? "#ffffff" : c.color; // mix white sparks with colored
+            const bMat = new THREE.MeshBasicMaterial({ color: bColor, transparent: true, opacity: 0.9 });
             const bMesh = new THREE.Mesh(bGeo, bMat);
             bMesh.position.copy(c.target);
-            const dir = new THREE.Vector3(
-              (Math.random() - 0.5) * 0.6,
-              (Math.random() - 0.5) * 0.6,
-              (Math.random() - 0.5) * 0.6
-            ).add(c.target.clone().normalize().multiplyScalar(0.3));
-            burstParticles.push({ mesh: bMesh, vel: dir, age: 0 });
+            // Burst outward from surface, biased along normal
+            const spread = new THREE.Vector3(
+              (Math.random() - 0.5), (Math.random() - 0.5), (Math.random() - 0.5)
+            ).normalize().multiplyScalar(0.3 + Math.random() * 0.5);
+            spread.add(normal.clone().multiplyScalar(0.2 + Math.random() * 0.3));
+            burstParticles.push({ mesh: bMesh, vel: spread, age: 0 });
             burstGroup.add(bMesh);
           }
+          // Add expanding ring at impact point
+          const ringGeo = new THREE.RingGeometry(0.01, 0.04, 32);
+          const ringMat = new THREE.MeshBasicMaterial({ color: c.color, transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthTest: false });
+          const impactRing = new THREE.Mesh(ringGeo, ringMat);
+          impactRing.position.copy(c.target);
+          impactRing.lookAt(c.target.clone().multiplyScalar(2));
+          impactRing.renderOrder = 16;
+          burstGroup.add(impactRing);
+          burstParticles.push({ mesh: impactRing, vel: new THREE.Vector3(), age: 0, isRing: true });
           globe.add(burstGroup);
           c.burst = { group: burstGroup, particles: burstParticles };
           c.burstAge = 0;
         } else {
-          // Animate comet along path
-          const eased = c.progress * c.progress * (3 - 2 * c.progress); // smoothstep
-          const pos = c.origin.clone().lerp(c.target, eased);
+          // Follow curved path
+          const eased = c.progress < 0.5
+            ? 2 * c.progress * c.progress  // ease in
+            : 1 - Math.pow(-2 * c.progress + 2, 2) / 2; // ease out
+          const pos = c.curve.getPoint(eased);
           c.head.position.copy(pos);
-          // Trail: a line from slightly behind to the head
-          const trailStart = c.origin.clone().lerp(c.target, Math.max(0, eased - 0.15));
-          c.trailPositions[0] = trailStart.x; c.trailPositions[1] = trailStart.y; c.trailPositions[2] = trailStart.z;
-          c.trailPositions[3] = pos.x; c.trailPositions[4] = pos.y; c.trailPositions[5] = pos.z;
+          // Record position history for multi-segment trail
+          c.history.unshift(pos.clone());
+          if (c.history.length > c.TRAIL_LEN) c.history.length = c.TRAIL_LEN;
+          // Update trail geometry from history
+          for (let ti = 0; ti < c.TRAIL_LEN; ti++) {
+            const hp = c.history[Math.min(ti, c.history.length - 1)];
+            c.trailPositions[ti * 3] = hp.x;
+            c.trailPositions[ti * 3 + 1] = hp.y;
+            c.trailPositions[ti * 3 + 2] = hp.z;
+          }
           c.trailGeo.attributes.position.needsUpdate = true;
-          c.trail.material.opacity = 0.4 + Math.sin(c.progress * Math.PI) * 0.3;
-          c.head.material.opacity = 0.6 + Math.sin(c.progress * Math.PI) * 0.4;
-          const headScale = 0.8 + Math.sin(c.progress * Math.PI * 3) * 0.2;
+          c.trail.material.opacity = 0.3 + c.progress * 0.4;
+          c.head.material.opacity = 0.7 + Math.sin(c.progress * Math.PI) * 0.3;
+          // Pulse head size
+          const headScale = 1 + Math.sin(c.progress * Math.PI * 4) * 0.15;
           c.head.scale.setScalar(headScale);
         }
       }
-      // Animate comet burst particles
+      // Animate comet burst + flash
       if (cometRef.current?.burst) {
-        const b = cometRef.current.burst;
-        cometRef.current.burstAge += 0.02;
-        if (cometRef.current.burstAge >= 1) {
-          globe.remove(b.group);
-          b.particles.forEach(p => { p.mesh.geometry.dispose(); p.mesh.material.dispose(); });
-          cometRef.current.burst = null;
-          // Clean up comet objects
-          scene.remove(cometRef.current.head);
-          scene.remove(cometRef.current.trail);
-          cometRef.current.head.geometry.dispose(); cometRef.current.head.material.dispose();
-          cometRef.current.trailGeo.dispose(); cometRef.current.trail.material.dispose();
+        const c = cometRef.current;
+        c.burstAge += 0.015;
+        // Flash: expand and fade
+        if (c.flash) {
+          const flashLife = Math.min(c.burstAge * 3, 1);
+          c.flash.scale.setScalar(0.3 + flashLife * 1.5);
+          c.flash.material.opacity = Math.max(0, 0.7 * (1 - flashLife));
+          if (flashLife >= 1 && c.flash.parent) {
+            scene.remove(c.flash);
+            c.flash.geometry.dispose(); c.flash.material.dispose();
+            c.flash = null;
+          }
+        }
+        if (c.burstAge >= 1.2) {
+          globe.remove(c.burst.group);
+          c.burst.particles.forEach(p => { p.mesh.geometry.dispose(); p.mesh.material.dispose(); });
+          c.burst = null;
+          scene.remove(c.head); scene.remove(c.trail);
+          c.head.geometry.dispose(); c.head.material.dispose();
+          c.trailGeo.dispose(); c.trail.material.dispose();
+          if (c.flash) { scene.remove(c.flash); c.flash.geometry.dispose(); c.flash.material.dispose(); }
           cometRef.current = null;
         } else {
-          b.particles.forEach(p => {
-            p.age += 0.02;
-            p.mesh.position.add(p.vel.clone().multiplyScalar(0.02));
-            p.vel.multiplyScalar(0.96); // drag
-            p.mesh.material.opacity = Math.max(0, 0.8 * (1 - p.age));
-            p.mesh.scale.setScalar(1 - p.age * 0.5);
+          c.burst.particles.forEach(p => {
+            p.age += 0.015;
+            if (p.isRing) {
+              // Expanding impact ring
+              const ringScale = 1 + p.age * 12;
+              p.mesh.scale.setScalar(ringScale);
+              p.mesh.material.opacity = Math.max(0, 0.6 * (1 - p.age));
+            } else {
+              p.mesh.position.add(p.vel.clone().multiplyScalar(0.018));
+              p.vel.multiplyScalar(0.94); // drag
+              p.mesh.material.opacity = Math.max(0, 0.9 * (1 - p.age * 0.8));
+              p.mesh.scale.setScalar(Math.max(0.1, 1 - p.age * 0.6));
+            }
           });
         }
       }
