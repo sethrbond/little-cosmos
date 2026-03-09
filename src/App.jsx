@@ -239,7 +239,7 @@ function AppInner() {
             const invites = await getPendingWorldInvitesForLetter(welcomeLetter)
             for (const inv of invites) {
               const result = await acceptInvite(inv.token)
-              if (result?.ok) console.log('[welcomeLetter] auto-accepted invite to', inv.worldName)
+              // invite accepted
             }
             // Refresh worlds list so the shared world appears on cosmos
             if (userId) {

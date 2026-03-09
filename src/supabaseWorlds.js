@@ -8,7 +8,6 @@ export async function createWorld(userId, name, type = 'shared', { youName = '',
   const isGroupWorld = type === 'friends' || type === 'family'
   const memberNames = isGroupWorld ? members.map(m => ({ name: m.name || m })) : []
 
-  console.log('[createWorld] calling RPC:', { name, type })
   const { data, error } = await supabase.rpc('create_world', {
     world_name: name,
     world_type: type,
@@ -22,7 +21,6 @@ export async function createWorld(userId, name, type = 'shared', { youName = '',
     return { _error: error.message }
   }
 
-  console.log('[createWorld] success:', data)
   return data
 }
 
@@ -381,16 +379,6 @@ export async function deleteComment(commentId) {
 }
 
 // ---- REACTIONS ----
-
-export async function loadReactions(worldId, entryId) {
-  const { data, error } = await supabase
-    .from('entry_reactions')
-    .select('*')
-    .eq('world_id', worldId)
-    .eq('entry_id', entryId)
-  if (error) { console.error('[loadReactions]', error); return [] }
-  return data || []
-}
 
 export async function toggleReaction(worldId, entryId, userId, reactionType = 'heart', photoUrl = null) {
   // Check if already exists
