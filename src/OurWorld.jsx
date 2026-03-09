@@ -1155,6 +1155,53 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     return () => clearTimeout(t);
   }, [selected?.id, selected?.musicUrl]);
 
+  // Atmosphere pulse — visual response when selecting an entry
+  useEffect(() => {
+    const atm = atmosphereRef.current;
+    if (!selected) {
+      atm.targetHue = null;
+      return;
+    }
+    // Derive mood color from entry type
+    const typeInfo = TYPES[selected.type];
+    const typeColor = typeInfo ? (P[typeInfo.color] || typeInfo.color) : P.rose;
+    atm.targetHue = typeColor;
+    atm.intensity = 0.01; // start ramp
+    atm.particleBoost = 1.0; // brief speed burst
+
+    // Create expanding pulse ring on the globe surface
+    const g = globeRef.current;
+    if (g && selected.lat != null && selected.lng != null) {
+      const pos = ll2v(selected.lat, selected.lng, RAD * 1.015);
+      const ringGeo = new THREE.RingGeometry(0.02, 0.035, 32);
+      const ringMat = new THREE.MeshBasicMaterial({
+        color: typeColor, transparent: true, opacity: 0.25,
+        side: THREE.DoubleSide, depthTest: false
+      });
+      const ring = new THREE.Mesh(ringGeo, ringMat);
+      ring.position.copy(pos);
+      ring.lookAt(pos.clone().multiplyScalar(2));
+      ring.renderOrder = 5;
+      g.add(ring);
+      pulseRingsRef.current.push({ mesh: ring, age: 0 });
+      // Second ring with slight delay for layered effect
+      setTimeout(() => {
+        if (!globeRef.current) return;
+        const ring2Geo = new THREE.RingGeometry(0.015, 0.025, 32);
+        const ring2Mat = new THREE.MeshBasicMaterial({
+          color: typeColor, transparent: true, opacity: 0.18,
+          side: THREE.DoubleSide, depthTest: false
+        });
+        const ring2 = new THREE.Mesh(ring2Geo, ring2Mat);
+        ring2.position.copy(pos);
+        ring2.lookAt(pos.clone().multiplyScalar(2));
+        ring2.renderOrder = 5;
+        globeRef.current.add(ring2);
+        pulseRingsRef.current.push({ mesh: ring2, age: 0 });
+      }, 150);
+    }
+  }, [selected?.id]);
+
   // Load world members for contributor avatars
   useEffect(() => {
     if (!isSharedWorld || !worldId) { setWorldMembers([]); return; }
@@ -1275,6 +1322,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const loveThreadRef = useRef([]);
   const constellationRef = useRef([]);
   const routesRef = useRef([]);
+  const pulseRingsRef = useRef([]);
+  const atmosphereRef = useRef({ targetHue: null, intensity: 0, particleBoost: 0 });
+  const particles2Ref = useRef(null);
   const mouseRef = useRef({ x: 0, y: 0 });
 
   // Theme colors (always light mode)
@@ -2249,6 +2299,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     const p2Mat = new THREE.PointsMaterial({ color: SC.particleColor2, size: 0.007, transparent: true, opacity: 0.20 });
     const particles2 = new THREE.Points(p2G, p2Mat);
     scene.add(particles2);
+    particles2Ref.current = particles2;
 
     // Stars — 900+ twinkling field, no sizeAttenuation so they're visible at distance
     const starN = 920;
@@ -2417,6 +2468,76 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           if (ap[i * 3] < -5) ap[i * 3] = 5;
         }
         ag.attributes.position.needsUpdate = true;
+
+        // Atmosphere mood — aurora color shifts toward selected entry's type
+        const atm = atmosphereRef.current;
+        if (atm.targetHue) {
+          const colors = ag.attributes.color;
+          const tc = new THREE.Color(atm.targetHue);
+          const blend = Math.min(atm.intensity, 0.35); // never fully overwhelm aurora
+          for (let i = 0; i < colors.count; i++) {
+            const t2 = i / colors.count;
+            const band = Math.sin(t2 * Math.PI * 3);
+            // Base aurora colors (same as setup)
+            const baseR = 0.55 + band * 0.2 + t2 * 0.2;
+            const baseG2 = 0.4 + Math.abs(band) * 0.25;
+            const baseB = 0.7 + (1 - t2) * 0.2;
+            colors.array[i * 3] = baseR + (tc.r - baseR) * blend;
+            colors.array[i * 3 + 1] = baseG2 + (tc.g - baseG2) * blend;
+            colors.array[i * 3 + 2] = baseB + (tc.b - baseB) * blend;
+          }
+          colors.needsUpdate = true;
+          // Fade intensity toward target (ramp up) or back to 0 (ramp down)
+          atm.intensity = lerp(atm.intensity, atm.targetHue ? 0.35 : 0, 0.02);
+        } else if (atm.intensity > 0.001) {
+          // Fade back to default
+          atm.intensity = lerp(atm.intensity, 0, 0.015);
+          const colors = ag.attributes.color;
+          for (let i = 0; i < colors.count; i++) {
+            const t2 = i / colors.count;
+            const band = Math.sin(t2 * Math.PI * 3);
+            colors.array[i * 3] = 0.55 + band * 0.2 + t2 * 0.2;
+            colors.array[i * 3 + 1] = 0.4 + Math.abs(band) * 0.25;
+            colors.array[i * 3 + 2] = 0.7 + (1 - t2) * 0.2;
+          }
+          colors.needsUpdate = true;
+        }
+
+        // Aurora brightness boost on selection
+        if (auroraRef.current.mesh) {
+          const targetOp = atm.targetHue ? 0.08 : 0.045;
+          auroraRef.current.mesh.material.opacity = lerp(auroraRef.current.mesh.material.opacity, targetOp, 0.03);
+        }
+      }
+
+      // Particle quickening — brief speed boost on selection
+      {
+        const atm = atmosphereRef.current;
+        if (atm.particleBoost > 0.001) {
+          const boost = atm.particleBoost;
+          particles.rotation.y += 0.0001 * boost * 3;
+          if (particles2Ref.current) {
+            particles2Ref.current.rotation.y -= 0.00008 * boost * 3;
+            particles2Ref.current.rotation.x += 0.00003 * boost * 2;
+          }
+          atm.particleBoost = lerp(atm.particleBoost, 0, 0.02);
+        }
+      }
+
+      // Pulse rings — expanding rings from selected markers
+      for (let pi = pulseRingsRef.current.length - 1; pi >= 0; pi--) {
+        const pr = pulseRingsRef.current[pi];
+        pr.age += 0.012;
+        if (pr.age >= 1) {
+          globe.remove(pr.mesh);
+          pr.mesh.geometry.dispose();
+          pr.mesh.material.dispose();
+          pulseRingsRef.current.splice(pi, 1);
+          continue;
+        }
+        const scale = 1 + pr.age * 4; // expand from 1x to 5x
+        pr.mesh.scale.setScalar(scale);
+        pr.mesh.material.opacity = (1 - pr.age) * 0.25; // fade out
       }
 
       // Geography lines — primary at full opacity, glow lines softer
