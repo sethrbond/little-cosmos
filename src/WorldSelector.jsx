@@ -598,7 +598,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     closeAllModals(true)
   }, [hasUnsavedInput])
 
-  const closeAllModals = (force = false) => {
+  const closeAllModals = () => {
     setShowAddMenu(false); setShowCreatePersonal(false); setShowCreateShared(false);
     setShowInviteModal(null); setShowInviteCosmos(false); setShowAddFriend(false); setShowPendingRequests(false); setShowWorldInvites(false); setShowActivity(false); setShowSearch(false);
     setPersonalName(""); setSharedName(""); setSharedType("partner"); setSharedYouName(""); setSharedPartnerName(""); setSharedMembers([{ name: "" }, { name: "" }]); setSharedStep(0); setInviteEmail("");

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { AuthProvider, useAuth } from './AuthContext.jsx'
+import { ThemeProvider } from './ThemeProvider.jsx'
 import AuthScreen from './AuthScreen.jsx'
 import WorldSelector from './WorldSelector.jsx'
 import OurWorld from './OurWorld.jsx'
@@ -122,12 +123,10 @@ function AppInner() {
     }
   }, [userId, worldsLoaded])
 
-  // Dynamic document title
+  // Document title set by OurWorld.jsx when a world is active
   useEffect(() => {
-    if (!worldMode) { document.title = 'My Cosmos — Little Cosmos'; return }
-    if (worldMode === 'my') { document.title = 'My World — Little Cosmos'; return }
-    document.title = `${activeWorldName || 'Shared World'} — Little Cosmos`
-  }, [worldMode, activeWorldName])
+    if (!worldMode) document.title = 'My Cosmos — Little Cosmos'
+  }, [worldMode])
 
   const selectWorld = useCallback((mode, worldId = null, worldName = null, worldRole = null, worldType = null) => {
     // Determine accent color for zoom transition
@@ -335,7 +334,9 @@ function AppInner() {
 export default function App() {
   return (
     <AuthProvider>
-      <AppInner />
+      <ThemeProvider>
+        <AppInner />
+      </ThemeProvider>
     </AuthProvider>
   )
 }

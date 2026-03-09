@@ -16,7 +16,16 @@ import {
   getSeasonalHue, resolveTypes, getSharedWorldConfig,
 } from "./worldConfigs.js";
 import { sendWelcomeLetter, getMyLetters, deleteWelcomeLetter } from "./supabaseWelcomeLetters.js";
+import KeyboardShortcuts from "./KeyboardShortcuts.jsx";
+import { useTheme, getDarkOverrides } from "./ThemeProvider.jsx";
+import { ThemeToggle } from "./ThemeToggle.jsx";
 import { loadComments, addComment, deleteComment, loadAllWorldReactions, toggleReaction, getWorldMembers, removeWorldMember, updateMemberRole, deleteWorld, leaveWorld, updateWorld } from "./supabaseWorlds.js";
+import YearInReview from "./YearInReview.jsx";
+import TripCard from "./TripCard.jsx";
+import TravelStats from "./TravelStats.jsx";
+import PhotoMap from "./PhotoMap.jsx";
+import Achievements from "./Achievements.jsx";
+import ExportHub from "./ExportHub.jsx";
 
 /* =================================================================
    🌍 OUR WORLD / MY WORLD — Multi-World Globe Engine
@@ -272,16 +281,16 @@ const fmtDate = d => { if (!d) return ""; const dt = new Date(d + "T12:00:00"); 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
-const regionDots = (a, b, c, d, n) => { const r = []; for (let i = 0; i < n; i++) r.push([a + Math.random() * (b - a), c + Math.random() * (d - c)]); return r; };
+const _regionDots = (a, b, c, d, n) => { const r = []; for (let i = 0; i < n; i++) r.push([a + Math.random() * (b - a), c + Math.random() * (d - c)]); return r; };
 const LAND = [
-  ...regionDots(24, 50, -130, -68, 250), ...regionDots(50, 72, -142, -54, 80),
-  ...regionDots(-56, 13, -83, -33, 170), ...regionDots(35, 62, -12, 44, 170),
-  ...regionDots(60, 72, 4, 44, 45), ...regionDots(-37, 38, -22, 53, 200),
-  ...regionDots(7, 57, 56, 143, 300), ...regionDots(54, 73, 56, 182, 90),
-  ...regionDots(-43, -10, 111, 156, 100), ...regionDots(-3, 13, 93, 143, 70),
-  ...regionDots(27, 47, 123, 147, 55), ...regionDots(60, 83, -75, -12, 40),
-  ...regionDots(15, 30, -20, 60, 60), // Sahara/Middle East fill
-  ...regionDots(-10, 5, 25, 42, 40), // Central Africa fill
+  ..._regionDots(24, 50, -130, -68, 250), ..._regionDots(50, 72, -142, -54, 80),
+  ..._regionDots(-56, 13, -83, -33, 170), ..._regionDots(35, 62, -12, 44, 170),
+  ..._regionDots(60, 72, 4, 44, 45), ..._regionDots(-37, 38, -22, 53, 200),
+  ..._regionDots(7, 57, 56, 143, 300), ..._regionDots(54, 73, 56, 182, 90),
+  ..._regionDots(-43, -10, 111, 156, 100), ..._regionDots(-3, 13, 93, 143, 70),
+  ..._regionDots(27, 47, 123, 147, 55), ..._regionDots(60, 83, -75, -12, 40),
+  ..._regionDots(15, 30, -20, 60, 60), // Sahara/Middle East fill
+  ..._regionDots(-10, 5, 25, 42, 40), // Central Africa fill
 ];
 
 // High-fidelity world coastlines — ~80 polylines, ~4000 coordinate pairs
@@ -908,18 +917,23 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [sceneReady, setSceneReady] = useState(false);
   const loadErrorRef = useRef(false);
 
+  // Dark mode integration
+  const { isDark } = useTheme();
+
   // Palette & scene merge custom overrides from config (takes effect on render for UI, on reload for scene)
   // Mutates module-level P so external form components (TBtn, Fld, etc.) get correct world colors
+  // Dark mode: merges dark overrides AFTER custom palette so dark bg/text always apply
   const _paletteBase = useMemo(() => {
     let basePalette = isMyWorld ? MY_WORLD_PALETTE : OUR_WORLD_PALETTE;
     if (!isMyWorld && worldType) {
       const shared = getSharedWorldConfig(worldType);
       basePalette = shared.palette;
     }
-    const merged = { ...basePalette, ...(config.customPalette || {}) };
+    const darkOverrides = isDark ? getDarkOverrides(worldMode, worldType) : {};
+    const merged = { ...basePalette, ...(config.customPalette || {}), ...darkOverrides };
     for (const k of Object.keys(merged)) window.__cosmosP[k] = merged[k];
     return merged;
-  }, [isMyWorld, worldType, config.customPalette]);
+  }, [isMyWorld, worldMode, worldType, config.customPalette, isDark]);
   const SC = useMemo(() => {
     let baseScene = isMyWorld ? MY_WORLD_SCENE : OUR_WORLD_SCENE;
     if (!isMyWorld && worldType) {
@@ -989,7 +1003,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       }, 400);
       return next;
     });
-  }, [db, isSharedWorld, worldType]);
+  }, [db]);
 
   // Flush any pending config save immediately (used when closing settings, switching worlds)
   const flushConfigSave = useCallback(() => {
@@ -1254,6 +1268,12 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [commentText, setCommentText] = useState("");
   const [showZoomHint, setShowZoomHint] = useState(true);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showYearReview, setShowYearReview] = useState(false);
+  const [showTripCard, setShowTripCard] = useState(null); // entry object or null
+  const [showTravelStats, setShowTravelStats] = useState(false);
+  const [showPhotoMap, setShowPhotoMap] = useState(false);
+  const [showAchievements, setShowAchievements] = useState(false);
+  const [showExportHub, setShowExportHub] = useState(false);
   const [monthlyPromptShown, setMonthlyPromptShown] = useState(false);
   const [quickAddMode, setQuickAddMode] = useState(false);
   const [polaroidMode, setPolaroidMode] = useState(false);
@@ -1265,12 +1285,13 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const routesRef = useRef([]);
   const mouseRef = useRef({ x: 0, y: 0 });
 
-  // Theme colors (always light mode)
+  // Theme colors (responds to dark mode via _paletteBase which includes dark overrides)
   const T = useMemo(() => ({
     bg: null, card: P.card, glass: P.glass,
     text: P.text, textMid: P.textMid, textMuted: P.textMuted, textFaint: P.textFaint,
     parchment: P.parchment, blush: P.blush, border: `${P.rose}18`,
-  }), [_paletteBase]);
+    isDark,
+  }), [_paletteBase, isDark]);
   const lastTapRef = useRef(0); // for double-tap to zoom
   const playRef = useRef(null);
   const animRef = useRef(null);
@@ -1339,7 +1360,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     });
     setShowCelebration(true);
     setTimeout(() => setShowCelebration(false), 8000);
-  }, [introComplete, isAnniversary, isPartnerWorld, config.startDate, worldId, userId]);
+  }, [introComplete, isAnniversary, isPartnerWorld, config.startDate, worldId, userId, stats.trips, stats.countries, stats.totalMiles]);
 
   // Milestone badges — celebrate round-number achievements
   const milestoneRef = useRef(null);
@@ -1829,7 +1850,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       if (inInput && e.key !== "Escape") return;
       if (e.key === "ArrowLeft") { e.preventDefault(); stepDay(-1); }
       if (e.key === "ArrowRight") { e.preventDefault(); stepDay(1); }
-      if (e.key === "Escape") { flushConfigSave(); setSelected(null); setEditing(null); setShowAdd(false); setQuickAddMode(false); setShowLetter(null); setShowSettings(false); setShowGallery(false); setCardGallery(false); setShowFilter(false); setMarkerFilter("all"); setLocationList(null); setShowStats(false); setShowRecap(false); setShowSearch(false); setSearchQuery(""); setShowDreams(false); setConfirmDelete(null); setLightboxOpen(false); setShowShortcuts(false); setShowPhotoJourney(false); setShowCelebration(false); setShowOnboarding(false); localStorage.setItem(onboardKey, "1"); tSpinSpd.current = 0.002; if (isPlaying) stopPlay(); }
+      if (e.key === "Escape") { flushConfigSave(); setSelected(null); setEditing(null); setShowAdd(false); setQuickAddMode(false); setShowLetter(null); setShowSettings(false); setShowGallery(false); setCardGallery(false); setShowFilter(false); setMarkerFilter("all"); setLocationList(null); setShowStats(false); setShowRecap(false); setShowSearch(false); setSearchQuery(""); setShowDreams(false); setConfirmDelete(null); setLightboxOpen(false); setShowShortcuts(false); setShowPhotoJourney(false); setShowCelebration(false); setShowOnboarding(false); setShowYearReview(false); setShowTripCard(null); setShowTravelStats(false); setShowPhotoMap(false); setShowAchievements(false); setShowExportHub(false); localStorage.setItem(onboardKey, "1"); tSpinSpd.current = 0.002; if (isPlaying) stopPlay(); }
       if (e.key === "?" && !showAdd && !editing && !showSettings) setShowShortcuts(v => !v);
       if (e.key === "f" && !showAdd && !editing && !showSettings) { setShowFilter(v => { if (v) { setMarkerFilter("all"); setLocationList(null); } return !v; }); }
       if (e.key === "i" && !showAdd && !editing && !showSettings) setShowStats(v => !v);
@@ -2915,6 +2936,11 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         {<TBtn a={showDreams} onClick={() => setShowDreams(v => !v)} tip={isMyWorld ? "Bucket List" : isPartnerWorld ? "Dream Destinations" : "Wish List"}>{isMyWorld ? "🗺" : "✦"}</TBtn>}
         {(isPartnerWorld ? togetherList.length > 0 : sorted.length > 0) && !isPlaying && <TBtn onClick={playStory} tip={isPartnerWorld ? "Play Our Story" : "Play Story"}>▶</TBtn>}
         {isPlaying && <TBtn onClick={stopPlay} a tip="Stop Playback">⏹</TBtn>}
+        {data.entries.length > 0 && <TBtn a={showTravelStats} onClick={() => setShowTravelStats(v => !v)} tip="Travel Stats">📊</TBtn>}
+        {data.entries.length > 0 && <TBtn a={showPhotoMap} onClick={() => setShowPhotoMap(v => !v)} tip="Photo Map">🗺</TBtn>}
+        {data.entries.length > 0 && <TBtn a={showYearReview} onClick={() => setShowYearReview(v => !v)} tip="Year in Review">📅</TBtn>}
+        <TBtn a={showAchievements} onClick={() => setShowAchievements(v => !v)} tip="Achievements">🏆</TBtn>
+        {data.entries.length > 0 && <TBtn a={showExportHub} onClick={() => setShowExportHub(v => !v)} tip="Export & Share">📤</TBtn>}
         {config.ambientMusicUrl && <TBtn a={ambientPlaying} onClick={() => {
           const au = ambientRef.current;
           if (!au) return;
@@ -2922,6 +2948,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           else { au.play().catch(() => {}); setAmbientPlaying(true); }
         }} tip={ambientPlaying ? "Pause Ambient Music" : "Play Ambient Music"}>{ambientPlaying ? "🔊" : "🎵"}</TBtn>}
         {onSwitchWorld && <TBtn onClick={() => { flushConfigSave(); onSwitchWorld(); }} tip="Switch World">🔄</TBtn>}
+        <ThemeToggle palette={_paletteBase} />
         <TBtn onClick={() => { if (window.confirm("Sign out of My Cosmos?")) signOut(); }} tip="Sign Out">🚪</TBtn>
       </div>
 
@@ -3233,7 +3260,10 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               </>)}
             </div>
 
-            {!isViewer && <button onClick={() => setEditing({ ...cur })} style={{ marginTop: 10, width: "100%", padding: "7px 0", background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: `1px solid ${P.rose}15`, borderRadius: 7, cursor: "pointer", fontSize: 9, color: P.textMuted, fontFamily: "inherit" }}>✏️ Edit</button>}
+            <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+              {!isViewer && <button onClick={() => setEditing({ ...cur })} style={{ flex: 1, padding: "7px 0", background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: `1px solid ${P.rose}15`, borderRadius: 7, cursor: "pointer", fontSize: 9, color: P.textMuted, fontFamily: "inherit" }}>✏️ Edit</button>}
+              <button onClick={() => setShowTripCard(cur)} style={{ flex: 1, padding: "7px 0", background: `linear-gradient(135deg,${P.sky}20,${P.rose}20)`, border: `1px solid ${P.sky}15`, borderRadius: 7, cursor: "pointer", fontSize: 9, color: P.textMuted, fontFamily: "inherit" }}>🎴 Share Card</button>
+            </div>
 
             {/* Reactions — shared worlds only */}
             {isSharedWorld && (() => {
@@ -4427,7 +4457,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             body: "Drag to spin the globe. Scroll to zoom in and out. Click any marker to open its details — photos, memories, and love notes.",
             icon: "🖱", hint: "Try it! The globe is interactive" },
           { title: "Your Toolkit",
-            body: "The left toolbar has everything: search, filter, stats, love letters, constellation view, dark mode, and color customization in settings.",
+            body: "The left toolbar has everything: search, filter, stats, love letters, constellation view, achievements, photo map, year-in-review, dark mode toggle, and color customization in settings.",
             icon: "🧰", hint: "Lots to discover in the toolbar" },
           { title: "Timeline & Story",
             body: "Use the timeline slider to travel through time. Press play to watch your story unfold across the globe, adventure by adventure.",
@@ -4596,31 +4626,41 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
       {/* KEYBOARD SHORTCUTS OVERLAY */}
       {showShortcuts && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 190, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(12px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .2s ease" }}
-          onClick={() => setShowShortcuts(false)}>
-          <div onClick={e => e.stopPropagation()} style={{ background: P.card, borderRadius: 16, padding: "28px 32px", maxWidth: 340, width: "90%", boxShadow: "0 12px 48px rgba(0,0,0,.2)", border: `1px solid ${P.rose}15` }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: P.text, letterSpacing: ".08em" }}>Keyboard Shortcuts</div>
-              <button onClick={() => setShowShortcuts(false)} style={{ background: "none", border: "none", fontSize: 16, color: P.textFaint, cursor: "pointer" }}>×</button>
-            </div>
-            {[
-              ["←  →", "Step through timeline"],
-              ["Space", isPartnerWorld ? "Play Our Story" : "Play Story"],
-              ["F", "Toggle filter panel"],
-              ["S", "Open search"],
-              ["G", "Toggle gallery"],
-              ["I", "Toggle stats"],
-              ["T", "Jump to today"],
-              ["?", "Show this help"],
-              ["Esc", "Close any panel"],
-            ].map(([key, desc]) => (
-              <div key={key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: `1px solid ${P.textFaint}10` }}>
-                <span style={{ fontSize: 11, color: P.textMuted }}>{desc}</span>
-                <kbd style={{ fontSize: 10, fontFamily: "monospace", padding: "2px 8px", background: P.parchment, borderRadius: 4, color: P.textMid, border: `1px solid ${P.textFaint}20`, letterSpacing: ".05em" }}>{key}</kbd>
-              </div>
-            ))}
-          </div>
-        </div>
+        <KeyboardShortcuts
+          onClose={() => setShowShortcuts(false)}
+          palette={P}
+          worldMode={worldMode}
+        />
+      )}
+
+      {/* YEAR IN REVIEW */}
+      {showYearReview && (
+        <YearInReview entries={data.entries} stats={stats} palette={P} onClose={() => setShowYearReview(false)} worldMode={worldMode} config={config} />
+      )}
+
+      {/* TRIP CARD */}
+      {showTripCard && (
+        <TripCard entry={showTripCard} palette={P} onClose={() => setShowTripCard(null)} worldMode={worldMode} />
+      )}
+
+      {/* TRAVEL STATS DEEP DIVE */}
+      {showTravelStats && (
+        <TravelStats entries={data.entries} stats={stats} palette={P} onClose={() => setShowTravelStats(false)} worldMode={worldMode} config={config} />
+      )}
+
+      {/* PHOTO MAP */}
+      {showPhotoMap && (
+        <PhotoMap entries={data.entries} palette={P} onClose={() => setShowPhotoMap(false)} worldMode={worldMode} />
+      )}
+
+      {/* ACHIEVEMENTS */}
+      {showAchievements && (
+        <Achievements entries={data.entries} stats={stats} palette={P} onClose={() => setShowAchievements(false)} worldMode={worldMode} config={config} />
+      )}
+
+      {/* EXPORT HUB */}
+      {showExportHub && (
+        <ExportHub entries={data.entries} config={config} stats={stats} palette={P} onClose={() => setShowExportHub(false)} worldMode={worldMode} travelerName={config.travelerName || ''} />
       )}
 
       {/* FULLSCREEN PHOTO LIGHTBOX */}
