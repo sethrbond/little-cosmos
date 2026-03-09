@@ -16,12 +16,12 @@ import {
   getSeasonalHue, resolveTypes, getSharedWorldConfig,
 } from "./worldConfigs.js";
 import { sendWelcomeLetter, getMyLetters, deleteWelcomeLetter } from "./supabaseWelcomeLetters.js";
-import KeyboardShortcuts from "./KeyboardShortcuts.jsx";
 import { useTheme, getDarkOverrides } from "./ThemeProvider.jsx";
-import { ThemeToggle } from "./ThemeToggle.jsx";
 import { loadComments, addComment, deleteComment, loadAllWorldReactions, toggleReaction, getWorldMembers, removeWorldMember, updateMemberRole, deleteWorld, leaveWorld, updateWorld } from "./supabaseWorlds.js";
 
 // Lazy-loaded feature components (only loaded when user opens them)
+const KeyboardShortcuts = lazy(() => import("./KeyboardShortcuts.jsx"));
+const ThemeToggleLazy = lazy(() => import("./ThemeToggle.jsx").then(m => ({ default: m.ThemeToggle })));
 const YearInReview = lazy(() => import("./YearInReview.jsx"));
 const TripCard = lazy(() => import("./TripCard.jsx"));
 const TravelStats = lazy(() => import("./TravelStats.jsx"));
@@ -2950,7 +2950,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           else { au.play().catch(() => {}); setAmbientPlaying(true); }
         }} tip={ambientPlaying ? "Pause Ambient Music" : "Play Ambient Music"}>{ambientPlaying ? "🔊" : "🎵"}</TBtn>}
         {onSwitchWorld && <TBtn onClick={() => { flushConfigSave(); onSwitchWorld(); }} tip="Switch World">🔄</TBtn>}
-        <ThemeToggle palette={_paletteBase} />
+        <Suspense fallback={null}><ThemeToggleLazy palette={_paletteBase} /></Suspense>
         <TBtn onClick={() => { if (window.confirm("Sign out of My Cosmos?")) signOut(); }} tip="Sign Out">🚪</TBtn>
       </div>
 
@@ -4627,13 +4627,15 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       )}
 
       {/* KEYBOARD SHORTCUTS OVERLAY */}
-      {showShortcuts && (
-        <KeyboardShortcuts
-          onClose={() => setShowShortcuts(false)}
-          palette={P}
-          worldMode={worldMode}
-        />
-      )}
+      <Suspense fallback={null}>
+        {showShortcuts && (
+          <KeyboardShortcuts
+            onClose={() => setShowShortcuts(false)}
+            palette={P}
+            worldMode={worldMode}
+          />
+        )}
+      </Suspense>
 
       {/* LAZY-LOADED FEATURE OVERLAYS */}
       <Suspense fallback={null}>
