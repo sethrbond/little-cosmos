@@ -1,8 +1,14 @@
-import { useState, useEffect, useRef, useCallback, useMemo, useReducer, Component } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, useReducer, Component, lazy, Suspense } from "react";
 import * as THREE from "three";
 import { createOurWorldDB, createSharedWorldDB } from "./supabase.js";
 import { createMyWorldDB, createFriendWorldDB } from "./supabaseMyWorld.js";
 import { useAuth } from "./AuthContext.jsx";
+
+// Lazy-loaded overlay components — code-split, only loaded when user opens them
+const PhotoMap = lazy(() => import("./PhotoMap.jsx"));
+const Achievements = lazy(() => import("./Achievements.jsx"));
+const TravelStats = lazy(() => import("./TravelStats.jsx"));
+const ExportHub = lazy(() => import("./ExportHub.jsx"));
 import { supabase } from "./supabaseClient.js";
 import { geocodeSearch } from "./geocode.js";
 import {
@@ -1258,6 +1264,10 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [quickAddMode, setQuickAddMode] = useState(false);
   const [polaroidMode, setPolaroidMode] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [showPhotoMap, setShowPhotoMap] = useState(false);
+  const [showAchievements, setShowAchievements] = useState(false);
+  const [showTravelStats, setShowTravelStats] = useState(false);
+  const [showExportHub, setShowExportHub] = useState(false);
   const starsRef = useRef(null);
   const auroraRef = useRef(null);
   const loveThreadRef = useRef([]);
@@ -2967,7 +2977,11 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         {isPartnerWorld && togetherList.length > 1 && <TBtn a={showLoveThread} onClick={() => setShowLoveThread(v => !v)} tip="Love Thread">🧵</TBtn>}
         {data.entries.length > 2 && <TBtn a={showConstellation} onClick={() => setShowConstellation(v => !v)} tip="Constellation">⭐</TBtn>}
         {sorted.length > 1 && <TBtn a={showRoutes} onClick={() => setShowRoutes(v => !v)} tip="Travel Routes">🛤</TBtn>}
-        {<TBtn a={showDreams} onClick={() => setShowDreams(v => !v)} tip={isMyWorld ? "Bucket List" : isPartnerWorld ? "Dream Destinations" : "Wish List"}>{isMyWorld ? "🗺" : "✦"}</TBtn>}
+        {allPhotos.length > 0 && <TBtn a={showPhotoMap} onClick={() => setShowPhotoMap(v => !v)} tip="Photo Map">📍</TBtn>}
+        {data.entries.length > 0 && <TBtn a={showAchievements} onClick={() => setShowAchievements(v => !v)} tip="Achievements">🏆</TBtn>}
+        {data.entries.length > 2 && <TBtn a={showTravelStats} onClick={() => setShowTravelStats(v => !v)} tip="Travel Stats">📈</TBtn>}
+        {data.entries.length > 0 && <TBtn onClick={() => setShowExportHub(true)} tip="Export">📤</TBtn>}
+        {<TBtn a={showDreams} onClick={() => setShowDreams(v => !v)} tip={isMyWorld ? "Bucket List" : isPartnerWorld ? "Dream Destinations" : "Wish List"}>{isMyWorld ? "🗺️" : "✦"}</TBtn>}
         {(isPartnerWorld ? togetherList.length > 0 : sorted.length > 0) && !isPlaying && <TBtn onClick={playStory} tip={isPartnerWorld ? "Play Our Story" : "Play Story"}>▶</TBtn>}
         {isPlaying && <TBtn onClick={stopPlay} a tip="Stop Playback">⏹</TBtn>}
         {config.ambientMusicUrl && <TBtn a={ambientPlaying} onClick={() => {
@@ -4717,6 +4731,12 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           </div>
         );
       })()}
+
+      {/* LAZY-LOADED OVERLAYS — code-split, only fetched when opened */}
+      {showPhotoMap && <Suspense fallback={null}><PhotoMap entries={data.entries} palette={P} onClose={() => setShowPhotoMap(false)} worldMode={worldMode} /></Suspense>}
+      {showAchievements && <Suspense fallback={null}><Achievements entries={data.entries} stats={stats} palette={P} onClose={() => setShowAchievements(false)} worldMode={worldMode} config={config} /></Suspense>}
+      {showTravelStats && <Suspense fallback={null}><TravelStats entries={data.entries} stats={stats} palette={P} onClose={() => setShowTravelStats(false)} worldMode={worldMode} config={config} /></Suspense>}
+      {showExportHub && <Suspense fallback={null}><ExportHub entries={data.entries} config={config} stats={stats} palette={P} onClose={() => setShowExportHub(false)} worldMode={worldMode} travelerName={isPartnerWorld ? (config.youName || '') : (config.travelerName || '')} /></Suspense>}
 
       <style>{`
         @keyframes cardIn{from{opacity:0;transform:translateY(-50%) translateX(18px)}to{opacity:1;transform:translateY(-50%) translateX(0)}}
