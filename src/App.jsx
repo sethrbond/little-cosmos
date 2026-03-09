@@ -166,31 +166,43 @@ function AppInner() {
   }, [])
 
   const switchWorld = useCallback(() => {
-    safeRemove('worldMode')
-    safeRemove('activeWorldId')
-    safeRemove('activeWorldName')
-    safeRemove('activeWorldRole')
-    safeRemove('activeWorldType')
-    setWorldMode(null)
-    setActiveWorldId(null)
-    setActiveWorldName(null)
-    setActiveWorldRole(null)
-    setActiveWorldType(null)
-    if (userId) {
-      Promise.all([
-        loadMyWorlds(userId),
-        getMyConnections(userId),
-        getPendingRequests(user?.email),
-        getPendingWorldInvites(user?.email),
-        loadMyWorldSubtitle(userId),
-      ]).then(([w, conn, pending, worldInvites, mySub]) => {
-        setWorlds(w)
-        setConnections(conn)
-        setPendingRequests(pending)
-        setPendingWorldInvites(worldInvites || [])
-        setMyWorldSubtitle(mySub)
-      }).catch(err => console.error('[switchWorld] refresh error:', err))
-    }
+    // Fade to dark overlay first, then unmount the world
+    setTransitionColor('#0c0a12')
+    setTransitioning(true)
+
+    setTimeout(() => {
+      safeRemove('worldMode')
+      safeRemove('activeWorldId')
+      safeRemove('activeWorldName')
+      safeRemove('activeWorldRole')
+      safeRemove('activeWorldType')
+      setWorldMode(null)
+      setActiveWorldId(null)
+      setActiveWorldName(null)
+      setActiveWorldRole(null)
+      setActiveWorldType(null)
+
+      // Clear overlay after WorldSelector has time to mount its scene
+      setTimeout(() => setTransitioning(false), 500)
+
+      // Refresh data in background (WorldSelector already has previous data to render with)
+      if (userId) {
+        Promise.all([
+          loadMyWorlds(userId),
+          getMyConnections(userId),
+          getPendingRequests(user?.email),
+          getPendingWorldInvites(user?.email),
+          loadMyWorldSubtitle(userId),
+        ]).then(([w, conn, pending, worldInvites, myInfo]) => {
+          setWorlds(w)
+          setConnections(conn)
+          setPendingRequests(pending)
+          setPendingWorldInvites(worldInvites || [])
+          setMyWorldSubtitle(myInfo?.subtitle ?? '')
+          setMyWorldColors({ customPalette: myInfo?.customPalette || {}, customScene: myInfo?.customScene || {} })
+        }).catch(err => console.error('[switchWorld] refresh error:', err))
+      }
+    }, 400)
   }, [userId, user?.email])
 
   // Show auth screen as soon as we know there's no user (don't wait for letter/worlds)
@@ -296,7 +308,7 @@ function AppInner() {
           <div style={{
             position: 'fixed', inset: 0, zIndex: 9999, pointerEvents: 'none',
             background: transitionColor,
-            animation: 'cosmosZoomIn 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards',
+            opacity: 1,
           }} />
         )}
         <style>{`
@@ -328,7 +340,7 @@ function AppInner() {
         <div style={{
           position: 'fixed', inset: 0, zIndex: 9999, pointerEvents: 'none',
           background: transitionColor,
-          animation: 'cosmosFadeOut 0.4s ease-out forwards',
+          opacity: 1,
         }} />
       )}
     </>
