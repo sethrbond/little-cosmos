@@ -53,6 +53,8 @@ const P = window.__cosmosP;
 // ---- UTILS ----
 // ---- SYMBOL TEXTURES — unique marker shapes per entry type ----
 const _symbolCache = {};
+const _meteorV1 = new THREE.Vector3();
+const _meteorV2 = new THREE.Vector3();
 function makeSymbolTexture(type, color) {
   const key = `${type}-${color}`;
   if (_symbolCache[key]) return _symbolCache[key];
@@ -2324,6 +2326,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         }
       `,
       fragmentShader: `
+        precision highp float;
         uniform vec3 sunDir;
         uniform vec3 nightColor;
         uniform float strength;
@@ -2551,13 +2554,11 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         const dimmed = searchActive && !isMatch;
         if (m.dot) {
           m.dot.scale.setScalar(scale);
-          if (m.dot.material) m.dot.material.opacity = dimmed ? 0.15 : (m.dot.material._baseOpacity ?? m.dot.material.opacity);
-          if (!dimmed && m.dot.material && m.dot.material._baseOpacity === undefined) m.dot.material._baseOpacity = m.dot.material.opacity;
+          if (m.dot.material) m.dot.material.opacity = dimmed ? 0.15 : (m.dot.material._baseOpacity ?? 0.85);
         }
         if (m.glow) {
           m.glow.scale.setScalar(scale);
-          if (m.glow.material) m.glow.material.opacity = dimmed ? 0.02 : (isMatch ? 0.25 : (m.glow.material._baseOpacity ?? m.glow.material.opacity));
-          if (!dimmed && !isMatch && m.glow.material && m.glow.material._baseOpacity === undefined) m.glow.material._baseOpacity = m.glow.material.opacity;
+          if (m.glow.material) m.glow.material.opacity = dimmed ? 0.02 : (isMatch ? 0.25 : (m.glow.material._baseOpacity ?? 0.10));
         }
       });
 
@@ -2636,8 +2637,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           m.progress += m.speed;
           const headT = m.progress;
           const tailT = Math.max(0, headT - m.length);
-          const head = m.origin.clone().add(m.dir.clone().multiplyScalar(headT));
-          const tail = m.origin.clone().add(m.dir.clone().multiplyScalar(tailT));
+          const head = _meteorV1.copy(m.origin).addScaledVector(m.dir, headT);
+          const tail = _meteorV2.copy(m.origin).addScaledVector(m.dir, tailT);
           m.positions[0] = head.x; m.positions[1] = head.y; m.positions[2] = head.z;
           m.positions[3] = tail.x; m.positions[4] = tail.y; m.positions[5] = tail.z;
           m.geo.attributes.position.needsUpdate = true;
@@ -2679,25 +2680,33 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         // Atmosphere mood — aurora color shifts toward selected entry's type
         const atm = atmosphereRef.current;
         if (atm.targetHue) {
-          const colors = ag.attributes.color;
-          const tc = new THREE.Color(atm.targetHue);
-          const blend = Math.min(atm.intensity, 0.35); // never fully overwhelm aurora
-          for (let i = 0; i < colors.count; i++) {
-            const t2 = i / colors.count;
-            const band = Math.sin(t2 * Math.PI * 3);
-            // Base aurora colors (same as setup)
-            const baseR = 0.55 + band * 0.2 + t2 * 0.2;
-            const baseG2 = 0.4 + Math.abs(band) * 0.25;
-            const baseB = 0.7 + (1 - t2) * 0.2;
-            colors.array[i * 3] = baseR + (tc.r - baseR) * blend;
-            colors.array[i * 3 + 1] = baseG2 + (tc.g - baseG2) * blend;
-            colors.array[i * 3 + 2] = baseB + (tc.b - baseB) * blend;
+          if (!atm._cachedColor) atm._cachedColor = new THREE.Color(atm.targetHue);
+          else if (atm._cachedHex !== atm.targetHue) { atm._cachedColor.set(atm.targetHue); atm._stable = false; }
+          atm._cachedHex = atm.targetHue;
+          // Fade intensity toward target (ramp up)
+          const prevIntensity = atm.intensity;
+          atm.intensity = lerp(atm.intensity, 0.35, 0.02);
+          // Skip per-vertex recalc if intensity has stabilized
+          if (!atm._stable || Math.abs(atm.intensity - prevIntensity) > 0.0005) {
+            const colors = ag.attributes.color;
+            const tc = atm._cachedColor;
+            const blend = Math.min(atm.intensity, 0.35);
+            for (let i = 0; i < colors.count; i++) {
+              const t2 = i / colors.count;
+              const band = Math.sin(t2 * Math.PI * 3);
+              const baseR = 0.55 + band * 0.2 + t2 * 0.2;
+              const baseG2 = 0.4 + Math.abs(band) * 0.25;
+              const baseB = 0.7 + (1 - t2) * 0.2;
+              colors.array[i * 3] = baseR + (tc.r - baseR) * blend;
+              colors.array[i * 3 + 1] = baseG2 + (tc.g - baseG2) * blend;
+              colors.array[i * 3 + 2] = baseB + (tc.b - baseB) * blend;
+            }
+            colors.needsUpdate = true;
+            if (Math.abs(atm.intensity - prevIntensity) <= 0.0005) atm._stable = true;
           }
-          colors.needsUpdate = true;
-          // Fade intensity toward target (ramp up) or back to 0 (ramp down)
-          atm.intensity = lerp(atm.intensity, atm.targetHue ? 0.35 : 0, 0.02);
         } else if (atm.intensity > 0.001) {
           // Fade back to default
+          atm._stable = false;
           atm.intensity = lerp(atm.intensity, 0, 0.015);
           const colors = ag.attributes.color;
           for (let i = 0; i < colors.count; i++) {
@@ -2938,9 +2947,13 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       dot.position.copy(p); dot.lookAt(p.clone().multiplyScalar(2)); dot.userData = { entryId: id }; dot.renderOrder = 2; group.add(dot);
       return { entryId: id, dot, ring: null, glow: null };
     }
-    const dot = new THREE.Mesh(new THREE.CircleGeometry(size, 20), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: faint ? 0.28 : 0.85, side: THREE.DoubleSide, depthTest: true }));
+    const dotOp = faint ? 0.28 : 0.85;
+    const dot = new THREE.Mesh(new THREE.CircleGeometry(size, 20), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: dotOp, side: THREE.DoubleSide, depthTest: true }));
+    dot.material._baseOpacity = dotOp;
     dot.position.copy(p); dot.lookAt(p.clone().multiplyScalar(2)); dot.userData = { entryId: id }; dot.renderOrder = 2; group.add(dot);
-    const glow = new THREE.Mesh(new THREE.CircleGeometry(size * (faint ? 1.4 : 2.0), 24), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: faint ? 0.04 : 0.10, side: THREE.DoubleSide, depthTest: true }));
+    const glowOp = faint ? 0.04 : 0.10;
+    const glow = new THREE.Mesh(new THREE.CircleGeometry(size * (faint ? 1.4 : 2.0), 24), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: glowOp, side: THREE.DoubleSide, depthTest: true }));
+    glow.material._baseOpacity = glowOp;
     glow.position.copy(p); glow.lookAt(p.clone().multiplyScalar(2)); glow.renderOrder = 0; group.add(glow);
     return { entryId: id, dot, ring: null, glow };
   }
