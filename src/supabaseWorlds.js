@@ -667,6 +667,28 @@ export async function searchCrossWorld(worldIds, userId, query, limit = 20) {
   }))
 }
 
+// ---- SHARE ENTRY TO ANOTHER WORLD ----
+
+export async function shareEntryToWorld(entry, targetWorldId, userId) {
+  const newId = `e${Date.now()}`
+  const row = {
+    id: newId, user_id: userId, world_id: targetWorldId,
+    city: entry.city, country: entry.country || '',
+    lat: entry.lat, lng: entry.lng,
+    date_start: entry.dateStart, date_end: entry.dateEnd || null,
+    entry_type: entry.type, who: entry.who || 'solo',
+    zoom_level: entry.zoomLevel || 1, notes: entry.notes || '',
+    memories: entry.memories || [], museums: entry.museums || [],
+    restaurants: entry.restaurants || [], highlights: entry.highlights || [],
+    photos: entry.photos || [], stops: entry.stops || [],
+    music_url: entry.musicUrl || null, favorite: false,
+    love_note: '',
+  }
+  const { error } = await supabase.from('entries').insert(row)
+  if (error) { console.error('[shareEntryToWorld]', error); return { ok: false, error: error.message } }
+  return { ok: true, id: newId }
+}
+
 export async function loadMyWorldEntryCount(userId) {
   const personalId = await getPersonalWorldId(userId)
   if (!personalId) return 0

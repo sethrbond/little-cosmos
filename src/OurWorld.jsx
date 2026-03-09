@@ -23,7 +23,7 @@ import {
   getSeasonalHue, resolveTypes, getSharedWorldConfig,
 } from "./worldConfigs.js";
 import { sendWelcomeLetter, getMyLetters, deleteWelcomeLetter } from "./supabaseWelcomeLetters.js";
-import { loadComments, addComment, deleteComment, loadAllWorldReactions, toggleReaction, getWorldMembers, removeWorldMember, updateMemberRole, deleteWorld, leaveWorld, updateWorld } from "./supabaseWorlds.js";
+import { loadComments, addComment, deleteComment, loadAllWorldReactions, toggleReaction, getWorldMembers, removeWorldMember, updateMemberRole, deleteWorld, leaveWorld, updateWorld, loadMyWorlds, shareEntryToWorld, getPersonalWorldId } from "./supabaseWorlds.js";
 import { thumbnail } from "./imageUtils.js";
 
 /* =================================================================
@@ -1147,7 +1147,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
   const [selected, setSelected] = useState(null);
   const selectedRef = useRef(null);
-  useEffect(() => { selectedRef.current = selected; }, [selected]);
+  useEffect(() => { selectedRef.current = selected; setShareMenu(null); }, [selected]);
 
   // Auto-play music when selecting an entry with musicUrl
   useEffect(() => {
@@ -1377,6 +1377,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [commentText, setCommentText] = useState("");
   const [showZoomHint, setShowZoomHint] = useState(true);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  // Share entry to another world
+  const [shareMenu, setShareMenu] = useState(null); // entry id when share menu is open
+  const [shareWorlds, setShareWorlds] = useState(null); // loaded on first open
   const [monthlyPromptShown, setMonthlyPromptShown] = useState(false);
   const [quickAddMode, setQuickAddMode] = useState(false);
   const [polaroidMode, setPolaroidMode] = useState(false);
@@ -3862,7 +3865,36 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           </div>}
 
           <div style={{ padding: "14px 18px 18px", overflowY: "auto", flex: 1 }}>
-            <div style={{ float: "right", display: "flex", gap: 2, marginTop: -4 }}>
+            <div style={{ float: "right", display: "flex", gap: 2, marginTop: -4, position: "relative" }}>
+              {/* Share to another world */}
+              <button onClick={async () => {
+                if (shareMenu === cur.id) { setShareMenu(null); return; }
+                setShareMenu(cur.id);
+                if (!shareWorlds) {
+                  const [w, pid] = await Promise.all([loadMyWorlds(userId), getPersonalWorldId(userId)]);
+                  const all = pid ? [{ id: pid, name: "My World", type: "personal" }, ...w] : w;
+                  setShareWorlds(all);
+                }
+              }} style={{ background: "none", border: "none", fontSize: 12, cursor: "pointer", color: shareMenu === cur.id ? P.sky : P.textFaint, transition: "color .2s" }} title="Share to another world">↗</button>
+              {shareMenu === cur.id && shareWorlds && (
+                <div style={{ position: "absolute", top: 24, right: 0, background: P.parchment, border: `1px solid ${P.rose}20`, borderRadius: 8, padding: 6, zIndex: 20, minWidth: 160, boxShadow: "0 4px 16px rgba(0,0,0,.15)" }}>
+                  <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase", padding: "2px 6px 4px", borderBottom: `1px solid ${P.rose}10`, marginBottom: 4 }}>Share to world</div>
+                  {shareWorlds.filter(w => w.id !== worldId && w.id !== cur.worldId).length === 0
+                    ? <div style={{ fontSize: 9, color: P.textMuted, padding: "6px" }}>No other worlds</div>
+                    : shareWorlds.filter(w => w.id !== worldId && w.id !== cur.worldId).map(w => (
+                    <button key={w.id} onClick={async () => {
+                      setShareMenu(null);
+                      const result = await shareEntryToWorld(cur, w.id, userId);
+                      if (result.ok) showToast(`Shared to ${w.name}`, "↗", 3000);
+                      else showToast(`Failed: ${result.error}`, "⚠️", 5000);
+                    }} style={{ display: "block", width: "100%", padding: "5px 8px", border: "none", background: "none", cursor: "pointer", fontSize: 10, fontFamily: "inherit", color: P.text, textAlign: "left", borderRadius: 4, transition: "background .15s" }}
+                      onMouseEnter={e => e.target.style.background = `${P.sky}12`}
+                      onMouseLeave={e => e.target.style.background = "none"}>
+                      {({ personal: "🌎", partner: "💕", friends: "👥", family: "👨‍👩‍👧‍👦" }[w.type] || "🌍")} {w.name}
+                    </button>
+                  ))}
+                </div>
+              )}
               <button onClick={() => generateTripCard(cur)} style={{ background: "none", border: "none", fontSize: 12, cursor: "pointer", color: P.textFaint, transition: "color .2s" }} title="Save Trip Card">🎴</button>
               <button onClick={() => toggleFavorite(cur.id, cur.favorite)} style={{ background: "none", border: "none", fontSize: 14, cursor: "pointer", color: cur.favorite ? P.heart : P.textFaint, transition: "color .2s" }} title={cur.favorite ? "Unfavorite" : "Favorite"}>
                 {cur.favorite ? "♥" : "♡"}
