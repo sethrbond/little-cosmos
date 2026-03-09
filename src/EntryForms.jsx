@@ -66,6 +66,29 @@ function useDraft(key, initialState) {
   return [state, setState, restored, clearDraft, dismissRestored];
 }
 
+// ---- DRAFT DETECTION ----
+
+export function hasDraft(draftKey) {
+  if (!draftKey) return false;
+  try {
+    const saved = localStorage.getItem(draftKey);
+    if (!saved) return false;
+    const parsed = JSON.parse(saved);
+    return !!(parsed.city || parsed.notes || parsed.dateStart);
+  } catch { return false; }
+}
+
+export function getDraftSummary(draftKey) {
+  if (!draftKey) return null;
+  try {
+    const saved = localStorage.getItem(draftKey);
+    if (!saved) return null;
+    const parsed = JSON.parse(saved);
+    if (!(parsed.city || parsed.notes || parsed.dateStart)) return null;
+    return { city: parsed.city || "", dateStart: parsed.dateStart || "" };
+  } catch { return null; }
+}
+
 // ---- STYLE FUNCTIONS ----
 
 export function inpSt() {
@@ -103,6 +126,61 @@ export function TBtn({ a, onClick, children, accent, tip }) {
       <button onClick={onClick} style={{ width: 38, height: 38, borderRadius: 12, border: `1px solid ${a ? P.rose + "50" : accent ? P.lavender + "40" : P.textFaint + "20"}`, background: a ? P.card : P.glass, backdropFilter: "blur(12px)", cursor: "pointer", fontSize: accent ? 15 : 14, display: "flex", alignItems: "center", justifyContent: "center", transition: "all .3s ease", fontFamily: "inherit", color: P.text, boxShadow: hov ? `0 4px 16px ${P.text}12, 0 1px 3px ${P.text}08` : `0 1px 4px ${P.text}06`, transform: hov ? "translateY(-1px)" : "none" }}>{children}</button>
       {showTip && tip && (
         <div style={{ position: "absolute", left: 46, top: "50%", transform: "translateY(-50%)", whiteSpace: "nowrap", background: P.card, backdropFilter: "blur(14px)", border: `1px solid ${P.rose}15`, borderRadius: 10, padding: "6px 14px", fontSize: 10, color: P.textMid, boxShadow: `0 4px 20px ${P.text}12, 0 1px 4px ${P.text}06`, pointerEvents: "none", animation: "fadeIn .2s ease", zIndex: 30, letterSpacing: ".05em" }}>{tip}</div>
+      )}
+    </div>
+  );
+}
+
+// ---- TOOLBAR GROUP (accordion) ----
+
+export function TBtnGroup({ icon, label, children, badge }) {
+  const P = getP();
+  const [open, setOpen] = useState(false);
+  const [hov, setHov] = useState(false);
+  const ref = useRef(null);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    const handler = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button
+        onClick={() => setOpen(v => !v)}
+        onMouseEnter={() => setHov(true)}
+        onMouseLeave={() => setHov(false)}
+        style={{
+          width: 38, height: 38, borderRadius: 12,
+          border: `1px solid ${open ? P.rose + "40" : P.textFaint + "20"}`,
+          background: open ? P.card : P.glass,
+          backdropFilter: "blur(12px)", cursor: "pointer",
+          fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center",
+          transition: "all .3s ease", fontFamily: "inherit", color: P.text,
+          boxShadow: hov ? `0 4px 16px ${P.text}12, 0 1px 3px ${P.text}08` : `0 1px 4px ${P.text}06`,
+          transform: hov ? "translateY(-1px)" : "none",
+          position: "relative",
+        }}
+      >
+        {icon}
+        {badge && <span style={{ position: "absolute", top: -2, right: -2, width: 8, height: 8, borderRadius: "50%", background: P.rose, border: `1.5px solid ${P.card}` }} />}
+      </button>
+      {open && (
+        <div style={{
+          position: "absolute", left: 46, top: 0, zIndex: 35,
+          display: "flex", flexDirection: "column", gap: 5,
+          background: P.card, backdropFilter: "blur(20px)",
+          border: `1px solid ${P.rose}12`, borderRadius: 14,
+          padding: "8px 7px", minWidth: 42,
+          boxShadow: `0 4px 20px ${P.text}10, 0 1px 4px ${P.text}06`,
+          animation: "fadeIn .15s ease",
+        }}>
+          {label && <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".16em", textTransform: "uppercase", padding: "0 4px 3px", borderBottom: `1px solid ${P.textFaint}12`, marginBottom: 2, whiteSpace: "nowrap" }}>{label}</div>}
+          {children}
+        </div>
       )}
     </div>
   );

@@ -11,7 +11,7 @@ const TravelStats = lazy(() => import("./TravelStats.jsx"));
 const ExportHub = lazy(() => import("./ExportHub.jsx"));
 import { supabase } from "./supabaseClient.js";
 import { geocodeSearch } from "./geocode.js";
-import { inpSt, navSt, imgN, renderList, TBtn, Lbl, Fld, QuickAddForm, DreamAddForm, AddForm, EditForm } from "./EntryForms.jsx";
+import { inpSt, navSt, imgN, renderList, TBtn, TBtnGroup, Lbl, Fld, QuickAddForm, DreamAddForm, AddForm, EditForm, hasDraft, getDraftSummary } from "./EntryForms.jsx";
 import {
   OUR_WORLD_PALETTE, MY_WORLD_PALETTE,
   OUR_WORLD_TYPES, MY_WORLD_TYPES,
@@ -3556,41 +3556,83 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
       {/* TOOLBAR */}
       <div style={{ position: "absolute", top: 22, left: 22, zIndex: 20, display: "flex", flexDirection: "column", gap: 7, opacity: introComplete ? 1 : 0, transition: "opacity .8s ease" }}>
-        
+
+        {/* — Core actions — */}
         {!isViewer && <TBtn onClick={() => setShowAdd(true)} accent tip="Add Entry">＋</TBtn>}
         {!isViewer && <TBtn onClick={() => setQuickAddMode(true)} tip="Quick Add">⚡</TBtn>}
+
+        {/* — Draft indicator — */}
+        {!isViewer && (hasDraft(`cosmos-draft-add-${worldId || worldMode}`) || hasDraft(`cosmos-draft-quick-${worldId || worldMode}`)) && (
+          <TBtn onClick={() => {
+            if (hasDraft(`cosmos-draft-add-${worldId || worldMode}`)) setShowAdd(true);
+            else setQuickAddMode(true);
+          }} tip={(() => {
+            const d = getDraftSummary(`cosmos-draft-add-${worldId || worldMode}`) || getDraftSummary(`cosmos-draft-quick-${worldId || worldMode}`);
+            return d ? `Resume draft${d.city ? `: ${d.city}` : ""}` : "Resume draft";
+          })()}>
+            <span style={{ position: "relative" }}>📝<span style={{ position: "absolute", top: -4, right: -6, width: 7, height: 7, borderRadius: "50%", background: "#c9a96e", border: "1.5px solid rgba(255,255,255,.9)", animation: "pulse 2s infinite" }} /></span>
+          </TBtn>
+        )}
+
         {!isViewer && <TBtn onClick={() => { setShowSettings(true); getMyLetters(userId).then(setMyLetters); }} tip="Settings">⚙️</TBtn>}
-        {allPhotos.length > 0 && <TBtn a={showGallery} onClick={() => setShowGallery(v => !v)} tip="Photo Gallery">📷</TBtn>}
-        {allPhotos.length > 2 && <TBtn onClick={() => { setShowPhotoJourney(true); setPjIndex(0); }} tip="Photo Journey">🎞</TBtn>}
-        {data.entries.length > 0 && <TBtn a={showStats} onClick={() => setShowStats(v => !v)} tip="Stats & Insights">📊</TBtn>}
+
+        {/* — divider — */}
+        {data.entries.length > 0 && <div style={{ width: 20, height: 1, background: `${P.textFaint}18`, margin: "1px auto" }} />}
+
+        {/* — Explore — */}
         {data.entries.length > 0 && <TBtn a={showSearch} onClick={() => setShowSearch(v => !v)} tip="Search Entries">🔍</TBtn>}
-        {isPartnerWorld && togetherList.length > 1 && <TBtn a={showLoveThread} onClick={() => setShowLoveThread(v => !v)} tip="Love Thread">🧵</TBtn>}
-        {data.entries.length > 2 && <TBtn a={showConstellation} onClick={() => setShowConstellation(v => !v)} tip="Constellation">⭐</TBtn>}
-        {sorted.length > 1 && <TBtn a={showRoutes} onClick={() => setShowRoutes(v => !v)} tip="Travel Routes">🛤</TBtn>}
-        {allPhotos.length > 0 && <TBtn a={showPhotoMap} onClick={() => setShowPhotoMap(v => !v)} tip="Photo Map">📍</TBtn>}
-        {data.entries.length > 0 && <TBtn a={showAchievements} onClick={() => setShowAchievements(v => !v)} tip="Achievements">🏆</TBtn>}
-        {data.entries.length > 2 && <TBtn a={showTravelStats} onClick={() => setShowTravelStats(v => !v)} tip="Travel Stats">📈</TBtn>}
+        {data.entries.length > 0 && <TBtn a={showStats} onClick={() => setShowStats(v => !v)} tip="Stats & Insights">📊</TBtn>}
+
+        {/* — Discover group — */}
+        {data.entries.length > 0 && (
+          <TBtnGroup icon="✨" label="discover" badge={false}>
+            {data.entries.length > 2 && <TBtn a={showConstellation} onClick={() => setShowConstellation(v => !v)} tip="Constellation">⭐</TBtn>}
+            {sorted.length > 1 && <TBtn a={showRoutes} onClick={() => setShowRoutes(v => !v)} tip="Travel Routes">🛤</TBtn>}
+            {data.entries.length > 0 && <TBtn a={showAchievements} onClick={() => setShowAchievements(v => !v)} tip="Achievements">🏆</TBtn>}
+            {data.entries.length > 2 && <TBtn a={showTravelStats} onClick={() => setShowTravelStats(v => !v)} tip="Travel Stats">📈</TBtn>}
+            {isPartnerWorld && togetherList.length > 1 && <TBtn a={showLoveThread} onClick={() => setShowLoveThread(v => !v)} tip="Love Thread">🧵</TBtn>}
+            <TBtn a={showDreams} onClick={() => setShowDreams(v => !v)} tip={isMyWorld ? "Bucket List" : isPartnerWorld ? "Dream Destinations" : "Wish List"}>{isMyWorld ? "🗺️" : "✦"}</TBtn>
+          </TBtnGroup>
+        )}
+
+        {/* — Photos group — */}
+        {allPhotos.length > 0 && (
+          <TBtnGroup icon="📷" label="photos" badge={false}>
+            <TBtn a={showGallery} onClick={() => setShowGallery(v => !v)} tip="Photo Gallery">📷</TBtn>
+            {allPhotos.length > 2 && <TBtn onClick={() => { setShowPhotoJourney(true); setPjIndex(0); }} tip="Photo Journey">🎞</TBtn>}
+            <TBtn a={showPhotoMap} onClick={() => setShowPhotoMap(v => !v)} tip="Photo Map">📍</TBtn>
+          </TBtnGroup>
+        )}
+
+        {/* — Play group — */}
+        {data.entries.length > 1 && (
+          <TBtnGroup icon="▶" label="play">
+            {(isPartnerWorld ? togetherList.length > 0 : sorted.length > 0) && !isPlaying && <TBtn onClick={playStory} tip={isPartnerWorld ? "Play Our Story" : "Play Story"}>▶</TBtn>}
+            {isPlaying && <TBtn onClick={stopPlay} a tip="Stop Playback">⏹</TBtn>}
+            <TBtn onClick={() => {
+              const pool = data.entries.filter(e => e.lat != null && e.lng != null);
+              if (!pool.length) return;
+              const pick = pool[Math.floor(Math.random() * pool.length)];
+              tZm.current = 4.5;
+              setTimeout(() => {
+                flyTo(pick.lat, pick.lng, 2.2);
+                setTimeout(() => { setSelected(pick); setPhotoIdx(0); setCardTab("overview"); }, 600);
+              }, 400);
+            }} tip="Surprise Me">🎲</TBtn>
+            {config.ambientMusicUrl && <TBtn a={ambientPlaying} onClick={() => {
+              const au = ambientRef.current;
+              if (!au) return;
+              if (ambientPlaying) { au.pause(); setAmbientPlaying(false); }
+              else { au.play().catch(() => {}); setAmbientPlaying(true); }
+            }} tip={ambientPlaying ? "Pause Ambient Music" : "Play Ambient Music"}>{ambientPlaying ? "🔊" : "🎵"}</TBtn>}
+          </TBtnGroup>
+        )}
+
+        {/* — divider — */}
+        <div style={{ width: 20, height: 1, background: `${P.textFaint}18`, margin: "1px auto" }} />
+
+        {/* — System — */}
         {data.entries.length > 0 && <TBtn onClick={() => setShowExportHub(true)} tip="Export">📤</TBtn>}
-        {<TBtn a={showDreams} onClick={() => setShowDreams(v => !v)} tip={isMyWorld ? "Bucket List" : isPartnerWorld ? "Dream Destinations" : "Wish List"}>{isMyWorld ? "🗺️" : "✦"}</TBtn>}
-        {data.entries.length > 1 && <TBtn onClick={() => {
-          const pool = data.entries.filter(e => e.lat != null && e.lng != null);
-          if (!pool.length) return;
-          const pick = pool[Math.floor(Math.random() * pool.length)];
-          // Zoom out first, then swoop in
-          tZm.current = 4.5;
-          setTimeout(() => {
-            flyTo(pick.lat, pick.lng, 2.2);
-            setTimeout(() => { setSelected(pick); setPhotoIdx(0); setCardTab("overview"); }, 600);
-          }, 400);
-        }} tip="Surprise Me">🎲</TBtn>}
-        {(isPartnerWorld ? togetherList.length > 0 : sorted.length > 0) && !isPlaying && <TBtn onClick={playStory} tip={isPartnerWorld ? "Play Our Story" : "Play Story"}>▶</TBtn>}
-        {isPlaying && <TBtn onClick={stopPlay} a tip="Stop Playback">⏹</TBtn>}
-        {config.ambientMusicUrl && <TBtn a={ambientPlaying} onClick={() => {
-          const au = ambientRef.current;
-          if (!au) return;
-          if (ambientPlaying) { au.pause(); setAmbientPlaying(false); }
-          else { au.play().catch(() => {}); setAmbientPlaying(true); }
-        }} tip={ambientPlaying ? "Pause Ambient Music" : "Play Ambient Music"}>{ambientPlaying ? "🔊" : "🎵"}</TBtn>}
         {onSwitchWorld && <TBtn onClick={() => { flushConfigSave(); onSwitchWorld(); }} tip="Switch World">🔄</TBtn>}
         <TBtn onClick={() => { if (window.confirm("Sign out of My Cosmos?")) signOut(); }} tip="Sign Out">🚪</TBtn>
       </div>
@@ -5352,6 +5394,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         @keyframes heartPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
         @keyframes lbFadeOpacity{from{opacity:0}to{opacity:1}}
         @keyframes kenBurns{0%{transform:scale(1) translate(0,0)}100%{transform:scale(1.04) translate(-0.5%,-0.3%)}}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
         *{box-sizing:border-box}
         ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:${P.textFaint}22;border-radius:2px}
         input:focus,textarea:focus,select:focus{outline:none;border-color:${P.rose}!important}
