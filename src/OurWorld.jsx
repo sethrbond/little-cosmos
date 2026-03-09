@@ -2665,7 +2665,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       tDistR.current = Math.sqrt(dx * dx + dy * dy);
     }
   }, []);
-  const onTM = useCallback(e => { e.preventDefault(); if (e.touches.length === 1 && dragR.current) { tRot.current.y += (e.touches[0].clientX - prevR.current.x) * 0.005; tRot.current.x = clamp(tRot.current.x + (e.touches[0].clientY - prevR.current.y) * 0.005, -1.2, 1.2); prevR.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; } else if (e.touches.length === 2) { const dx = e.touches[0].clientX - e.touches[1].clientX, dy = e.touches[0].clientY - e.touches[1].clientY; const d = Math.sqrt(dx * dx + dy * dy); tZm.current = clamp(tZm.current + (tDistR.current - d) * 0.008, MIN_Z, MAX_Z); tDistR.current = d; } }, []);
+  const onTM = useCallback(e => { e.preventDefault(); if (e.touches.length === 1 && dragR.current) { tRot.current.y += (e.touches[0].clientX - prevR.current.x) * 0.005; tRot.current.x = clamp(tRot.current.x + (e.touches[0].clientY - prevR.current.y) * 0.005, -1.2, 1.2); prevR.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; } else if (e.touches.length === 2) { const dx = e.touches[0].clientX - e.touches[1].clientX, dy = e.touches[0].clientY - e.touches[1].clientY; const d = Math.sqrt(dx * dx + dy * dy); tZm.current = clamp(tZm.current - (d - tDistR.current) * 0.012, MIN_Z, MAX_Z); tDistR.current = d; } }, []);
 
   const fileInputRef = useRef(null);
   const photoEntryIdRef = useRef(null);
@@ -2768,6 +2768,14 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         <p style={{ fontSize: 11, color: "#c8bca8", marginTop: 3, letterSpacing: ".35em", fontStyle: "italic", textShadow: "0 1px 8px rgba(0,0,0,0.4)" }}>{config.subtitle}</p>
         {isPartnerWorld && isAnniversary && <div style={{ fontSize: 11, color: P.heart, marginTop: 6, letterSpacing: ".15em", animation: "heartPulse 2s ease infinite" }}>✨ Happy Anniversary ✨</div>}
       </div>
+
+      {/* MOBILE ZOOM BUTTONS */}
+      {isMobile && introComplete && (
+        <div style={{ position: "absolute", bottom: 90, right: 14, zIndex: 20, display: "flex", flexDirection: "column", gap: 6 }}>
+          <button onClick={() => { tZm.current = clamp(tZm.current - 0.4, MIN_Z, MAX_Z); }} style={{ width: 40, height: 40, borderRadius: 12, border: `1px solid ${P.textFaint}25`, background: P.glass, backdropFilter: "blur(12px)", fontSize: 18, color: P.text, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: `0 2px 8px ${P.text}10` }}>+</button>
+          <button onClick={() => { tZm.current = clamp(tZm.current + 0.4, MIN_Z, MAX_Z); }} style={{ width: 40, height: 40, borderRadius: 12, border: `1px solid ${P.textFaint}25`, background: P.glass, backdropFilter: "blur(12px)", fontSize: 18, color: P.text, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: `0 2px 8px ${P.text}10` }}>−</button>
+        </div>
+      )}
 
       {/* OFFLINE INDICATOR */}
       {isOffline && introComplete && (
