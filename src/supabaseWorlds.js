@@ -327,6 +327,7 @@ export async function createInviteWithLetter(worldId, userId, fromName, toEmail,
         from_name: fromName,
         to_email: toEmail.toLowerCase(),
         letter_text: text,
+        invite_token: invite.token,
       })
     if (letterErr) console.error('[createInviteWithLetter] letter error:', letterErr)
   }
@@ -351,6 +352,7 @@ export async function createViewerInvite(worldId, userId, toEmail, letterText, f
         from_name: name,
         to_email: toEmail.toLowerCase(),
         letter_text: text,
+        invite_token: invite.token,
       })
     if (letterErr) console.error('[createViewerInvite] letter error:', letterErr)
   }
@@ -399,46 +401,133 @@ export async function getSentInvites(worldId, userId) {
 
 export async function getPendingWorldInvites(userEmail) {
   if (!userEmail) return []
-  // Find invites created with this email that haven't been used yet
-  // We check welcome_letters for matching email to find associated invites
+  const email = userEmail.toLowerCase()
+
+  // Find unread welcome letters for this email
   const { data: letters, error: letErr } = await supabase
     .from('welcome_letters')
-    .select('from_user_id, from_name, to_email, created_at')
-    .eq('to_email', userEmail.toLowerCase())
+    .select('from_user_id, from_name, to_email, created_at, invite_token')
+    .eq('to_email', email)
     .eq('read', false)
-  if (letErr || !letters || letters.length === 0) return []
 
-  // For each unread letter, find the matching unused invite from that user (closest in time)
   const results = []
-  for (const letter of letters) {
-    const { data: invites } = await supabase
-      .from('world_invites')
-      .select('token, world_id, max_uses, use_count, created_at, worlds(name, type)')
-      .eq('created_by', letter.from_user_id)
-    if (!invites || invites.length === 0) continue
-    // Match by closest creation time to the letter
-    const letterTime = new Date(letter.created_at).getTime()
-    let best = null, bestDiff = Infinity
-    for (const inv of invites) {
-      if (inv.use_count >= inv.max_uses) continue
-      const diff = Math.abs(new Date(inv.created_at).getTime() - letterTime)
-      if (diff < bestDiff) { bestDiff = diff; best = inv }
-    }
-    if (best && bestDiff < 120000) {
-      results.push({
-        token: best.token,
-        worldName: best.worlds?.name || 'A Shared World',
-        worldType: best.worlds?.type || 'shared',
-        fromName: letter.from_name || 'Someone',
-      })
+  const seenTokens = new Set()
+
+  // Strategy 1: Direct token link (new invites have invite_token on the letter)
+  if (!letErr && letters) {
+    for (const letter of letters) {
+      if (letter.invite_token) {
+        const { data: inv } = await supabase
+          .from('world_invites')
+          .select('token, world_id, max_uses, use_count, worlds(name, type)')
+          .eq('token', letter.invite_token)
+          .maybeSingle()
+        if (inv && (inv.max_uses === null || inv.use_count < inv.max_uses)) {
+          seenTokens.add(inv.token)
+          results.push({
+            token: inv.token,
+            worldName: inv.worlds?.name || 'A Shared World',
+            worldType: inv.worlds?.type || 'shared',
+            fromName: letter.from_name || 'Someone',
+          })
+        }
+        continue
+      }
+
+      // Strategy 2: Fallback to time-proximity matching (old invites without invite_token)
+      const { data: invites } = await supabase
+        .from('world_invites')
+        .select('token, world_id, max_uses, use_count, created_at, worlds(name, type)')
+        .eq('created_by', letter.from_user_id)
+      if (!invites || invites.length === 0) continue
+      const letterTime = new Date(letter.created_at).getTime()
+      let best = null, bestDiff = Infinity
+      for (const inv of invites) {
+        if (seenTokens.has(inv.token)) continue
+        if (inv.use_count >= inv.max_uses) continue
+        const diff = Math.abs(new Date(inv.created_at).getTime() - letterTime)
+        if (diff < bestDiff) { bestDiff = diff; best = inv }
+      }
+      if (best && bestDiff < 300000) { // 5 minutes (was 2, now more generous)
+        seenTokens.add(best.token)
+        results.push({
+          token: best.token,
+          worldName: best.worlds?.name || 'A Shared World',
+          worldType: best.worlds?.type || 'shared',
+          fromName: letter.from_name || 'Someone',
+        })
+      }
     }
   }
+
+  // Strategy 3: Also check for any unused invites where this user might be the target
+  // even if the welcome letter was already read or never created
+  // This catches edge cases like: letter read during onboarding but invite not accepted
+  const { data: user } = await supabase.auth.getUser()
+  if (user?.user?.id) {
+    const uid = user.user.id
+    // Find worlds this user is NOT a member of but has unused invites for
+    const { data: allInvites } = await supabase
+      .from('world_invites')
+      .select('token, world_id, max_uses, use_count, created_by, worlds(name, type)')
+      .gt('max_uses', 0)
+    if (allInvites) {
+      // Get user's current world memberships
+      const { data: memberships } = await supabase
+        .from('world_members')
+        .select('world_id')
+        .eq('user_id', uid)
+      const memberWorldIds = new Set((memberships || []).map(m => m.world_id))
+
+      // Check welcome_letters (including read ones) to find invites meant for this user
+      const { data: allLetters } = await supabase
+        .from('welcome_letters')
+        .select('from_user_id, from_name, invite_token, created_at')
+        .eq('to_email', email)
+
+      for (const letter of (allLetters || [])) {
+        const matchingInvite = letter.invite_token
+          ? allInvites.find(i => i.token === letter.invite_token)
+          : allInvites.find(i =>
+              i.created_by === letter.from_user_id &&
+              Math.abs(new Date(i.created_at).getTime() - new Date(letter.created_at).getTime()) < 300000
+            )
+        if (matchingInvite && !seenTokens.has(matchingInvite.token) &&
+            !memberWorldIds.has(matchingInvite.world_id) &&
+            (matchingInvite.max_uses === null || matchingInvite.use_count < matchingInvite.max_uses)) {
+          seenTokens.add(matchingInvite.token)
+          results.push({
+            token: matchingInvite.token,
+            worldName: matchingInvite.worlds?.name || 'A Shared World',
+            worldType: matchingInvite.worlds?.type || 'shared',
+            fromName: letter.from_name || 'Someone',
+          })
+        }
+      }
+    }
+  }
+
   return results
 }
 
 // Find world invites associated with a specific welcome letter (by sender + time proximity)
 export async function getPendingWorldInvitesForLetter(letter) {
   if (!letter?.from_user_id) return []
+
+  // Direct token link (preferred)
+  if (letter.invite_token) {
+    const { data: inv } = await supabase
+      .from('world_invites')
+      .select('token, world_id, max_uses, use_count, worlds(name, type)')
+      .eq('token', letter.invite_token)
+      .maybeSingle()
+    if (inv && (inv.max_uses === null || inv.use_count < inv.max_uses)) {
+      return [{ token: inv.token, worldName: inv.worlds?.name || 'A Shared World', worldType: inv.worlds?.type || 'shared' }]
+    }
+    return []
+  }
+
+  // Fallback: time-proximity matching
   const { data: invites } = await supabase
     .from('world_invites')
     .select('token, world_id, max_uses, use_count, created_at, worlds(name, type)')
@@ -449,12 +538,8 @@ export async function getPendingWorldInvitesForLetter(letter) {
   for (const inv of invites) {
     if (inv.max_uses && inv.use_count >= inv.max_uses) continue
     const diff = Math.abs(new Date(inv.created_at).getTime() - letterTime)
-    if (diff < 300000) { // within 5 minutes
-      results.push({
-        token: inv.token,
-        worldName: inv.worlds?.name || 'A Shared World',
-        worldType: inv.worlds?.type || 'shared',
-      })
+    if (diff < 300000) {
+      results.push({ token: inv.token, worldName: inv.worlds?.name || 'A Shared World', worldType: inv.worlds?.type || 'shared' })
     }
   }
   return results
