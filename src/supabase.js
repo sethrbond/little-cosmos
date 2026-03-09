@@ -65,157 +65,20 @@ export async function deleteEntryPhotos(entryId) {
   } catch (err) { console.error('[deleteEntryPhotos] exception:', err); return false }
 }
 
-// ---- ENTRIES ----
+// ---- PHOTO HELPERS (used by factories) ----
 
-export async function loadEntries() {
-  const { data, error } = await supabase.from('entries').select('*').order('date_start', { ascending: true })
-  if (error) { console.error('[loadEntries] error:', error); return [] }
-  return (data || []).map(row => ({
-    id: row.id,
-    city: row.city,
-    country: row.country || '',
-    lat: row.lat,
-    lng: row.lng,
-    dateStart: row.date_start,
-    dateEnd: row.date_end || null,
-    type: row.entry_type,
-    who: row.who,
-    zoomLevel: row.zoom_level || 1,
-    notes: row.notes || '',
-    memories: safeArray(row.memories),
-    museums: safeArray(row.museums),
-    restaurants: safeArray(row.restaurants),
-    highlights: safeArray(row.highlights),
-    photos: safeArray(row.photos),
-    stops: safeArray(row.stops),
-    musicUrl: row.music_url || null,
-    favorite: row.favorite || false,
-    loveNote: row.love_note || '',
-  }))
-}
-
-export async function saveEntry(entry) {
-  const row = {
-    id: entry.id,
-    city: entry.city,
-    country: entry.country || '',
-    lat: entry.lat,
-    lng: entry.lng,
-    date_start: entry.dateStart,
-    date_end: entry.dateEnd || null,
-    entry_type: entry.type,
-    who: entry.who,
-    zoom_level: entry.zoomLevel || 1,
-    notes: entry.notes || '',
-    memories: cleanArray(entry.memories),
-    museums: cleanArray(entry.museums),
-    restaurants: cleanArray(entry.restaurants),
-    highlights: cleanArray(entry.highlights),
-    photos: cleanArray(entry.photos),
-    stops: cleanArray(entry.stops),
-    music_url: entry.musicUrl || null,
-    favorite: entry.favorite || false,
-    love_note: entry.loveNote || '',
-  }
-  return withRetry(async () => {
-    const { error } = await supabase.from('entries').upsert(row, { onConflict: 'id' })
-    if (error) {
-      console.error('[saveEntry] FAILED:', error.message, '| photos count:', (row.photos || []).length)
-      if (error.message?.includes('love_note') || error.message?.includes('favorite') || error.code === '42703') {
-        const { love_note, favorite, ...safeRow } = row
-        const { error: e2 } = await supabase.from('entries').upsert(safeRow, { onConflict: 'id' })
-        if (e2) throw e2
-        return true
-      }
-      throw error
-    }
-    return true
-  })
-}
-
-// Direct photo persistence — bypasses saveEntry entirely
-export async function savePhotos(entryId, photos) {
+async function savePhotos(entryId, photos) {
   const arr = Array.isArray(photos) ? photos : []
-  const { error } = await supabase
-    .from('entries')
-    .update({ photos: arr })
-    .eq('id', entryId)
-  if (error) {
-    return { ok: false, error: error.message }
-  }
+  const { error } = await supabase.from('entries').update({ photos: arr }).eq('id', entryId)
+  if (error) return { ok: false, error: error.message }
   return { ok: true, count: arr.length }
 }
 
-export async function readPhotos(entryId) {
-  const { data, error } = await supabase
-    .from('entries')
-    .select('photos')
-    .eq('id', entryId)
-    .single()
+async function readPhotos(entryId) {
+  const { data, error } = await supabase.from('entries').select('photos').eq('id', entryId).single()
   if (error) return { ok: false, error: error.message }
   const arr = safeArray(data?.photos)
   return { ok: true, photos: arr, count: arr.length }
-}
-
-export async function deleteEntry(id) {
-  await deleteEntryPhotos(id)
-  const { error } = await supabase.from('entries').delete().eq('id', id)
-  if (error) console.error('[deleteEntry] error:', error)
-  return !error
-}
-
-// ---- CONFIG ----
-
-export async function loadConfig() {
-  const { data, error } = await supabase.from('config').select('*').eq('id', 'main').maybeSingle()
-  if (error || !data) return null
-  const cfg = {
-    startDate: data.start_date ?? '',
-    title: data.title ?? '',
-    subtitle: data.subtitle ?? '',
-    loveLetter: data.love_letter ?? '',
-    youName: data.you_name ?? '',
-    partnerName: data.partner_name ?? '',
-  }
-  if (data.metadata && typeof data.metadata === 'object') {
-    if (Array.isArray(data.metadata.loveLetters))       cfg.loveLetters = data.metadata.loveLetters
-    if (Array.isArray(data.metadata.dreamDestinations))  cfg.dreamDestinations = data.metadata.dreamDestinations
-    if (Array.isArray(data.metadata.chapters))           cfg.chapters = data.metadata.chapters
-    if (typeof data.metadata.darkMode === 'boolean')     cfg.darkMode = data.metadata.darkMode
-    if (data.metadata.customPalette && typeof data.metadata.customPalette === 'object') cfg.customPalette = data.metadata.customPalette
-    if (data.metadata.customScene && typeof data.metadata.customScene === 'object') cfg.customScene = data.metadata.customScene
-    if (data.metadata.ambientMusicUrl) cfg.ambientMusicUrl = data.metadata.ambientMusicUrl
-  }
-  return cfg
-}
-
-export async function saveConfig(config) {
-  const row = {
-    id: 'main',
-    start_date: config.startDate || null,
-    title: config.title ?? '',
-    subtitle: config.subtitle ?? '',
-    love_letter: config.loveLetter ?? '',
-    you_name: config.youName ?? '',
-    partner_name: config.partnerName ?? '',
-    metadata: {
-      loveLetters: config.loveLetters || [],
-      dreamDestinations: config.dreamDestinations || [],
-      chapters: config.chapters || [],
-      darkMode: config.darkMode ?? false,
-      customPalette: config.customPalette || {},
-      customScene: config.customScene || {},
-      ambientMusicUrl: config.ambientMusicUrl || '',
-    },
-  }
-  const { error } = await supabase.from('config').upsert(row, { onConflict: 'id' })
-  if (error) {
-    if (error.message?.includes('metadata') || error.code === '42703') {
-      const { metadata, ...basic } = row
-      const { error: e2 } = await supabase.from('config').upsert(basic, { onConflict: 'id' })
-      if (e2) console.error('[saveConfig] fallback error:', e2)
-    } else { console.error('[saveConfig] error:', error) }
-  }
 }
 
 // ---- USER-SCOPED FACTORY (Phase 1 Auth) ----

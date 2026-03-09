@@ -52,7 +52,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
   const camAngleRef = useRef({ theta: 0.3, phi: 1.2, radius: 5.8 });
 
   // Cosmos tour (first visit, per-user) — versioned so bumping ONBOARD_VERSION resets for all
-  const cosmosTourKey = userId ? `v2_cosmos_tour_done_${userId}` : "v2_cosmos_tour_done";
+  const cosmosTourKey = userId ? `v3_cosmos_tour_done_${userId}` : "v3_cosmos_tour_done";
   const [showCosmosTour, setShowCosmosTour] = useState(() => !localStorage.getItem(cosmosTourKey));
   const [cosmosTourStep, setCosmosTourStep] = useState(0);
 
@@ -776,7 +776,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
             const icon = typeIcons[a.type] || "📍";
             const ago = a.date_start ? (() => { const d = Math.floor((Date.now() - new Date(a.date_start + "T00:00:00").getTime()) / 86400000); return d === 0 ? "today" : d === 1 ? "yesterday" : d < 30 ? `${d}d ago` : d < 365 ? `${Math.floor(d / 30)}mo ago` : `${Math.floor(d / 365)}y ago`; })() : "";
             return (
-            <div key={a.id || i} onClick={() => { const wId = a.world_id; if (wId) onSelect(wId === userId ? "my" : wId); }}
+            <div key={a.id || i} onClick={() => { const wId = a.world_id; if (!wId) return; if (wId === userId) { onSelect("my"); } else { const w = worlds.find(x => x.id === wId); if (w) onSelect("our", w.id, w.name, w.role || "member", w.type || "shared"); } }}
               style={{ display: "flex", gap: 10, padding: "10px 8px", borderBottom: i < activityData.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", alignItems: "flex-start", cursor: "pointer", borderRadius: 10, transition: "background .2s" }}
               onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"}
               onMouseLeave={e => e.currentTarget.style.background = "transparent"}>

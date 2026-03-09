@@ -10,7 +10,7 @@ import { loadMyWorlds, loadMyWorldSubtitle, acceptInvite, getInviteInfo, getPend
 import { getPendingRequests, getMyConnections } from './supabaseConnections.js'
 
 // Bump this to reset all onboarding/tour flags for every user
-const ONBOARD_VERSION = 'v2'
+const ONBOARD_VERSION = 'v3'
 
 function AppInner() {
   const { user, userId, loading, signOut } = useAuth()

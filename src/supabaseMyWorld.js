@@ -63,130 +63,20 @@ export async function deleteEntryPhotos(entryId) {
   } catch (err) { console.error('[my:deleteEntryPhotos] exception:', err); return false }
 }
 
-// ---- ENTRIES ----
+// ---- PHOTO HELPERS (used by factories) ----
 
-export async function loadEntries() {
-  const { data, error } = await supabase.from('my_entries').select('*').order('date_start', { ascending: true })
-  if (error) { console.error('[my:loadEntries] error:', error); return [] }
-  return (data || []).map(row => ({
-    id: row.id,
-    city: row.city,
-    country: row.country || '',
-    lat: row.lat,
-    lng: row.lng,
-    dateStart: row.date_start,
-    dateEnd: row.date_end || null,
-    type: row.entry_type,
-    who: 'solo',
-    zoomLevel: row.zoom_level || 1,
-    notes: row.notes || '',
-    memories: safeArray(row.memories),
-    museums: safeArray(row.museums),
-    restaurants: safeArray(row.restaurants),
-    highlights: safeArray(row.highlights),
-    photos: safeArray(row.photos),
-    stops: safeArray(row.stops),
-    musicUrl: row.music_url || null,
-    favorite: row.favorite || false,
-    loveNote: '',
-  }))
-}
-
-export async function saveEntry(entry) {
-  const row = {
-    id: entry.id,
-    city: entry.city,
-    country: entry.country || '',
-    lat: entry.lat,
-    lng: entry.lng,
-    date_start: entry.dateStart,
-    date_end: entry.dateEnd || null,
-    entry_type: entry.type,
-    zoom_level: entry.zoomLevel || 1,
-    notes: entry.notes || '',
-    memories: cleanArray(entry.memories),
-    museums: cleanArray(entry.museums),
-    restaurants: cleanArray(entry.restaurants),
-    highlights: cleanArray(entry.highlights),
-    photos: cleanArray(entry.photos),
-    stops: cleanArray(entry.stops),
-    music_url: entry.musicUrl || null,
-    favorite: entry.favorite || false,
-  }
-  return withRetry(async () => {
-    const { error } = await supabase.from('my_entries').upsert(row, { onConflict: 'id' })
-    if (error) {
-      console.error('[my:saveEntry] FAILED:', error.message)
-      throw error
-    }
-    return true
-  })
-}
-
-export async function savePhotos(entryId, photos) {
+async function savePhotos(entryId, photos) {
   const arr = Array.isArray(photos) ? photos : []
   const { error } = await supabase.from('my_entries').update({ photos: arr }).eq('id', entryId)
   if (error) return { ok: false, error: error.message }
   return { ok: true, count: arr.length }
 }
 
-export async function readPhotos(entryId) {
+async function readPhotos(entryId) {
   const { data, error } = await supabase.from('my_entries').select('photos').eq('id', entryId).single()
   if (error) return { ok: false, error: error.message }
   const arr = safeArray(data?.photos)
   return { ok: true, photos: arr, count: arr.length }
-}
-
-export async function deleteEntry(id) {
-  await deleteEntryPhotos(id)
-  const { error } = await supabase.from('my_entries').delete().eq('id', id)
-  if (error) console.error('[my:deleteEntry] error:', error)
-  return !error
-}
-
-// ---- CONFIG ----
-
-export async function loadConfig() {
-  const { data, error } = await supabase.from('my_config').select('*').eq('id', 'main').maybeSingle()
-  if (error || !data) return null
-  const cfg = {
-    startDate: data.start_date ?? '',
-    title: data.title ?? '',
-    subtitle: data.subtitle ?? '',
-    travelerName: data.traveler_name ?? '',
-  }
-  if (data.metadata && typeof data.metadata === 'object') {
-    if (Array.isArray(data.metadata.bucketList))  cfg.bucketList = data.metadata.bucketList
-    if (Array.isArray(data.metadata.chapters))    cfg.chapters = data.metadata.chapters
-    if (typeof data.metadata.darkMode === 'boolean') cfg.darkMode = data.metadata.darkMode
-    if (data.metadata.customPalette && typeof data.metadata.customPalette === 'object') cfg.customPalette = data.metadata.customPalette
-    if (data.metadata.customScene && typeof data.metadata.customScene === 'object') cfg.customScene = data.metadata.customScene
-    if (data.metadata.ambientMusicUrl) cfg.ambientMusicUrl = data.metadata.ambientMusicUrl
-  }
-  return cfg
-}
-
-export async function saveConfig(config) {
-  const row = {
-    id: 'main',
-    start_date: config.startDate || null,
-    title: config.title ?? '',
-    subtitle: config.subtitle ?? '',
-    traveler_name: config.travelerName ?? '',
-    metadata: {
-      bucketList: config.bucketList || [],
-      chapters: config.chapters || [],
-      darkMode: config.darkMode ?? false,
-      customPalette: config.customPalette || {},
-      customScene: config.customScene || {},
-      ambientMusicUrl: config.ambientMusicUrl || '',
-    },
-  }
-  const { error } = await supabase.from('my_config').upsert(row, { onConflict: 'id' })
-  if (error) {
-    console.error('[my:saveConfig] error:', error)
-    throw error
-  }
 }
 
 // ---- USER-SCOPED FACTORY (Phase 1 Auth) ----

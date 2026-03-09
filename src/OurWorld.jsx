@@ -1193,7 +1193,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   // zoom tracked via zmR ref (used in animation loop directly)
   const [ready, setReady] = useState(false);
   const [introComplete, setIntroComplete] = useState(false);
-  const onboardKey = isSharedWorld ? `v2_cosmos_onboarded_${worldId}` : isMyWorld ? `v2_cosmos_onboarded_my_${userId}` : `v2_cosmos_onboarded_${userId}`;
+  const onboardKey = isSharedWorld ? `v3_cosmos_onboarded_${worldId}` : isMyWorld ? `v3_cosmos_onboarded_my_${userId}` : `v3_cosmos_onboarded_${userId}`;
   const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem(onboardKey));
   const [onboardStep, setOnboardStep] = useState(0);
   const [showCelebration, setShowCelebration] = useState(false);
@@ -1340,6 +1340,39 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     setShowCelebration(true);
     setTimeout(() => setShowCelebration(false), 8000);
   }, [introComplete, isAnniversary, isPartnerWorld, config.startDate, worldId, userId]);
+
+  // Milestone badges — celebrate round-number achievements
+  const milestoneRef = useRef(null);
+  useEffect(() => {
+    if (!introComplete || data.entries.length < 2) return;
+    const n = data.entries.length;
+    const c = stats.countries;
+    const m = Math.round(stats.totalMiles);
+    const milestones = [
+      { check: n === 5, msg: "5 Adventures!", sub: "Your globe is coming alive", icon: "🎯" },
+      { check: n === 10, msg: "10 Adventures!", sub: "Double digits — you're on a roll", icon: "🌟" },
+      { check: n === 25, msg: "25 Adventures!", sub: "A seasoned traveler", icon: "🏆" },
+      { check: n === 50, msg: "50 Adventures!", sub: "Half a century of adventures", icon: "👑" },
+      { check: n === 100, msg: "100 Adventures!", sub: "Your globe is legendary", icon: "💎" },
+      { check: c === 5, msg: "5 Countries!", sub: "Your world is expanding", icon: "🗺" },
+      { check: c === 10, msg: "10 Countries!", sub: "A true globetrotter", icon: "✈️" },
+      { check: c === 25, msg: "25 Countries!", sub: "World explorer status", icon: "🌐" },
+      { check: m >= 1000 && milestoneRef.current !== '1000mi', msg: "1,000 Miles!", sub: "Your adventures span a thousand miles", icon: "🛤" },
+      { check: m >= 10000 && milestoneRef.current !== '10000mi', msg: "10,000 Miles!", sub: "You've circled a good chunk of the Earth", icon: "🚀" },
+      { check: m >= 25000 && milestoneRef.current !== '25000mi', msg: "25,000 Miles!", sub: "Nearly around the world", icon: "🌎" },
+    ];
+    const hit = milestones.find(ms => ms.check);
+    if (!hit) return;
+    const key = `v2_milestone_${worldId || userId}_${hit.msg}`;
+    if (localStorage.getItem(key)) return;
+    localStorage.setItem(key, '1');
+    if (m >= 25000) milestoneRef.current = '25000mi';
+    else if (m >= 10000) milestoneRef.current = '10000mi';
+    else if (m >= 1000) milestoneRef.current = '1000mi';
+    setCelebrationData({ type: 'milestone', message: hit.msg, sub: hit.sub });
+    setShowCelebration(true);
+    setTimeout(() => setShowCelebration(false), 5000);
+  }, [introComplete, data.entries.length, stats.countries, stats.totalMiles, worldId, userId]);
 
   // Positions on slider date
   const getPositions = useCallback(date => {
@@ -1856,8 +1889,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       if (i > 0) totalMiles += haversine(recapEntries[i - 1].lat, recapEntries[i - 1].lng, e.lat, e.lng);
     });
     const topCity = Object.entries(cityVisits).sort((a, b) => b[1] - a[1])[0];
-    const firstTrip = recapEntries[recapEntries.length - 1]; // sorted newest-first
-    const lastTrip = recapEntries[0];
+    const firstTrip = recapEntries[0]; // sorted oldest-first
+    const lastTrip = recapEntries[recapEntries.length - 1];
     return {
       countries: countries.size, countryNames: [...countries],
       cities: cities.size, entries: recapEntries.length, totalDays, photos, totalMiles,
@@ -2044,7 +2077,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     if (len < 2) return;
     const iv = setInterval(() => setPhotoIdx(i => (i + 1) % len), 4000);
     return () => clearInterval(iv);
-  }, [selected, data.entries, photoIdx]);
+  }, [selected, data.entries]);
 
   // ---- THREE SETUP ----
   useEffect(() => {
@@ -2193,7 +2226,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     }
     starG.setAttribute("position", new THREE.BufferAttribute(starP, 3));
     starG.setAttribute("size", new THREE.BufferAttribute(starS, 1));
-    const starMat = new THREE.PointsMaterial({ color: "#f0e8ff", size: 1.8, transparent: true, opacity: 0.6, sizeAttenuation: false });
+    const starMat = new THREE.PointsMaterial({ color: SC.starTint || "#f0e8ff", size: 1.8, transparent: true, opacity: 0.6, sizeAttenuation: false });
     const stars = new THREE.Points(starG, starMat);
     stars.renderOrder = -10; // render behind everything
     scene.add(stars);
@@ -2757,7 +2790,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         {isPartnerWorld && dist !== null && (
           <div style={{ marginBottom: 4 }}>
             {areTogether ? <div style={{ fontSize: 16, color: P.heart, animation: "heartPulse 1.5s ease infinite" }}>💕 Together</div>
-              : <div style={{ fontSize: 13, color: P.textMid }}><span style={{ color: P.rose }}>♥</span> {dist.toLocaleString()} mi apart</div>}
+              : <div style={{ fontSize: 13, color: P.textMid }}><span style={{ color: P.rose }}>♥</span> {dist.toLocaleString()} mi apart{dist > 3000 ? <div style={{ fontSize: 9, color: P.rose, opacity: 0.7, marginTop: 2, fontStyle: "italic" }}>across the world</div> : dist > 500 ? <div style={{ fontSize: 9, color: P.rose, opacity: 0.7, marginTop: 2, fontStyle: "italic" }}>missing you</div> : null}</div>}
           </div>
         )}
         {isPartnerWorld && nextTogether && !areTogether && (
@@ -3073,7 +3106,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                       const reordered = [...cur.photos];
                       const [moved] = reordered.splice(from, 1);
                       reordered.splice(i, 0, moved);
-                      dispatch({ type: "UPDATE", id: cur.id, updates: { photos: reordered } });
+                      dispatch({ type: "UPDATE", id: cur.id, data: { photos: reordered } });
                       db.savePhotos(cur.id, reordered);
                       showToast("Photos reordered", "↕️", 1500);
                       photoDragRef.current.from = -1;
@@ -3633,7 +3666,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 <div style={{ fontSize: 7, color: P.textMid, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 4, marginTop: 10 }}>Globe & Scene Colors</div>
                 {cPick("Space Background", "The dark sky behind the globe", cs.bg || baseSC.bg, v => setCS("bg", v), true)}
                 {cPick("Globe Surface", "The globe sphere color", cs.sphereColor || baseSC.sphereColor, v => setCS("sphereColor", v), true)}
-                {cPick("Glow Aura", "The halo rings around the globe", (cs.glowColors || baseSC.glowColors)[0], v => setCS("glowColors", [v, v+"e8", v+"d0", v+"b8", v+"a0", v+"88", v+"70", v+"58"]), true)}
+                {cPick("Glow Aura", "The halo rings around the globe", (cs.glowColors || baseSC.glowColors)[0], v => setCS("glowColors", [v, v+"e8", v+"d0", v+"b8", v+"a0", v+"88", v+"70", v+"58", v+"48", v+"38", v+"28", v+"18"]), true)}
                 {cPick("Coastlines", "Country outlines on the globe", cs.coastColor || baseSC.coastColor, v => setCS("coastColor", v), true)}
                 {cPick("Particles", "Floating dust particles around globe", cs.particleColor || baseSC.particleColor, v => setCS("particleColor", v), true)}
                 {cPick("Stars Tint", "Background star color", cs.starTint || baseSC.starTint, v => setCS("starTint", v), true)}
@@ -3831,7 +3864,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         return (
           <div style={{ position: "absolute", top: "46%", left: "50%", transform: "translate(-50%,-50%)", zIndex: 12, textAlign: "center", maxWidth: 360, animation: "fadeIn 1.2s ease" }}>
             <div style={{ position: "relative", width: 100, height: 100, margin: "0 auto 20px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: `radial-gradient(circle, ${P.rose}18, transparent 70%)`, animation: "pulse 3s ease-in-out infinite" }} />
+              <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: `radial-gradient(circle, ${P.rose}18, transparent 70%)`, animation: "heartPulse 3s ease-in-out infinite" }} />
               <div style={{ position: "absolute", inset: 6, borderRadius: "50%", border: `1px dashed ${P.rose}20`, animation: "emptyOrbit 12s linear infinite" }} />
               <div style={{ position: "absolute", inset: 16, borderRadius: "50%", border: `1px dashed ${P.sky}15`, animation: "emptyOrbit 8s linear infinite reverse" }} />
               <div style={{ fontSize: 42, position: "relative", zIndex: 1, animation: "emptyFloat 4s ease-in-out infinite" }}>{msg.icon}</div>
@@ -4350,35 +4383,41 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             icon: "✨", hint: "Start with somewhere meaningful" },
         ] : isSharedWorld && isPartnerWorld ? [
           { title: `Welcome to ${worldName || "Your Shared World"}`,
-            body: "This is your shared travel globe. Every adventure you add together lights up your world as a glowing marker. Both of you can add entries, photos, and memories.",
-            icon: "🌍", hint: "Your globe fills up as you add trips together" },
+            body: "This is your shared travel globe — a living map of your relationship. Every adventure you add together lights up as a glowing marker. Both of you can add entries, photos, and memories.",
+            icon: "💕", hint: "Your love story, mapped across the world" },
           { title: "Navigate Your Globe",
             body: "Drag to spin the globe. Scroll to zoom in and out. Click any marker to open its details — photos, notes, memories, and more.",
             icon: "🖱", hint: "Try it! The globe is interactive" },
-          { title: "Special Features",
-            body: "Partner worlds have love letters, love notes on entries, a love thread connecting your journeys, and constellation view. Look for these in the left toolbar.",
-            icon: "💕", hint: "The toolbar has all your tools" },
+          { title: "Partner Features",
+            body: "Write love letters that live on the globe. Add love notes to any entry. Watch the love thread connect your journeys. See your constellation of adventures. Track days together vs apart.",
+            icon: "💌", hint: "These features are unique to partner worlds" },
+          { title: "Celebrations & Milestones",
+            body: "Your world celebrates with you — anniversaries trigger a special popup, milestone entries (5, 10, 25, 50, 100) earn badges, and your Year-in-Review replays your story.",
+            icon: "🎉", hint: "Keep adding adventures to unlock celebrations" },
           { title: "Timeline & Story",
-            body: "Use the timeline slider at the bottom to travel through time. Press the play button to watch your story unfold, marker by marker.",
+            body: "Use the timeline slider to travel through time. Press play to watch your story unfold, marker by marker, with photos fading in at each stop.",
             icon: "▶", hint: "The best part — watching your story play out" },
           { title: "Add Your First Trip",
-            body: "Click the + button in the toolbar to add your first entry. Fill in the city, dates, type, and add photos and memories to bring it to life.",
-            icon: "✨", hint: "Start with somewhere meaningful" },
+            body: "Click + to add your first entry. Fill in the city, dates, and type. Add photos and memories to bring it to life. Quick-add (⚡) is there for fast entries.",
+            icon: "✨", hint: "Start with somewhere meaningful to you both" },
         ] : isMyWorld ? [
           { title: "Welcome to My World",
-            body: "This is your personal travel globe. Every trip you add becomes a glowing marker on your map, building a visual story of everywhere you've been.",
+            body: "This is your personal travel globe. Every trip you add becomes a glowing marker, building a visual story of everywhere you've been.",
             icon: "🌍", hint: "Your world grows with every adventure" },
           { title: "Navigate Your Globe",
             body: "Drag to spin the globe. Scroll to zoom in and out. Click any marker to see its full details — photos, notes, highlights, and more.",
             icon: "🖱", hint: "Try it! The globe is interactive" },
-          { title: "Your Toolkit",
-            body: "The left toolbar has everything: search, filter by type, view your stats, see your bucket list, toggle dark mode, and customize your colors in settings.",
-            icon: "🧰", hint: "Explore the toolbar buttons" },
+          { title: "12 Trip Types",
+            body: "Adventures, road trips, city breaks, beach getaways, cruises, backpacking, friends trips, family visits, events, nature escapes, work travel, and home. Each gets its own unique marker shape.",
+            icon: "🎨", hint: "Different markers for different adventures" },
+          { title: "Features to Explore",
+            body: "Bucket list for dream destinations. Photo journey for a cinematic slideshow. Year-in-Review to replay any year. Stats dashboard. Constellation view. Custom color themes in settings.",
+            icon: "🧰", hint: "All in the toolbar on the left" },
           { title: "Timeline & Story",
-            body: "The timeline slider at the bottom lets you travel through time. Press play to watch your story unfold across the globe, trip by trip.",
+            body: "The timeline slider lets you travel through time. Press play to watch your story unfold, trip by trip, with photos at every stop.",
             icon: "▶", hint: "Best with a few entries added" },
           { title: "Add Your First Trip",
-            body: "Click the + button to add your first entry. Pick a city, choose your trip type, add dates, photos, and memories. Quick-add is there for fast entries too.",
+            body: "Click + to add your first entry. Pick a city, choose your trip type, add dates, photos, and memories. Quick-add (⚡) is there for speed.",
             icon: "✨", hint: "Start with your favorite trip" },
         ] : [
           { title: "Welcome to Our World",
@@ -4441,11 +4480,15 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       {showCelebration && (() => {
         const cd = celebrationData || { type: 'first', message: 'Your First Entry!', sub: '' };
         const isAnniv = cd.type === 'anniversary';
+        const isMilestone = cd.type === 'milestone';
+        const showConfetti = isAnniv || isMilestone;
+        const celebIcon = isAnniv ? "💕" : isMilestone ? (cd.message.includes("Countries") ? "🗺" : cd.message.includes("Miles") ? "🚀" : "🏆") : "✨";
+        const accentColor = isAnniv ? P.heart : isMilestone ? P.goldWarm : P.goldWarm;
         return (
-          <div style={{ position: "fixed", inset: 0, zIndex: 250, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "auto", cursor: "pointer", background: isAnniv ? `radial-gradient(ellipse at center, ${P.heart}15, transparent 70%)` : 'transparent', animation: "fadeIn .4s ease" }}
+          <div style={{ position: "fixed", inset: 0, zIndex: 250, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "auto", cursor: "pointer", background: showConfetti ? `radial-gradient(ellipse at center, ${accentColor}15, transparent 70%)` : 'transparent', animation: "fadeIn .4s ease" }}
             onClick={() => setShowCelebration(false)}>
             {/* Confetti particles */}
-            {isAnniv && Array.from({ length: 24 }, (_, i) => (
+            {showConfetti && Array.from({ length: isMilestone ? 16 : 24 }, (_, i) => (
               <div key={i} style={{
                 position: "absolute",
                 left: `${10 + Math.random() * 80}%`,
@@ -4459,10 +4502,10 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               }} />
             ))}
             <div style={{ textAlign: "center", animation: "celebrationPop .6s cubic-bezier(0.34, 1.56, 0.64, 1)", zIndex: 1 }}>
-              <div style={{ fontSize: isAnniv ? 80 : 64, marginBottom: 12, filter: `drop-shadow(0 0 20px ${isAnniv ? P.heart : P.goldWarm}60)`, animation: isAnniv ? "heartPulse 1.5s ease infinite" : "none" }}>
-                {isAnniv ? "💕" : "✨"}
+              <div style={{ fontSize: isAnniv ? 80 : 64, marginBottom: 12, filter: `drop-shadow(0 0 20px ${accentColor}60)`, animation: isAnniv ? "heartPulse 1.5s ease infinite" : "none" }}>
+                {celebIcon}
               </div>
-              <div style={{ fontSize: isAnniv ? 28 : 22, fontWeight: isAnniv ? 300 : 500, color: P.text, letterSpacing: isAnniv ? ".12em" : "1px", textShadow: `0 0 30px ${isAnniv ? P.heart : P.goldWarm}40, 0 2px 10px rgba(0,0,0,0.6)`, marginBottom: 8, fontFamily: "'Palatino Linotype', Georgia, serif" }}>
+              <div style={{ fontSize: isAnniv ? 28 : isMilestone ? 24 : 22, fontWeight: isAnniv ? 300 : 500, color: P.text, letterSpacing: isAnniv ? ".12em" : "1px", textShadow: `0 0 30px ${accentColor}40, 0 2px 10px rgba(0,0,0,0.6)`, marginBottom: 8, fontFamily: "'Palatino Linotype', Georgia, serif" }}>
                 {cd.message}
               </div>
               {cd.sub && <div style={{ fontSize: 12, color: P.textMid, lineHeight: 1.7, maxWidth: 320, margin: "0 auto", textShadow: "0 1px 6px rgba(0,0,0,0.5)" }}>{cd.sub}</div>}
@@ -4622,10 +4665,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
       <style>{`
         @keyframes cardIn{from{opacity:0;transform:translateY(-50%) translateX(18px)}to{opacity:1;transform:translateY(-50%) translateX(0)}}
-        @keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
         @keyframes fadeIn{from{opacity:0}to{opacity:1}}
         @keyframes heartPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
-        @keyframes lbFadeIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
         @keyframes lbFadeOpacity{from{opacity:0}to{opacity:1}}
         @keyframes kenBurns{0%{transform:scale(1) translate(0,0)}100%{transform:scale(1.04) translate(-0.5%,-0.3%)}}
         *{box-sizing:border-box}

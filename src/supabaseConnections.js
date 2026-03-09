@@ -64,13 +64,4 @@ export async function declineConnection(connectionId) {
   return true
 }
 
-// Get sent requests (to show status)
-export async function getMySentRequests(userId) {
-  const { data, error } = await supabase
-    .from('cosmos_connections')
-    .select('*')
-    .eq('requester_id', userId)
-    .order('created_at', { ascending: false })
-  if (error) { console.error('[getMySentRequests]', error); return [] }
-  return data || []
-}
+

@@ -15,7 +15,7 @@ export function geocodeSearch(query, callback) {
     lastFetch = Date.now()
     try {
       const params = new URLSearchParams({ q: query.trim(), format: 'json', limit: '10', addressdetails: '1', 'accept-language': 'en' })
-      const res = await fetch(`${NOMINATIM}?${params}`, { headers: { 'User-Agent': 'OurWorldGlobe/7.9 (personal anniversary gift)' } })
+      const res = await fetch(`${NOMINATIM}?${params}`, { headers: { 'User-Agent': 'LittleCosmos/1.0 (travel diary app)' } })
       if (!res.ok) { callback([]); return }
       const data = await res.json()
       if (!Array.isArray(data)) { callback([]); return }

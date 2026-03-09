@@ -30,7 +30,6 @@ export default function CinematicOnboarding({ userId, onComplete }) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
   const [selectedCity, setSelectedCity] = useState(null)
-  const [saving, setSaving] = useState(false)
   const inputRef = useRef(null)
   const orbZoomRef = useRef(false)
 
@@ -169,7 +168,6 @@ export default function CinematicOnboarding({ userId, onComplete }) {
   useEffect(() => {
     if (phase !== 5) return
     const t = setTimeout(() => {
-      setSaving(false)
       onComplete()
     }, 1600)
     return () => clearTimeout(t)
@@ -179,7 +177,6 @@ export default function CinematicOnboarding({ userId, onComplete }) {
     if (!userId) return
     const [name, country, lat, lng] = city
     setSelectedCity({ name, country, lat, lng })
-    setSaving(true)
     setPhase(3)
 
     // Create the "Home" entry in My World
