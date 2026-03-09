@@ -1390,7 +1390,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const atmosphereRef = useRef({ targetHue: null, intensity: 0, particleBoost: 0 });
   const particles2Ref = useRef(null);
   const shootingStarsRef = useRef([]);
-  const [hoverLabel, setHoverLabel] = useState(null); // { city, date, x, y }
+  const [hoverLabel, setHoverLabel] = useState(null); // { city, date, x, y, photo }
+  const searchMatchIdsRef = useRef(new Set());
   const hoverThrottleRef = useRef(0);
   const cometRef = useRef(null); // active comet animation
   const nightShadowRef = useRef(null); // day/night terminator mesh
@@ -1732,6 +1733,21 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     );
   }, [searchQuery, data.entries]);
 
+  // Sync search matches to ref for animation loop access
+  // Include group marker IDs so location groups with matches also glow
+  useEffect(() => {
+    const ids = new Set(searchResults.map(e => e.id));
+    // Also add group IDs for matching entries
+    if (ids.size > 0) {
+      locationGroups.forEach(g => {
+        if (g.entries.length > 1 && g.entries.some(e => ids.has(e.id))) {
+          ids.add(`group-${g.lat.toFixed(2)}-${g.lng.toFixed(2)}`);
+        }
+      });
+    }
+    searchMatchIdsRef.current = ids;
+  }, [searchResults, locationGroups]);
+
   // ---- FAVORITES ----
   const toggleFavorite = useCallback((id, currentFavorite) => {
     dispatch({ type: "UPDATE", id, data: { favorite: !currentFavorite } });
@@ -1994,6 +2010,14 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       if (e.key === "s" && !showAdd && !editing && !showSettings && !showSearch) { e.preventDefault(); setShowSearch(true); }
       if (e.key === "g" && !showAdd && !editing && !showSettings) setShowGallery(v => !v);
       if (e.key === "t" && !showAdd && !editing && !showSettings) setSliderDate(todayStr());
+      if (e.key === "r" && !showAdd && !editing && !showSettings && !showSearch) {
+        const pool = data.entries.filter(en => en.lat != null && en.lng != null);
+        if (pool.length > 1) {
+          const pick = pool[Math.floor(Math.random() * pool.length)];
+          tZm.current = 4.5;
+          setTimeout(() => { flyTo(pick.lat, pick.lng, 2.2); setTimeout(() => { setSelected(pick); setPhotoIdx(0); setCardTab("overview"); }, 600); }, 400);
+        }
+      }
       if (e.key === " " && !showAdd && !editing && !showSettings && !showSearch) { e.preventDefault(); if (isPlaying) stopPlay(); else if ((isPartnerWorld ? togetherList : sorted).length > 0) playStory(); }
     };
     window.addEventListener("keydown", handler);
@@ -2526,12 +2550,25 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       // Easter egg: fade in "you are my world" when zoomed all the way out (shared worlds only)
       if (easterEggRef.current) easterEggRef.current.style.opacity = isPartnerWorld && isSharedWorld && zmR.current > 5.5 ? Math.min(1, (zmR.current - 5.5) * 2) : 0;
 
-      // Zoom-based marker scaling with gentle breathing
+      // Zoom-based marker scaling with gentle breathing + search glow
       const mkScale = Math.min(1.2, Math.max(0.35, zmR.current / 3.5));
       const breathe = 1 + Math.sin(Date.now() * 0.0008) * 0.07;
+      const searchActive = searchMatchIdsRef.current.size > 0;
+      const searchPulse = searchActive ? 1 + Math.sin(Date.now() * 0.004) * 0.3 : 1;
       mkRef.current.forEach((m) => {
-        if (m.dot) m.dot.scale.setScalar(mkScale * breathe);
-        if (m.glow) m.glow.scale.setScalar(mkScale * breathe);
+        const isMatch = searchActive && searchMatchIdsRef.current.has(m.entryId);
+        const scale = isMatch ? mkScale * searchPulse * 1.4 : mkScale * breathe;
+        const dimmed = searchActive && !isMatch;
+        if (m.dot) {
+          m.dot.scale.setScalar(scale);
+          if (m.dot.material) m.dot.material.opacity = dimmed ? 0.15 : (m.dot.material._baseOpacity ?? m.dot.material.opacity);
+          if (!dimmed && m.dot.material && m.dot.material._baseOpacity === undefined) m.dot.material._baseOpacity = m.dot.material.opacity;
+        }
+        if (m.glow) {
+          m.glow.scale.setScalar(scale);
+          if (m.glow.material) m.glow.material.opacity = dimmed ? 0.02 : (isMatch ? 0.25 : (m.glow.material._baseOpacity ?? m.glow.material.opacity));
+          if (!dimmed && !isMatch && m.glow.material && m.glow.material._baseOpacity === undefined) m.glow.material._baseOpacity = m.glow.material.opacity;
+        }
       });
 
       // Animate travel route dashes — flowing along arcs
@@ -3529,6 +3566,17 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         {data.entries.length > 2 && <TBtn a={showTravelStats} onClick={() => setShowTravelStats(v => !v)} tip="Travel Stats">📈</TBtn>}
         {data.entries.length > 0 && <TBtn onClick={() => setShowExportHub(true)} tip="Export">📤</TBtn>}
         {<TBtn a={showDreams} onClick={() => setShowDreams(v => !v)} tip={isMyWorld ? "Bucket List" : isPartnerWorld ? "Dream Destinations" : "Wish List"}>{isMyWorld ? "🗺️" : "✦"}</TBtn>}
+        {data.entries.length > 1 && <TBtn onClick={() => {
+          const pool = data.entries.filter(e => e.lat != null && e.lng != null);
+          if (!pool.length) return;
+          const pick = pool[Math.floor(Math.random() * pool.length)];
+          // Zoom out first, then swoop in
+          tZm.current = 4.5;
+          setTimeout(() => {
+            flyTo(pick.lat, pick.lng, 2.2);
+            setTimeout(() => { setSelected(pick); setPhotoIdx(0); setCardTab("overview"); }, 600);
+          }, 400);
+        }} tip="Surprise Me">🎲</TBtn>}
         {(isPartnerWorld ? togetherList.length > 0 : sorted.length > 0) && !isPlaying && <TBtn onClick={playStory} tip={isPartnerWorld ? "Play Our Story" : "Play Story"}>▶</TBtn>}
         {isPlaying && <TBtn onClick={stopPlay} a tip="Stop Playback">⏹</TBtn>}
         {config.ambientMusicUrl && <TBtn a={ambientPlaying} onClick={() => {
