@@ -16,12 +16,10 @@ import {
   getSeasonalHue, resolveTypes, getSharedWorldConfig,
 } from "./worldConfigs.js";
 import { sendWelcomeLetter, getMyLetters, deleteWelcomeLetter } from "./supabaseWelcomeLetters.js";
-import { useTheme, getDarkOverrides } from "./ThemeProvider.jsx";
 import { loadComments, addComment, deleteComment, loadAllWorldReactions, toggleReaction, getWorldMembers, removeWorldMember, updateMemberRole, deleteWorld, leaveWorld, updateWorld } from "./supabaseWorlds.js";
 
 // Lazy-loaded feature components (only loaded when user opens them)
 const KeyboardShortcuts = lazy(() => import("./KeyboardShortcuts.jsx"));
-const ThemeToggleLazy = lazy(() => import("./ThemeToggle.jsx").then(m => ({ default: m.ThemeToggle })));
 const YearInReview = lazy(() => import("./YearInReview.jsx"));
 const TripCard = lazy(() => import("./TripCard.jsx"));
 const TravelStats = lazy(() => import("./TravelStats.jsx"));
@@ -919,23 +917,18 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [sceneReady, setSceneReady] = useState(false);
   const loadErrorRef = useRef(false);
 
-  // Dark mode integration
-  const { isDark } = useTheme();
-
   // Palette & scene merge custom overrides from config (takes effect on render for UI, on reload for scene)
   // Mutates module-level P so external form components (TBtn, Fld, etc.) get correct world colors
-  // Dark mode: merges dark overrides AFTER custom palette so dark bg/text always apply
   const _paletteBase = useMemo(() => {
     let basePalette = isMyWorld ? MY_WORLD_PALETTE : OUR_WORLD_PALETTE;
     if (!isMyWorld && worldType) {
       const shared = getSharedWorldConfig(worldType);
       basePalette = shared.palette;
     }
-    const darkOverrides = isDark ? getDarkOverrides(worldMode, worldType) : {};
-    const merged = { ...basePalette, ...(config.customPalette || {}), ...darkOverrides };
+    const merged = { ...basePalette, ...(config.customPalette || {}) };
     for (const k of Object.keys(merged)) window.__cosmosP[k] = merged[k];
     return merged;
-  }, [isMyWorld, worldMode, worldType, config.customPalette, isDark]);
+  }, [isMyWorld, worldMode, worldType, config.customPalette]);
   const SC = useMemo(() => {
     let baseScene = isMyWorld ? MY_WORLD_SCENE : OUR_WORLD_SCENE;
     if (!isMyWorld && worldType) {
@@ -1287,13 +1280,12 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const routesRef = useRef([]);
   const mouseRef = useRef({ x: 0, y: 0 });
 
-  // Theme colors (responds to dark mode via _paletteBase which includes dark overrides)
+  // Theme colors derived from current palette
   const T = useMemo(() => ({
     bg: null, card: P.card, glass: P.glass,
     text: P.text, textMid: P.textMid, textMuted: P.textMuted, textFaint: P.textFaint,
     parchment: P.parchment, blush: P.blush, border: `${P.rose}18`,
-    isDark,
-  }), [_paletteBase, isDark]);
+  }), [_paletteBase]);
   const lastTapRef = useRef(0); // for double-tap to zoom
   const playRef = useRef(null);
   const animRef = useRef(null);
@@ -2950,7 +2942,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           else { au.play().catch(() => {}); setAmbientPlaying(true); }
         }} tip={ambientPlaying ? "Pause Ambient Music" : "Play Ambient Music"}>{ambientPlaying ? "🔊" : "🎵"}</TBtn>}
         {onSwitchWorld && <TBtn onClick={() => { flushConfigSave(); onSwitchWorld(); }} tip="Switch World">🔄</TBtn>}
-        <Suspense fallback={null}><ThemeToggleLazy palette={_paletteBase} /></Suspense>
         <TBtn onClick={() => { if (window.confirm("Sign out of My Cosmos?")) signOut(); }} tip="Sign Out">🚪</TBtn>
       </div>
 

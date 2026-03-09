@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
 import { AuthProvider, useAuth } from './AuthContext.jsx'
-import { ThemeProvider } from './ThemeProvider.jsx'
 import AuthScreen from './AuthScreen.jsx'
 import WorldSelector from './WorldSelector.jsx'
 import OurWorld from './OurWorld.jsx'
@@ -335,9 +334,7 @@ function AppInner() {
 export default function App() {
   return (
     <AuthProvider>
-      <ThemeProvider>
-        <AppInner />
-      </ThemeProvider>
+      <AppInner />
     </AuthProvider>
   )
 }
