@@ -66,19 +66,22 @@ export async function loadMyWorlds(userId) {
       partnerName: cfg.partner_name ?? '',
       subtitle: cfg.subtitle ?? '',
       members: Array.isArray(meta.members) ? meta.members : [],
+      customPalette: meta.customPalette || {},
+      customScene: meta.customScene || {},
     }
   })
 }
 
-// Quick fetch of My World subtitle for cosmos screen
+// Quick fetch of My World subtitle + custom colors for cosmos screen
 export async function loadMyWorldSubtitle(userId) {
   const { data, error } = await supabase
     .from('my_config')
-    .select('subtitle')
+    .select('subtitle, metadata')
     .eq('id', userId)
     .maybeSingle()
-  if (error || !data) return null
-  return data.subtitle ?? ''
+  if (error || !data) return { subtitle: '', customPalette: {}, customScene: {} }
+  const meta = data.metadata || {}
+  return { subtitle: data.subtitle ?? '', customPalette: meta.customPalette || {}, customScene: meta.customScene || {} }
 }
 
 export async function updateWorld(worldId, updates) {

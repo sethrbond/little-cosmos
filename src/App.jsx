@@ -33,6 +33,7 @@ function AppInner() {
   const [pendingRequests, setPendingRequests] = useState([])
   const [pendingWorldInvites, setPendingWorldInvites] = useState([])
   const [myWorldSubtitle, setMyWorldSubtitle] = useState(null)
+  const [myWorldColors, setMyWorldColors] = useState(null)
   const [transitioning, setTransitioning] = useState(false)
   const [transitionColor, setTransitionColor] = useState('#0c0a12')
   const [showCinematic, setShowCinematic] = useState(false)
@@ -58,12 +59,13 @@ function AppInner() {
       getPendingRequests(user?.email),
       getPendingWorldInvites(user?.email),
       loadMyWorldSubtitle(userId),
-    ]).then(([w, conn, pending, worldInvites, mySub]) => {
+    ]).then(([w, conn, pending, worldInvites, myInfo]) => {
       setWorlds(w)
       setConnections(conn)
       setPendingRequests(pending)
       setPendingWorldInvites(worldInvites || [])
-      setMyWorldSubtitle(mySub)
+      setMyWorldSubtitle(myInfo?.subtitle ?? '')
+      setMyWorldColors({ customPalette: myInfo?.customPalette || {}, customScene: myInfo?.customScene || {} })
       setWorldsLoaded(true)
     }).catch(err => { console.error('[loadData]', err); setWorldsLoaded(true) })
   }, [userId, user?.email])
@@ -288,6 +290,7 @@ function AppInner() {
           pendingWorldInvites={pendingWorldInvites}
           onPendingWorldInvitesChange={setPendingWorldInvites}
           myWorldSubtitle={myWorldSubtitle}
+          myWorldColors={myWorldColors}
         />
         {transitioning && (
           <div style={{

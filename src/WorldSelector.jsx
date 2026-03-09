@@ -43,7 +43,7 @@ const FRIEND_ORB_PRESETS = [
 
 const F = "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif";
 
-export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorldsChange, userId, userEmail, userDisplayName, connections = [], onConnectionsChange, pendingRequests = [], onPendingRequestsChange, pendingWorldInvites = [], onPendingWorldInvitesChange, myWorldSubtitle = '' }) {
+export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorldsChange, userId, userEmail, userDisplayName, connections = [], onConnectionsChange, pendingRequests = [], onPendingRequestsChange, pendingWorldInvites = [], onPendingWorldInvitesChange, myWorldSubtitle = '', myWorldColors = null }) {
   const mountRef = useRef(null);
   const [hovered, setHovered] = useState(null);
   const [ready, setReady] = useState(false);
@@ -156,7 +156,9 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       ...typeColors,
       ...orbit,
       ...(w.role === "viewer" ? { size: 0.22, orbitRadius: (orbit.orbitRadius || 2.6) + 0.4 } : {}),
-      ...(w.palette?.color ? { color: w.palette.color } : {}),
+      ...(w.customScene?.sphereColor ? { color: w.customScene.sphereColor } : w.customPalette?.rose ? { color: w.customPalette.rose } : w.palette?.color ? { color: w.palette.color } : {}),
+      ...(w.customScene?.sphereEmissive ? { emissive: w.customScene.sphereEmissive } : {}),
+      ...(w.customScene?.particleColor ? { glowColor: w.customScene.particleColor } : w.customPalette?.rose ? { glowColor: w.customPalette.rose + "80" } : {}),
     };
   }), [worlds]);
 
@@ -250,19 +252,49 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     const bsG = new THREE.BufferGeometry(); bsG.setAttribute("position", new THREE.BufferAttribute(bsP, 3));
     scene.add(new THREE.Points(bsG, new THREE.PointsMaterial({ color: "#f8f0e0", size: 0.09, transparent: true, opacity: 0.8 })));
 
-    // Center orb
+    // Center orb — use custom colors if user has set them
+    const myScene = myWorldColors?.customScene || {};
+    const myPal = myWorldColors?.customPalette || {};
+    const centerColor = myScene.sphereColor || myPal.rose || CENTER.color;
+    const centerEmissive = myScene.sphereEmissive || CENTER.emissive;
+    const centerGlow = myScene.particleColor || myPal.rose || CENTER.glowColor;
     const centerOrb = new THREE.Mesh(
       new THREE.SphereGeometry(0.7, 48, 48),
-      new THREE.MeshPhongMaterial({ color: CENTER.color, emissive: CENTER.emissive, emissiveIntensity: 1.2, shininess: 30 })
+      new THREE.MeshPhongMaterial({ color: centerColor, emissive: centerEmissive, emissiveIntensity: 1.2, shininess: 30 })
     );
     scene.add(centerOrb);
     [0.74, 0.78, 0.84, 0.92, 1.02, 1.15, 1.35, 1.6, 1.9].forEach((r, i) => {
       const op = [0.35, 0.30, 0.24, 0.20, 0.16, 0.12, 0.08, 0.05, 0.03][i];
       scene.add(new THREE.Mesh(new THREE.SphereGeometry(r, 24, 24),
-        new THREE.MeshBasicMaterial({ color: CENTER.glowColor, transparent: true, opacity: op, side: THREE.BackSide })));
+        new THREE.MeshBasicMaterial({ color: centerGlow, transparent: true, opacity: op, side: THREE.BackSide })));
     });
     scene.add(new THREE.Mesh(new THREE.SphereGeometry(0.72, 32, 32),
       new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.12, side: THREE.FrontSide })));
+
+    // Surface sparkle particles for center orb
+    const centerSparkleCount = 40;
+    const cSparkPos = new Float32Array(centerSparkleCount * 3);
+    const cSparkPhase = new Float32Array(centerSparkleCount); // random phase offsets
+    for (let i = 0; i < centerSparkleCount; i++) {
+      const th = Math.random() * Math.PI * 2, ph = Math.acos(2 * Math.random() - 1);
+      const r = 0.72;
+      cSparkPos[i*3] = r*Math.sin(ph)*Math.cos(th); cSparkPos[i*3+1] = r*Math.sin(ph)*Math.sin(th); cSparkPos[i*3+2] = r*Math.cos(ph);
+      cSparkPhase[i] = Math.random() * Math.PI * 2;
+    }
+    const cSparkGeo = new THREE.BufferGeometry();
+    cSparkGeo.setAttribute("position", new THREE.BufferAttribute(cSparkPos, 3));
+    const cSparkMat = new THREE.PointsMaterial({ color: centerGlow, size: 0.04, transparent: true, opacity: 0.9, depthWrite: false });
+    const centerSparkles = new THREE.Points(cSparkGeo, cSparkMat);
+    centerOrb.add(centerSparkles);
+
+    // Type-specific sparkle configs
+    const SPARKLE_BY_TYPE = {
+      partner:  { count: 24, size: 0.018, speed: 1.8, spread: 1.15 },  // warm, intimate shimmer
+      friends:  { count: 32, size: 0.014, speed: 2.8, spread: 1.25 },  // energetic, lively
+      family:   { count: 20, size: 0.020, speed: 1.2, spread: 1.10 },  // gentle, steady glow
+      shared:   { count: 24, size: 0.016, speed: 2.0, spread: 1.20 },  // balanced
+      friend:   { count: 16, size: 0.012, speed: 1.5, spread: 1.15 },  // subtle distant shimmer
+    };
 
     // Orbiting worlds (shared + friend)
     const orbs = ALL_ORBS.map((w, idx) => {
@@ -275,8 +307,27 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       });
       orb.add(new THREE.Mesh(new THREE.SphereGeometry(w.size * 0.98, 24, 24),
         new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.10, side: THREE.FrontSide })));
+
+      // Type-specific surface sparkle particles
+      const wType = w.worldType || (w.id?.startsWith("friend-") ? "friend" : "shared");
+      const sparkCfg = SPARKLE_BY_TYPE[wType] || SPARKLE_BY_TYPE.shared;
+      const sCount = sparkCfg.count;
+      const sPos = new Float32Array(sCount * 3);
+      const sPhase = new Float32Array(sCount);
+      for (let i = 0; i < sCount; i++) {
+        const th = Math.random() * Math.PI * 2, ph = Math.acos(2 * Math.random() - 1);
+        const r = w.size * sparkCfg.spread;
+        sPos[i*3] = r*Math.sin(ph)*Math.cos(th); sPos[i*3+1] = r*Math.sin(ph)*Math.sin(th); sPos[i*3+2] = r*Math.cos(ph);
+        sPhase[i] = Math.random() * Math.PI * 2;
+      }
+      const sGeo = new THREE.BufferGeometry();
+      sGeo.setAttribute("position", new THREE.BufferAttribute(sPos, 3));
+      const sMat = new THREE.PointsMaterial({ color: w.glowColor, size: sparkCfg.size, transparent: true, opacity: 0.8, depthWrite: false });
+      const sparkles = new THREE.Points(sGeo, sMat);
+      orb.add(sparkles);
+
       scene.add(orb);
-      return { mesh: orb, world: w, angleOffset: (idx / Math.max(ALL_ORBS.length, 1)) * Math.PI * 2 };
+      return { mesh: orb, world: w, angleOffset: (idx / Math.max(ALL_ORBS.length, 1)) * Math.PI * 2, sparkles, sparkMat: sMat, sparkPhase: sPhase, sparkCfg };
     });
 
     // Per-orbit glowing rings — each world gets its own subtle ring
@@ -307,11 +358,27 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       t += 0.006;
       centerOrb.rotation.y += 0.002;
       centerOrb.scale.setScalar(1 + Math.sin(t * 1.2) * 0.03);
+      // Center sparkle twinkle — individual particles fade in/out
+      if (centerSparkles.geometry.attributes.position) {
+        const sizes = [];
+        for (let i = 0; i < centerSparkleCount; i++) {
+          const tw = Math.sin(t * 3.0 + cSparkPhase[i]) * 0.5 + 0.5; // 0-1 twinkle
+          sizes.push(0.02 + tw * 0.04);
+        }
+        cSparkMat.size = 0.04; // base size
+        cSparkMat.opacity = 0.5 + Math.sin(t * 1.5) * 0.3;
+      }
       orbs.forEach((o, i) => {
         const angle = o.angleOffset + t * o.world.orbitSpeed;
         o.mesh.position.set(Math.cos(angle) * o.world.orbitRadius, Math.sin(angle * 0.7) * 0.15, Math.sin(angle) * o.world.orbitRadius);
         o.mesh.rotation.y += 0.008;
         o.mesh.scale.setScalar(1 + Math.sin(t * 2 + i * 1.5) * 0.03);
+        // Per-world sparkle twinkle with type-specific speed
+        if (o.sparkMat) {
+          const sp = o.sparkCfg.speed;
+          o.sparkMat.opacity = 0.4 + Math.sin(t * sp + i * 2.0) * 0.4;
+          o.sparkMat.size = o.sparkCfg.size * (0.8 + Math.sin(t * sp * 1.3 + i) * 0.4);
+        }
       });
       // Pulse orbit rings gently
       orbitRings.forEach((r, i) => { r.mat.opacity = r.baseOp + Math.sin(t * 0.8 + i * 2) * 0.02; });
@@ -371,7 +438,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       rend.dispose();
       if (mount.contains(rend.domElement)) mount.removeChild(rend.domElement);
     };
-  }, [ALL_ORBS.map(o => o.id).join(',')]);
+  }, [ALL_ORBS.map(o => o.id).join(','), myWorldColors]);
 
   // ---- CLICK / HOVER HANDLERS ----
   const handleClick = useCallback((e) => {
