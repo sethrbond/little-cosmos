@@ -2747,15 +2747,14 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         pr.mesh.material.opacity = (1 - pr.age) * 0.25; // fade out
       }
 
-      // Night shadow — transform sun direction into globe's local space so shadow stays fixed relative to world
+      // Night shadow — sun direction in globe-local space (no counter-rotation needed;
+      // mesh is a child of globe, normals are object-space, ll2v coords are fixed)
       if (nightShadowRef.current?.material) {
         const uh = new Date().getUTCHours() + new Date().getUTCMinutes() / 60 + new Date().getUTCSeconds() / 3600;
-        const sunAngle = (uh / 24) * Math.PI * 2 - Math.PI / 2; // noon UTC = sun at 0° longitude
-        const sunWorld = new THREE.Vector3(Math.cos(sunAngle), 0.15, Math.sin(sunAngle)).normalize();
-        // Counter-rotate sun direction by the globe's rotation so shadow stays geographically fixed
-        const invQuat = new THREE.Quaternion().setFromEuler(globe.rotation).invert();
-        sunWorld.applyQuaternion(invQuat);
-        nightShadowRef.current.material.uniforms.sunDir.value.copy(sunWorld);
+        const sunAngle = (uh / 24) * Math.PI * 2 - Math.PI / 2; // noon UTC = sun over 0° longitude (+z)
+        nightShadowRef.current.material.uniforms.sunDir.value.set(
+          Math.cos(sunAngle), 0.15, Math.sin(sunAngle)
+        ).normalize();
       }
 
       // Comet animation — dramatic arc from sky to globe surface
