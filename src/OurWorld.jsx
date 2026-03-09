@@ -1326,6 +1326,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const atmosphereRef = useRef({ targetHue: null, intensity: 0, particleBoost: 0 });
   const particles2Ref = useRef(null);
   const shootingStarsRef = useRef([]);
+  const [hoverLabel, setHoverLabel] = useState(null); // { city, date, x, y }
+  const hoverThrottleRef = useRef(0);
   const mouseRef = useRef({ x: 0, y: 0 });
 
   // Theme colors (always light mode)
@@ -2875,9 +2877,48 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const onDown = useCallback(e => { dragR.current = true; prevR.current = { x: e.clientX, y: e.clientY }; clickSR.current = { x: e.clientX, y: e.clientY, t: Date.now() }; }, []);
   const onMove = useCallback(e => {
     mouseRef.current = { x: (e.clientX / window.innerWidth - 0.5) * 2, y: (e.clientY / window.innerHeight - 0.5) * 2 };
-    if (!dragR.current) return;
-    tRot.current.y += (e.clientX - prevR.current.x) * 0.005; tRot.current.x = clamp(tRot.current.x + (e.clientY - prevR.current.y) * 0.005, -1.2, 1.2); prevR.current = { x: e.clientX, y: e.clientY };
-  }, []);
+    if (dragR.current) {
+      tRot.current.y += (e.clientX - prevR.current.x) * 0.005; tRot.current.x = clamp(tRot.current.x + (e.clientY - prevR.current.y) * 0.005, -1.2, 1.2); prevR.current = { x: e.clientX, y: e.clientY };
+      setHoverLabel(null);
+      return;
+    }
+    // Throttled hover detection (~every 80ms)
+    const now = Date.now();
+    if (now - hoverThrottleRef.current < 80) return;
+    hoverThrottleRef.current = now;
+    if (!mountRef.current || !camRef.current) return;
+    const rect = mountRef.current.getBoundingClientRect();
+    mRef.current.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    mRef.current.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    rayRef.current.setFromCamera(mRef.current, camRef.current);
+    const dots = mkRef.current.map(m => m.dot).filter(Boolean);
+    const hits = rayRef.current.intersectObjects(dots);
+    if (hits.length > 0) {
+      const id = hits[0].object.userData.entryId;
+      let label = null;
+      if (id.startsWith("group-")) {
+        const parts = id.replace("group-", "").split("-");
+        const glat = parseFloat(parts[0]), glng = parseFloat(parts.slice(1).join("-"));
+        const group = locationGroups.find(g => Math.abs(g.lat - glat) < 0.05 && Math.abs(g.lng - glng) < 0.05);
+        if (group) label = { city: group.city, date: `${group.entries.length} entries`, x: e.clientX, y: e.clientY };
+      } else if (id.startsWith("dream-")) {
+        const dreamId = id.replace("dream-", "");
+        const dream = (config.dreamDestinations || config.bucketList || []).find(d => d.id === dreamId);
+        if (dream) label = { city: dream.city || dream.name, date: "dream destination", x: e.clientX, y: e.clientY };
+      } else {
+        const entry = data.entries.find(en => en.id === id);
+        if (entry) {
+          const d = entry.dateStart ? new Date(entry.dateStart + "T00:00:00").toLocaleDateString("en-US", { month: "short", year: "numeric" }) : "";
+          label = { city: entry.city, date: d, x: e.clientX, y: e.clientY };
+        }
+      }
+      setHoverLabel(label);
+      mountRef.current.style.cursor = "pointer";
+    } else {
+      setHoverLabel(null);
+      if (mountRef.current) mountRef.current.style.cursor = "grab";
+    }
+  }, [data.entries, locationGroups, config]);
   const onUp = useCallback(e => {
     dragR.current = false;
     if (!mountRef.current) return;
@@ -3057,7 +3098,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     <div style={{ fontSize: 48, animation: "heartPulse 2s ease infinite", marginBottom: 16 }}>🌍</div>
     <div style={{ fontSize: 14, letterSpacing: ".2em", opacity: 0.7 }}>Loading your world<span style={{ animation: "ellipsis 1.5s infinite" }}>...</span></div>
     <div style={{ fontSize: 10, opacity: 0.6, marginTop: 12, letterSpacing: ".15em" }}>v8.2</div>
-    <style>{`@keyframes heartPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}} @keyframes ellipsis{0%{opacity:0}50%{opacity:1}100%{opacity:0}}`}</style>
+    <style>{`@keyframes heartPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}} @keyframes ellipsis{0%{opacity:0}50%{opacity:1}100%{opacity:0}} @keyframes fadeInLabel{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}`}</style>
   </div>;
 
   return (
@@ -3065,6 +3106,21 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
       <div ref={mountRef} style={{ width: "100%", height: "100%", touchAction: "none" }}
         onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} />
+
+      {/* Hover label — floating city name near cursor */}
+      {hoverLabel && !selected && (
+        <div style={{
+          position: "fixed", left: hoverLabel.x + 14, top: hoverLabel.y - 28,
+          pointerEvents: "none", zIndex: 20,
+          background: `${P.text}cc`, backdropFilter: "blur(8px)",
+          borderRadius: 8, padding: "5px 10px",
+          boxShadow: `0 2px 12px ${P.text}30`,
+          animation: "fadeInLabel 0.2s ease",
+        }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: P.cream, letterSpacing: ".04em", whiteSpace: "nowrap" }}>{hoverLabel.city}</div>
+          {hoverLabel.date && <div style={{ fontSize: 10, color: `${P.cream}aa`, marginTop: 1, whiteSpace: "nowrap" }}>{hoverLabel.date}</div>}
+        </div>
+      )}
 
       {/* TITLE */}
       <div style={{ position: "absolute", top: 22, left: 0, right: 0, textAlign: "center", zIndex: 10, pointerEvents: "none", opacity: ready ? 1 : 0, transform: ready ? "none" : "translateY(-12px)", transition: "all 1.8s cubic-bezier(.23,1,.32,1)" }}>
