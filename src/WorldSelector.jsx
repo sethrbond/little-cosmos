@@ -1610,11 +1610,25 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       })()}
 
       {/* Empty cosmos guidance — show when user has 0 shared worlds */}
-      {worlds.length === 0 && ready && (
-        <div style={{ position: "absolute", bottom: "18%", left: "50%", transform: "translateX(-50%)", textAlign: "center", opacity: 0, animation: "fadeIn 1.5s 2s forwards", pointerEvents: "none" }}>
-          <div style={{ fontSize: 13, color: "#a098a8", fontFamily: F, letterSpacing: "0.5px", lineHeight: 1.7 }}>
-            Your cosmos is just beginning.<br />
-            <span style={{ color: "#c9a96e" }}>Add a World</span> to start building it together.
+      {worlds.length === 0 && connections.length === 0 && ready && (
+        <div style={{ position: "absolute", bottom: "16%", left: "50%", transform: "translateX(-50%)", textAlign: "center", opacity: 0, animation: "fadeIn 1.5s 2s forwards", maxWidth: 340 }}>
+          <div style={{ fontSize: 14, color: "#c0b8c8", fontFamily: F, letterSpacing: "0.4px", lineHeight: 1.8, marginBottom: 16 }}>
+            Your cosmos is just beginning.
+          </div>
+          <div style={{ fontSize: 11, color: "#807888", fontFamily: F, letterSpacing: "0.3px", lineHeight: 1.7, marginBottom: 20 }}>
+            Create a shared world with someone special, or invite a friend to connect your cosmos together.
+          </div>
+          <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+            <button onClick={() => setShowAddMenu(true)} style={{ padding: "10px 22px", background: "rgba(200,170,110,0.12)", border: "1px solid rgba(200,170,110,0.25)", borderRadius: 20, color: "#c9a96e", fontSize: 11, fontFamily: F, cursor: "pointer", letterSpacing: "0.5px", transition: "all .3s" }}
+              onMouseEnter={e => { e.target.style.background = "rgba(200,170,110,0.2)"; e.target.style.borderColor = "rgba(200,170,110,0.4)"; }}
+              onMouseLeave={e => { e.target.style.background = "rgba(200,170,110,0.12)"; e.target.style.borderColor = "rgba(200,170,110,0.25)"; }}>
+              + Add a World
+            </button>
+            <button onClick={() => setShowAddFriend(true)} style={{ padding: "10px 22px", background: "rgba(160,192,232,0.08)", border: "1px solid rgba(160,192,232,0.15)", borderRadius: 20, color: "#8898b0", fontSize: 11, fontFamily: F, cursor: "pointer", letterSpacing: "0.5px", transition: "all .3s" }}
+              onMouseEnter={e => { e.target.style.background = "rgba(160,192,232,0.15)"; e.target.style.borderColor = "rgba(160,192,232,0.3)"; }}
+              onMouseLeave={e => { e.target.style.background = "rgba(160,192,232,0.08)"; e.target.style.borderColor = "rgba(160,192,232,0.15)"; }}>
+              Invite a Friend
+            </button>
           </div>
         </div>
       )}

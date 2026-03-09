@@ -215,10 +215,13 @@ Run `docs/FULL_REBUILD.sql` in Supabase SQL Editor — idempotent, creates all t
 ## KNOWN ISSUES (cosmetic, not blocking)
 
 1. **`ambientMusicUrl` in config** — persistence exists but settings UI for it may be incomplete.
-2. **No error boundary on WorldSelector or CinematicOnboarding** — WebGL crash on cosmos screen would strand users.
+2. ~~**No error boundary on WorldSelector or CinematicOnboarding**~~ — FIXED: both wrapped in ScreenErrorBoundary.
 3. **Accessibility is minimal** — no aria labels, no keyboard nav for globe, no focus trapping in modals.
 4. **Duplicate `heartPulse` keyframe** — defined twice (loading screen at 1.08, main at 1.06). Second wins.
-5. **ThemeProvider `onConfigDarkMode` not wired** — dark mode persists to localStorage only, not to Supabase config. Functionally fine for single-device users.
+5. ~~**ThemeProvider not wired**~~ — FIXED: ThemeProvider deleted (dead code), dark mode handled in config.
+6. ~~**Forms use Our World colors in My World**~~ — FIXED: module-level P is mutated via window.__cosmosP when world mode changes.
+7. ~~**Seasonal tinting bug**~~ — FIXED: `&&` → `||` no longer present, correct ranges confirmed.
+8. ~~**my_entries/my_config separate tables**~~ — FIXED: consolidated into entries/config with world_id.
 
 ---
 
