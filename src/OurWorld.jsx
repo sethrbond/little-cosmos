@@ -1734,7 +1734,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       }
     };
     animRef.current = requestAnimationFrame(anim);
-  }, [sliderDate, togetherList, sorted, isPartnerWorld, isAnimating]);
+  }, [sliderDate, togetherList, sorted, isPartnerWorld, isAnimating, flyTo]);
 
   // ---- PLAY OUR STORY ----
   // Cinema state for Play Story overlay
@@ -1745,11 +1745,14 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [cinemaIdx, setCinemaIdx] = useState(0);
   const [cinemaPhase, setCinemaPhase] = useState('fly'); // 'fly' | 'show' | 'transition'
 
+  const photoTimerRef = useRef(null);
+
   const stopPlay = useCallback(() => {
     setIsPlaying(false);
     setCinemaEntry(null);
     setCinemaPhase('fly');
     if (playRef.current) { clearTimeout(playRef.current); playRef.current = null; }
+    if (photoTimerRef.current) { clearInterval(photoTimerRef.current); photoTimerRef.current = null; }
     tSpinSpd.current = 0.001;
   }, []);
 
@@ -1761,6 +1764,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     setShowGallery(false);
     setCinemaTotal(playList.length);
     let idx = 0;
+
+    const clearPlay = () => { if (playRef.current) { clearTimeout(playRef.current); playRef.current = null; } };
+    const clearPhotoTimer = () => { if (photoTimerRef.current) { clearInterval(photoTimerRef.current); photoTimerRef.current = null; } };
 
     const step = () => {
       if (idx >= playList.length) { stopPlay(); showToast("Story complete", "✨", 3000); return; }
@@ -1774,6 +1780,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       flyTo(entry.lat, entry.lng, 2.4);
 
       // After fly-to settles, show the full cinema card
+      clearPlay();
       playRef.current = setTimeout(() => {
         setCinemaPhase('show');
         setSelected(entry);
@@ -1784,25 +1791,30 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         const photos = entry.photos || [];
         if (photos.length > 1) {
           let pIdx = 0;
-          const photoTimer = setInterval(() => {
+          clearPhotoTimer();
+          photoTimerRef.current = setInterval(() => {
             pIdx = (pIdx + 1) % photos.length;
             setCinemaPhotoIdx(pIdx);
           }, 2000);
+          clearPlay();
           playRef.current = setTimeout(() => {
-            clearInterval(photoTimer);
+            clearPhotoTimer();
             setCinemaPhase('transition');
             setSelected(null);
             idx++;
             if (idx < playList.length) {
               tSpinSpd.current = 0.015;
               tZm.current = 3.0;
+              clearPlay();
               playRef.current = setTimeout(step, 1000);
             } else {
               setCinemaProgress(1);
+              clearPlay();
               playRef.current = setTimeout(() => { stopPlay(); showToast("Story complete", "✨", 3000); }, 800);
             }
           }, Math.min(5000, 2000 + photos.length * 1200));
         } else {
+          clearPlay();
           playRef.current = setTimeout(() => {
             setCinemaPhase('transition');
             setSelected(null);
@@ -1810,9 +1822,11 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             if (idx < playList.length) {
               tSpinSpd.current = 0.015;
               tZm.current = 3.0;
+              clearPlay();
               playRef.current = setTimeout(step, 1000);
             } else {
               setCinemaProgress(1);
+              clearPlay();
               playRef.current = setTimeout(() => { stopPlay(); showToast("Story complete", "✨", 3000); }, 800);
             }
           }, 4000);
@@ -1915,7 +1929,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       else { const next = recapIdx + 1; setRecapIdx(next); const e = recapEntries[next]; if (e) { setSliderDate(e.dateStart); flyTo(e.lat, e.lng, 2.4); } }
     }, 4500);
     return () => clearTimeout(t);
-  }, [recapAutoPlay, showRecap, recapPhase, recapIdx, recapEntries]);
+  }, [recapAutoPlay, showRecap, recapPhase, recapIdx, recapEntries, flyTo]);
 
   // ---- GALLERY DATA ----
   const allPhotos = useMemo(() => {
@@ -2031,7 +2045,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url; a.download = `${(entry.city || "trip").toLowerCase().replace(/\s+/g, "-")}-trip-card.png`;
-      a.click(); URL.revokeObjectURL(url);
+      a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
       showToast("Trip card saved!", "🎴", 2500);
     }, "image/png");
   }, [TYPES, P, showToast]);
@@ -2041,7 +2055,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     const blob = new Blob([JSON.stringify({ data, config }, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a"); a.href = url; a.download = "our-world-backup.json"; a.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
     showToast("Backup exported", "📥", 2000);
   }, [data, config, showToast]);
 
@@ -2055,10 +2069,16 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           const parsed = JSON.parse(re.target.result);
           if (parsed.data?.entries) {
             dispatch({ type: "LOAD", entries: parsed.data.entries });
-            // Save each entry to Supabase
-            parsed.data.entries.forEach(e => db.saveEntry(e));
+            // Save entries to Supabase in batches of 10
+            const entries = parsed.data.entries;
+            (async () => {
+              for (let i = 0; i < entries.length; i += 10) {
+                await Promise.all(entries.slice(i, i + 10).map(e => db.saveEntry(e)));
+              }
+              showToast(`Imported ${entries.length} entries`, "📥", 3000);
+            })().catch(err => console.error("Import save failed:", err));
           }
-          if (parsed.config) { setConfig(parsed.config); }
+          if (parsed.config) { setConfig({ ...DEFAULT_CONFIG, ...parsed.config }); }
         } catch (err) { console.error("Import failed:", err); }
       };
       reader.readAsText(file);
@@ -2287,9 +2307,10 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
     // Fly-in animation — staged zoom with globe rotation
     tZm.current = 5.5; // start zoomed out
-    setTimeout(() => { tZm.current = 3.6; tRot.current.y = tRot.current.y + 0.8; }, 200); // zoom in with spin
-    setTimeout(() => tSpinSpd.current = 0.002, 1800); // settle into gentle spin
+    const flyInT1 = setTimeout(() => { tZm.current = 3.6; tRot.current.y = tRot.current.y + 0.8; }, 200);
+    const flyInT2 = setTimeout(() => tSpinSpd.current = 0.002, 1800);
 
+    const _tmpQuat = new THREE.Quaternion();
     const animate = () => {
       frameRef.current = requestAnimationFrame(animate);
       spinSpd.current = lerp(spinSpd.current, tSpinSpd.current, 0.04);
@@ -2317,8 +2338,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         hMesh.scale.set(1 + Math.sin(ht) * 0.15, 1 + Math.sin(ht) * 0.15, 1);
         hMesh.material.opacity = 0.5 + Math.sin(ht * 0.7) * 0.2;
         // Billboard: counter globe rotation so heart always faces camera
-        const invGlobe = new THREE.Quaternion().setFromEuler(globe.rotation).invert();
-        hMesh.quaternion.copy(invGlobe);
+        _tmpQuat.setFromEuler(globe.rotation).invert();
+        hMesh.quaternion.copy(_tmpQuat);
       }
       particles.rotation.y += 0.0001;
       particles2.rotation.y -= 0.00008;
@@ -2373,17 +2394,20 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     animate();
 
     // Intro sequence
-    setTimeout(() => setReady(true), 300);
-    setTimeout(() => setIntroComplete(true), 2500);
+    const introT1 = setTimeout(() => setReady(true), 300);
+    const introT2 = setTimeout(() => setIntroComplete(true), 2500);
     setSceneReady(true);
 
     const onR = () => { const nw = el.clientWidth, nh = el.clientHeight; cam.aspect = nw / nh; cam.updateProjectionMatrix(); rend.setSize(nw, nh); };
     window.addEventListener("resize", onR);
 
     return () => {
+      clearTimeout(flyInT1); clearTimeout(flyInT2);
+      clearTimeout(introT1); clearTimeout(introT2);
       cancelAnimationFrame(frameRef.current);
       if (animRef.current) cancelAnimationFrame(animRef.current);
       if (playRef.current) clearTimeout(playRef.current);
+      if (photoTimerRef.current) clearInterval(photoTimerRef.current);
       window.removeEventListener("resize", onR);
       // Dispose all Three.js objects to prevent GPU memory leaks
       scene.traverse(obj => {
@@ -2451,7 +2475,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
       const isMulti = loc.entries.length > 1;
       const size = isMulti ? 0.02 : 0.014;
-      const entryId = isMulti ? `group-${loc.city}` : loc.entries[0].id;
+      const entryId = isMulti ? `group-${loc.lat.toFixed(2)}-${loc.lng.toFixed(2)}` : loc.entries[0].id;
 
       mkRef.current.push(makeDot(g, loc.lat, loc.lng, color, size, entryId, false, icon));
     });
@@ -2599,18 +2623,20 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   }, []);
   const onUp = useCallback(e => {
     dragR.current = false;
+    if (!mountRef.current) return;
     if (Math.abs(e.clientX - clickSR.current.x) < 6 && Math.abs(e.clientY - clickSR.current.y) < 6 && Date.now() - clickSR.current.t < 350) {
       const rect = mountRef.current.getBoundingClientRect();
       mRef.current.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       mRef.current.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
       rayRef.current.setFromCamera(mRef.current, camRef.current);
-      const hits = rayRef.current.intersectObjects(mkRef.current.map(m => m.dot));
+      const hits = rayRef.current.intersectObjects(mkRef.current.map(m => m.dot).filter(Boolean));
       if (hits.length > 0) {
         const id = hits[0].object.userData.entryId;
         // Check if this is a location group
         if (id.startsWith("group-")) {
-          const groupCity = id.replace("group-", "");
-          const group = locationGroups.find(g => g.city === groupCity);
+          const parts = id.replace("group-", "").split("-");
+          const glat = parseFloat(parts[0]), glng = parseFloat(parts.slice(1).join("-"));
+          const group = locationGroups.find(g => Math.abs(g.lat - glat) < 0.05 && Math.abs(g.lng - glng) < 0.05);
           if (group) {
             setLocationList(group);
             setSelected(null);
@@ -2632,40 +2658,62 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     }
   }, [data.entries, locationGroups]);
   const onWheel = useCallback(e => { e.preventDefault(); tZm.current = clamp(tZm.current + e.deltaY * 0.001, MIN_Z, MAX_Z); setShowZoomHint(false); }, []);
-  // Attach wheel with passive:false on both mount div and canvas for reliable zoom
+  // Attach wheel + touch with passive:false so preventDefault works (Safari pinch zoom fix)
   useEffect(() => {
     const el = mountRef.current;
     if (!el) return;
     const opts = { passive: false };
     el.addEventListener("wheel", onWheel, opts);
-    // Also attach to canvas child if present (Three.js renderer)
     const canvas = el.querySelector("canvas");
     if (canvas) canvas.addEventListener("wheel", onWheel, opts);
+
+    // Touch handlers registered imperatively so Safari respects preventDefault
+    const handleTouchStart = (e) => {
+      e.preventDefault();
+      if (e.touches.length === 1) {
+        dragR.current = true;
+        prevR.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        clickSR.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() };
+        const now = Date.now();
+        if (now - lastTapRef.current < 300) {
+          tZm.current = tZm.current < 2.5 ? 2.0 : 3.6;
+          lastTapRef.current = 0;
+        } else {
+          lastTapRef.current = now;
+        }
+      } else if (e.touches.length === 2) {
+        dragR.current = false;
+        const dx = e.touches[0].clientX - e.touches[1].clientX, dy = e.touches[0].clientY - e.touches[1].clientY;
+        tDistR.current = Math.sqrt(dx * dx + dy * dy);
+      }
+    };
+    const handleTouchMove = (e) => {
+      e.preventDefault();
+      if (e.touches.length === 1 && dragR.current) {
+        tRot.current.y += (e.touches[0].clientX - prevR.current.x) * 0.005;
+        tRot.current.x = clamp(tRot.current.x + (e.touches[0].clientY - prevR.current.y) * 0.005, -1.2, 1.2);
+        prevR.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      } else if (e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX, dy = e.touches[0].clientY - e.touches[1].clientY;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        tZm.current = clamp(tZm.current - (d - tDistR.current) * 0.012, MIN_Z, MAX_Z);
+        tDistR.current = d;
+      }
+    };
+    const handleTouchEnd = () => { dragR.current = false; };
+
+    el.addEventListener("touchstart", handleTouchStart, opts);
+    el.addEventListener("touchmove", handleTouchMove, opts);
+    el.addEventListener("touchend", handleTouchEnd);
+
     return () => {
       el.removeEventListener("wheel", onWheel);
       if (canvas) canvas.removeEventListener("wheel", onWheel);
+      el.removeEventListener("touchstart", handleTouchStart);
+      el.removeEventListener("touchmove", handleTouchMove);
+      el.removeEventListener("touchend", handleTouchEnd);
     };
   }, [onWheel, sceneReady]);
-  const onTS = useCallback(e => {
-    if (e.touches.length === 1) {
-      dragR.current = true;
-      prevR.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-      clickSR.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() };
-      // Double-tap detection
-      const now = Date.now();
-      if (now - lastTapRef.current < 300) {
-        // Double tap — toggle zoom
-        tZm.current = tZm.current < 2.5 ? 2.0 : 3.6;
-        lastTapRef.current = 0;
-      } else {
-        lastTapRef.current = now;
-      }
-    } else if (e.touches.length === 2) {
-      const dx = e.touches[0].clientX - e.touches[1].clientX, dy = e.touches[0].clientY - e.touches[1].clientY;
-      tDistR.current = Math.sqrt(dx * dx + dy * dy);
-    }
-  }, []);
-  const onTM = useCallback(e => { e.preventDefault(); if (e.touches.length === 1 && dragR.current) { tRot.current.y += (e.touches[0].clientX - prevR.current.x) * 0.005; tRot.current.x = clamp(tRot.current.x + (e.touches[0].clientY - prevR.current.y) * 0.005, -1.2, 1.2); prevR.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; } else if (e.touches.length === 2) { const dx = e.touches[0].clientX - e.touches[1].clientX, dy = e.touches[0].clientY - e.touches[1].clientY; const d = Math.sqrt(dx * dx + dy * dy); tZm.current = clamp(tZm.current - (d - tDistR.current) * 0.012, MIN_Z, MAX_Z); tDistR.current = d; } }, []);
 
   const fileInputRef = useRef(null);
   const photoEntryIdRef = useRef(null);
@@ -2758,9 +2806,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   return (
     <div style={{ width: "100%", height: "100vh", position: "relative", overflow: "hidden", background: `linear-gradient(155deg,${P.cream} 0%,${P.blush} 40%,${P.lavMist} 100%)`, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", color: T.text, userSelect: "none", transition: "background .6s ease, color .4s ease" }}>
 
-      <div ref={mountRef} style={{ width: "100%", height: "100%" }}
-        onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp}
-        onTouchStart={onTS} onTouchMove={onTM} onTouchEnd={() => dragR.current = false} />
+      <div ref={mountRef} style={{ width: "100%", height: "100%", touchAction: "none" }}
+        onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} />
 
       {/* TITLE */}
       <div style={{ position: "absolute", top: 22, left: 0, right: 0, textAlign: "center", zIndex: 10, pointerEvents: "none", opacity: ready ? 1 : 0, transform: ready ? "none" : "translateY(-12px)", transition: "all 1.8s cubic-bezier(.23,1,.32,1)" }}>
@@ -2934,7 +2981,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       </div>
 
       {/* AMBIENT MUSIC — persistent audio element */}
-      {config.ambientMusicUrl && <audio ref={ambientRef} src={config.ambientMusicUrl} loop preload="none" style={{ display: "none" }} onEnded={() => setAmbientPlaying(false)} />}
+      {config.ambientMusicUrl && <audio ref={ambientRef} src={config.ambientMusicUrl} loop preload="none" style={{ display: "none" }} />}
 
       {/* SEARCH PANEL */}
       {showSearch && (
@@ -4545,7 +4592,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       {showPhotoJourney && allPhotos.length > 0 && (() => {
         const ph = allPhotos[pjIndex];
         const prevPh = pjIndex > 0 ? allPhotos[pjIndex - 1] : null;
-        const entry = sorted.find(e => e.city === ph.city);
+        const entry = sorted.find(e => e.id === ph.id);
         const note = entry?.notes || '';
         return (
           <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}
@@ -4701,6 +4748,7 @@ function TBtn({ a, onClick, children, accent, tip }) {
   const [showTip, setShowTip] = useState(false);
   const [hov, setHov] = useState(false);
   const tipTimer = useRef(null);
+  useEffect(() => () => clearTimeout(tipTimer.current), []);
   const onEnter = () => { setHov(true); if (tip) tipTimer.current = setTimeout(() => setShowTip(true), 1500); };
   const onLeave = () => { setHov(false); clearTimeout(tipTimer.current); setShowTip(false); };
   return (

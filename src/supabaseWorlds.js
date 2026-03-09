@@ -434,20 +434,16 @@ export async function loadCrossWorldActivity(worldIds, limit = 20) {
 
 export async function loadWorldEntryCounts(worldIds) {
   if (!worldIds || worldIds.length === 0) return {}
-  const counts = {}
-  for (const wid of worldIds) {
-    const { count, error } = await supabase
-      .from('entries')
-      .select('*', { count: 'exact', head: true })
-      .eq('world_id', wid)
-    if (!error) counts[wid] = count || 0
-  }
-  return counts
+  const results = await Promise.all(worldIds.map(wid =>
+    supabase.from('entries').select('*', { count: 'exact', head: true }).eq('world_id', wid)
+      .then(({ count, error }) => [wid, error ? 0 : (count || 0)])
+  ))
+  return Object.fromEntries(results)
 }
 
 export async function searchCrossWorld(worldIds, userId, query, limit = 20) {
   if (!query || query.trim().length === 0) return []
-  const q = query.trim().toLowerCase().replace(/[%_,.*()\\'";\n\r\t]/g, '')
+  const q = query.trim().toLowerCase().replace(/[%_,.*()\\'";\n\r\t`{}[\]^$|!@#&+=<>?:/~]/g, '')
   if (!q) return []
   const results = []
 

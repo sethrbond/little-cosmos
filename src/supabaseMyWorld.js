@@ -226,7 +226,7 @@ export function createFriendWorldDB(friendUserId) {
     readPhotos: async (entryId) => {
       const { data, error } = await supabase.from('my_entries').select('photos').eq('id', entryId).single()
       if (error) return { ok: false, error: error.message }
-      return { ok: true, photos: safeArray(data?.photos), count: safeArray(data?.photos).length }
+      const arr = safeArray(data?.photos); return { ok: true, photos: arr, count: arr.length }
     },
   }
 }

@@ -195,9 +195,10 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     if (!mount) return;
     let W = mount.clientWidth, H = mount.clientHeight;
 
-    const canvas = document.createElement("canvas");
-    const gl = canvas.getContext("webgl2") || canvas.getContext("webgl");
+    const testCanvas = document.createElement("canvas");
+    const gl = testCanvas.getContext("webgl2") || testCanvas.getContext("webgl");
     if (!gl) { mount.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#e8e0d0;font-family:serif;font-size:16px;text-align:center;padding:20px">Your browser doesn\'t support WebGL.<br/>Please use a modern browser to view My Cosmos.</div>'; return; }
+    const loseCtx = gl.getExtension('WEBGL_lose_context'); if (loseCtx) loseCtx.loseContext();
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color("#08060e");
@@ -598,7 +599,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     closeAllModals(true)
   }, [hasUnsavedInput])
 
-  const closeAllModals = (force = false) => {
+  const closeAllModals = () => {
     setShowAddMenu(false); setShowCreatePersonal(false); setShowCreateShared(false);
     setShowInviteModal(null); setShowInviteCosmos(false); setShowAddFriend(false); setShowPendingRequests(false); setShowWorldInvites(false); setShowActivity(false); setShowSearch(false);
     setPersonalName(""); setSharedName(""); setSharedType("partner"); setSharedYouName(""); setSharedPartnerName(""); setSharedMembers([{ name: "" }, { name: "" }]); setSharedStep(0); setInviteEmail("");
