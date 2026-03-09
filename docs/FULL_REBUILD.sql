@@ -1,6 +1,6 @@
 -- ============================================================
 --  MY COSMOS — COMPLETE DATABASE SETUP
---  v2.1 | March 2026
+--  v3.0 | March 2026
 --
 --  IDEMPOTENT: Safe to run on fresh OR existing database.
 --  All CREATE use IF NOT EXISTS, all policies DROP before CREATE.
@@ -243,6 +243,12 @@ CREATE TABLE IF NOT EXISTS entry_reactions (
   UNIQUE(entry_id, user_id, reaction_type, photo_url)
 );
 
+-- Partial unique index for reactions without photo_url (NULL-safe)
+-- The UNIQUE constraint above allows duplicate NULLs; this prevents them.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_reactions_no_photo
+  ON entry_reactions(entry_id, user_id, reaction_type)
+  WHERE photo_url IS NULL;
+
 
 -- ============================================================
 --  11. WELCOME LETTERS TABLE
@@ -333,6 +339,7 @@ CREATE INDEX IF NOT EXISTS idx_entry_reactions_world ON entry_reactions(world_id
 CREATE INDEX IF NOT EXISTS idx_welcome_letters_to_email ON welcome_letters(to_email);
 CREATE INDEX IF NOT EXISTS idx_cosmos_connections_requester ON cosmos_connections(requester_id);
 CREATE INDEX IF NOT EXISTS idx_cosmos_connections_target ON cosmos_connections(target_email);
+CREATE INDEX IF NOT EXISTS idx_cosmos_connections_target_user ON cosmos_connections(target_user_id);
 
 
 -- ============================================================
@@ -417,20 +424,22 @@ DROP POLICY IF EXISTS "entry_reactions_select" ON entry_reactions;
 DROP POLICY IF EXISTS "entry_reactions_insert" ON entry_reactions;
 DROP POLICY IF EXISTS "entry_reactions_delete" ON entry_reactions;
 
--- welcome_letters (6)
+-- welcome_letters (7)
 DROP POLICY IF EXISTS "letters_insert" ON welcome_letters;
 DROP POLICY IF EXISTS "letters_select_author" ON welcome_letters;
 DROP POLICY IF EXISTS "letters_update_author" ON welcome_letters;
 DROP POLICY IF EXISTS "letters_delete_author" ON welcome_letters;
 DROP POLICY IF EXISTS "letters_select_recipient" ON welcome_letters;
 DROP POLICY IF EXISTS "letters_update_recipient" ON welcome_letters;
+DROP POLICY IF EXISTS "letters_delete_recipient" ON welcome_letters;
 
--- cosmos_connections (5)
+-- cosmos_connections (6)
 DROP POLICY IF EXISTS "connections_insert" ON cosmos_connections;
 DROP POLICY IF EXISTS "connections_select_requester" ON cosmos_connections;
 DROP POLICY IF EXISTS "connections_select_target" ON cosmos_connections;
 DROP POLICY IF EXISTS "connections_update_target" ON cosmos_connections;
 DROP POLICY IF EXISTS "connections_select_accepted" ON cosmos_connections;
+DROP POLICY IF EXISTS "connections_delete" ON cosmos_connections;
 
 -- storage (3)
 DROP POLICY IF EXISTS "photos_read" ON storage.objects;
@@ -633,10 +642,12 @@ CREATE POLICY "letters_select_recipient" ON welcome_letters FOR SELECT
 CREATE POLICY "letters_update_recipient" ON welcome_letters FOR UPDATE
   USING (lower(to_email) = lower(auth.email()))
   WITH CHECK (lower(to_email) = lower(auth.email()));
+CREATE POLICY "letters_delete_recipient" ON welcome_letters FOR DELETE
+  USING (lower(to_email) = lower(auth.email()));
 
 
 -- ============================================================
---  23. CREATE ALL POLICIES — cosmos_connections (5)
+--  23. CREATE ALL POLICIES — cosmos_connections (6)
 -- ============================================================
 
 CREATE POLICY "connections_insert" ON cosmos_connections FOR INSERT
@@ -649,6 +660,8 @@ CREATE POLICY "connections_update_target" ON cosmos_connections FOR UPDATE
   USING (lower(target_email) = lower(auth.email()));
 CREATE POLICY "connections_select_accepted" ON cosmos_connections FOR SELECT
   USING (status = 'accepted' AND (auth.uid() = requester_id OR auth.uid() = target_user_id));
+CREATE POLICY "connections_delete" ON cosmos_connections FOR DELETE
+  USING (auth.uid() = requester_id OR auth.uid() = target_user_id);
 
 
 -- ============================================================
@@ -965,7 +978,7 @@ SELECT '--- TABLES ---' AS section;
 SELECT table_name FROM information_schema.tables
 WHERE table_schema = 'public' ORDER BY table_name;
 
--- Public policies (expect 53)
+-- Public policies (expect 55)
 SELECT '--- POLICIES (' || COUNT(*) || ' total) ---' AS section
 FROM pg_policies WHERE schemaname = 'public';
 
