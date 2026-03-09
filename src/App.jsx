@@ -12,12 +12,29 @@ import { getPendingRequests, getMyConnections } from './supabaseConnections.js'
 // Bump this to reset all onboarding/tour flags for every user
 const ONBOARD_VERSION = 'v3'
 
+const safeGet = (key) => { try { return localStorage.getItem(key) } catch { return null } }
+const safeSet = (key, val) => { try { localStorage.setItem(key, val) } catch {} }
+const safeRemove = (key) => { try { localStorage.removeItem(key) } catch {} }
+const obKey = (name) => `${ONBOARD_VERSION}_${name}`
+
+function LoadingScreen() {
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: '#0c0a12', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: '"Palatino Linotype", serif', color: '#e8e0d0', gap: 20 }}>
+      <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'radial-gradient(circle, rgba(200,170,110,0.12), transparent 70%)', display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'cosmosPulse 2s ease-in-out infinite' }}>
+        <div style={{ width: 20, height: 20, borderRadius: '50%', border: '2px solid rgba(200,170,110,0.3)', borderTopColor: 'rgba(200,170,110,0.8)', animation: 'cosmosSpin 1s linear infinite' }} />
+      </div>
+      <div style={{ fontSize: 13, letterSpacing: '0.15em', opacity: 0.5, animation: 'cosmosShimmer 2s ease-in-out infinite' }}>Loading your cosmos</div>
+      <style>{`
+        @keyframes cosmosSpin { to { transform: rotate(360deg); } }
+        @keyframes cosmosPulse { 0%,100% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.1); opacity: 1; } }
+        @keyframes cosmosShimmer { 0%,100% { opacity: 0.3; } 50% { opacity: 0.6; } }
+      `}</style>
+    </div>
+  )
+}
+
 function AppInner() {
   const { user, userId, loading, signOut } = useAuth()
-  const safeGet = (key) => { try { return localStorage.getItem(key) } catch { return null } }
-  const safeSet = (key, val) => { try { localStorage.setItem(key, val) } catch {} }
-  const safeRemove = (key) => { try { localStorage.removeItem(key) } catch {} }
-  const obKey = (name) => `${ONBOARD_VERSION}_${name}`
 
   const [worldMode, setWorldMode] = useState(() => safeGet('worldMode'))
   const [activeWorldId, setActiveWorldId] = useState(() => safeGet('activeWorldId'))
@@ -207,38 +224,14 @@ function AppInner() {
 
   // Show auth screen as soon as we know there's no user (don't wait for letter/worlds)
   if (loading) {
-    return (
-      <div style={{ position: 'fixed', inset: 0, background: '#0c0a12', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: '"Palatino Linotype", serif', color: '#e8e0d0', gap: 20 }}>
-        <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'radial-gradient(circle, rgba(200,170,110,0.12), transparent 70%)', display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'cosmosPulse 2s ease-in-out infinite' }}>
-          <div style={{ width: 20, height: 20, borderRadius: '50%', border: '2px solid rgba(200,170,110,0.3)', borderTopColor: 'rgba(200,170,110,0.8)', animation: 'cosmosSpin 1s linear infinite' }} />
-        </div>
-        <div style={{ fontSize: 13, letterSpacing: '0.15em', opacity: 0.5, animation: 'cosmosShimmer 2s ease-in-out infinite' }}>Loading your cosmos</div>
-        <style>{`
-          @keyframes cosmosSpin { to { transform: rotate(360deg); } }
-          @keyframes cosmosPulse { 0%,100% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.1); opacity: 1; } }
-          @keyframes cosmosShimmer { 0%,100% { opacity: 0.3; } 50% { opacity: 0.6; } }
-        `}</style>
-      </div>
-    )
+    return <LoadingScreen />
   }
 
   if (!user) return <AuthScreen />
 
   // For logged-in users, wait for letter check and worlds to load
   if (!letterChecked || !worldsLoaded) {
-    return (
-      <div style={{ position: 'fixed', inset: 0, background: '#0c0a12', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: '"Palatino Linotype", serif', color: '#e8e0d0', gap: 20 }}>
-        <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'radial-gradient(circle, rgba(200,170,110,0.12), transparent 70%)', display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'cosmosPulse 2s ease-in-out infinite' }}>
-          <div style={{ width: 20, height: 20, borderRadius: '50%', border: '2px solid rgba(200,170,110,0.3)', borderTopColor: 'rgba(200,170,110,0.8)', animation: 'cosmosSpin 1s linear infinite' }} />
-        </div>
-        <div style={{ fontSize: 13, letterSpacing: '0.15em', opacity: 0.5, animation: 'cosmosShimmer 2s ease-in-out infinite' }}>Loading your cosmos</div>
-        <style>{`
-          @keyframes cosmosSpin { to { transform: rotate(360deg); } }
-          @keyframes cosmosPulse { 0%,100% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.1); opacity: 1; } }
-          @keyframes cosmosShimmer { 0%,100% { opacity: 0.3; } 50% { opacity: 0.6; } }
-        `}</style>
-      </div>
-    )
+    return <LoadingScreen />
   }
 
   // Show welcome letter before anything else
@@ -311,17 +304,6 @@ function AppInner() {
             opacity: 1,
           }} />
         )}
-        <style>{`
-          @keyframes cosmosZoomIn {
-            0% { opacity: 0; transform: scale(0.3); border-radius: 50%; }
-            60% { opacity: 1; border-radius: 20%; }
-            100% { opacity: 1; transform: scale(1); border-radius: 0; }
-          }
-          @keyframes cosmosFadeOut {
-            0% { opacity: 1; }
-            100% { opacity: 0; }
-          }
-        `}</style>
       </>
     )
   }

@@ -298,7 +298,7 @@ const fmtDate = d => {
 
 const FILTER_TABS = ["All", "Unlocked", "Locked"];
 
-export default function Achievements({ entries, stats, palette, onClose, worldMode, config }) {
+export default function Achievements({ entries, palette, onClose, worldMode }) {
   const P = palette || {};
   const [filter, setFilter] = useState("All");
   const [hoveredBadge, setHoveredBadge] = useState(null);
@@ -355,6 +355,54 @@ export default function Achievements({ entries, stats, palette, onClose, worldMo
   const cardBg = P.card || "rgba(252,249,246,0.96)";
   const glassBg = P.glass || "rgba(248,244,240,0.92)";
 
+  const bgStars = useMemo(() => Array.from({ length: 40 }, (_, i) => {
+    const left = Math.random() * 100;
+    const top = Math.random() * 100;
+    const size = 2 + Math.random() * 2;
+    const opacity = 0.15 + Math.random() * 0.25;
+    const dur = 2 + Math.random() * 4;
+    const delay = Math.random() * 3;
+    return (
+      <div key={i} style={{
+        position: "absolute",
+        left: `${left}%`,
+        top: `${top}%`,
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        background: "#fff",
+        opacity,
+        animation: `achTwinkle ${dur}s ${delay}s ease-in-out infinite`,
+        pointerEvents: "none",
+      }} />
+    );
+  }), []);
+
+  const sparkleMap = useMemo(() => {
+    const map = {};
+    allBadges.forEach(badge => {
+      map[badge.id] = Array.from({ length: 6 }, (_, i) => {
+        const left = 20 + Math.random() * 60;
+        const top = 10 + Math.random() * 40;
+        const dur = 1 + Math.random() * 1.5;
+        const delay = Math.random() * 1;
+        return (
+          <div key={i} style={{
+            position: "absolute",
+            width: 3, height: 3, borderRadius: "50%",
+            background: gold,
+            left: `${left}%`,
+            top: `${top}%`,
+            opacity: 0,
+            animation: `achSparkle ${dur}s ${delay}s ease-in-out infinite`,
+            pointerEvents: "none",
+          }} />
+        );
+      });
+    });
+    return map;
+  }, [allBadges, gold]);
+
   const overlayBg = "rgba(8, 6, 18, 0.92)";
   const panelBg = "rgba(20, 16, 36, 0.97)";
   const badgeCardBg = "rgba(30, 24, 52, 0.85)";
@@ -372,20 +420,7 @@ export default function Achievements({ entries, stats, palette, onClose, worldMo
       fontFamily: "'Palatino Linotype', Georgia, serif",
     }}>
       {/* Background stars */}
-      {Array.from({ length: 40 }, (_, i) => (
-        <div key={i} style={{
-          position: "absolute",
-          left: `${Math.random() * 100}%`,
-          top: `${Math.random() * 100}%`,
-          width: 2 + Math.random() * 2,
-          height: 2 + Math.random() * 2,
-          borderRadius: "50%",
-          background: "#fff",
-          opacity: 0.15 + Math.random() * 0.25,
-          animation: `achTwinkle ${2 + Math.random() * 4}s ${Math.random() * 3}s ease-in-out infinite`,
-          pointerEvents: "none",
-        }} />
-      ))}
+      {bgStars}
 
       {/* Header */}
       <div style={{
@@ -509,18 +544,7 @@ export default function Achievements({ entries, stats, palette, onClose, worldMo
                     {/* New badge sparkle indicator */}
                     {isNew && badge.unlocked && (
                       <>
-                        {Array.from({ length: 6 }, (_, i) => (
-                          <div key={i} style={{
-                            position: "absolute",
-                            width: 3, height: 3, borderRadius: "50%",
-                            background: gold,
-                            left: `${20 + Math.random() * 60}%`,
-                            top: `${10 + Math.random() * 40}%`,
-                            opacity: 0,
-                            animation: `achSparkle ${1 + Math.random() * 1.5}s ${Math.random() * 1}s ease-in-out infinite`,
-                            pointerEvents: "none",
-                          }} />
-                        ))}
+                        {sparkleMap[badge.id]}
                       </>
                     )}
 

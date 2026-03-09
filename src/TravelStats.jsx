@@ -143,7 +143,12 @@ export default function TravelStats({ entries = [], stats = {}, palette: P, onCl
       });
       const end = e.dateEnd || e.dateStart;
       totalDays += daysBetween(e.dateStart, end);
-      if (i > 0) totalMiles += haversine(sorted[i - 1].lat, sorted[i - 1].lng, e.lat, e.lng);
+      if (i > 0) {
+        const prev = sorted[i - 1];
+        if (prev.lat != null && prev.lng != null && e.lat != null && e.lng != null) {
+          totalMiles += haversine(prev.lat, prev.lng, e.lat, e.lng);
+        }
+      }
     });
     return { countries: countries.size, cities: cities.size, totalMiles, totalDays, trips: sorted.length };
   }, [sorted]);
@@ -289,7 +294,12 @@ export default function TravelStats({ entries = [], stats = {}, palette: P, onCl
     // Cumulative distance over time
     let cum = 0;
     const cumulative = sorted.map((e, i) => {
-      if (i > 0) cum += haversine(sorted[i - 1].lat, sorted[i - 1].lng, e.lat, e.lng);
+      if (i > 0) {
+        const prev = sorted[i - 1];
+        if (prev.lat != null && prev.lng != null && e.lat != null && e.lng != null) {
+          cum += haversine(prev.lat, prev.lng, e.lat, e.lng);
+        }
+      }
       return { date: e.dateStart, miles: cum, city: e.city };
     });
 
@@ -322,7 +332,12 @@ export default function TravelStats({ entries = [], stats = {}, palette: P, onCl
     sorted.forEach((e, i) => {
       if (i === 0) return;
       const y = new Date(e.dateStart + "T12:00:00").getFullYear();
-      byYear[y].miles += haversine(sorted[i - 1].lat, sorted[i - 1].lng, e.lat, e.lng);
+      {
+        const prev = sorted[i - 1];
+        if (prev.lat != null && prev.lng != null && e.lat != null && e.lng != null) {
+          byYear[y].miles += haversine(prev.lat, prev.lng, e.lat, e.lng);
+        }
+      }
     });
     const years = Object.keys(byYear).map(Number).sort();
     const result = years.map(y => ({
@@ -526,8 +541,7 @@ export default function TravelStats({ entries = [], stats = {}, palette: P, onCl
                 <div style={{ marginTop: 18 }}>
                   <div style={{ fontSize: 12, color: "#9088a8", fontWeight: 600, marginBottom: 8 }}>Trips by Month</div>
                   <div style={{ display: "flex", gap: 4, alignItems: "flex-end", height: 80 }}>
-                    {patterns.monthCounts.map((c, i) => {
-                      const maxM = Math.max(1, ...patterns.monthCounts);
+                    {(() => { const maxM = Math.max(1, ...patterns.monthCounts); return patterns.monthCounts.map((c, i) => {
                       return (
                         <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
                           <div style={{
@@ -539,7 +553,7 @@ export default function TravelStats({ entries = [], stats = {}, palette: P, onCl
                           <div style={{ fontSize: 9, color: "#706888" }}>{MONTHS[i].slice(0, 1)}</div>
                         </div>
                       );
-                    })}
+                    }); })()}
                   </div>
                 </div>
               )}

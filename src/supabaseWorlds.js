@@ -94,7 +94,13 @@ export async function updateWorld(worldId, updates) {
   return !error
 }
 
-export async function deleteWorld(worldId) {
+export async function deleteWorld(worldId, userId) {
+  // 0. Verify the caller owns this world
+  if (!userId) { console.error('[deleteWorld] userId required'); return false }
+  const { data: world, error: fetchErr } = await supabase.from('worlds').select('created_by').eq('id', worldId).maybeSingle()
+  if (fetchErr || !world) { console.error('[deleteWorld] world not found or error:', fetchErr); return false }
+  if (world.created_by !== userId) { console.error('[deleteWorld] not the owner'); return false }
+
   // 1. Clean up photos from Supabase Storage for all entries in this world
   try {
     const { data: entries } = await supabase
@@ -133,13 +139,29 @@ export async function getWorldMembers(worldId) {
 }
 
 export async function leaveWorld(worldId, userId) {
+  // Guard: prevent the sole owner from leaving — must transfer ownership first
+  const { data: membership } = await supabase
+    .from('world_members')
+    .select('role')
+    .eq('world_id', worldId)
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (membership && membership.role === 'owner') {
+    const { count } = await supabase
+      .from('world_members')
+      .select('*', { count: 'exact', head: true })
+      .eq('world_id', worldId)
+      .eq('role', 'owner')
+    if (count <= 1) { console.error('[leaveWorld] Cannot leave — transfer ownership first'); return false }
+  }
+
   const { error } = await supabase
     .from('world_members')
     .delete()
     .eq('world_id', worldId)
     .eq('user_id', userId)
-  if (error) console.error('[leaveWorld]', error)
-  return !error
+  if (error) { console.error('[leaveWorld]', error); return false }
+  return true
 }
 
 export async function removeWorldMember(worldId, memberId) {
@@ -156,6 +178,25 @@ export async function updateMemberRole(memberId, newRole) {
   if (!['owner', 'member', 'viewer'].includes(newRole)) {
     console.error('[updateMemberRole] Invalid role:', newRole)
     return false
+  }
+  // Guard: prevent demoting the last owner
+  if (newRole !== 'owner') {
+    const { data: member } = await supabase
+      .from('world_members')
+      .select('role, world_id')
+      .eq('id', memberId)
+      .maybeSingle()
+    if (member && member.role === 'owner') {
+      const { count } = await supabase
+        .from('world_members')
+        .select('*', { count: 'exact', head: true })
+        .eq('world_id', member.world_id)
+        .eq('role', 'owner')
+      if (count <= 1) {
+        console.error('[updateMemberRole] Cannot demote the last owner')
+        return false
+      }
+    }
   }
   const { error } = await supabase
     .from('world_members')
@@ -199,6 +240,8 @@ export async function getInviteInfo(token) {
     .eq('token', token)
     .maybeSingle()
   if (error) { console.error('[getInviteInfo]', error); return null }
+  // Check if invite has expired
+  if (data && data.expires_at && new Date(data.expires_at) < new Date()) return null
   return data
 }
 
@@ -263,6 +306,8 @@ export async function getSentInvites(worldId, userId) {
     .eq('created_by', userId)
     .order('created_at', { ascending: false })
   if (error) { console.error('[getSentInvites]', error); return [] }
+  // FRAGILE: Matching invites to letters by time proximity. A direct FK (invite_id on
+  // welcome_letters) should be added in a future migration to make this relationship explicit.
   // Enrich with recipient email from welcome_letters (match by closest creation time)
   const { data: letters } = await supabase
     .from('welcome_letters')
@@ -384,30 +429,32 @@ export async function deleteComment(commentId) {
 // ---- REACTIONS ----
 
 export async function toggleReaction(worldId, entryId, userId, reactionType = 'heart', photoUrl = null) {
-  // Check if already exists
-  let query = supabase.from('entry_reactions')
-    .select('id')
-    .eq('world_id', worldId)
-    .eq('entry_id', entryId)
-    .eq('user_id', userId)
-    .eq('reaction_type', reactionType)
-  if (photoUrl) query = query.eq('photo_url', photoUrl)
-  else query = query.is('photo_url', null)
+  // Try insert first — if a unique violation occurs, the reaction exists, so delete it instead.
+  // This avoids the check-then-act race condition of the previous approach.
+  const row = { world_id: worldId, entry_id: entryId, user_id: userId, reaction_type: reactionType }
+  if (photoUrl) row.photo_url = photoUrl
 
-  const { data: existing, error: queryErr } = await query.maybeSingle()
+  const { error: insErr } = await supabase.from('entry_reactions').insert(row)
+  if (!insErr) return { action: 'added' }
 
-  if (queryErr) { console.error('[toggleReaction]', queryErr); return { action: 'error' } }
-  if (existing) {
-    const { error: delErr } = await supabase.from('entry_reactions').delete().eq('id', existing.id)
+  // Unique violation (code 23505) means it already exists — delete it
+  if (insErr.code === '23505') {
+    let delQuery = supabase.from('entry_reactions')
+      .delete()
+      .eq('world_id', worldId)
+      .eq('entry_id', entryId)
+      .eq('user_id', userId)
+      .eq('reaction_type', reactionType)
+    if (photoUrl) delQuery = delQuery.eq('photo_url', photoUrl)
+    else delQuery = delQuery.is('photo_url', null)
+
+    const { error: delErr } = await delQuery
     if (delErr) { console.error('[toggleReaction] delete:', delErr); return { action: 'error' } }
     return { action: 'removed' }
-  } else {
-    const row = { world_id: worldId, entry_id: entryId, user_id: userId, reaction_type: reactionType }
-    if (photoUrl) row.photo_url = photoUrl
-    const { error: insErr } = await supabase.from('entry_reactions').insert(row)
-    if (insErr) { console.error('[toggleReaction] insert:', insErr); return { action: 'error' } }
-    return { action: 'added' }
   }
+
+  console.error('[toggleReaction] insert:', insErr)
+  return { action: 'error' }
 }
 
 // Bulk load reactions for all entries in a world (for badges/counts)
@@ -446,7 +493,8 @@ export async function loadWorldEntryCounts(worldIds) {
 
 export async function searchCrossWorld(worldIds, userId, query, limit = 20) {
   if (!query || query.trim().length === 0) return []
-  const q = query.trim().toLowerCase().replace(/[%_,.*()\\'";\n\r\t`{}[\]^$|!@#&+=<>?:/~]/g, '')
+  // Strict whitelist: only alphanumeric, spaces, dashes, apostrophes
+  const q = query.trim().replace(/[^a-zA-Z0-9\s'-]/g, '').trim().toLowerCase()
   if (!q) return []
   const results = []
 

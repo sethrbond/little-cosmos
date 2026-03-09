@@ -176,6 +176,8 @@ export default function CinematicOnboarding({ userId, onComplete }) {
   const handleSelectCity = useCallback(async (city) => {
     if (!userId) return
     const [name, country, lat, lng] = city
+    setQuery('')
+    setResults([])
     setSelectedCity({ name, country, lat, lng })
     setPhase(3)
 

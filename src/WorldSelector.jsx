@@ -43,13 +43,39 @@ const FRIEND_ORB_PRESETS = [
 
 const F = "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif";
 
+// Style constants (module-scope — no state dependency, avoids re-creation each render)
+const _modalBg = { position: "fixed", inset: 0, background: "rgba(4,2,10,0.65)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 };
+const _modalBox = { background: "rgba(22,16,32,0.85)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 20, padding: "32px 28px", width: 400, maxWidth: "90vw", fontFamily: F, boxShadow: "0 8px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)" };
+const _inputSt = { width: "100%", padding: "10px 14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 10, color: "#e8e0d0", fontSize: 14, fontFamily: F, outline: "none", boxSizing: "border-box", transition: "border-color .2s" };
+const _textareaSt = { ..._inputSt, minHeight: 100, resize: "vertical", lineHeight: 1.6 };
+const _btnP = { background: "linear-gradient(135deg, #c9a96e, #b8944f)", border: "none", borderRadius: 12, padding: "10px 24px", color: "#1a1520", fontSize: 13, fontWeight: 600, fontFamily: F, cursor: "pointer", letterSpacing: "0.04em", boxShadow: "0 2px 12px rgba(200,170,110,0.2)" };
+const _btnS = { background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 10, padding: "8px 20px", color: "#a098a8", fontSize: 12, fontFamily: F, cursor: "pointer", transition: "all .2s" };
+const _optionCard = { background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "18px 20px", textAlign: "left", cursor: "pointer", transition: "all .2s" };
+
 export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorldsChange, userId, userEmail, userDisplayName, connections = [], onConnectionsChange, pendingRequests = [], onPendingRequestsChange, pendingWorldInvites = [], onPendingWorldInvitesChange, myWorldSubtitle = '', myWorldColors = null }) {
   const mountRef = useRef(null);
   const [hovered, setHovered] = useState(null);
+  const hoveredRef = useRef(null);
   const [ready, setReady] = useState(false);
   const labelRefsMap = useRef({});
   const dragRef = useRef({ dragging: false, moved: false, prevX: 0, prevY: 0 });
   const camAngleRef = useRef({ theta: 0.3, phi: 1.2, radius: 5.8 });
+  const mountedRef = useRef(true);
+  const toastTimerRef = useRef(null);
+  const linkCopiedTimerRef = useRef(null);
+
+  // Stable key for myWorldColors to avoid scene teardown on every parent render
+  const colorKey = useMemo(() => JSON.stringify(myWorldColors || {}), [myWorldColors]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+      if (linkCopiedTimerRef.current) clearTimeout(linkCopiedTimerRef.current);
+    };
+  }, []);
 
   // Cosmos tour (first visit, per-user) — versioned so bumping ONBOARD_VERSION resets for all
   const cosmosTourKey = userId ? `v3_cosmos_tour_done_${userId}` : "v3_cosmos_tour_done";
@@ -173,16 +199,19 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
 
   const ALL_ORBS = useMemo(() => [...WORLDS, ...FRIEND_ORBS], [WORLDS, FRIEND_ORBS]);
 
+  // Stable key so activity doesn't reload on worlds reference change
+  const worldIdsKey = useMemo(() => worlds.map(w => w.id).join(','), [worlds]);
+
   // Load activity data for cosmos dashboard
   useEffect(() => {
     if (!userId) return;
     const worldIds = worlds.map(w => w.id);
     if (worldIds.length > 0) {
-      loadCrossWorldActivity(worldIds, 15).then(setActivityData).catch(() => {});
-      loadWorldEntryCounts(worldIds).then(setEntryCounts).catch(() => {});
+      loadCrossWorldActivity(worldIds, 15).then(d => { if (mountedRef.current) setActivityData(d); }).catch(() => {});
+      loadWorldEntryCounts(worldIds).then(d => { if (mountedRef.current) setEntryCounts(d); }).catch(() => {});
     }
-    loadMyWorldEntryCount(userId).then(setMyEntryCount).catch(() => {});
-  }, [userId, worlds]);
+    loadMyWorldEntryCount(userId).then(d => { if (mountedRef.current) setMyEntryCount(d); }).catch(() => {});
+  }, [userId, worldIdsKey]);
 
   // World name map for activity feed
   const worldNameMap = useMemo(() => {
@@ -197,10 +226,11 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     if (!mount) return;
     let W = mount.clientWidth, H = mount.clientHeight;
 
-    const testCanvas = document.createElement("canvas");
+    let testCanvas = document.createElement("canvas");
     const gl = testCanvas.getContext("webgl2") || testCanvas.getContext("webgl");
-    if (!gl) { mount.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#e8e0d0;font-family:serif;font-size:16px;text-align:center;padding:20px">Your browser doesn\'t support WebGL.<br/>Please use a modern browser to view My Cosmos.</div>'; return; }
+    if (!gl) { testCanvas = null; mount.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#e8e0d0;font-family:serif;font-size:16px;text-align:center;padding:20px">Your browser doesn\'t support WebGL.<br/>Please use a modern browser to view My Cosmos.</div>'; return; }
     const loseCtx = gl.getExtension('WEBGL_lose_context'); if (loseCtx) loseCtx.loseContext();
+    testCanvas = null;
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color("#08060e");
@@ -252,9 +282,108 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     const bsG = new THREE.BufferGeometry(); bsG.setAttribute("position", new THREE.BufferAttribute(bsP, 3));
     scene.add(new THREE.Points(bsG, new THREE.PointsMaterial({ color: "#f8f0e0", size: 0.09, transparent: true, opacity: 0.8 })));
 
-    // Center orb — use custom colors if user has set them
-    const myScene = myWorldColors?.customScene || {};
-    const myPal = myWorldColors?.customPalette || {};
+    // === VISUAL ENHANCEMENT A: Dense twinkling starfield ===
+    const denseStarCount = 1000;
+    const dsPos = new Float32Array(denseStarCount * 3);
+    const dsSizes = new Float32Array(denseStarCount);
+    const dsPhases = new Float32Array(denseStarCount);
+    const dsTwinkle = new Uint8Array(denseStarCount); // 1 = twinkles, 0 = static
+    const dsColors = new Float32Array(denseStarCount * 3);
+    for (let i = 0; i < denseStarCount; i++) {
+      const r = 8 + Math.random() * 35, th = Math.random() * Math.PI * 2, ph = Math.acos(2 * Math.random() - 1);
+      dsPos[i*3] = r*Math.sin(ph)*Math.cos(th); dsPos[i*3+1] = r*Math.sin(ph)*Math.sin(th); dsPos[i*3+2] = r*Math.cos(ph);
+      dsSizes[i] = 0.3 + Math.random() * 1.2;
+      dsPhases[i] = Math.random() * Math.PI * 2;
+      dsTwinkle[i] = Math.random() < 0.3 ? 1 : 0; // 30% of stars twinkle
+      // Warm/cool white variation
+      const warmth = Math.random();
+      if (warmth < 0.4) { dsColors[i*3] = 0.95; dsColors[i*3+1] = 0.90; dsColors[i*3+2] = 0.80; } // warm
+      else if (warmth < 0.7) { dsColors[i*3] = 0.85; dsColors[i*3+1] = 0.90; dsColors[i*3+2] = 0.98; } // cool
+      else { dsColors[i*3] = 0.92; dsColors[i*3+1] = 0.88; dsColors[i*3+2] = 0.95; } // neutral lavender
+    }
+    const dsGeo = new THREE.BufferGeometry();
+    dsGeo.setAttribute("position", new THREE.BufferAttribute(dsPos, 3));
+    dsGeo.setAttribute("color", new THREE.BufferAttribute(dsColors, 3));
+    const dsMat = new THREE.PointsMaterial({ size: 0.06, transparent: true, opacity: 0.7, vertexColors: true, sizeAttenuation: true, depthWrite: false });
+    const denseStars = new THREE.Points(dsGeo, dsMat);
+    scene.add(denseStars);
+
+    // === VISUAL ENHANCEMENT B: Nebula cloud sprites ===
+    const nebulaSprites = [];
+    const makeNebulaTexture = (color) => {
+      const c = document.createElement("canvas"); c.width = 256; c.height = 256;
+      const ctx = c.getContext("2d");
+      const grad = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+      grad.addColorStop(0, color + "40");
+      grad.addColorStop(0.3, color + "20");
+      grad.addColorStop(0.7, color + "08");
+      grad.addColorStop(1, color + "00");
+      ctx.fillStyle = grad; ctx.fillRect(0, 0, 256, 256);
+      const tex = new THREE.CanvasTexture(c);
+      return tex;
+    };
+    const nebulaConfigs = [
+      { pos: [-8, 3, -14], color: "#2a1045", scale: 12, baseOp: 0.15, driftSpeed: 0.0003 },
+      { pos: [7, -4, -11], color: "#0a1628", scale: 10, baseOp: 0.12, driftSpeed: 0.0005 },
+      { pos: [3, 6, -16], color: "#1a0a1a", scale: 14, baseOp: 0.10, driftSpeed: 0.0004 },
+      { pos: [-5, -5, -9], color: "#180c28", scale: 8, baseOp: 0.13, driftSpeed: 0.0006 },
+    ];
+    nebulaConfigs.forEach(nc => {
+      const tex = makeNebulaTexture(nc.color);
+      const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: nc.baseOp, depthWrite: false, blending: THREE.AdditiveBlending });
+      const sprite = new THREE.Sprite(mat);
+      sprite.position.set(...nc.pos);
+      sprite.scale.set(nc.scale, nc.scale, 1);
+      scene.add(sprite);
+      nebulaSprites.push({ sprite, mat, tex, config: nc, angle: Math.random() * Math.PI * 2 });
+    });
+
+    // === VISUAL ENHANCEMENT C: Shooting stars ===
+    const shootingStars = [];
+    let nextShootTime = 8 + Math.random() * 7; // seconds until first shooting star
+    const spawnShootingStar = () => {
+      // Random start position on a sphere shell
+      const th = Math.random() * Math.PI * 2, ph = Math.acos(2 * Math.random() - 1);
+      const r = 10 + Math.random() * 8;
+      const sx = r*Math.sin(ph)*Math.cos(th), sy = r*Math.sin(ph)*Math.sin(th), sz = r*Math.cos(ph);
+      // Direction: partially toward center with randomness
+      const dx = -sx * 0.3 + (Math.random() - 0.5) * 4;
+      const dy = -sy * 0.3 + (Math.random() - 0.5) * 4;
+      const dz = -sz * 0.3 + (Math.random() - 0.5) * 4;
+      const len = Math.sqrt(dx*dx + dy*dy + dz*dz);
+      const speed = 6 + Math.random() * 4;
+      const ndx = dx/len * speed, ndy = dy/len * speed, ndz = dz/len * speed;
+      const tailLen = 0.8 + Math.random() * 0.6;
+      const positions = new Float32Array([sx, sy, sz, sx - ndx * tailLen * 0.05, sy - ndy * tailLen * 0.05, sz - ndz * tailLen * 0.05]);
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+      const mat = new THREE.LineBasicMaterial({ color: "#f0e8d0", transparent: true, opacity: 0.9, linewidth: 1 });
+      const line = new THREE.Line(geo, mat);
+      scene.add(line);
+      shootingStars.push({ line, geo, mat, x: sx, y: sy, z: sz, dx: ndx, dy: ndy, dz: ndz, life: 0, maxLife: 0.4 + Math.random() * 0.3, tailLen });
+    };
+
+    // === VISUAL ENHANCEMENT D: Cosmic dust particle field ===
+    const dustCount = 250;
+    const dustPos = new Float32Array(dustCount * 3);
+    const dustVel = new Float32Array(dustCount * 3);
+    const dustPhase = new Float32Array(dustCount);
+    for (let i = 0; i < dustCount; i++) {
+      const r = 3 + Math.random() * 12, th = Math.random() * Math.PI * 2, ph = Math.acos(2 * Math.random() - 1);
+      dustPos[i*3] = r*Math.sin(ph)*Math.cos(th); dustPos[i*3+1] = r*Math.sin(ph)*Math.sin(th); dustPos[i*3+2] = r*Math.cos(ph);
+      dustVel[i*3] = (Math.random() - 0.5) * 0.003; dustVel[i*3+1] = (Math.random() - 0.5) * 0.002; dustVel[i*3+2] = (Math.random() - 0.5) * 0.003;
+      dustPhase[i] = Math.random() * Math.PI * 2;
+    }
+    const dustGeo = new THREE.BufferGeometry();
+    dustGeo.setAttribute("position", new THREE.BufferAttribute(dustPos, 3));
+    const dustMat = new THREE.PointsMaterial({ color: "#c8b8d8", size: 0.025, transparent: true, opacity: 0.3, sizeAttenuation: true, depthWrite: false });
+    const cosmicDust = new THREE.Points(dustGeo, dustMat);
+    scene.add(cosmicDust);
+
+    // Center orb — use custom colors if user has set them (parsed from stable colorKey)
+    const parsedColors = JSON.parse(colorKey);
+    const myScene = parsedColors?.customScene || {};
+    const myPal = parsedColors?.customPalette || {};
     const centerColor = myScene.sphereColor || myPal.rose || CENTER.color;
     const centerEmissive = myScene.sphereEmissive || CENTER.emissive;
     const centerGlow = myScene.particleColor || myPal.rose || CENTER.glowColor;
@@ -384,6 +513,58 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       orbitRings.forEach((r, i) => { r.mat.opacity = r.baseOp + Math.sin(t * 0.8 + i * 2) * 0.02; });
       // Slow star field rotation for parallax
       stars.rotation.y = t * 0.003;
+      denseStars.rotation.y = t * 0.001;
+      denseStars.rotation.x = Math.sin(t * 0.2) * 0.002;
+
+      // Dense star twinkle — fluctuate opacity for twinkling subset
+      dsMat.opacity = 0.6 + Math.sin(t * 0.7) * 0.1;
+
+      // Nebula drift
+      nebulaSprites.forEach(ns => {
+        ns.angle += ns.config.driftSpeed;
+        ns.sprite.position.x = ns.config.pos[0] + Math.sin(ns.angle) * 0.5;
+        ns.sprite.position.y = ns.config.pos[1] + Math.cos(ns.angle * 0.7) * 0.3;
+        ns.mat.opacity = ns.config.baseOp + Math.sin(t * 0.3 + ns.angle) * 0.03;
+        ns.sprite.material.rotation += ns.config.driftSpeed * 0.5;
+      });
+
+      // Shooting stars update
+      const dt = 0.006; // matches t += 0.006
+      nextShootTime -= dt;
+      if (nextShootTime <= 0) {
+        spawnShootingStar();
+        nextShootTime = 8 + Math.random() * 7;
+      }
+      for (let si = shootingStars.length - 1; si >= 0; si--) {
+        const s = shootingStars[si];
+        s.life += dt;
+        const progress = s.life / s.maxLife;
+        s.x += s.dx * dt; s.y += s.dy * dt; s.z += s.dz * dt;
+        const tailX = s.x - s.dx * s.tailLen * 0.05;
+        const tailY = s.y - s.dy * s.tailLen * 0.05;
+        const tailZ = s.z - s.dz * s.tailLen * 0.05;
+        const posArr = s.geo.attributes.position.array;
+        posArr[0] = s.x; posArr[1] = s.y; posArr[2] = s.z;
+        posArr[3] = tailX; posArr[4] = tailY; posArr[5] = tailZ;
+        s.geo.attributes.position.needsUpdate = true;
+        // Fade in then out
+        s.mat.opacity = progress < 0.2 ? progress / 0.2 : (1 - (progress - 0.2) / 0.8);
+        if (s.life >= s.maxLife) {
+          scene.remove(s.line); s.geo.dispose(); s.mat.dispose();
+          shootingStars.splice(si, 1);
+        }
+      }
+
+      // Cosmic dust drift
+      const dpa = dustGeo.attributes.position.array;
+      for (let i = 0; i < dustCount; i++) {
+        dpa[i*3] += dustVel[i*3]; dpa[i*3+1] += dustVel[i*3+1]; dpa[i*3+2] += dustVel[i*3+2];
+        // Gentle wobble
+        dpa[i*3+1] += Math.sin(t * 0.5 + dustPhase[i]) * 0.0005;
+      }
+      dustGeo.attributes.position.needsUpdate = true;
+      dustMat.opacity = 0.25 + Math.sin(t * 0.4) * 0.05;
+
       const allItems = [{ id: "my", mesh: centerOrb }, ...orbs.map(o => ({ id: o.world.id, mesh: o.mesh }))];
       allItems.forEach(({ id, mesh }) => {
         const el = labelRefsMap.current[id];
@@ -428,17 +609,23 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       window.removeEventListener("pointerup", onUp);
       mount.removeEventListener("pointerdown", onDown);
       mount.removeEventListener("wheel", onWheelEvt);
+      // Clean up shooting stars still in flight
+      shootingStars.forEach(s => { scene.remove(s.line); s.geo.dispose(); s.mat.dispose(); });
+      shootingStars.length = 0;
+      // Clean up nebula textures
+      nebulaSprites.forEach(ns => { ns.tex.dispose(); ns.mat.dispose(); });
+      // Traverse disposes all remaining geometries/materials
       scene.traverse(obj => {
         if (obj.geometry) obj.geometry.dispose();
         if (obj.material) {
           if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
-          else obj.material.dispose();
+          else { if (obj.material.map) obj.material.map.dispose(); obj.material.dispose(); }
         }
       });
       rend.dispose();
       if (mount.contains(rend.domElement)) mount.removeChild(rend.domElement);
     };
-  }, [ALL_ORBS.map(o => o.id).join(','), myWorldColors]);
+  }, [ALL_ORBS.map(o => o.id).join(','), colorKey]);
 
   // ---- CLICK / HOVER HANDLERS ----
   const handleClick = useCallback((e) => {
@@ -464,7 +651,10 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
   }, [onSelect, worlds, friendWorlds]);
 
   const handleMove = useCallback((e) => {
-    if (dragRef.current.dragging) { setHovered(null); return; }
+    if (dragRef.current.dragging) {
+      if (hoveredRef.current !== null) { hoveredRef.current = null; setHovered(null); }
+      return;
+    }
     const rect = mountRef.current?.getBoundingClientRect();
     if (!rect) return;
     const cx = e.clientX - rect.left, cy = e.clientY - rect.top;
@@ -475,7 +665,10 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       if (isNaN(lx)) continue;
       if (Math.sqrt((cx - lx) ** 2 + (cy - ly) ** 2) < 75 && parseFloat(el.style.opacity) > 0.1) { found = id; break; }
     }
-    setHovered(found);
+    if (found !== hoveredRef.current) {
+      hoveredRef.current = found;
+      setHovered(found);
+    }
     for (const [id, el] of Object.entries(labelRefsMap.current)) { if (el) el.dataset.hov = (id === found) ? "true" : "false"; }
   }, []);
 
@@ -487,11 +680,13 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     if (!personalName.trim()) return;
     setCreatingPersonal(true);
     const world = await createWorld(userId, personalName.trim(), "personal");
+    if (!mountedRef.current) return;
     setCreatingPersonal(false);
     if (!world || world._error) {
       alert("Failed to create world: " + (world?._error || "unknown error"));
     } else {
       const updated = await loadMyWorlds(userId);
+      if (!mountedRef.current) return;
       if (onWorldsChange) onWorldsChange(updated);
       setShowCreatePersonal(false);
       setPersonalName("");
@@ -508,6 +703,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       partnerName: isGroupType ? '' : sharedPartnerName.trim(),
       members: isGroupType ? sharedMembers.filter(m => m.name.trim()).map(m => ({ name: m.name.trim() })) : [],
     });
+    if (!mountedRef.current) return;
     setCreatingShared(false);
     if (!world || world._error) { alert("Failed to create world: " + (world?._error || "unknown error")); return; }
     setCreatedWorldId(world.id);
@@ -523,6 +719,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     const result = await createInviteWithLetter(
       createdWorldId, userId, userDisplayName || "Someone special", inviteEmail.trim(), inviteLetter
     );
+    if (!mountedRef.current) return;
     setCreatingShared(false);
     if (result) {
       setGeneratedLink(result.inviteLink);
@@ -532,6 +729,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
 
   const handleFinishShared = async () => {
     const updated = await loadMyWorlds(userId);
+    if (!mountedRef.current) return;
     if (onWorldsChange) onWorldsChange(updated);
     setShowCreateShared(false);
     setSharedName(""); setSharedType("partner"); setSharedStep(0); setInviteEmail(""); setInviteLetter(""); setGeneratedLink("");
@@ -540,10 +738,11 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
   };
 
   const handleGenerateInvite = async () => {
-    const refreshInvites = () => getSentInvites(showInviteModal.id, userId).then(setSentInvites).catch(() => {});
+    const refreshInvites = () => getSentInvites(showInviteModal.id, userId).then(d => { if (mountedRef.current) setSentInvites(d); }).catch(() => {});
     if (!existingInviteEmail.trim()) {
       setInviteGenerating(true);
       const inv = await createInvite(showInviteModal.id, userId, existingInviteRole);
+      if (!mountedRef.current) return;
       setInviteGenerating(false);
       if (inv) { setInviteLink(`${window.location.origin}?invite=${inv.token}`); refreshInvites(); }
       else alert("Failed to generate invite.");
@@ -558,6 +757,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       const result = await createViewerInvite(
         showInviteModal.id, userId, existingInviteEmail.trim(), existingInviteLetter, userDisplayName
       );
+      if (!mountedRef.current) return;
       setInviteGenerating(false);
       if (result) { setInviteLink(result.inviteLink); refreshInvites(); }
       else { alert("Failed to generate invite."); }
@@ -565,6 +765,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       const result = await createInviteWithLetter(
         showInviteModal.id, userId, userDisplayName || "Someone special", existingInviteEmail.trim(), existingInviteLetter
       );
+      if (!mountedRef.current) return;
       setInviteGenerating(false);
       if (result) { setInviteLink(result.inviteLink); refreshInvites(); }
       else { alert("Failed to generate invite."); }
@@ -580,12 +781,14 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     setCosmosInviteSending(true);
     try {
       await sendWelcomeLetter(userId, userDisplayName || "A friend", cosmosInviteEmail.trim(), cosmosInviteLetter || `I'd love for you to join me on Little Cosmos — a place to map our adventures and memories on a beautiful 3D globe. Sign up at ${window.location.origin}`);
+      if (!mountedRef.current) return;
       setCosmosInviteSent(true);
     } catch (err) {
       console.error('[cosmosInvite]', err);
+      if (!mountedRef.current) return;
       alert("Failed to send invite.");
     }
-    setCosmosInviteSending(false);
+    if (mountedRef.current) setCosmosInviteSending(false);
   };
 
   // Add a Friend (connection request)
@@ -596,6 +799,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     }
     setFriendSending(true);
     const result = await sendConnectionRequest(userId, userDisplayName || "", friendEmail.trim(), true, friendLetter);
+    if (!mountedRef.current) return;
     setFriendSending(false);
     if (result && !result._error) {
       setFriendSent(true);
@@ -608,16 +812,19 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
   // Toast system
   const [toast, setToast] = useState(null);
   const showToast = useCallback((msg) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     setToast(msg);
-    setTimeout(() => setToast(null), 3000);
+    toastTimerRef.current = setTimeout(() => { setToast(null); toastTimerRef.current = null; }, 3000);
   }, []);
 
   // Accept/decline pending requests
   const handleAcceptRequest = async (req) => {
     const result = await acceptConnection(req.id);
+    if (!mountedRef.current) return;
     if (result?.ok) {
       if (onPendingRequestsChange) onPendingRequestsChange(prev => prev.filter(r => r.id !== req.id));
       const conn = await getMyConnections(userId);
+      if (!mountedRef.current) return;
       if (onConnectionsChange) onConnectionsChange(conn);
       showToast(`You and ${req.requester_name || "your friend"} are now connected!`);
     } else {
@@ -627,6 +834,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
 
   const handleDeclineRequest = async (req) => {
     const ok = await declineConnection(req.id);
+    if (!mountedRef.current) return;
     if (ok) {
       if (onPendingRequestsChange) onPendingRequestsChange(prev => prev.filter(r => r.id !== req.id));
       showToast("Request declined.");
@@ -658,33 +866,33 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     return false
   }, [personalName, sharedName, sharedYouName, sharedPartnerName, sharedMembers, inviteEmail, inviteLetter, existingInviteEmail, existingInviteLetter, cosmosInviteEmail, cosmosInviteLetter, friendEmail, friendLetter])
 
+  const closeAllModals = useCallback(() => {
+    setShowAddMenu(false); setShowCreatePersonal(false); setShowCreateShared(false);
+    setShowInviteModal(null); setShowInviteCosmos(false); setShowAddFriend(false); setShowPendingRequests(false); setShowWorldInvites(false); setShowActivity(false); setShowSearch(false);
+    setPersonalName(""); setSharedName(""); setSharedType("partner"); setSharedYouName(""); setSharedPartnerName(""); setSharedMembers([{ name: "" }, { name: "" }]); setSharedStep(0); setInviteEmail("");
+    setInviteLetter(""); setGeneratedLink(""); setCreatedWorldId(null);
+    setInviteLink(""); setExistingInviteEmail(""); setExistingInviteLetter(""); setExistingInviteRole("member");
+    setCosmosInviteEmail(""); setCosmosInviteLetter(""); setCosmosInviteSent(false);
+    setFriendEmail(""); setFriendLetter(""); setFriendSent(false);
+    setInviteGenerating(false); setSentInvites([]); setLinkCopied(false);
+  }, []);
+
   // safeDismiss: used on backdrop clicks — confirms if there's unsaved input
   const safeDismiss = useCallback(() => {
     if (hasUnsavedInput()) {
       if (!window.confirm("You have unsaved changes. Are you sure you want to close?")) return
     }
-    closeAllModals(true)
-  }, [hasUnsavedInput])
+    closeAllModals()
+  }, [hasUnsavedInput, closeAllModals])
 
-  const closeAllModals = () => {
-    setShowAddMenu(false); setShowCreatePersonal(false); setShowCreateShared(false);
-    setShowInviteModal(null); setShowInviteCosmos(false); setShowAddFriend(false); setShowPendingRequests(false); setShowWorldInvites(false); setShowActivity(false); setShowSearch(false);
-    setPersonalName(""); setSharedName(""); setSharedType("partner"); setSharedYouName(""); setSharedPartnerName(""); setSharedMembers([{ name: "" }, { name: "" }]); setSharedStep(0); setInviteEmail("");
-    setInviteLetter(""); setGeneratedLink("");
-    setInviteLink(""); setExistingInviteEmail(""); setExistingInviteLetter(""); setExistingInviteRole("member");
-    setCosmosInviteEmail(""); setCosmosInviteLetter(""); setCosmosInviteSent(false);
-    setFriendEmail(""); setFriendLetter(""); setFriendSent(false);
-    setInviteGenerating(false); setSentInvites([]); setLinkCopied(false);
-  };
-
-  // Style constants
-  const modalBg = { position: "fixed", inset: 0, background: "rgba(4,2,10,0.65)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 };
-  const modalBox = { background: "rgba(22,16,32,0.85)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 20, padding: "32px 28px", width: 400, maxWidth: "90vw", fontFamily: F, boxShadow: "0 8px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)" };
-  const inputSt = { width: "100%", padding: "10px 14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 10, color: "#e8e0d0", fontSize: 14, fontFamily: F, outline: "none", boxSizing: "border-box", transition: "border-color .2s" };
-  const textareaSt = { ...inputSt, minHeight: 100, resize: "vertical", lineHeight: 1.6 };
-  const btnP = { background: "linear-gradient(135deg, #c9a96e, #b8944f)", border: "none", borderRadius: 12, padding: "10px 24px", color: "#1a1520", fontSize: 13, fontWeight: 600, fontFamily: F, cursor: "pointer", letterSpacing: "0.04em", boxShadow: "0 2px 12px rgba(200,170,110,0.2)" };
-  const btnS = { background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 10, padding: "8px 20px", color: "#a098a8", fontSize: 12, fontFamily: F, cursor: "pointer", transition: "all .2s" };
-  const optionCard = { background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "18px 20px", textAlign: "left", cursor: "pointer", transition: "all .2s" };
+  // Use module-scope style constants (no state dependency)
+  const modalBg = _modalBg;
+  const modalBox = _modalBox;
+  const inputSt = _inputSt;
+  const textareaSt = _textareaSt;
+  const btnP = _btnP;
+  const btnS = _btnS;
+  const optionCard = _optionCard;
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "#0c0a12", fontFamily: F, cursor: hovered ? "pointer" : "grab", overflow: "hidden" }}
@@ -734,7 +942,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
                   if (w.role === "owner") {
                     if (!window.confirm(`Permanently delete "${w.label}"? All entries, photos, and settings will be lost.`)) return;
                     if (!window.confirm("This cannot be undone. Are you sure?")) return;
-                    const ok = await deleteWorld(w.id);
+                    const ok = await deleteWorld(w.id, userId);
                     if (ok) { onWorldsChange(worlds.filter(x => x.id !== w.id)); }
                     else { alert("Failed to delete world."); }
                   } else {
@@ -1086,7 +1294,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
                 {generatedLink}
               </div>
               <div style={{ display: "flex", gap: 10, justifyContent: "center", marginBottom: 8 }}>
-                <button onClick={() => { navigator.clipboard.writeText(generatedLink); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2000); }}
+                <button onClick={() => { navigator.clipboard.writeText(generatedLink); setLinkCopied(true); if (linkCopiedTimerRef.current) clearTimeout(linkCopiedTimerRef.current); linkCopiedTimerRef.current = setTimeout(() => { setLinkCopied(false); linkCopiedTimerRef.current = null; }, 2000); }}
                   style={{ ...btnP, background: linkCopied ? "linear-gradient(135deg, #7ab87a, #5a9a5a)" : btnP.background, transition: "all .3s" }}>
                   {linkCopied ? "Copied!" : "Copy Link"}
                 </button>
@@ -1300,7 +1508,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
               <div style={{ ...inputSt, marginBottom: 12, textAlign: "left", wordBreak: "break-all", fontSize: 12, lineHeight: 1.5, background: "rgba(200,170,110,0.08)", borderColor: "rgba(200,170,110,0.25)" }}>
                 {inviteLink}
               </div>
-              <button onClick={() => { navigator.clipboard.writeText(inviteLink); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2000); }}
+              <button onClick={() => { navigator.clipboard.writeText(inviteLink); setLinkCopied(true); if (linkCopiedTimerRef.current) clearTimeout(linkCopiedTimerRef.current); linkCopiedTimerRef.current = setTimeout(() => { setLinkCopied(false); linkCopiedTimerRef.current = null; }, 2000); }}
                 style={{ ...btnP, marginBottom: 8, background: linkCopied ? "linear-gradient(135deg, #7ab87a, #5a9a5a)" : btnP.background, transition: "all .3s" }}>
                 {linkCopied ? "Copied!" : "Copy Link"}
               </button>

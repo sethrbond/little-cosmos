@@ -173,8 +173,6 @@ export default function YearInReview({ entries = [], stats = {}, palette, onClos
   }, [yearEntries]);
 
   const totalMiles = useMemo(() => {
-    if (stats?.totalMiles && stats.totalMiles > 0) return Math.round(stats.totalMiles);
-    // Compute from entries if not in stats
     let miles = 0;
     const sorted = [...yearEntries].sort((a, b) => (a.dateStart || "").localeCompare(b.dateStart || ""));
     for (let i = 1; i < sorted.length; i++) {
@@ -185,7 +183,7 @@ export default function YearInReview({ entries = [], stats = {}, palette, onClos
       }
     }
     return Math.round(miles);
-  }, [yearEntries, stats]);
+  }, [yearEntries]);
 
   const topMemories = useMemo(() => {
     const all = [];

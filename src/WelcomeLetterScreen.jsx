@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 
 /* WelcomeLetterScreen — the "gift moment"
    A full-screen parchment card that fades in when a recipient
@@ -7,10 +7,39 @@ import { useState } from "react";
 
 const F = "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif";
 
+function Stars() {
+  const stars = useMemo(() => Array.from({ length: 60 }, (_, i) => ({
+    left: `${Math.random() * 100}%`,
+    top: `${Math.random() * 100}%`,
+    opacity: 0.15 + Math.random() * 0.25,
+    duration: `${3 + Math.random() * 4}s`,
+    delay: `${Math.random() * 5}s`,
+  })), []);
+
+  return (
+    <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none" }}>
+      {stars.map((s, i) => (
+        <div key={i} style={{
+          position: "absolute",
+          left: s.left, top: s.top,
+          width: 2, height: 2, borderRadius: "50%",
+          background: "#e8e0d0",
+          opacity: s.opacity,
+          animation: `twinkle ${s.duration} ease-in-out infinite`,
+          animationDelay: s.delay,
+        }} />
+      ))}
+    </div>
+  );
+}
+
 export default function WelcomeLetterScreen({ letter, onEnter }) {
   const [fading, setFading] = useState(false);
+  const [entering, setEntering] = useState(false);
 
   const handleEnter = () => {
+    if (entering) return;
+    setEntering(true);
     setFading(true);
     setTimeout(() => onEnter(), 800);
   };
@@ -23,19 +52,7 @@ export default function WelcomeLetterScreen({ letter, onEnter }) {
       fontFamily: F, opacity: fading ? 0 : 1, transition: "opacity 0.8s ease",
     }}>
       {/* Subtle stars behind */}
-      <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none" }}>
-        {Array.from({ length: 60 }, (_, i) => (
-          <div key={i} style={{
-            position: "absolute",
-            left: `${Math.random() * 100}%`, top: `${Math.random() * 100}%`,
-            width: 2, height: 2, borderRadius: "50%",
-            background: "#e8e0d0",
-            opacity: 0.15 + Math.random() * 0.25,
-            animation: `twinkle ${3 + Math.random() * 4}s ease-in-out infinite`,
-            animationDelay: `${Math.random() * 5}s`,
-          }} />
-        ))}
-      </div>
+      <Stars />
 
       {/* The letter */}
       <div style={{
@@ -87,13 +104,14 @@ export default function WelcomeLetterScreen({ letter, onEnter }) {
 
         {/* Enter button */}
         <div style={{ textAlign: "center", marginTop: 36 }}>
-          <button onClick={handleEnter} style={{
+          <button onClick={handleEnter} disabled={entering} style={{
             background: "linear-gradient(135deg, #c9a96e, #b8944f)",
             border: "none", borderRadius: 24, padding: "12px 32px",
             color: "#1a1520", fontSize: 14, fontWeight: 600,
-            fontFamily: F, cursor: "pointer", letterSpacing: "0.06em",
+            fontFamily: F, cursor: entering ? "default" : "pointer", letterSpacing: "0.06em",
             boxShadow: "0 4px 16px rgba(180,140,60,0.3)",
             transition: "all 0.3s ease",
+            opacity: entering ? 0.6 : 1,
           }}
           onMouseEnter={e => { e.target.style.transform = "scale(1.04)"; e.target.style.boxShadow = "0 6px 24px rgba(180,140,60,0.4)"; }}
           onMouseLeave={e => { e.target.style.transform = "scale(1)"; e.target.style.boxShadow = "0 4px 16px rgba(180,140,60,0.3)"; }}>

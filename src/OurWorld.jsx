@@ -883,10 +883,10 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const isSharedWorld = worldMode === "our" && !!worldId;
   const isViewer = worldRole === "viewer" || isFriendWorld;
   const isPartnerWorld = !isMyWorld && (!worldType || worldType === "partner" || worldType === "shared");
-  const DEFAULT_CONFIG = isMyWorld ? MY_WORLD_DEFAULT_CONFIG
+  const DEFAULT_CONFIG = useMemo(() => isMyWorld ? MY_WORLD_DEFAULT_CONFIG
     : worldType === "friends" ? FRIENDS_DEFAULT_CONFIG
     : worldType === "family" ? FAMILY_DEFAULT_CONFIG
-    : OUR_WORLD_DEFAULT_CONFIG;
+    : OUR_WORLD_DEFAULT_CONFIG, [isMyWorld, worldType]);
   const FIELD_LABELS = isMyWorld ? MY_WORLD_FIELDS
     : worldType === "friends" ? FRIENDS_FIELDS
     : worldType === "family" ? FAMILY_FIELDS
@@ -922,10 +922,11 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       const shared = getSharedWorldConfig(worldType);
       basePalette = shared.palette;
     }
-    const merged = { ...basePalette, ...(config.customPalette || {}) };
-    for (const k of Object.keys(merged)) window.__cosmosP[k] = merged[k];
-    return merged;
+    return { ...basePalette, ...(config.customPalette || {}) };
   }, [isMyWorld, worldType, config.customPalette]);
+  useEffect(() => {
+    for (const k of Object.keys(_paletteBase)) window.__cosmosP[k] = _paletteBase[k];
+  }, [_paletteBase]);
   const SC = useMemo(() => {
     let baseScene = isMyWorld ? MY_WORLD_SCENE : OUR_WORLD_SCENE;
     if (!isMyWorld && worldType) {
@@ -1194,7 +1195,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [isSharedWorld, worldId, db]);
+  }, [isSharedWorld, worldId, db, showToast]);
 
   // zoom tracked via zmR ref (used in animation loop directly)
   const [ready, setReady] = useState(false);
@@ -1254,6 +1255,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [showRoutes, setShowRoutes] = useState(false);
   const [showDreams, setShowDreams] = useState(false);
   const [cardTab, setCardTab] = useState("overview"); // overview, memories, places, photos
+  const [locationList, setLocationList] = useState(null); // for multi-entry popup
   // Comments & Reactions (shared/viewer worlds)
   const [entryComments, setEntryComments] = useState([]);
   const [worldReactions, setWorldReactions] = useState([]);
@@ -1366,7 +1368,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       sub: `${stats.trips} adventures, ${stats.countries} countries, ${Math.round(stats.totalMiles).toLocaleString()} miles`,
     });
     setShowCelebration(true);
-    setTimeout(() => setShowCelebration(false), 8000);
+    const t = setTimeout(() => setShowCelebration(false), 8000);
+    return () => clearTimeout(t);
   }, [introComplete, isAnniversary, isPartnerWorld, config.startDate, worldId, userId, stats.trips, stats.countries, stats.totalMiles]);
 
   // Milestone badges — celebrate round-number achievements
@@ -1399,7 +1402,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     else if (m >= 1000) milestoneRef.current = '1000mi';
     setCelebrationData({ type: 'milestone', message: hit.msg, sub: hit.sub });
     setShowCelebration(true);
-    setTimeout(() => setShowCelebration(false), 5000);
+    const t = setTimeout(() => setShowCelebration(false), 5000);
+    return () => clearTimeout(t);
   }, [introComplete, data.entries.length, stats.countries, stats.totalMiles, worldId, userId]);
 
   // Positions on slider date
@@ -1447,12 +1451,19 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     if (toast?.undoAction) toast.undoAction();
     dismissToast(toast.key);
   }, [dismissToast]);
+  const toastTimerKeys = useRef(new Set());
   useEffect(() => {
     if (toasts.length === 0) return;
-    const timers = toasts.map(t =>
-      setTimeout(() => dismissToast(t.key), t.duration || 2500)
-    );
-    return () => timers.forEach(clearTimeout);
+    const newTimers = [];
+    toasts.forEach(t => {
+      if (toastTimerKeys.current.has(t.key)) return;
+      toastTimerKeys.current.add(t.key);
+      newTimers.push(setTimeout(() => {
+        dismissToast(t.key);
+        toastTimerKeys.current.delete(t.key);
+      }, t.duration || 2500));
+    });
+    return () => newTimers.forEach(clearTimeout);
   }, [toasts, dismissToast]);
 
   // ---- OFFLINE AWARENESS ----
@@ -1525,6 +1536,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
   // ---- MILESTONES on timeline ----
   const milestones = useMemo(() => {
+    if (!config.startDate) return [];
     const ms = [
       { days: 100, label: "100 Days" }, { days: 182, label: "6 Months" },
       { days: 365, label: "1 Year" }, { days: 500, label: "500 Days" },
@@ -1601,9 +1613,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   }, [searchQuery, data.entries]);
 
   // ---- FAVORITES ----
-  const toggleFavorite = useCallback((id) => {
-    dispatch({ type: "UPDATE", id, data: { favorite: !(data.entries.find(e => e.id === id)?.favorite) } });
-  }, [data.entries]);
+  const toggleFavorite = useCallback((id, currentFavorite) => {
+    dispatch({ type: "UPDATE", id, data: { favorite: !currentFavorite } });
+  }, []);
 
   const favorites = useMemo(() => data.entries.filter(e => e.favorite), [data.entries]);
 
@@ -1698,10 +1710,11 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     if (!lastEntry) return;
     const daysSince = daysBetween(lastEntry.dateEnd || lastEntry.dateStart, todayStr());
     if (daysSince >= 30) {
-      setTimeout(() => {
+      const t = setTimeout(() => {
         showToast(`It's been ${daysSince} days — any new memories to add?`, "💭", 6000);
         setMonthlyPromptShown(true);
       }, 4000);
+      return () => clearTimeout(t);
     }
   }, [introComplete, sorted, monthlyPromptShown, data.entries.length, showToast]);
 
@@ -1724,11 +1737,12 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     setIsAnimating(true);
     const totalD = Math.abs(daysBetween(sliderDate, target.dateStart));
     const duration = Math.min(2500, Math.max(1200, totalD * 2));
-    let elapsed = 0;
     const startD = sliderDate;
+    let startTime = null;
 
-    const anim = () => {
-      elapsed += 16;
+    const anim = (now) => {
+      if (startTime === null) startTime = now;
+      const elapsed = now - startTime;
       const t = Math.min(elapsed / duration, 1);
       const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
       setSliderDate(addDays(startD, Math.round(eased * totalD * dir)));
@@ -2097,15 +2111,17 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   }, [setConfig, db, dispatch]);
 
   // Photo slideshow
+  const photoLenRef = useRef(0);
   useEffect(() => {
-    if (!selected) return;
+    if (!selected) { photoLenRef.current = 0; return; }
     const e = data.entries.find(en => en.id === selected.id);
-    if (!e) return;
+    if (!e) { photoLenRef.current = 0; return; }
     const len = (e.photos || []).length;
+    photoLenRef.current = len;
     // Bounds check: clamp photoIdx if photos were deleted
     if (len > 0 && photoIdx >= len) setPhotoIdx(len - 1);
     if (len < 2) return;
-    const iv = setInterval(() => setPhotoIdx(i => (i + 1) % len), 4000);
+    const iv = setInterval(() => setPhotoIdx(i => (i + 1) % (photoLenRef.current || 1)), 4000);
     return () => clearInterval(iv);
   }, [selected, data.entries]);
 
@@ -2459,8 +2475,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     return groups;
   }, [data.entries]);
 
-  const [locationList, setLocationList] = useState(null); // for multi-entry popup
-
   useEffect(() => {
     const g = globeRef.current; if (!g || !sceneReady) return;
     mkRef.current.forEach(m => [m.dot, m.ring, m.glow].forEach(o => {
@@ -2521,22 +2535,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       const lM = new THREE.LineDashedMaterial({ color: P.rose, transparent: true, opacity: 0.8, dashSize: 0.025, gapSize: 0.015, linewidth: 2, depthTest: false });
       const line = new THREE.Line(lG, lM); line.computeLineDistances(); line.renderOrder = 3;
       g.add(line); rtRef.current.push({ line });
-    }
-
-    // ---- Trip route for selected entry ----
-    if (selected && (selected.stops || []).length > 0) {
-      const allPts = [{ lat: selected.lat, lng: selected.lng }, ...selected.stops];
-      selected.stops.forEach(s => mkRef.current.push(makeDot(g, s.lat, s.lng, P.sage, 0.01, `${selected.id}-${s.sid}`)));
-      for (let i = 0; i < allPts.length - 1; i++) {
-        const from = ll2v(allPts[i].lat, allPts[i].lng, RAD * 1.005);
-        const to = ll2v(allPts[i + 1].lat, allPts[i + 1].lng, RAD * 1.005);
-        const mid = from.clone().add(to).multiplyScalar(0.5);
-        mid.normalize().multiplyScalar(RAD + from.distanceTo(to) * 0.2);
-        const lG = new THREE.BufferGeometry().setFromPoints(new THREE.QuadraticBezierCurve3(from, mid, to).getPoints(40));
-        const lM = new THREE.LineDashedMaterial({ color: P.sage, transparent: true, opacity: 0.35, dashSize: 0.015, gapSize: 0.008 });
-        const line = new THREE.Line(lG, lM); line.computeLineDistances(); line.renderOrder = 3;
-        g.add(line); rtRef.current.push({ line });
-      }
     }
 
     // ---- LOVE THREAD — golden arcs connecting all together entries ---- (Our World only)
@@ -2604,7 +2602,35 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         mkRef.current.push(makeDot(g, letter.lat, letter.lng, "#e8a878", 0.018, `love-${letter.id}`, false, "love-letter"));
       });
     }
-  }, [sliderDate, data, getPositions, areTogether, locationGroups, selected, sceneReady, showLoveThread, loveThreadData, showConstellation, constellationData, showRoutes, routeData, config.dreamDestinations, config.loveLetters, isPartnerWorld, isMyWorld]);
+  }, [sliderDate, getPositions, areTogether, locationGroups, sceneReady, showLoveThread, loveThreadData, showConstellation, constellationData, showRoutes, routeData, config.dreamDestinations, config.loveLetters, isPartnerWorld, isMyWorld]);
+
+  // ---- TRIP ROUTE for selected entry (separate effect to avoid full marker rebuild on click) ----
+  const tripRouteRef = useRef([]);
+  const tripStopMkRef = useRef([]);
+  useEffect(() => {
+    const g = globeRef.current; if (!g || !sceneReady) return;
+    tripRouteRef.current.forEach(r => { g.remove(r); r.geometry?.dispose(); r.material?.dispose(); });
+    tripRouteRef.current = [];
+    tripStopMkRef.current.forEach(m => { [m.dot, m.ring, m.glow].forEach(o => { if (!o) return; g.remove(o); if (o.material?.map) o.material.map.dispose(); o.geometry?.dispose(); o.material?.dispose(); }); });
+    tripStopMkRef.current = [];
+    if (!selected || !(selected.stops || []).length) return;
+    const allPts = [{ lat: selected.lat, lng: selected.lng }, ...selected.stops];
+    selected.stops.forEach(s => {
+      const mk = makeDot(g, s.lat, s.lng, P.sage, 0.01, `${selected.id}-${s.sid}`);
+      tripStopMkRef.current.push(mk);
+      mkRef.current.push(mk);
+    });
+    for (let i = 0; i < allPts.length - 1; i++) {
+      const from = ll2v(allPts[i].lat, allPts[i].lng, RAD * 1.005);
+      const to = ll2v(allPts[i + 1].lat, allPts[i + 1].lng, RAD * 1.005);
+      const mid = from.clone().add(to).multiplyScalar(0.5);
+      mid.normalize().multiplyScalar(RAD + from.distanceTo(to) * 0.2);
+      const lG = new THREE.BufferGeometry().setFromPoints(new THREE.QuadraticBezierCurve3(from, mid, to).getPoints(40));
+      const lM = new THREE.LineDashedMaterial({ color: P.sage, transparent: true, opacity: 0.35, dashSize: 0.015, gapSize: 0.008 });
+      const line = new THREE.Line(lG, lM); line.computeLineDistances(); line.renderOrder = 3;
+      g.add(line); tripRouteRef.current.push(line);
+    }
+  }, [selected, sceneReady]);
 
   function makeDot(group, lat, lng, color, size, id, faint = false, symbolType = null) {
     const p = ll2v(lat, lng, RAD * 1.012);
@@ -2666,7 +2692,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         }
       } else { setSelected(null); setLocationList(null); tSpinSpd.current = 0.002; }
     }
-  }, [data.entries, locationGroups]);
+  }, [data.entries, locationGroups, flyTo]);
   const onWheel = useCallback(e => { e.preventDefault(); tZm.current = clamp(tZm.current + e.deltaY * 0.001, MIN_Z, MAX_Z); setShowZoomHint(false); }, []);
   // Attach wheel + touch with passive:false so preventDefault works (Safari pinch zoom fix)
   useEffect(() => {
@@ -3221,7 +3247,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           <div style={{ padding: "14px 18px 18px", overflowY: "auto", flex: 1 }}>
             <div style={{ float: "right", display: "flex", gap: 2, marginTop: -4 }}>
               <button onClick={() => generateTripCard(cur)} style={{ background: "none", border: "none", fontSize: 12, cursor: "pointer", color: P.textFaint, transition: "color .2s" }} title="Save Trip Card">🎴</button>
-              <button onClick={() => toggleFavorite(cur.id)} style={{ background: "none", border: "none", fontSize: 14, cursor: "pointer", color: cur.favorite ? P.heart : P.textFaint, transition: "color .2s" }} title={cur.favorite ? "Unfavorite" : "Favorite"}>
+              <button onClick={() => toggleFavorite(cur.id, cur.favorite)} style={{ background: "none", border: "none", fontSize: 14, cursor: "pointer", color: cur.favorite ? P.heart : P.textFaint, transition: "color .2s" }} title={cur.favorite ? "Unfavorite" : "Favorite"}>
                 {cur.favorite ? "♥" : "♡"}
               </button>
               <button onClick={() => { setSelected(null); setLightboxOpen(false); tSpinSpd.current = 0.002; }} style={{ background: "none", border: "none", fontSize: 16, color: P.textFaint, cursor: "pointer", marginLeft: 2 }}>×</button>
@@ -3871,7 +3897,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                   <button onClick={async () => {
                     if (!confirm(`Are you sure you want to permanently delete "${worldName}"? This cannot be undone. All entries, photos, and settings will be lost.`)) return;
                     if (!confirm("This is permanent. Type the world name to confirm.")) return;
-                    const ok = await deleteWorld(worldId);
+                    const ok = await deleteWorld(worldId, userId);
                     if (ok) { flushConfigSave(); setShowSettings(false); onSwitchWorld(); }
                     else { alert("Failed to delete world."); }
                   }} style={{ width: "100%", padding: "8px", background: "transparent", border: "1px solid rgba(200,100,100,0.25)", borderRadius: 8, cursor: "pointer", fontSize: 10, fontFamily: "inherit", color: "#c97777", marginBottom: 6, transition: "all .2s" }}

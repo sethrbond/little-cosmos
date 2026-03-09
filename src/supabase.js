@@ -7,7 +7,7 @@ async function withRetry(fn, retries = 2) {
   for (let i = 0; i <= retries; i++) {
     try { return await fn() }
     catch (err) {
-      if (i === retries) { console.error('All retries failed:', err); return null }
+      if (i === retries) { console.error('[withRetry] all retries failed — returning null:', err); return null }
       await new Promise(r => setTimeout(r, 1000 * (i + 1)))
     }
   }
@@ -66,6 +66,9 @@ export async function deleteEntryPhotos(entryId) {
 }
 
 // ---- PHOTO HELPERS (used by factories) ----
+// Note: These are not user-scoped at the function level — RLS policies on
+// the entries/my_entries tables enforce that only the owning user can
+// read/write their rows. Entry IDs are unique, so the RLS check is sufficient.
 
 async function savePhotos(entryId, photos) {
   const arr = Array.isArray(photos) ? photos : []

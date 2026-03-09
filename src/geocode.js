@@ -1,4 +1,5 @@
 /* geocode.js — OpenStreetMap Nominatim geocoding v7.9.5 */
+// Uses a callback pattern by design (debounced results delivered asynchronously).
 const NOMINATIM = 'https://nominatim.openstreetmap.org/search'
 let debounceTimer = null
 let lastFetch = 0

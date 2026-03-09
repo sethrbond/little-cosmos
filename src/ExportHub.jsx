@@ -102,15 +102,17 @@ function generateJSON(entries, config, worldMode) {
   return new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
 }
 
-function generateCSV(entries) {
+function generateCSV(entries, worldMode) {
+  const hasOurFields = worldMode === "our" || entries.some(e => e.who || e.loveNote);
   const columns = [
     "City", "Country", "Start Date", "End Date", "Type",
     "Notes", "Latitude", "Longitude", "Favorite",
     "Memories", "Highlights", "Museums/Culture", "Restaurants/Food",
+    ...(hasOurFields ? ["Who", "Love Note"] : []),
   ];
   const rows = [columns.map(escapeCSV).join(",")];
   for (const e of sortedEntries(entries)) {
-    rows.push([
+    const row = [
       escapeCSV(e.city),
       escapeCSV(e.country),
       escapeCSV(e.dateStart),
@@ -124,19 +126,23 @@ function generateCSV(entries) {
       escapeCSV((e.highlights || []).join("; ")),
       escapeCSV((e.museums || []).join("; ")),
       escapeCSV((e.restaurants || []).join("; ")),
-    ].join(","));
+      ...(hasOurFields ? [escapeCSV(e.who), escapeCSV(e.loveNote)] : []),
+    ];
+    rows.push(row.join(","));
   }
   return new Blob(["\uFEFF" + rows.join("\n")], { type: "text/csv;charset=utf-8" });
 }
+
+const safeColor = (c, fallback = '#c8a86e') => /^#[0-9a-fA-F]{3,8}$/.test(c) ? c : fallback;
 
 function generateHTMLReport(entries, config, stats, travelerName, palette, worldMode) {
   const sorted = sortedEntries(entries);
   const title = config?.title || (worldMode === "my" ? "My World" : "Our World");
   const name = travelerName || config?.travelerName || config?.youName || "Explorer";
-  const accent = palette?.rose || "#c48aa8";
-  const accentLight = palette?.roseLight || "#e4c0d4";
-  const textColor = palette?.text || "#2e2440";
-  const bgColor = palette?.cream || "#faf7f5";
+  const accent = safeColor(palette?.rose, "#c48aa8");
+  const accentLight = safeColor(palette?.roseLight, "#e4c0d4");
+  const textColor = safeColor(palette?.text, "#2e2440");
+  const bgColor = safeColor(palette?.cream, "#faf7f5");
 
   let dateRange = "";
   if (sorted.length > 0) {
@@ -378,12 +384,12 @@ function generateKML(entries, config, worldMode) {
     if (e.notes) descParts.push(e.notes);
     if (e.memories?.length) descParts.push(`Memories: ${e.memories.join(", ")}`);
     if (e.highlights?.length) descParts.push(`Highlights: ${e.highlights.join(", ")}`);
-    const desc = descParts.map(escapeXML).join("\n");
+    const desc = descParts.map(escapeXML).join("<br/>");
     const styleRef = e.type ? `#style-${escapeXML(e.type)}` : "";
 
     return `  <Placemark>
     <name>${escapeXML(loc || "Untitled")}</name>
-    <description>${desc}</description>
+    <description><![CDATA[${desc}]]></description>
     ${styleRef ? `<styleUrl>${styleRef}</styleUrl>` : ""}
     <Point><coordinates>${e.lng},${e.lat},0</coordinates></Point>
   </Placemark>`;
@@ -502,7 +508,7 @@ export default function ExportHub({ entries = [], config = {}, stats = {}, palet
           break;
         }
         case "csv": {
-          const blob = generateCSV(entries);
+          const blob = generateCSV(entries, worldMode);
           downloadBlob(blob, `${filename}-entries.csv`);
           break;
         }

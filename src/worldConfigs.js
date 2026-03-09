@@ -38,6 +38,8 @@ export const OUR_WORLD_DEFAULT_CONFIG = {
   chapters: [],
   dreamDestinations: [],
   darkMode: false,
+  customPalette: {},
+  customScene: {},
 };
 
 export const OUR_WORLD_FIELDS = {
@@ -255,10 +257,7 @@ export const FRIENDS_DEFAULT_CONFIG = {
   title: "Friends World",
   subtitle: "",
   youName: "",
-  partnerName: "",
   members: [],
-  loveLetter: "",
-  loveLetters: [],
   chapters: [],
   dreamDestinations: [],
   darkMode: false,
@@ -293,10 +292,7 @@ export const FAMILY_DEFAULT_CONFIG = {
   title: "Family World",
   subtitle: "",
   youName: "",
-  partnerName: "",
   members: [],
-  loveLetter: "",
-  loveLetters: [],
   chapters: [],
   dreamDestinations: [],
   darkMode: false,

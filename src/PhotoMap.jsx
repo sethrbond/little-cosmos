@@ -44,7 +44,7 @@ export default function PhotoMap({ entries = [], palette, onClose, worldMode }) 
   const textMuted = P.textMuted || "#8878a0";
 
   const containerRef = useRef(null);
-  const dragging = useRef(false);
+  const [dragging, setDragging] = useState(false);
   const dragStart = useRef({ x: 0, y: 0 });
   const panStart = useRef({ x: 0, y: 0 });
 
@@ -125,20 +125,20 @@ export default function PhotoMap({ entries = [], palette, onClose, worldMode }) 
   // Dragging handlers
   const onPointerDown = useCallback((e) => {
     if (e.target.closest("[data-pin]") || e.target.closest("[data-control]")) return;
-    dragging.current = true;
+    setDragging(true);
     dragStart.current = { x: e.clientX, y: e.clientY };
     panStart.current = { ...pan };
   }, [pan]);
 
   const onPointerMove = useCallback((e) => {
-    if (!dragging.current) return;
+    if (!dragging) return;
     const dx = e.clientX - dragStart.current.x;
     const dy = e.clientY - dragStart.current.y;
     setPan({ x: panStart.current.x + dx, y: panStart.current.y + dy });
   }, []);
 
   const onPointerUp = useCallback(() => {
-    dragging.current = false;
+    setDragging(false);
   }, []);
 
   const zoomIn = useCallback(() => {
@@ -202,9 +202,8 @@ export default function PhotoMap({ entries = [], palette, onClose, worldMode }) 
         else onClose?.();
       }
       if (lightbox) {
-        const photos = lightbox.entry.photos || [];
-        if (e.key === "ArrowRight") setLightbox(lb => ({ ...lb, photoIdx: (lb.photoIdx + 1) % photos.length }));
-        if (e.key === "ArrowLeft") setLightbox(lb => ({ ...lb, photoIdx: (lb.photoIdx - 1 + photos.length) % photos.length }));
+        if (e.key === "ArrowRight") setLightbox(lb => { const p = lb.entry.photos || []; return { ...lb, photoIdx: (lb.photoIdx + 1) % p.length }; });
+        if (e.key === "ArrowLeft") setLightbox(lb => { const p = lb.entry.photos || []; return { ...lb, photoIdx: (lb.photoIdx - 1 + p.length) % p.length }; });
       }
     };
     window.addEventListener("keydown", handleKey);
@@ -279,7 +278,6 @@ export default function PhotoMap({ entries = [], palette, onClose, worldMode }) 
             height: displaySize,
             borderRadius: "50%",
             border: `2.5px solid ${accent}`,
-            overflow: "hidden",
             cursor: "pointer",
             transition: "all 0.25s cubic-bezier(.4,0,.2,1)",
             boxShadow: isHov
@@ -298,6 +296,7 @@ export default function PhotoMap({ entries = [], palette, onClose, worldMode }) 
                 height: "100%",
                 objectFit: "cover",
                 display: "block",
+                borderRadius: "50%",
                 filter: isCluster ? "brightness(0.7)" : "none",
                 transition: "filter 0.2s",
               }}
@@ -617,7 +616,7 @@ export default function PhotoMap({ entries = [], palette, onClose, worldMode }) 
           flex: 1,
           position: "relative",
           overflow: "hidden",
-          cursor: dragging.current ? "grabbing" : "grab",
+          cursor: dragging ? "grabbing" : "grab",
           userSelect: "none",
         }}
         onPointerDown={onPointerDown}
@@ -635,7 +634,7 @@ export default function PhotoMap({ entries = [], palette, onClose, worldMode }) 
             top: pan.y,
             transform: `scale(${zoom})`,
             transformOrigin: "0 0",
-            transition: dragging.current ? "none" : "transform 0.3s cubic-bezier(.4,0,.2,1)",
+            transition: dragging ? "none" : "transform 0.3s cubic-bezier(.4,0,.2,1)",
           }}
         >
           {/* Background water */}
@@ -665,7 +664,7 @@ export default function PhotoMap({ entries = [], palette, onClose, worldMode }) 
           height: mapSize.h,
           transform: `scale(${zoom})`,
           transformOrigin: "0 0",
-          transition: dragging.current ? "none" : "transform 0.3s cubic-bezier(.4,0,.2,1)",
+          transition: dragging ? "none" : "transform 0.3s cubic-bezier(.4,0,.2,1)",
           pointerEvents: "none",
         }}>
           <div style={{ position: "relative", width: "100%", height: "100%", pointerEvents: "auto" }}>

@@ -8,19 +8,16 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setLoading(false)
-    }).catch(() => {
-      setLoading(false)
-    })
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session)
+        if (event === 'INITIAL_SESSION') {
+          setLoading(false)
+        }
         if (event === 'TOKEN_REFRESHED' && !session) {
           // Token refresh failed — session expired
-          alert('Your session has expired. Please sign in again.')
+          supabase.auth.signOut().catch(() => {})
+          setSession(null)
         }
       }
     )
