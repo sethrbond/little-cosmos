@@ -1325,6 +1325,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const pulseRingsRef = useRef([]);
   const atmosphereRef = useRef({ targetHue: null, intensity: 0, particleBoost: 0 });
   const particles2Ref = useRef(null);
+  const shootingStarsRef = useRef([]);
   const mouseRef = useRef({ x: 0, y: 0 });
 
   // Theme colors (always light mode)
@@ -2346,6 +2347,26 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     warmStars.renderOrder = -10;
     scene.add(warmStars);
 
+    // Shooting stars — pool of meteor streaks that fire periodically
+    const meteorPool = [];
+    for (let mi = 0; mi < 5; mi++) {
+      const mGeo = new THREE.BufferGeometry();
+      const mPositions = new Float32Array(6); // 2 points (head + tail)
+      mGeo.setAttribute("position", new THREE.BufferAttribute(mPositions, 3));
+      const mMat = new THREE.LineBasicMaterial({ color: "#fffaf0", transparent: true, opacity: 0, linewidth: 1 });
+      const mLine = new THREE.Line(mGeo, mMat);
+      mLine.renderOrder = -8;
+      mLine.visible = false;
+      scene.add(mLine);
+      // Each meteor has: origin, direction, speed, progress, active flag
+      meteorPool.push({
+        line: mLine, geo: mGeo, mat: mMat, positions: mPositions,
+        active: false, progress: 0, speed: 0, opacity: 0,
+        origin: new THREE.Vector3(), dir: new THREE.Vector3(), length: 0,
+      });
+    }
+    shootingStarsRef.current = meteorPool;
+
     // Aurora — rich color bands drifting across the top of the scene
     const auroraN = 160;
     const auroraG = new THREE.BufferGeometry();
@@ -2446,6 +2467,62 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         sizes.needsUpdate = true;
         sr.mesh.rotation.y += 0.000015; // very slow drift
         sr.mesh.rotation.x += 0.000005; // subtle multi-axis
+      }
+
+      // Shooting stars — periodic meteor streaks across the sky
+      {
+        const meteors = shootingStarsRef.current;
+        const markerCount = mkRef.current.length;
+        // More entries = more frequent shooting stars (1 every ~8s base, up to ~3s with 50+ entries)
+        const freq = Math.max(3000, 8000 - markerCount * 100);
+        // Try to launch a new meteor
+        if (Math.random() < 1 / (freq * 0.06)) { // ~60fps, so divide freq by ~16.6ms
+          const idle = meteors.find(m => !m.active);
+          if (idle) {
+            // Random origin point in the star field
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(2 * Math.random() - 1);
+            const r = 12 + Math.random() * 8;
+            idle.origin.set(
+              r * Math.sin(phi) * Math.cos(theta),
+              r * Math.sin(phi) * Math.sin(theta),
+              r * Math.cos(phi)
+            );
+            // Direction: mostly tangential with slight inward bias
+            const tangent = new THREE.Vector3(-idle.origin.y, idle.origin.x, 0).normalize();
+            const inward = idle.origin.clone().normalize().multiplyScalar(-0.3);
+            idle.dir.copy(tangent).add(inward).normalize();
+            idle.length = 1.5 + Math.random() * 2.5; // streak length
+            idle.speed = 0.08 + Math.random() * 0.12; // speed
+            idle.progress = 0;
+            idle.active = true;
+            idle.line.visible = true;
+          }
+        }
+        // Animate active meteors
+        for (let mi = 0; mi < meteors.length; mi++) {
+          const m = meteors[mi];
+          if (!m.active) continue;
+          m.progress += m.speed;
+          const headT = m.progress;
+          const tailT = Math.max(0, headT - m.length);
+          const head = m.origin.clone().add(m.dir.clone().multiplyScalar(headT));
+          const tail = m.origin.clone().add(m.dir.clone().multiplyScalar(tailT));
+          m.positions[0] = head.x; m.positions[1] = head.y; m.positions[2] = head.z;
+          m.positions[3] = tail.x; m.positions[4] = tail.y; m.positions[5] = tail.z;
+          m.geo.attributes.position.needsUpdate = true;
+          // Fade in quickly, sustain, fade out
+          const life = m.progress / (m.length * 3);
+          if (life < 0.1) m.mat.opacity = life * 10 * 0.5;
+          else if (life < 0.7) m.mat.opacity = 0.5;
+          else m.mat.opacity = Math.max(0, (1 - life) / 0.3 * 0.5);
+          // Deactivate when fully faded
+          if (life >= 1) {
+            m.active = false;
+            m.line.visible = false;
+            m.mat.opacity = 0;
+          }
+        }
       }
 
       // Parallax — glow layers shift subtly opposite to mouse
