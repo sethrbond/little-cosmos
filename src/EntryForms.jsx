@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { geocodeSearch } from "./geocode.js";
 
 /* EntryForms.jsx — Shared UI primitives + entry forms
@@ -11,6 +11,60 @@ import { geocodeSearch } from "./geocode.js";
 // Palette accessor — reads from mutable global set by OurWorldInner
 const P = (typeof window !== "undefined" && window.__cosmosP) || {};
 const getP = () => (typeof window !== "undefined" && window.__cosmosP) || P;
+
+// ---- DRAFT AUTO-SAVE HOOK ----
+
+function useDraft(key, initialState) {
+  const [state, setState] = useState(() => {
+    if (!key) return initialState;
+    try {
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Only restore if there's meaningful content
+        if (parsed.city || parsed.notes || parsed.dateStart) {
+          return { ...initialState, ...parsed };
+        }
+      }
+    } catch {}
+    return initialState;
+  });
+
+  const [restored, setRestored] = useState(() => {
+    if (!key) return false;
+    try {
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return !!(parsed.city || parsed.notes || parsed.dateStart);
+      }
+    } catch {}
+    return false;
+  });
+
+  // Auto-save on change (debounced)
+  const timerRef = useRef(null);
+  useEffect(() => {
+    if (!key) return;
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      const hasContent = state.city || state.notes || state.dateStart;
+      if (hasContent) {
+        localStorage.setItem(key, JSON.stringify(state));
+      }
+    }, 400);
+    return () => clearTimeout(timerRef.current);
+  }, [key, state]);
+
+  const clearDraft = useCallback(() => {
+    if (key) localStorage.removeItem(key);
+    setRestored(false);
+  }, [key]);
+
+  const dismissRestored = useCallback(() => setRestored(false), []);
+
+  return [state, setState, restored, clearDraft, dismissRestored];
+}
 
 // ---- STYLE FUNCTIONS ----
 
@@ -78,27 +132,21 @@ function FldR({ l, v, set, t = "text", ph = "", req }) {
 
 // ---- QUICK ADD FORM ----
 
-export function QuickAddForm({ types, onAdd, onClose }) {
+export function QuickAddForm({ types, onAdd, onClose, draftKey }) {
   const P = getP();
-  const [city, setCity] = useState("");
-  const [country, setCountry] = useState("");
-  const [lat, setLat] = useState("");
-  const [lng, setLng] = useState("");
-  const [dateStart, setDateStart] = useState("");
-  const [dateEnd, setDateEnd] = useState("");
-  const [type, setType] = useState(Object.keys(types)[0] || "together");
-  const [note, setNote] = useState("");
+  const initialQuick = { city: "", country: "", lat: "", lng: "", dateStart: "", dateEnd: "", type: Object.keys(types)[0] || "together", notes: "" };
+  const [f, sf, draftRestored, clearDraft] = useDraft(draftKey, initialQuick);
   const [sugg, setSugg] = useState([]);
   const [showSugg, setShowSugg] = useState(false);
 
   const onCityInput = v => {
-    setCity(v);
+    sf(p => ({ ...p, city: v }));
     if (v.length >= 2) {
       geocodeSearch(v, m => { setSugg(m); setShowSugg(m.length > 0); });
     } else { setSugg([]); setShowSugg(false); }
   };
-  const selectCity = c => { setCity(c[0]); setCountry(c[1]); setLat(c[2].toString()); setLng(c[3].toString()); setSugg([]); setShowSugg(false); };
-  const ok = city.trim() && lat && lng && dateStart;
+  const selectCity = c => { sf(p => ({ ...p, city: c[0], country: c[1], lat: c[2].toString(), lng: c[3].toString() })); setSugg([]); setShowSugg(false); };
+  const ok = f.city.trim() && f.lat && f.lng && f.dateStart;
 
   return (
     <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", zIndex: 40, background: P.card, backdropFilter: "blur(28px)", borderRadius: 20, padding: 24, width: 340, boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 20px 56px rgba(61,53,82,.1)", border: `1px solid ${P.gold}15`, fontFamily: "'Palatino Linotype',Palatino,Georgia,serif", color: P.text, animation: "fadeIn .3s ease" }}>
@@ -106,8 +154,14 @@ export function QuickAddForm({ types, onAdd, onClose }) {
         <h3 style={{ margin: 0, fontSize: 15, fontWeight: 400, letterSpacing: ".04em" }}>⚡ Quick Add</h3>
         <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 16, color: P.textFaint, cursor: "pointer" }}>×</button>
       </div>
+      {draftRestored && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "5px 9px", marginBottom: 6, background: `${P.gold}12`, border: `1px solid ${P.gold}20`, borderRadius: 7, fontSize: 9, color: P.textMid }}>
+          <span>Draft restored</span>
+          <button onClick={() => { sf(initialQuick); clearDraft(); }} style={{ background: "none", border: "none", color: P.textFaint, cursor: "pointer", fontSize: 9, fontFamily: "inherit", textDecoration: "underline", padding: 0 }}>Discard</button>
+        </div>
+      )}
       <div style={{ position: "relative", marginBottom: 6 }}>
-        <input value={city} onChange={e => onCityInput(e.target.value)} onFocus={() => { if (sugg.length > 0) setShowSugg(true); }} placeholder="City..." style={inpSt()} autoFocus />
+        <input value={f.city} onChange={e => onCityInput(e.target.value)} onFocus={() => { if (sugg.length > 0) setShowSugg(true); }} placeholder="City..." style={inpSt()} autoFocus />
         {showSugg && sugg.length > 0 && (
           <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: P.card, border: `1px solid ${P.textFaint}40`, borderRadius: 6, maxHeight: 130, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
             {sugg.map((c, i) => <button key={i} onClick={() => selectCity(c)} style={{ display: "block", width: "100%", textAlign: "left", padding: "7px 10px", border: "none", borderBottom: `1px solid ${P.textFaint}15`, background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }} onMouseEnter={e => e.currentTarget.style.background = P.blush} onMouseLeave={e => e.currentTarget.style.background = "none"}><span style={{ fontWeight: 500, color: P.text }}>{c[0]}</span> <span style={{ color: P.textFaint }}>{c[1]}</span></button>)}
@@ -115,14 +169,14 @@ export function QuickAddForm({ types, onAdd, onClose }) {
         )}
       </div>
       <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-        <input type="date" value={dateStart} onChange={e => { setDateStart(e.target.value); if (!dateEnd) setDateEnd(e.target.value); }} style={{ ...inpSt(), flex: 1 }} />
-        <input type="date" value={dateEnd} onChange={e => setDateEnd(e.target.value)} style={{ ...inpSt(), flex: 1 }} />
-        <select value={type} onChange={e => setType(e.target.value)} style={{ ...inpSt(), width: 80 }}>
+        <input type="date" value={f.dateStart} onChange={e => { sf(p => ({ ...p, dateStart: e.target.value, dateEnd: p.dateEnd || e.target.value })); }} style={{ ...inpSt(), flex: 1 }} />
+        <input type="date" value={f.dateEnd} onChange={e => sf(p => ({ ...p, dateEnd: e.target.value }))} style={{ ...inpSt(), flex: 1 }} />
+        <select value={f.type} onChange={e => sf(p => ({ ...p, type: e.target.value }))} style={{ ...inpSt(), width: 80 }}>
           {Object.entries(types).map(([k, v]) => <option key={k} value={k}>{v.icon}</option>)}
         </select>
       </div>
-      <input value={note} onChange={e => setNote(e.target.value)} placeholder="Quick note..." style={{ ...inpSt(), marginBottom: 8 }} />
-      <button disabled={!ok} onClick={() => { onAdd({ id: `e-${Date.now()}`, city, country, lat: parseFloat(lat), lng: parseFloat(lng), dateStart, dateEnd: dateEnd || dateStart, type, who: types[type]?.who || "both", notes: note, memories: [], museums: [], restaurants: [], highlights: [], photos: [], stops: [], zoomLevel: 1 }); }}
+      <input value={f.notes} onChange={e => sf(p => ({ ...p, notes: e.target.value }))} placeholder="Quick note..." style={{ ...inpSt(), marginBottom: 8 }} />
+      <button disabled={!ok} onClick={() => { clearDraft(); onAdd({ id: `e-${Date.now()}`, city: f.city, country: f.country, lat: parseFloat(f.lat), lng: parseFloat(f.lng), dateStart: f.dateStart, dateEnd: f.dateEnd || f.dateStart, type: f.type, who: types[f.type]?.who || "both", notes: f.notes, memories: [], museums: [], restaurants: [], highlights: [], photos: [], stops: [], zoomLevel: 1 }); }}
         style={{ width: "100%", padding: "11px", background: ok ? `linear-gradient(135deg, ${P.goldWarm}, ${P.rose})` : `${P.textFaint}60`, color: "#fff", border: "none", borderRadius: 12, cursor: ok ? "pointer" : "default", fontSize: 11, fontFamily: "inherit", transition: "all .3s", letterSpacing: ".06em", boxShadow: ok ? `0 2px 8px ${P.goldWarm}30, 0 4px 16px ${P.goldWarm}15` : "none" }}>
         {ok ? "⚡ Add to World" : "Select a city & date"}
       </button>
@@ -174,9 +228,10 @@ export function DreamAddForm({ onAdd, isMyWorld }) {
 
 // ---- ADD FORM ----
 
-export function AddForm({ types, defaultType = "together", defaultWho = "both", fieldLabels, isMyWorld, worldName, onAdd, onClose }) {
+export function AddForm({ types, defaultType = "together", defaultWho = "both", fieldLabels, isMyWorld, worldName, onAdd, onClose, draftKey }) {
   const P = getP();
-  const [f, sf] = useState({ city: "", country: "", lat: "", lng: "", dateStart: "", dateEnd: "", type: defaultType, who: defaultWho, zoomLevel: 1, notes: "", memories: "", museums: "", restaurants: "", highlights: "", musicUrl: "", stops: [] });
+  const initialForm = { city: "", country: "", lat: "", lng: "", dateStart: "", dateEnd: "", type: defaultType, who: defaultWho, zoomLevel: 1, notes: "", memories: "", museums: "", restaurants: "", highlights: "", musicUrl: "", stops: [] };
+  const [f, sf, draftRestored, clearDraft, dismissRestored] = useDraft(draftKey, initialForm);
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [ns, setNs] = useState({ city: "", lat: "", lng: "", notes: "", dateStart: "", dateEnd: "" });
@@ -295,7 +350,14 @@ export function AddForm({ types, defaultType = "together", defaultWho = "both", 
         <button disabled={!ns.city || !ns.lat} onClick={() => { setShowStopSugg(false); sf(p => ({ ...p, stops: [...p.stops, { sid: `s-${Date.now()}`, city: ns.city, lat: parseFloat(ns.lat) || 0, lng: parseFloat(ns.lng) || 0, notes: ns.notes, dateStart: ns.dateStart || null, dateEnd: ns.dateEnd || null }] })); setNs({ city: "", lat: "", lng: "", notes: "", dateStart: "", dateEnd: "" }); }} style={{ marginTop: 4, width: "100%", padding: "6px", background: P.rose, color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 10, fontFamily: "inherit" }}>+ Add Stop</button>
       </div>
 
-      <button disabled={!ok} onClick={() => { setShowSuggestions(false); onAdd({
+      {draftRestored && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 10px", marginBottom: 8, background: `${P.gold}12`, border: `1px solid ${P.gold}20`, borderRadius: 8, fontSize: 9, color: P.textMid, letterSpacing: ".04em" }}>
+          <span>Draft restored</span>
+          <button onClick={() => { sf(initialForm); clearDraft(); }} style={{ background: "none", border: "none", color: P.textFaint, cursor: "pointer", fontSize: 9, fontFamily: "inherit", textDecoration: "underline", padding: 0 }}>Discard</button>
+        </div>
+      )}
+
+      <button disabled={!ok} onClick={() => { setShowSuggestions(false); clearDraft(); onAdd({
         id: `e-${Date.now()}`, city: f.city, country: f.country, lat: parseFloat(f.lat), lng: parseFloat(f.lng),
         dateStart: f.dateStart, dateEnd: f.dateEnd || null, type: f.type, who: f.who, zoomLevel: f.zoomLevel,
         notes: f.notes, memories: f.memories.split("\n").filter(Boolean), museums: f.museums.split("\n").filter(Boolean),
