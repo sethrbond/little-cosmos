@@ -444,7 +444,7 @@ export async function getPendingWorldInvites(userEmail) {
       let best = null, bestDiff = Infinity
       for (const inv of invites) {
         if (seenTokens.has(inv.token)) continue
-        if (inv.use_count >= inv.max_uses) continue
+        if (inv.max_uses !== null && inv.use_count >= inv.max_uses) continue
         const diff = Math.abs(new Date(inv.created_at).getTime() - letterTime)
         if (diff < bestDiff) { bestDiff = diff; best = inv }
       }
@@ -470,7 +470,6 @@ export async function getPendingWorldInvites(userEmail) {
     const { data: allInvites } = await supabase
       .from('world_invites')
       .select('token, world_id, max_uses, use_count, created_by, worlds(name, type)')
-      .gt('max_uses', 0)
     if (allInvites) {
       // Get user's current world memberships
       const { data: memberships } = await supabase
