@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Component } from 'react'
 import { AuthProvider, useAuth } from './AuthContext.jsx'
 import AuthScreen from './AuthScreen.jsx'
 import WorldSelector from './WorldSelector.jsx'
@@ -33,8 +33,26 @@ function LoadingScreen() {
   )
 }
 
+class ScreenErrorBoundary extends Component {
+  state = { error: null }
+  static getDerivedStateFromError(error) { return { error } }
+  componentDidCatch(err, info) { console.error('[ScreenErrorBoundary]', err, info) }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ position: 'fixed', inset: 0, background: '#0c0a12', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: '"Palatino Linotype", serif', color: '#e8e0d0', gap: 16, padding: 32 }}>
+          <div style={{ fontSize: 28, opacity: 0.7 }}>Something went wrong</div>
+          <div style={{ fontSize: 13, opacity: 0.4, maxWidth: 400, textAlign: 'center' }}>{this.state.error?.message || 'Unknown error'}</div>
+          <button onClick={() => { this.setState({ error: null }); window.location.reload() }} style={{ marginTop: 16, padding: '10px 28px', background: 'rgba(200,170,110,0.15)', border: '1px solid rgba(200,170,110,0.3)', borderRadius: 8, color: '#e8e0d0', fontFamily: 'inherit', fontSize: 14, cursor: 'pointer' }}>Reload</button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
 function AppInner() {
-  const { user, userId, loading, signOut } = useAuth()
+  const { user, userId, loading, emailVerified, signOut } = useAuth()
 
   const [worldMode, setWorldMode] = useState(() => safeGet('worldMode'))
   const [activeWorldId, setActiveWorldId] = useState(() => safeGet('activeWorldId'))
@@ -229,6 +247,21 @@ function AppInner() {
 
   if (!user) return <AuthScreen />
 
+  if (!emailVerified) {
+    return (
+      <div style={{ position: 'fixed', inset: 0, background: '#0c0a12', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: '"Palatino Linotype", serif', color: '#e8e0d0', gap: 16, padding: 32, textAlign: 'center' }}>
+        <div style={{ fontSize: 24, opacity: 0.8 }}>Check your email</div>
+        <div style={{ fontSize: 14, opacity: 0.5, maxWidth: 360, lineHeight: 1.6 }}>
+          We sent a verification link to <span style={{ color: '#c9a96e' }}>{user.email}</span>. Click it to activate your account.
+        </div>
+        <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
+          <button onClick={() => window.location.reload()} style={{ padding: '10px 24px', background: 'rgba(200,170,110,0.15)', border: '1px solid rgba(200,170,110,0.3)', borderRadius: 8, color: '#e8e0d0', fontFamily: 'inherit', fontSize: 13, cursor: 'pointer' }}>I've verified — refresh</button>
+          <button onClick={signOut} style={{ padding: '10px 24px', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: '#e8e0d0', fontFamily: 'inherit', fontSize: 13, cursor: 'pointer', opacity: 0.6 }}>Sign out</button>
+        </div>
+      </div>
+    )
+  }
+
   // For logged-in users, wait for letter check and worlds to load
   if (!letterChecked || !worldsLoaded) {
     return <LoadingScreen />
@@ -265,38 +298,40 @@ function AppInner() {
   // Cinematic onboarding for brand-new users — lands on cosmos screen after
   if (showCinematic) {
     return (
-      <CinematicOnboarding
-        userId={userId}
-        onComplete={() => {
-          safeSet(obKey(`cosmos_hasVisited_${userId}`), '1')
-          setShowCinematic(false)
-          // worldMode stays null → user lands on cosmos screen
-          // Each world's own onboarding tour plays on first entry
-        }}
-      />
+      <ScreenErrorBoundary>
+        <CinematicOnboarding
+          userId={userId}
+          onComplete={() => {
+            safeSet(obKey(`cosmos_hasVisited_${userId}`), '1')
+            setShowCinematic(false)
+          }}
+        />
+      </ScreenErrorBoundary>
     )
   }
 
   if (!worldMode) {
     return (
       <>
-        <WorldSelector
-          onSelect={selectWorld}
-          onSignOut={signOut}
-          worlds={worlds}
-          onWorldsChange={setWorlds}
-          userId={userId}
-          userEmail={user?.email}
-          userDisplayName={userDisplayName}
-          connections={connections}
-          onConnectionsChange={setConnections}
-          pendingRequests={pendingRequests}
-          onPendingRequestsChange={setPendingRequests}
-          pendingWorldInvites={pendingWorldInvites}
-          onPendingWorldInvitesChange={setPendingWorldInvites}
-          myWorldSubtitle={myWorldSubtitle}
-          myWorldColors={myWorldColors}
-        />
+        <ScreenErrorBoundary>
+          <WorldSelector
+            onSelect={selectWorld}
+            onSignOut={signOut}
+            worlds={worlds}
+            onWorldsChange={setWorlds}
+            userId={userId}
+            userEmail={user?.email}
+            userDisplayName={userDisplayName}
+            connections={connections}
+            onConnectionsChange={setConnections}
+            pendingRequests={pendingRequests}
+            onPendingRequestsChange={setPendingRequests}
+            pendingWorldInvites={pendingWorldInvites}
+            onPendingWorldInvitesChange={setPendingWorldInvites}
+            myWorldSubtitle={myWorldSubtitle}
+            myWorldColors={myWorldColors}
+          />
+        </ScreenErrorBoundary>
         {transitioning && (
           <div style={{
             position: 'fixed', inset: 0, zIndex: 9999, pointerEvents: 'none',

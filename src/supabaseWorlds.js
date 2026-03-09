@@ -85,13 +85,15 @@ export async function loadMyWorldSubtitle(userId) {
 }
 
 export async function updateWorld(worldId, updates) {
-  const row = {}
-  if (updates.name !== undefined) row.name = updates.name
-  if (updates.palette !== undefined) row.palette = updates.palette
-  if (updates.scene !== undefined) row.scene = updates.scene
-  const { error } = await supabase.from('worlds').update(row).eq('id', worldId)
-  if (error) console.error('[updateWorld]', error)
-  return !error
+  try {
+    const row = {}
+    if (updates.name !== undefined) row.name = updates.name
+    if (updates.palette !== undefined) row.palette = updates.palette
+    if (updates.scene !== undefined) row.scene = updates.scene
+    const { error } = await supabase.from('worlds').update(row).eq('id', worldId)
+    if (error) { console.error('[updateWorld]', error); return false }
+    return true
+  } catch (err) { console.error('[updateWorld] exception:', err); return false }
 }
 
 export async function deleteWorld(worldId, userId) {
@@ -139,71 +141,77 @@ export async function getWorldMembers(worldId) {
 }
 
 export async function leaveWorld(worldId, userId) {
-  // Guard: prevent the sole owner from leaving — must transfer ownership first
-  const { data: membership } = await supabase
-    .from('world_members')
-    .select('role')
-    .eq('world_id', worldId)
-    .eq('user_id', userId)
-    .maybeSingle()
-  if (membership && membership.role === 'owner') {
-    const { count } = await supabase
+  try {
+    // Guard: prevent the sole owner from leaving — must transfer ownership first
+    const { data: membership } = await supabase
       .from('world_members')
-      .select('*', { count: 'exact', head: true })
+      .select('role')
       .eq('world_id', worldId)
-      .eq('role', 'owner')
-    if (count <= 1) { console.error('[leaveWorld] Cannot leave — transfer ownership first'); return false }
-  }
-
-  const { error } = await supabase
-    .from('world_members')
-    .delete()
-    .eq('world_id', worldId)
-    .eq('user_id', userId)
-  if (error) { console.error('[leaveWorld]', error); return false }
-  return true
-}
-
-export async function removeWorldMember(worldId, memberId) {
-  const { error } = await supabase
-    .from('world_members')
-    .delete()
-    .eq('world_id', worldId)
-    .eq('id', memberId)
-  if (error) console.error('[removeWorldMember]', error)
-  return !error
-}
-
-export async function updateMemberRole(memberId, newRole) {
-  if (!['owner', 'member', 'viewer'].includes(newRole)) {
-    console.error('[updateMemberRole] Invalid role:', newRole)
-    return false
-  }
-  // Guard: prevent demoting the last owner
-  if (newRole !== 'owner') {
-    const { data: member } = await supabase
-      .from('world_members')
-      .select('role, world_id')
-      .eq('id', memberId)
+      .eq('user_id', userId)
       .maybeSingle()
-    if (member && member.role === 'owner') {
+    if (membership && membership.role === 'owner') {
       const { count } = await supabase
         .from('world_members')
         .select('*', { count: 'exact', head: true })
-        .eq('world_id', member.world_id)
+        .eq('world_id', worldId)
         .eq('role', 'owner')
-      if (count <= 1) {
-        console.error('[updateMemberRole] Cannot demote the last owner')
-        return false
+      if (count <= 1) { console.error('[leaveWorld] Cannot leave — transfer ownership first'); return false }
+    }
+
+    const { error } = await supabase
+      .from('world_members')
+      .delete()
+      .eq('world_id', worldId)
+      .eq('user_id', userId)
+    if (error) { console.error('[leaveWorld]', error); return false }
+    return true
+  } catch (err) { console.error('[leaveWorld] exception:', err); return false }
+}
+
+export async function removeWorldMember(worldId, memberId) {
+  try {
+    const { error } = await supabase
+      .from('world_members')
+      .delete()
+      .eq('world_id', worldId)
+      .eq('id', memberId)
+    if (error) { console.error('[removeWorldMember]', error); return false }
+    return true
+  } catch (err) { console.error('[removeWorldMember] exception:', err); return false }
+}
+
+export async function updateMemberRole(memberId, newRole) {
+  try {
+    if (!['owner', 'member', 'viewer'].includes(newRole)) {
+      console.error('[updateMemberRole] Invalid role:', newRole)
+      return false
+    }
+    // Guard: prevent demoting the last owner
+    if (newRole !== 'owner') {
+      const { data: member } = await supabase
+        .from('world_members')
+        .select('role, world_id')
+        .eq('id', memberId)
+        .maybeSingle()
+      if (member && member.role === 'owner') {
+        const { count } = await supabase
+          .from('world_members')
+          .select('*', { count: 'exact', head: true })
+          .eq('world_id', member.world_id)
+          .eq('role', 'owner')
+        if (count <= 1) {
+          console.error('[updateMemberRole] Cannot demote the last owner')
+          return false
+        }
       }
     }
-  }
-  const { error } = await supabase
-    .from('world_members')
-    .update({ role: newRole })
-    .eq('id', memberId)
-  if (error) console.error('[updateMemberRole]', error)
-  return !error
+    const { error } = await supabase
+      .from('world_members')
+      .update({ role: newRole })
+      .eq('id', memberId)
+    if (error) { console.error('[updateMemberRole]', error); return false }
+    return true
+  } catch (err) { console.error('[updateMemberRole] exception:', err); return false }
 }
 
 // ---- INVITES ----

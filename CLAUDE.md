@@ -7,7 +7,7 @@
 
 "My Cosmos" (formerly "Our World") is a 3D interactive globe web app for personal and shared travel diaries. Started as an anniversary gift, now a multi-user platform where anyone can create worlds, share them with partners/friends/family, and build a personal cosmos of travel experiences.
 
-**Live:** https://our-world-kohl.vercel.app
+**Live:** https://littlecosmos.app
 **Stack:** React 18 (Vite), Three.js r160 (vanilla, NOT React Three Fiber), Supabase (Postgres + Auth + Storage), Vercel hosting
 **Repo:** GitHub → auto-deploys to Vercel on push
 **Total codebase:** ~15,550 lines across 28 source files

@@ -89,7 +89,7 @@ Install on your phone's home screen. Works offline — entries saved locally, ph
 #### Step 1.1: Supabase Auth Setup (no code)
 ```
 [ ] Enable Email auth in Supabase Dashboard → Authentication → Providers
-[ ] Set site URL to https://our-world-kohl.vercel.app
+[ ] Set site URL to https://littlecosmos.app
 [ ] Configure email templates (verification, password reset)
 [ ] Set redirect URL for email verification callback
 ```

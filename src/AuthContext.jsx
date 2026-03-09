@@ -25,11 +25,15 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe()
   }, [])
 
+  const user = session?.user ?? null
+  const emailVerified = !!user?.email_confirmed_at
+
   const value = {
     session,
-    user: session?.user ?? null,
-    userId: session?.user?.id ?? null,
+    user,
+    userId: user?.id ?? null,
     loading,
+    emailVerified,
     signOut: () => supabase.auth.signOut(),
   }
 
