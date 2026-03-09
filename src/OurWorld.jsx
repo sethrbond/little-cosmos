@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo, useReducer, Component } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, useReducer, Component, lazy, Suspense } from "react";
 import * as THREE from "three";
 import { createOurWorldDB, createSharedWorldDB } from "./supabase.js";
 import { createMyWorldDB, createFriendWorldDB } from "./supabaseMyWorld.js";
@@ -20,12 +20,14 @@ import KeyboardShortcuts from "./KeyboardShortcuts.jsx";
 import { useTheme, getDarkOverrides } from "./ThemeProvider.jsx";
 import { ThemeToggle } from "./ThemeToggle.jsx";
 import { loadComments, addComment, deleteComment, loadAllWorldReactions, toggleReaction, getWorldMembers, removeWorldMember, updateMemberRole, deleteWorld, leaveWorld, updateWorld } from "./supabaseWorlds.js";
-import YearInReview from "./YearInReview.jsx";
-import TripCard from "./TripCard.jsx";
-import TravelStats from "./TravelStats.jsx";
-import PhotoMap from "./PhotoMap.jsx";
-import Achievements from "./Achievements.jsx";
-import ExportHub from "./ExportHub.jsx";
+
+// Lazy-loaded feature components (only loaded when user opens them)
+const YearInReview = lazy(() => import("./YearInReview.jsx"));
+const TripCard = lazy(() => import("./TripCard.jsx"));
+const TravelStats = lazy(() => import("./TravelStats.jsx"));
+const PhotoMap = lazy(() => import("./PhotoMap.jsx"));
+const Achievements = lazy(() => import("./Achievements.jsx"));
+const ExportHub = lazy(() => import("./ExportHub.jsx"));
 
 /* =================================================================
    🌍 OUR WORLD / MY WORLD — Multi-World Globe Engine
@@ -4633,35 +4635,27 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         />
       )}
 
-      {/* YEAR IN REVIEW */}
-      {showYearReview && (
-        <YearInReview entries={data.entries} stats={stats} palette={P} onClose={() => setShowYearReview(false)} worldMode={worldMode} config={config} />
-      )}
-
-      {/* TRIP CARD */}
-      {showTripCard && (
-        <TripCard entry={showTripCard} palette={P} onClose={() => setShowTripCard(null)} worldMode={worldMode} />
-      )}
-
-      {/* TRAVEL STATS DEEP DIVE */}
-      {showTravelStats && (
-        <TravelStats entries={data.entries} stats={stats} palette={P} onClose={() => setShowTravelStats(false)} worldMode={worldMode} config={config} />
-      )}
-
-      {/* PHOTO MAP */}
-      {showPhotoMap && (
-        <PhotoMap entries={data.entries} palette={P} onClose={() => setShowPhotoMap(false)} worldMode={worldMode} />
-      )}
-
-      {/* ACHIEVEMENTS */}
-      {showAchievements && (
-        <Achievements entries={data.entries} stats={stats} palette={P} onClose={() => setShowAchievements(false)} worldMode={worldMode} config={config} />
-      )}
-
-      {/* EXPORT HUB */}
-      {showExportHub && (
-        <ExportHub entries={data.entries} config={config} stats={stats} palette={P} onClose={() => setShowExportHub(false)} worldMode={worldMode} travelerName={config.travelerName || ''} />
-      )}
+      {/* LAZY-LOADED FEATURE OVERLAYS */}
+      <Suspense fallback={null}>
+        {showYearReview && (
+          <YearInReview entries={data.entries} stats={stats} palette={P} onClose={() => setShowYearReview(false)} worldMode={worldMode} config={config} />
+        )}
+        {showTripCard && (
+          <TripCard entry={showTripCard} palette={P} onClose={() => setShowTripCard(null)} worldMode={worldMode} />
+        )}
+        {showTravelStats && (
+          <TravelStats entries={data.entries} stats={stats} palette={P} onClose={() => setShowTravelStats(false)} worldMode={worldMode} config={config} />
+        )}
+        {showPhotoMap && (
+          <PhotoMap entries={data.entries} palette={P} onClose={() => setShowPhotoMap(false)} worldMode={worldMode} />
+        )}
+        {showAchievements && (
+          <Achievements entries={data.entries} stats={stats} palette={P} onClose={() => setShowAchievements(false)} worldMode={worldMode} config={config} />
+        )}
+        {showExportHub && (
+          <ExportHub entries={data.entries} config={config} stats={stats} palette={P} onClose={() => setShowExportHub(false)} worldMode={worldMode} travelerName={config.travelerName || ''} />
+        )}
+      </Suspense>
 
       {/* FULLSCREEN PHOTO LIGHTBOX */}
       {lightboxOpen && cur?.photos?.length > 0 && (() => {
