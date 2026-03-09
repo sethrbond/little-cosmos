@@ -1208,7 +1208,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     if (prevEntryCountRef.current > 0 && count > prevEntryCountRef.current && sceneReady) {
       const newest = data.entries[data.entries.length - 1];
       if (newest && newest.lat != null && newest.lng != null && !cometRef.current) {
-        const target = ll2v(newest.lat, newest.lng, RAD * 1.015);
+        // Store lat/lng so we can compute world-space target each frame (accounts for globe rotation)
+        const targetLocal = ll2v(newest.lat, newest.lng, RAD * 1.015);
+        const targetWorld = targetLocal.clone().applyEuler(globeRef.current.rotation);
         // Origin: further out, always visible (camera-forward bias)
         const camZ = camRef.current ? camRef.current.position.z : 4;
         const origin = new THREE.Vector3(
@@ -1235,7 +1237,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         // Multi-segment trail (16 points for smooth fade)
         const TRAIL_LEN = 16;
         const trailPositions = new Float32Array(TRAIL_LEN * 3);
-        for (let ti = 0; ti < TRAIL_LEN * 3; ti++) trailPositions[ti] = origin.x; // init all to origin
+        for (let ti = 0; ti < TRAIL_LEN * 3; ti++) trailPositions[ti] = origin.x;
         const trailGeo = new THREE.BufferGeometry();
         trailGeo.setAttribute("position", new THREE.BufferAttribute(trailPositions, 3));
         const trailMat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.6 });
@@ -1243,25 +1245,20 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         trail.renderOrder = 14;
         scnRef.current.add(trail);
 
-        // Curved path via control point for dramatic arc
-        const mid = origin.clone().add(target).multiplyScalar(0.5);
-        mid.y += 1.5 + Math.random(); // arc upward
-        const curve = new THREE.QuadraticBezierCurve3(origin, mid, target);
-
         // Impact flash mesh (starts invisible)
         const flashGeo = new THREE.SphereGeometry(0.2, 24, 24);
         const flashMat = new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0, side: THREE.FrontSide });
         const flash = new THREE.Mesh(flashGeo, flashMat);
-        flash.position.copy(target);
+        flash.position.copy(targetWorld);
         flash.renderOrder = 16;
         scnRef.current.add(flash);
 
         cometRef.current = {
           active: true, progress: 0,
-          origin, target, color, curve,
+          origin, targetLocal, color,
           head, trail, trailGeo, trailPositions, TRAIL_LEN,
           flash, halo,
-          history: [], // position history for trail
+          history: [],
           burst: null, burstAge: 0,
         };
       }
@@ -2308,7 +2305,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       vertexShader: `
         varying vec3 vNormal;
         void main() {
-          vNormal = normalize(normalMatrix * normal);
+          vNormal = normalize(normal); // object-space normal (sunDir is transformed to match)
           gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }
       `,
@@ -2320,7 +2317,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         void main() {
           float facing = dot(vNormal, sunDir);
           // Smooth gradient: fully lit → twilight → dark
-          float shadow = smoothstep(0.15, -0.4, facing);
+          float shadow = smoothstep(0.2, -0.35, facing);
           gl_FragColor = vec4(nightColor, shadow * strength);
         }
       `,
@@ -2723,39 +2720,43 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         pr.mesh.material.opacity = (1 - pr.age) * 0.25; // fade out
       }
 
-      // Night shadow — update sun direction based on real UTC time
+      // Night shadow — transform sun direction into globe's local space so shadow stays fixed relative to world
       if (nightShadowRef.current?.material) {
         const uh = new Date().getUTCHours() + new Date().getUTCMinutes() / 60 + new Date().getUTCSeconds() / 3600;
         const sunAngle = (uh / 24) * Math.PI * 2 - Math.PI / 2; // noon UTC = sun at 0° longitude
-        nightShadowRef.current.material.uniforms.sunDir.value.set(
-          Math.cos(sunAngle), 0.15, Math.sin(sunAngle)
-        ).normalize();
+        const sunWorld = new THREE.Vector3(Math.cos(sunAngle), 0.15, Math.sin(sunAngle)).normalize();
+        // Counter-rotate sun direction by the globe's rotation so shadow stays geographically fixed
+        const invQuat = new THREE.Quaternion().setFromEuler(globe.rotation).invert();
+        sunWorld.applyQuaternion(invQuat);
+        nightShadowRef.current.material.uniforms.sunDir.value.copy(sunWorld);
       }
 
       // Comet animation — dramatic arc from sky to globe surface
       if (cometRef.current && cometRef.current.active) {
         const c = cometRef.current;
-        // Accelerate: slow at start, fast at impact
+        // Recompute target in world space from globe's current rotation
+        const target = c.targetLocal.clone().applyEuler(globe.rotation);
         c.progress += 0.008 + c.progress * 0.025;
         if (c.progress >= 1) {
           // IMPACT!
           c.active = false;
           c.head.visible = false;
           c.trail.visible = false;
-          // Flash: bright white sphere expands and fades
+          // Flash at actual target position
+          c.flash.position.copy(target);
           c.flash.material.opacity = 0.7;
           c.flash.scale.setScalar(0.3);
           // Spawn burst particles — more, bigger, faster
           const burstN = 36;
           const burstGroup = new THREE.Group();
           const burstParticles = [];
-          const normal = c.target.clone().normalize();
+          const normal = target.clone().normalize();
           for (let bi = 0; bi < burstN; bi++) {
             const bGeo = new THREE.SphereGeometry(0.012 + Math.random() * 0.008, 8, 8);
             const bColor = bi < burstN / 3 ? "#ffffff" : c.color; // mix white sparks with colored
             const bMat = new THREE.MeshBasicMaterial({ color: bColor, transparent: true, opacity: 0.9 });
             const bMesh = new THREE.Mesh(bGeo, bMat);
-            bMesh.position.copy(c.target);
+            bMesh.position.copy(target);
             // Burst outward from surface, biased along normal
             const spread = new THREE.Vector3(
               (Math.random() - 0.5), (Math.random() - 0.5), (Math.random() - 0.5)
@@ -2768,20 +2769,23 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           const ringGeo = new THREE.RingGeometry(0.01, 0.04, 32);
           const ringMat = new THREE.MeshBasicMaterial({ color: c.color, transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthTest: false });
           const impactRing = new THREE.Mesh(ringGeo, ringMat);
-          impactRing.position.copy(c.target);
-          impactRing.lookAt(c.target.clone().multiplyScalar(2));
+          impactRing.position.copy(target);
+          impactRing.lookAt(target.clone().multiplyScalar(2));
           impactRing.renderOrder = 16;
           burstGroup.add(impactRing);
           burstParticles.push({ mesh: impactRing, vel: new THREE.Vector3(), age: 0, isRing: true });
-          globe.add(burstGroup);
+          scene.add(burstGroup); // add to scene (not globe) since positions are world-space
           c.burst = { group: burstGroup, particles: burstParticles };
           c.burstAge = 0;
         } else {
-          // Follow curved path
+          // Recompute curve each frame to track globe rotation
+          const mid = c.origin.clone().add(target).multiplyScalar(0.5);
+          mid.y += 1.5;
+          const curve = new THREE.QuadraticBezierCurve3(c.origin, mid, target);
           const eased = c.progress < 0.5
-            ? 2 * c.progress * c.progress  // ease in
-            : 1 - Math.pow(-2 * c.progress + 2, 2) / 2; // ease out
-          const pos = c.curve.getPoint(eased);
+            ? 2 * c.progress * c.progress
+            : 1 - Math.pow(-2 * c.progress + 2, 2) / 2;
+          const pos = curve.getPoint(eased);
           c.head.position.copy(pos);
           // Record position history for multi-segment trail
           c.history.unshift(pos.clone());
@@ -2817,7 +2821,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           }
         }
         if (c.burstAge >= 1.2) {
-          globe.remove(c.burst.group);
+          scene.remove(c.burst.group);
           c.burst.particles.forEach(p => { p.mesh.geometry.dispose(); p.mesh.material.dispose(); });
           c.burst = null;
           scene.remove(c.head); scene.remove(c.trail);
@@ -3124,7 +3128,10 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         const parts = id.replace("group-", "").split("-");
         const glat = parseFloat(parts[0]), glng = parseFloat(parts.slice(1).join("-"));
         const group = locationGroups.find(g => Math.abs(g.lat - glat) < 0.05 && Math.abs(g.lng - glng) < 0.05);
-        if (group) label = { city: group.city, date: `${group.entries.length} entries`, x: e.clientX, y: e.clientY };
+        if (group) {
+          const groupPhoto = group.entries.find(en => en.photos?.length)?.photos[0] || null;
+          label = { city: group.city, date: `${group.entries.length} entries`, x: e.clientX, y: e.clientY, photo: groupPhoto };
+        }
       } else if (id.startsWith("dream-")) {
         const dreamId = id.replace("dream-", "");
         const dream = (config.dreamDestinations || config.bucketList || []).find(d => d.id === dreamId);
@@ -3133,7 +3140,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         const entry = data.entries.find(en => en.id === id);
         if (entry) {
           const d = entry.dateStart ? new Date(entry.dateStart + "T00:00:00").toLocaleDateString("en-US", { month: "short", year: "numeric" }) : "";
-          label = { city: entry.city, date: d, x: e.clientX, y: e.clientY };
+          const photo = entry.photos?.length ? entry.photos[0] : null;
+          label = { city: entry.city, date: d, x: e.clientX, y: e.clientY, photo };
         }
       }
       setHoverLabel(label);
@@ -3331,18 +3339,30 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       <div ref={mountRef} style={{ width: "100%", height: "100%", touchAction: "none" }}
         onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} />
 
-      {/* Hover label — floating city name near cursor */}
+      {/* Hover label — floating city name + photo peek near cursor */}
       {hoverLabel && !selected && (
         <div style={{
-          position: "fixed", left: hoverLabel.x + 14, top: hoverLabel.y - 28,
+          position: "fixed", left: hoverLabel.x + 14, top: hoverLabel.y - (hoverLabel.photo ? 80 : 28),
           pointerEvents: "none", zIndex: 20,
-          background: `${P.text}cc`, backdropFilter: "blur(8px)",
-          borderRadius: 8, padding: "5px 10px",
-          boxShadow: `0 2px 12px ${P.text}30`,
+          background: `${P.text}cc`, backdropFilter: "blur(12px)",
+          borderRadius: hoverLabel.photo ? 10 : 8,
+          padding: hoverLabel.photo ? "4px 4px 6px" : "5px 10px",
+          boxShadow: `0 4px 20px ${P.text}40`,
           animation: "fadeInLabel 0.2s ease",
+          maxWidth: 180,
         }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: P.cream, letterSpacing: ".04em", whiteSpace: "nowrap" }}>{hoverLabel.city}</div>
-          {hoverLabel.date && <div style={{ fontSize: 10, color: `${P.cream}aa`, marginTop: 1, whiteSpace: "nowrap" }}>{hoverLabel.date}</div>}
+          {hoverLabel.photo && (
+            <div style={{
+              width: 160, height: 90, borderRadius: 7, overflow: "hidden", marginBottom: 4,
+              background: `${P.text}40`,
+            }}>
+              <img src={hoverLabel.photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+            </div>
+          )}
+          <div style={{ padding: hoverLabel.photo ? "0 4px" : 0 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: P.cream, letterSpacing: ".04em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{hoverLabel.city}</div>
+            {hoverLabel.date && <div style={{ fontSize: 10, color: `${P.cream}aa`, marginTop: 1, whiteSpace: "nowrap" }}>{hoverLabel.date}</div>}
+          </div>
         </div>
       )}
 
