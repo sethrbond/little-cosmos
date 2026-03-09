@@ -1,5 +1,5 @@
 # MY COSMOS — Complete Project Handoff for Claude Code
-### v10.0 | March 2026
+### v11.0 | March 2026
 
 ---
 
@@ -10,7 +10,7 @@
 **Live:** https://our-world-kohl.vercel.app
 **Stack:** React 18 (Vite), Three.js r160 (vanilla, NOT React Three Fiber), Supabase (Postgres + Auth + Storage), Vercel hosting
 **Repo:** GitHub → auto-deploys to Vercel on push
-**Total codebase:** ~10,267 lines across 17 source files
+**Total codebase:** ~15,550 lines across 28 source files
 
 ---
 
@@ -20,13 +20,24 @@
 my-cosmos/
   CLAUDE.md                    ← this file (project context for Claude Code)
   src/
-    OurWorld.jsx               ← 5,098 lines. THE app. Single component, everything inline.
+    OurWorld.jsx               ← 5,139 lines. THE app. Single component, everything inline.
     WorldSelector.jsx          ← 1,352 lines. "My Cosmos" cosmos dashboard + world management
-    App.jsx                    ← 341 lines. Auth gate, routing, invite handling, cinematic onboarding
+    App.jsx                    ← 339 lines. Auth gate, routing, invite handling, cinematic onboarding
     CinematicOnboarding.jsx    ← 598 lines. First-time user experience with star field + city picker
     AuthScreen.jsx             ← 165 lines. Login / signup / forgot password
     AuthContext.jsx            ← 44 lines. React context for Supabase Auth session
     WelcomeLetterScreen.jsx    ← 117 lines. Welcome letter display when invited
+    YearInReview.jsx           ← 885 lines. Animated annual travel recap (10 slides, starfield, counters)
+    TravelStats.jsx            ← 755 lines. Deep-dive statistics (heatmaps, charts, patterns, records)
+    PhotoMap.jsx               ← 735 lines. 2D SVG world map with photo pins, clustering, lightbox
+    Achievements.jsx           ← 626 lines. 31 badges across 6 categories, gamification layer
+    ExportHub.jsx              ← 818 lines. Multi-format export (JSON, CSV, HTML, KML, timeline)
+    TripCard.jsx               ← 470 lines. Shareable Instagram-style trip cards with Canvas download
+    KeyboardShortcuts.jsx      ← 241 lines. Keyboard shortcut reference overlay
+    ThemeProvider.jsx           ← 152 lines. Dark mode system (auto/light/dark, system preference)
+    ThemeToggle.jsx            ← 89 lines. Sun/moon theme toggle button
+    SyncIndicator.jsx          ← 92 lines. Real-time connection status dot
+    useRealtimeSync.js         ← 326 lines. Supabase Realtime subscriptions + presence hook
     supabase.js                ← 318 lines. Our World + shared world DB factories
     supabaseMyWorld.js         ← 232 lines. My World + friend world DB factories
     supabaseWorlds.js          ← 490 lines. World CRUD, members, invites, comments, reactions
@@ -173,22 +184,28 @@ Run `docs/FULL_REBUILD.sql` in Supabase SQL Editor — idempotent, creates all t
 - 15 unique canvas-texture marker symbols, breathing animations
 - Timeline slider with milestones, chapters, day stepping
 - Play Our Story / Play My Story (cinema state machine with photo crossfade)
-- Year-in-Review (4-phase cinematic with PNG export)
+- Year-in-Review (10-slide animated recap with starfield, counters, charts, photo grid)
 - Photo Journey (auto-play, crossfade, notes overlay, progress bar)
-- Detail card (4 tabs, adapted labels per world)
+- Detail card (4 tabs, adapted labels per world) with Share Card button
+- Trip Cards (Instagram-style shareable cards with Canvas API PNG download)
 - Love Thread, Constellation, Dream Destinations / Bucket List
 - Love Letters, Love Notes (partner worlds only)
+- Travel Stats deep-dive (heatmaps, bar charts, trip duration, distance records, year comparison)
 - Stats dashboard (adapted per world, expandable with farthest-apart, longest trip)
-- Search, favorites, filter, keyboard shortcuts
+- Photo Map (2D SVG world map with photo pins, clustering, pan/zoom, lightbox)
+- Achievements (31 badges across 6 categories — explorer, countries, distance, types, memory, special)
+- Search, favorites, filter, keyboard shortcuts overlay (? key)
 - Milestone badges (5/10/25/50/100 entries, 5/10/25 countries, 1K/10K/25K miles)
 - Anniversary auto-celebration with confetti
 - "Missing you" / "across the world" distance messages (partner worlds)
 - Trip countdown (days until next together)
+- Dark mode (auto/light/dark cycling, system preference detection, ThemeProvider + ThemeToggle)
 - Custom color palette (10+ pickers, persists)
 - Cosmos dashboard with activity feed, cross-world search
-- Realtime sync (toast when partner adds entries)
+- Real-time sync (Supabase Realtime subscriptions, auto-reconnect, presence tracking)
+- Sync indicator (green/red connection dot)
 - Comments & reactions on shared world entries
-- Import/export JSON backup
+- Export Hub (JSON backup, CSV, standalone HTML report, KML/Google Earth, timeline text)
 - Error boundary
 - Mobile responsive
 - Easter egg ("you are my world" visible when zoomed all the way out on partner worlds)
@@ -197,11 +214,11 @@ Run `docs/FULL_REBUILD.sql` in Supabase SQL Editor — idempotent, creates all t
 
 ## KNOWN ISSUES (cosmetic, not blocking)
 
-1. **`darkMode` stored in config but never implemented** — boolean persists across all world types, but no UI toggle and no visual effect. App uses a cosmic dark aesthetic already.
-2. **`ambientMusicUrl` in config** — persistence exists but settings UI for it may be incomplete.
-3. **No error boundary on WorldSelector or CinematicOnboarding** — WebGL crash on cosmos screen would strand users.
-4. **Accessibility is minimal** — no aria labels, no keyboard nav for globe, no focus trapping in modals.
-5. **Duplicate `heartPulse` keyframe** — defined twice (loading screen at 1.08, main at 1.06). Second wins.
+1. **`ambientMusicUrl` in config** — persistence exists but settings UI for it may be incomplete.
+2. **No error boundary on WorldSelector or CinematicOnboarding** — WebGL crash on cosmos screen would strand users.
+3. **Accessibility is minimal** — no aria labels, no keyboard nav for globe, no focus trapping in modals.
+4. **Duplicate `heartPulse` keyframe** — defined twice (loading screen at 1.08, main at 1.06). Second wins.
+5. **ThemeProvider `onConfigDarkMode` not wired** — dark mode persists to localStorage only, not to Supabase config. Functionally fine for single-device users.
 
 ---
 
@@ -248,3 +265,4 @@ Run `docs/FULL_REBUILD.sql` in Supabase SQL Editor — idempotent, creates all t
 - **Session 16 (Claude Code):** Auth system, cinematic onboarding, world creation/sharing, invite flow, welcome letters, friend connections, 4 world types, RLS, FULL_REBUILD.sql
 - **Session 17 (Claude Code):** Year-in-Review cinematic, Play Our Story cinema, anniversary celebrations, realtime sync, photo journey, activity feed, comments/reactions UI
 - **Session 18 (Claude Code):** Full audit — 7 bug fixes (photo reorder, pulse animation, starTint, firstTrip/lastTrip, activity feed nav, glow colors, photo slideshow), milestone badges, enhanced onboarding per world type, onboard version reset, 300+ lines dead code removed, User-Agent update
+- **Session 19 (Claude Code):** 11 new components built via 10 parallel agents — Year-in-Review (885 lines, 10-slide animated recap), TripCard (470 lines, Instagram-style cards), TravelStats (755 lines, deep-dive with heatmaps/charts), PhotoMap (735 lines, SVG world map with pins), Achievements (626 lines, 31 badges), ExportHub (818 lines, 5 export formats), ThemeProvider/ThemeToggle (241 lines, dark mode system), KeyboardShortcuts (241 lines), useRealtimeSync (326 lines, Supabase Realtime + presence), SyncIndicator (92 lines). Full audit: fixed anniversary deps, setConfig deps, loadWorldEntryCounts N+1, dead code, duplicate title logic. +5,284 lines.
