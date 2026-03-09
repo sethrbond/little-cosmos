@@ -1692,7 +1692,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
   // ---- TRAVEL ROUTES — chronological dotted paths between entries ----
   const routeData = useMemo(() => {
-    if (!showRoutes) return [];
+    if (!showRoutes && !isPlaying) return [];
     const s = sorted.filter(e => e.dateStart && e.dateStart <= sliderDate);
     if (s.length < 2) return [];
     const pairs = [];
@@ -1701,7 +1701,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       pairs.push({ from: s[i - 1], to: s[i] });
     }
     return pairs;
-  }, [sorted, showRoutes, sliderDate]);
+  }, [sorted, showRoutes, isPlaying, sliderDate]);
 
   // ---- MONTHLY CHECK-IN PROMPT ----
   useEffect(() => {
@@ -2359,6 +2359,18 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         if (m.glow) m.glow.scale.setScalar(mkScale * breathe);
       });
 
+      // Animate travel route dashes — flowing along arcs
+      const rt = Date.now() * 0.0004;
+      routesRef.current.forEach((r) => {
+        if (r.line?.material) {
+          r.line.material.dashOffset = -rt + (r.idx || 0) * 0.3;
+          r.line.material.opacity = 0.55 + Math.sin(rt * 2.5 + (r.idx || 0) * 0.8) * 0.15;
+        }
+        if (r.glow?.material) {
+          r.glow.material.opacity = 0.1 + Math.sin(rt * 1.5 + (r.idx || 0) * 0.5) * 0.06;
+        }
+      });
+
       if (hMesh.visible) {
         const ht = Date.now() * 0.004;
         hMesh.scale.set(1 + Math.sin(ht) * 0.15, 1 + Math.sin(ht) * 0.15, 1);
@@ -2587,24 +2599,36 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       });
     }
 
-    // ---- TRAVEL ROUTES — dotted paths between sequential entries ----
-    routesRef.current.forEach(l => { g.remove(l); l.geometry?.dispose(); l.material?.dispose(); });
+    // ---- TRAVEL ROUTES — animated arcs between sequential entries ----
+    routesRef.current.forEach(r => { if (r.line) { g.remove(r.line); r.line.geometry?.dispose(); r.line.material?.dispose(); } if (r.glow) { g.remove(r.glow); r.glow.geometry?.dispose(); r.glow.material?.dispose(); } });
     routesRef.current = [];
-    if (showRoutes) {
-      routeData.forEach(({ from, to }) => {
+    if (showRoutes || isPlaying) {
+      const routeColor = isMyWorld ? "#a0c0a0" : P.sky;
+      const glowColor = isMyWorld ? "#688c5c" : P.skySoft;
+      routeData.forEach(({ from, to }, idx) => {
         const f = ll2v(from.lat, from.lng, RAD * 1.025);
         const t = ll2v(to.lat, to.lng, RAD * 1.025);
+        const dist = f.distanceTo(t);
         const mid = f.clone().add(t).multiplyScalar(0.5);
-        mid.normalize().multiplyScalar(RAD * 1.03 + f.distanceTo(t) * 0.12);
+        // Arc height scales with distance — longer journeys soar higher
+        const arcHeight = RAD * 1.04 + dist * 0.25 + Math.min(dist * 0.15, 0.3);
+        mid.normalize().multiplyScalar(arcHeight);
         const curve = new THREE.QuadraticBezierCurve3(f, mid, t);
-        const pts = curve.getPoints(30);
+        const pts = curve.getPoints(48);
+        // Main arc line — flowing dashes
         const geom = new THREE.BufferGeometry().setFromPoints(pts);
-        const mat = new THREE.LineDashedMaterial({ color: isMyWorld ? "#a0c0a0" : P.sky, transparent: true, opacity: 0.55, dashSize: 0.02, gapSize: 0.015, depthTest: false });
+        const mat = new THREE.LineDashedMaterial({ color: routeColor, transparent: true, opacity: 0.7, dashSize: 0.018, gapSize: 0.012, depthTest: false });
         const line = new THREE.Line(geom, mat);
         line.computeLineDistances();
-        line.renderOrder = 1;
+        line.renderOrder = 2;
         g.add(line);
-        routesRef.current.push(line);
+        // Glow line — soft wider trail behind the main arc
+        const glowGeom = new THREE.BufferGeometry().setFromPoints(pts);
+        const glowMat = new THREE.LineBasicMaterial({ color: glowColor, transparent: true, opacity: 0.15, depthTest: false });
+        const glowLine = new THREE.Line(glowGeom, glowMat);
+        glowLine.renderOrder = 1;
+        g.add(glowLine);
+        routesRef.current.push({ line, glow: glowLine, idx, dist });
       });
     }
 
@@ -2619,7 +2643,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         mkRef.current.push(makeDot(g, letter.lat, letter.lng, "#e8a878", 0.018, `love-${letter.id}`, false, "love-letter"));
       });
     }
-  }, [sliderDate, getPositions, areTogether, locationGroups, sceneReady, showLoveThread, loveThreadData, showConstellation, constellationData, showRoutes, routeData, config.dreamDestinations, config.loveLetters, isPartnerWorld, isMyWorld]);
+  }, [sliderDate, getPositions, areTogether, locationGroups, sceneReady, showLoveThread, loveThreadData, showConstellation, constellationData, showRoutes, isPlaying, routeData, config.dreamDestinations, config.loveLetters, isPartnerWorld, isMyWorld]);
 
   // ---- TRIP ROUTE for selected entry (separate effect to avoid full marker rebuild on click) ----
   const tripRouteRef = useRef([]);
