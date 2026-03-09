@@ -883,10 +883,10 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const isSharedWorld = worldMode === "our" && !!worldId;
   const isViewer = worldRole === "viewer" || isFriendWorld;
   const isPartnerWorld = !isMyWorld && (!worldType || worldType === "partner" || worldType === "shared");
-  const DEFAULT_CONFIG = useMemo(() => isMyWorld ? MY_WORLD_DEFAULT_CONFIG
+  const DEFAULT_CONFIG = isMyWorld ? MY_WORLD_DEFAULT_CONFIG
     : worldType === "friends" ? FRIENDS_DEFAULT_CONFIG
     : worldType === "family" ? FAMILY_DEFAULT_CONFIG
-    : OUR_WORLD_DEFAULT_CONFIG, [isMyWorld, worldType]);
+    : OUR_WORLD_DEFAULT_CONFIG;
   const FIELD_LABELS = isMyWorld ? MY_WORLD_FIELDS
     : worldType === "friends" ? FRIENDS_FIELDS
     : worldType === "family" ? FAMILY_FIELDS
@@ -2462,6 +2462,23 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     else if (particlesRef.current) particlesRef.current.material.opacity = 0.18;
   }, [season, isAnniversary]);
 
+  // ---- MARKER HELPER (must be before effects that call it) ----
+  function makeDot(group, lat, lng, color, size, id, faint = false, symbolType = null) {
+    const p = ll2v(lat, lng, RAD * 1.012);
+    if (symbolType) {
+      const tex = makeSymbolTexture(symbolType, color);
+      const sz = size * 7;
+      const dot = new THREE.Mesh(new THREE.PlaneGeometry(sz, sz), new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.02, side: THREE.DoubleSide, depthTest: true }));
+      dot.position.copy(p); dot.lookAt(p.clone().multiplyScalar(2)); dot.userData = { entryId: id }; dot.renderOrder = 2; group.add(dot);
+      return { entryId: id, dot, ring: null, glow: null };
+    }
+    const dot = new THREE.Mesh(new THREE.CircleGeometry(size, 20), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: faint ? 0.28 : 0.85, side: THREE.DoubleSide, depthTest: true }));
+    dot.position.copy(p); dot.lookAt(p.clone().multiplyScalar(2)); dot.userData = { entryId: id }; dot.renderOrder = 2; group.add(dot);
+    const glow = new THREE.Mesh(new THREE.CircleGeometry(size * (faint ? 1.4 : 2.0), 24), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: faint ? 0.04 : 0.10, side: THREE.DoubleSide, depthTest: true }));
+    glow.position.copy(p); glow.lookAt(p.clone().multiplyScalar(2)); glow.renderOrder = 0; group.add(glow);
+    return { entryId: id, dot, ring: null, glow };
+  }
+
   // ---- REBUILD MARKERS ----
   // Group entries by location (within ~0.5 degrees)
   const locationGroups = useMemo(() => {
@@ -2631,24 +2648,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       g.add(line); tripRouteRef.current.push(line);
     }
   }, [selected, sceneReady]);
-
-  function makeDot(group, lat, lng, color, size, id, faint = false, symbolType = null) {
-    const p = ll2v(lat, lng, RAD * 1.012);
-    if (symbolType) {
-      // Symbol marker: canvas texture on a plane
-      const tex = makeSymbolTexture(symbolType, color);
-      const sz = size * 7;
-      const dot = new THREE.Mesh(new THREE.PlaneGeometry(sz, sz), new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.02, side: THREE.DoubleSide, depthTest: true }));
-      dot.position.copy(p); dot.lookAt(p.clone().multiplyScalar(2)); dot.userData = { entryId: id }; dot.renderOrder = 2; group.add(dot);
-      return { entryId: id, dot, ring: null, glow: null };
-    }
-    // Fallback: simple circle (for position dots)
-    const dot = new THREE.Mesh(new THREE.CircleGeometry(size, 20), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: faint ? 0.28 : 0.85, side: THREE.DoubleSide, depthTest: true }));
-    dot.position.copy(p); dot.lookAt(p.clone().multiplyScalar(2)); dot.userData = { entryId: id }; dot.renderOrder = 2; group.add(dot);
-    const glow = new THREE.Mesh(new THREE.CircleGeometry(size * (faint ? 1.4 : 2.0), 24), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: faint ? 0.04 : 0.10, side: THREE.DoubleSide, depthTest: true }));
-    glow.position.copy(p); glow.lookAt(p.clone().multiplyScalar(2)); glow.renderOrder = 0; group.add(glow);
-    return { entryId: id, dot, ring: null, glow };
-  }
 
   // ---- POINTER ----
   const onDown = useCallback(e => { dragR.current = true; prevR.current = { x: e.clientX, y: e.clientY }; clickSR.current = { x: e.clientX, y: e.clientY, t: Date.now() }; }, []);
