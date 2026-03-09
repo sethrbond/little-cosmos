@@ -1,31 +1,6 @@
-import { supabase } from './supabaseClient.js'
+import { supabase, withRetry, safeArray, cleanArray } from './supabaseClient.js'
 
-/* supabaseMyWorld.js — Personal world DB ops (consolidated: uses entries + config with world_id) */
-
-async function withRetry(fn, retries = 2) {
-  for (let i = 0; i <= retries; i++) {
-    try { return await fn() }
-    catch (err) {
-      if (i === retries) { console.error('[my:withRetry] all retries failed — returning null:', err); return null }
-      await new Promise(r => setTimeout(r, 1000 * (i + 1)))
-    }
-  }
-}
-
-function safeArray(v) {
-  if (Array.isArray(v)) return v
-  if (v == null || v === '') return []
-  if (typeof v === 'string') {
-    let parsed = v
-    for (let i = 0; i < 3; i++) {
-      try { parsed = JSON.parse(parsed); if (Array.isArray(parsed)) return parsed }
-      catch { return [] }
-    }
-  }
-  return []
-}
-
-function cleanArray(v) { return Array.isArray(v) ? v : safeArray(v) }
+/* supabaseMyWorld.js — Personal world + friend world DB factories */
 
 // ---- PHOTO STORAGE (shared bucket, "my/" prefix) ----
 

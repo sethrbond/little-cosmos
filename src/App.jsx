@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, Component } from 'react'
 import { AuthProvider, useAuth } from './AuthContext.jsx'
 import AuthScreen from './AuthScreen.jsx'
+import LandingPage from './LandingPage.jsx'
 import WorldSelector from './WorldSelector.jsx'
 import OurWorld from './OurWorld.jsx'
 import WelcomeLetterScreen from './WelcomeLetterScreen.jsx'
@@ -53,6 +54,7 @@ class ScreenErrorBoundary extends Component {
 
 function AppInner() {
   const { user, userId, loading, emailVerified, signOut } = useAuth()
+  const [authMode, setAuthMode] = useState(null) // null = landing, 'login' | 'signup'
 
   const [worldMode, setWorldMode] = useState(() => safeGet('worldMode'))
   const [activeWorldId, setActiveWorldId] = useState(() => safeGet('activeWorldId'))
@@ -248,7 +250,12 @@ function AppInner() {
     return <LoadingScreen />
   }
 
-  if (!user) return <AuthScreen />
+  if (!user) {
+    // Check for invite token — go straight to auth if present
+    const hasInvite = invitePending || new URLSearchParams(window.location.search).has('invite')
+    if (authMode || hasInvite) return <AuthScreen initialMode={authMode || 'login'} onBack={() => setAuthMode(null)} />
+    return <LandingPage onSignIn={() => setAuthMode('login')} onSignUp={() => setAuthMode('signup')} />
+  }
 
   if (!emailVerified) {
     return (

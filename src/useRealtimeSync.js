@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient.js'
+import { supabase, safeArray } from './supabaseClient.js'
 import { useState, useEffect, useRef, useCallback } from 'react'
 
 /* useRealtimeSync.js — Supabase Realtime subscriptions for My Cosmos
@@ -8,18 +8,6 @@ import { useState, useEffect, useRef, useCallback } from 'react'
  */
 
 // ---- Row mapper: converts DB snake_case row to app camelCase entry ----
-function safeArray(v) {
-  if (Array.isArray(v)) return v
-  if (v == null || v === '') return []
-  if (typeof v === 'string') {
-    let parsed = v
-    for (let i = 0; i < 3; i++) {
-      try { parsed = JSON.parse(parsed); if (Array.isArray(parsed)) return parsed }
-      catch { return [] }
-    }
-  }
-  return []
-}
 
 function rowToEntry(row) {
   if (!row) return null

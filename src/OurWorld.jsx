@@ -23,6 +23,7 @@ import {
 } from "./worldConfigs.js";
 import { sendWelcomeLetter, getMyLetters, deleteWelcomeLetter } from "./supabaseWelcomeLetters.js";
 import { loadComments, addComment, deleteComment, loadAllWorldReactions, toggleReaction, getWorldMembers, removeWorldMember, updateMemberRole, deleteWorld, leaveWorld, updateWorld } from "./supabaseWorlds.js";
+import { thumbnail } from "./imageUtils.js";
 
 /* =================================================================
    🌍 OUR WORLD / MY WORLD — Multi-World Globe Engine
@@ -3397,7 +3398,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               width: 160, height: 90, borderRadius: 7, overflow: "hidden", marginBottom: 4,
               background: `${P.text}40`,
             }}>
-              <img src={hoverLabel.photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              <img src={thumbnail(hoverLabel.photo, 200)} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
             </div>
           )}
           <div style={{ padding: hoverLabel.photo ? "0 4px" : 0 }}>
@@ -4124,7 +4125,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                     setSliderDate(entry.dateStart);
                   }
                 }} style={{ padding: 0, border: "none", background: "none", cursor: "pointer", borderRadius: 4, overflow: "hidden", aspectRatio: "1", position: "relative" }}>
-                  <img loading="lazy" src={ph.url} alt="Travel photo" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 4, transition: "transform .2s" }}
+                  <img loading="lazy" src={thumbnail(ph.url, 160)} alt="Travel photo" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 4, transition: "transform .2s" }}
                     onMouseEnter={e => e.currentTarget.style.transform = "scale(1.05)"}
                     onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"} />
                   <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "10px 3px 2px", background: "linear-gradient(transparent, rgba(0,0,0,.5))", fontSize: 6, color: "#fff", textAlign: "center", letterSpacing: ".05em" }}>{ph.city}</div>
@@ -4818,7 +4819,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                       {/* Photo */}
                       {(e.photos || []).length > 0 && (
                         <div style={{ marginBottom: 10, borderRadius: 12, overflow: "hidden", maxHeight: 160 }}>
-                          <img loading="lazy" src={e.photos[0]} alt="" style={{ width: "100%", height: 160, objectFit: "cover", animation: "fadeIn .4s ease" }} />
+                          <img loading="lazy" src={thumbnail(e.photos[0], 400)} alt="" style={{ width: "100%", height: 160, objectFit: "cover", animation: "fadeIn .4s ease" }} />
                         </div>
                       )}
 
@@ -4836,7 +4837,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                       {(e.photos || []).length > 1 && (
                         <div style={{ display: "flex", gap: 4, marginTop: 8, overflowX: "auto" }}>
                           {e.photos.slice(1, 6).map(url => (
-                            <img key={url} loading="lazy" src={url} alt="" style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 6, opacity: 0.9 }} />
+                            <img key={url} loading="lazy" src={thumbnail(url, 100)} alt="" style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 6, opacity: 0.9 }} />
                           ))}
                         </div>
                       )}

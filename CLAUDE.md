@@ -177,7 +177,7 @@ Run `docs/FULL_REBUILD.sql` in Supabase SQL Editor — idempotent, creates all t
 - World creation, invite links, member management
 - Welcome letters for new invitees
 - Friend connections with pending request flow
-- 3D globe with glow, particles, stars, aurora, night shadow, seasonal tinting
+- 3D globe with glow, particles, stars, aurora, night shadow, seasonal tinting, shooting stars, comet arrival animation, pulse rings
 - Entry CRUD with Supabase RLS-protected persistence
 - Photo upload + persistence + reorder (both worlds)
 - Fly-to navigation (correct formula)
@@ -194,7 +194,9 @@ Run `docs/FULL_REBUILD.sql` in Supabase SQL Editor — idempotent, creates all t
 - Stats dashboard (adapted per world, expandable with farthest-apart, longest trip)
 - Photo Map (2D SVG world map with photo pins, clustering, pan/zoom, lightbox)
 - Achievements (31 badges across 6 categories — explorer, countries, distance, types, memory, special)
-- Search, favorites, filter, keyboard shortcuts overlay (? key)
+- Search with marker glow/dimming, favorites, filter, keyboard shortcuts overlay (? key)
+- Hover tooltips on markers (city, date, photo peek thumbnail)
+- Surprise Me (🎲) random entry fly-to with cinematic zoom
 - Milestone badges (5/10/25/50/100 entries, 5/10/25 countries, 1K/10K/25K miles)
 - Anniversary auto-celebration with confetti
 - "Missing you" / "across the world" distance messages (partner worlds)
@@ -269,3 +271,4 @@ Run `docs/FULL_REBUILD.sql` in Supabase SQL Editor — idempotent, creates all t
 - **Session 17 (Claude Code):** Year-in-Review cinematic, Play Our Story cinema, anniversary celebrations, realtime sync, photo journey, activity feed, comments/reactions UI
 - **Session 18 (Claude Code):** Full audit — 7 bug fixes (photo reorder, pulse animation, starTint, firstTrip/lastTrip, activity feed nav, glow colors, photo slideshow), milestone badges, enhanced onboarding per world type, onboard version reset, 300+ lines dead code removed, User-Agent update
 - **Session 19 (Claude Code):** 11 new components built via 10 parallel agents — Year-in-Review (885 lines, 10-slide animated recap), TripCard (470 lines, Instagram-style cards), TravelStats (755 lines, deep-dive with heatmaps/charts), PhotoMap (735 lines, SVG world map with pins), Achievements (626 lines, 31 badges), ExportHub (818 lines, 5 export formats), ThemeProvider/ThemeToggle (241 lines, dark mode system), KeyboardShortcuts (241 lines), useRealtimeSync (326 lines, Supabase Realtime + presence), SyncIndicator (92 lines). Full audit: fixed anniversary deps, setConfig deps, loadWorldEntryCounts N+1, dead code, duplicate title logic. +5,284 lines.
+- **Session 20 (Claude Code):** Visual effects sprint — shooting stars (5-pool meteors), aurora mood shift (entry type color blending), search glow (marker pulse/dim), comet arrival (Bezier arc + burst particles + flash), night shadow (GLSL shader, UTC sun position), hover tooltips (photo peek), Surprise Me button (🎲 cinematic zoom), keyboard shortcut R (random). Performance audit: cached THREE.Color in aurora, reused Vector3 in meteors, fixed _baseOpacity race condition, added precision highp float to shader, skip-when-stable aurora optimization.

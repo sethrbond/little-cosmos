@@ -45,8 +45,8 @@ const link = {
   opacity: 0.8,
 }
 
-export default function AuthScreen() {
-  const [mode, setMode] = useState('login') // login | signup | forgot | verify
+export default function AuthScreen({ initialMode = 'login', onBack }) {
+  const [mode, setMode] = useState(initialMode) // login | signup | forgot | verify
   const [email, setEmail] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [password, setPassword] = useState('')
@@ -98,8 +98,17 @@ export default function AuthScreen() {
 
   return (
     <div style={wrap}>
+      {onBack && (
+        <button onClick={onBack} style={{
+          position: 'absolute', top: 20, left: 24,
+          background: 'none', border: 'none', color: '#c9a96e',
+          fontSize: 14, fontFamily: 'inherit', cursor: 'pointer', opacity: 0.7,
+        }}>
+          ← Back
+        </button>
+      )}
       <div style={{ marginBottom: 28, textAlign: 'center' }}>
-        <div style={{ fontSize: 28, fontWeight: 300, letterSpacing: 2, opacity: 0.9 }}>My Cosmos</div>
+        <div style={{ fontSize: 28, fontWeight: 300, letterSpacing: 2, opacity: 0.9 }}>Little Cosmos</div>
         <div style={{ fontSize: 13, opacity: 0.4, marginTop: 4 }}>your worlds, your stories</div>
       </div>
 

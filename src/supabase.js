@@ -1,33 +1,7 @@
-import { supabase } from './supabaseClient.js'
+import { supabase, withRetry, safeArray, cleanArray } from './supabaseClient.js'
 export { supabase }
 
-/* supabase.js v8.2 — bulletproof array handling for JSONB columns */
-
-async function withRetry(fn, retries = 2) {
-  for (let i = 0; i <= retries; i++) {
-    try { return await fn() }
-    catch (err) {
-      if (i === retries) { console.error('[withRetry] all retries failed — returning null:', err); return null }
-      await new Promise(r => setTimeout(r, 1000 * (i + 1)))
-    }
-  }
-}
-
-// Bulletproof: handles array, string, double-encoded string, null
-function safeArray(v) {
-  if (Array.isArray(v)) return v
-  if (v == null || v === '') return []
-  if (typeof v === 'string') {
-    let parsed = v
-    for (let i = 0; i < 3; i++) {
-      try { parsed = JSON.parse(parsed); if (Array.isArray(parsed)) return parsed }
-      catch { return [] }
-    }
-  }
-  return []
-}
-
-function cleanArray(v) { return Array.isArray(v) ? v : safeArray(v) }
+/* supabase.js v8.3 — Our World + Shared World DB factories */
 
 // ---- PHOTO STORAGE ----
 
