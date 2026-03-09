@@ -2,6 +2,58 @@ import { supabase } from './supabaseClient.js'
 
 /* supabaseWorlds.js — Phase 3: World Creation & Sharing */
 
+// ---- PERSONAL WORLD ----
+
+// Cache personal world IDs to avoid repeated lookups
+const personalWorldCache = new Map()
+
+export async function getPersonalWorldId(userId) {
+  if (personalWorldCache.has(userId)) return personalWorldCache.get(userId)
+
+  // Find the user's personal world via a two-step lookup
+  const { data: memberships, error } = await supabase
+    .from('world_members')
+    .select('world_id')
+    .eq('user_id', userId)
+  if (error || !memberships?.length) { if (error) console.error('[getPersonalWorldId]', error); return null }
+
+  const wIds = memberships.map(m => m.world_id)
+  const { data: worlds } = await supabase
+    .from('worlds')
+    .select('id')
+    .in('id', wIds)
+    .eq('type', 'personal')
+    .limit(1)
+    .maybeSingle()
+
+  const id = worlds?.id || null
+  if (id) personalWorldCache.set(userId, id)
+  return id
+}
+
+export async function ensurePersonalWorld(userId) {
+  const existing = await getPersonalWorldId(userId)
+  if (existing) return existing
+
+  // Create personal world + membership via direct inserts
+  const { data: world, error: wErr } = await supabase
+    .from('worlds')
+    .insert({ name: 'My World', type: 'personal', created_by: userId })
+    .select('id')
+    .single()
+
+  if (wErr) { console.error('[ensurePersonalWorld] create world:', wErr); return null }
+
+  const { error: mErr } = await supabase
+    .from('world_members')
+    .insert({ world_id: world.id, user_id: userId, role: 'owner' })
+
+  if (mErr) { console.error('[ensurePersonalWorld] add member:', mErr); return null }
+
+  personalWorldCache.set(userId, world.id)
+  return world.id
+}
+
 // ---- WORLDS ----
 
 export async function createWorld(userId, name, type = 'shared', { youName = '', partnerName = '', members = [] } = {}) {
@@ -50,7 +102,8 @@ export async function loadMyWorlds(userId) {
   const cfgMap = Object.fromEntries((configs || []).map(c => [c.world_id, c]))
 
   const roleMap = Object.fromEntries(memberships.map(m => [m.world_id, m.role]))
-  return (worlds || []).map(w => {
+  // Filter out personal worlds — they appear as the center orb, not as shared world orbs
+  return (worlds || []).filter(w => w.type !== 'personal').map(w => {
     const cfg = cfgMap[w.id] || {}
     const meta = cfg.metadata || {}
     return {
@@ -74,10 +127,12 @@ export async function loadMyWorlds(userId) {
 
 // Quick fetch of My World subtitle + custom colors for cosmos screen
 export async function loadMyWorldSubtitle(userId) {
+  const personalId = await getPersonalWorldId(userId)
+  if (!personalId) return { subtitle: '', customPalette: {}, customScene: {} }
   const { data, error } = await supabase
-    .from('my_config')
+    .from('config')
     .select('subtitle, metadata')
-    .eq('id', userId)
+    .eq('world_id', personalId)
     .maybeSingle()
   if (error || !data) return { subtitle: '', customPalette: {}, customScene: {} }
   const meta = data.metadata || {}
@@ -504,42 +559,36 @@ export async function searchCrossWorld(worldIds, userId, query, limit = 20) {
   // Strict whitelist: only alphanumeric, spaces, dashes, apostrophes
   const q = query.trim().replace(/[^a-zA-Z0-9\s'-]/g, '').trim().toLowerCase()
   if (!q) return []
-  const results = []
 
-  // Search shared worlds
-  if (worldIds.length > 0) {
-    const { data, error } = await supabase
-      .from('entries')
-      .select('id, city, country, entry_type, date_start, notes, photos, world_id')
-      .in('world_id', worldIds)
-      .or(`city.ilike.%${q}%,country.ilike.%${q}%,notes.ilike.%${q}%`)
-      .order('date_start', { ascending: false })
-      .limit(limit)
-    if (!error && data) results.push(...data.map(e => ({ ...e, type: e.entry_type, source: 'shared' })))
-  }
+  // Include personal world in search (all entries now in unified entries table)
+  const personalId = await getPersonalWorldId(userId)
+  const allWorldIds = personalId ? [...new Set([...worldIds, personalId])] : worldIds
 
-  // Search my world
-  if (userId) {
-    const { data, error } = await supabase
-      .from('my_entries')
-      .select('id, city, country, entry_type, date_start, notes, photos')
-      .eq('user_id', userId)
-      .or(`city.ilike.%${q}%,country.ilike.%${q}%,notes.ilike.%${q}%`)
-      .order('date_start', { ascending: false })
-      .limit(limit)
-    if (!error && data) results.push(...data.map(e => ({ ...e, type: e.entry_type, source: 'my', world_id: 'my' })))
-  }
+  if (allWorldIds.length === 0) return []
 
-  // Sort combined by date descending
-  results.sort((a, b) => (b.date_start || '').localeCompare(a.date_start || ''))
-  return results.slice(0, limit)
+  const { data, error } = await supabase
+    .from('entries')
+    .select('id, city, country, entry_type, date_start, notes, photos, world_id')
+    .in('world_id', allWorldIds)
+    .or(`city.ilike.%${q}%,country.ilike.%${q}%,notes.ilike.%${q}%`)
+    .order('date_start', { ascending: false })
+    .limit(limit)
+
+  if (error || !data) return []
+  return data.map(e => ({
+    ...e,
+    type: e.entry_type,
+    source: e.world_id === personalId ? 'my' : 'shared',
+  }))
 }
 
 export async function loadMyWorldEntryCount(userId) {
+  const personalId = await getPersonalWorldId(userId)
+  if (!personalId) return 0
   const { count, error } = await supabase
-    .from('my_entries')
+    .from('entries')
     .select('*', { count: 'exact', head: true })
-    .eq('user_id', userId)
+    .eq('world_id', personalId)
   if (error) return 0
   return count || 0
 }

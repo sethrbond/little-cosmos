@@ -902,7 +902,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   // DB functions selected by mode, scoped to current user or shared world
   const db = useMemo(() => {
     if (isFriendWorld) return createFriendWorldDB(worldId);
-    if (isMyWorld) return createMyWorldDB(userId);
+    if (isMyWorld) return createMyWorldDB(worldId, userId);
     if (isSharedWorld) return createSharedWorldDB(worldId, userId);
     return createOurWorldDB(userId);
   }, [isMyWorld, isFriendWorld, isSharedWorld, worldId, userId]);

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import * as THREE from "three";
-import { createWorld, loadMyWorlds, createInvite, createInviteWithLetter, acceptInvite, createViewerInvite, getSentInvites, loadCrossWorldActivity, loadWorldEntryCounts, loadMyWorldEntryCount, searchCrossWorld, deleteWorld, leaveWorld } from "./supabaseWorlds.js";
+import { createWorld, loadMyWorlds, createInvite, createInviteWithLetter, acceptInvite, createViewerInvite, getSentInvites, loadCrossWorldActivity, loadWorldEntryCounts, loadMyWorldEntryCount, searchCrossWorld, deleteWorld, leaveWorld, getPersonalWorldId } from "./supabaseWorlds.js";
 import { sendConnectionRequest, acceptConnection, declineConnection, getMyConnections, getPendingRequests } from "./supabaseConnections.js";
 import { sendWelcomeLetter } from "./supabaseWelcomeLetters.js";
 
@@ -52,7 +52,7 @@ const _btnP = { background: "linear-gradient(135deg, #c9a96e, #b8944f)", border:
 const _btnS = { background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 10, padding: "8px 20px", color: "#a098a8", fontSize: 12, fontFamily: F, cursor: "pointer", transition: "all .2s" };
 const _optionCard = { background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "18px 20px", textAlign: "left", cursor: "pointer", transition: "all .2s" };
 
-export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorldsChange, userId, userEmail, userDisplayName, connections = [], onConnectionsChange, pendingRequests = [], onPendingRequestsChange, pendingWorldInvites = [], onPendingWorldInvitesChange, myWorldSubtitle = '', myWorldColors = null }) {
+export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorldsChange, userId, userEmail, userDisplayName, connections = [], onConnectionsChange, pendingRequests = [], onPendingRequestsChange, pendingWorldInvites = [], onPendingWorldInvitesChange, myWorldSubtitle = '', myWorldColors = null, personalWorldId = null }) {
   const mountRef = useRef(null);
   const [hovered, setHovered] = useState(null);
   const hoveredRef = useRef(null);
@@ -206,16 +206,18 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
   useEffect(() => {
     if (!userId) return;
     const worldIds = worlds.map(w => w.id);
-    if (worldIds.length > 0) {
-      loadCrossWorldActivity(worldIds, 15).then(d => { if (mountedRef.current) setActivityData(d); }).catch(() => {});
+    const allIds = personalWorldId ? [...new Set([...worldIds, personalWorldId])] : worldIds;
+    if (allIds.length > 0) {
+      loadCrossWorldActivity(allIds, 15).then(d => { if (mountedRef.current) setActivityData(d); }).catch(() => {});
       loadWorldEntryCounts(worldIds).then(d => { if (mountedRef.current) setEntryCounts(d); }).catch(() => {});
     }
     loadMyWorldEntryCount(userId).then(d => { if (mountedRef.current) setMyEntryCount(d); }).catch(() => {});
-  }, [userId, worldIdsKey]);
+  }, [userId, worldIdsKey, personalWorldId]);
 
   // World name map for activity feed
   const worldNameMap = useMemo(() => {
-    const m = { my: "My World" };
+    const m = {};
+    if (personalWorldId) m[personalWorldId] = "My World";
     worlds.forEach(w => { m[w.id] = w.name; });
     return m;
   }, [worlds]);
@@ -638,11 +640,13 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       const lx = parseFloat(el.style.left), ly = parseFloat(el.style.top);
       if (isNaN(lx)) continue;
       if (Math.sqrt((cx - lx) ** 2 + (cy - ly) ** 2) < 75 && parseFloat(el.style.opacity) > 0.1) {
-        if (id === "my") { onSelect("my"); }
+        if (id === "my") { onSelect("my", personalWorldId); }
         else if (id.startsWith("friend-")) {
           const friendUserId = id.replace("friend-", "");
           const fw = friendWorlds.find(f => f.friendUserId === friendUserId);
-          onSelect("friend", friendUserId, fw?.name || "Friend's World", "viewer");
+          getPersonalWorldId(friendUserId).then(fwId => {
+            if (fwId) onSelect("friend", fwId, fw?.name || "Friend's World", "viewer");
+          });
         }
         else { const w = worlds.find(w => w.id === id); onSelect("our", id, w?.name || "Shared World", w?.role || "member", w?.type || "shared"); }
         return;
@@ -1052,7 +1056,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
             const icon = typeIcons[a.type] || "📍";
             const ago = a.date_start ? (() => { const d = Math.floor((Date.now() - new Date(a.date_start + "T00:00:00").getTime()) / 86400000); return d === 0 ? "today" : d === 1 ? "yesterday" : d < 30 ? `${d}d ago` : d < 365 ? `${Math.floor(d / 30)}mo ago` : `${Math.floor(d / 365)}y ago`; })() : "";
             return (
-            <div key={a.id || i} onClick={() => { const wId = a.world_id; if (!wId) return; if (wId === userId) { onSelect("my"); } else { const w = worlds.find(x => x.id === wId); if (w) onSelect("our", w.id, w.name, w.role || "member", w.type || "shared"); } }}
+            <div key={a.id || i} onClick={() => { const wId = a.world_id; if (!wId) return; if (wId === personalWorldId) { onSelect("my", personalWorldId); } else { const w = worlds.find(x => x.id === wId); if (w) onSelect("our", w.id, w.name, w.role || "member", w.type || "shared"); } }}
               style={{ display: "flex", gap: 10, padding: "10px 8px", borderBottom: i < activityData.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", alignItems: "flex-start", cursor: "pointer", borderRadius: 10, transition: "background .2s" }}
               onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"}
               onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
@@ -1102,7 +1106,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
           {searchResults.map((r, i) => (
             <div key={r.id || i}
               onClick={() => {
-                if (r.source === "my") { onSelect("my"); }
+                if (r.source === "my") { onSelect("my", personalWorldId); }
                 else {
                   const w = worlds.find(w => w.id === r.world_id);
                   onSelect("our", r.world_id, w?.name || "Shared World", w?.role || "member", w?.type || "shared");

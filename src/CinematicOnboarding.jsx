@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { geocodeSearch } from './geocode.js'
 import { createMyWorldDB } from './supabaseMyWorld.js'
+import { ensurePersonalWorld } from './supabaseWorlds.js'
 
 /* CinematicOnboarding.jsx — Immersive first-time experience
    Shown once for brand-new users before they enter their cosmos.
@@ -183,7 +184,9 @@ export default function CinematicOnboarding({ userId, onComplete }) {
 
     // Create the "Home" entry in My World
     try {
-      const db = createMyWorldDB(userId)
+      const pwId = await ensurePersonalWorld(userId)
+      if (!pwId) { console.error('[onboarding] failed to get personal world'); return }
+      const db = createMyWorldDB(pwId, userId)
       const today = new Date().toISOString().slice(0, 10)
       await db.saveEntry({
         id: 'e' + Date.now(),

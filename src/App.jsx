@@ -6,7 +6,7 @@ import OurWorld from './OurWorld.jsx'
 import WelcomeLetterScreen from './WelcomeLetterScreen.jsx'
 import CinematicOnboarding from './CinematicOnboarding.jsx'
 import { getWelcomeLetter, markLetterRead } from './supabaseWelcomeLetters.js'
-import { loadMyWorlds, loadMyWorldSubtitle, acceptInvite, getInviteInfo, getPendingWorldInvites, getPendingWorldInvitesForLetter } from './supabaseWorlds.js'
+import { loadMyWorlds, loadMyWorldSubtitle, acceptInvite, getInviteInfo, getPendingWorldInvites, getPendingWorldInvitesForLetter, ensurePersonalWorld } from './supabaseWorlds.js'
 import { getPendingRequests, getMyConnections } from './supabaseConnections.js'
 
 // Bump this to reset all onboarding/tour flags for every user
@@ -69,6 +69,7 @@ function AppInner() {
   const [pendingWorldInvites, setPendingWorldInvites] = useState([])
   const [myWorldSubtitle, setMyWorldSubtitle] = useState(null)
   const [myWorldColors, setMyWorldColors] = useState(null)
+  const [personalWorldId, setPersonalWorldId] = useState(null)
   const [transitioning, setTransitioning] = useState(false)
   const [transitionColor, setTransitionColor] = useState('#0c0a12')
   const [showCinematic, setShowCinematic] = useState(false)
@@ -85,7 +86,7 @@ function AppInner() {
     }).catch(err => { console.error('[welcome letter]', err); setLetterChecked(true) })
   }, [user?.email])
 
-  // Load user's shared worlds + connections
+  // Load user's shared worlds + connections + ensure personal world exists
   useEffect(() => {
     if (!userId) { setWorldsLoaded(true); return }
     Promise.all([
@@ -94,13 +95,15 @@ function AppInner() {
       getPendingRequests(user?.email),
       getPendingWorldInvites(user?.email),
       loadMyWorldSubtitle(userId),
-    ]).then(([w, conn, pending, worldInvites, myInfo]) => {
+      ensurePersonalWorld(userId),
+    ]).then(([w, conn, pending, worldInvites, myInfo, pwId]) => {
       setWorlds(w)
       setConnections(conn)
       setPendingRequests(pending)
       setPendingWorldInvites(worldInvites || [])
       setMyWorldSubtitle(myInfo?.subtitle ?? '')
       setMyWorldColors({ customPalette: myInfo?.customPalette || {}, customScene: myInfo?.customScene || {} })
+      setPersonalWorldId(pwId)
       setWorldsLoaded(true)
     }).catch(err => { console.error('[loadData]', err); setWorldsLoaded(true) })
   }, [userId, user?.email])
@@ -330,6 +333,7 @@ function AppInner() {
             onPendingWorldInvitesChange={setPendingWorldInvites}
             myWorldSubtitle={myWorldSubtitle}
             myWorldColors={myWorldColors}
+            personalWorldId={personalWorldId}
           />
         </ScreenErrorBoundary>
         {transitioning && (

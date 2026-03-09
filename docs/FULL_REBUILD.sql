@@ -848,7 +848,7 @@ BEGIN
 
   email_body := format(
     '{
-      "from": "My Cosmos <noreply@send.littlecosmos.app>",
+      "from": "My Cosmos <cosmonaut@littlecosmos.app>",
       "to": ["%s"],
       "subject": "%s has invited you to My Cosmos",
       "html": "<div style=\"font-family: Georgia, serif; max-width: 520px; margin: 0 auto; padding: 40px 24px; background: #0c0a12; color: #e8e0d0;\"><div style=\"text-align: center; margin-bottom: 32px;\"><div style=\"font-size: 28px; margin-bottom: 8px;\">&#10022;</div><div style=\"font-size: 11px; letter-spacing: 5px; color: #c9a96e; text-transform: uppercase;\">My Cosmos</div></div><div style=\"background: rgba(255,255,255,0.03); border: 1px solid rgba(200,170,110,0.15); border-radius: 16px; padding: 28px 24px; text-align: center;\"><div style=\"font-size: 18px; font-weight: 400; color: #e8e0d0; margin-bottom: 12px;\">%s sent you an invitation</div><div style=\"font-size: 13px; color: #a098a8; line-height: 1.8; margin-bottom: 20px;\">%s</div><a href=\"%s\" style=\"display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, rgba(200,170,110,0.25), rgba(200,170,110,0.1)); border: 1px solid rgba(200,170,110,0.4); border-radius: 24px; color: #c9a96e; text-decoration: none; font-size: 13px; letter-spacing: 1px;\">Open My Cosmos</a></div><div style=\"text-align: center; margin-top: 24px; font-size: 10px; color: #504858;\">A place to map your adventures on a beautiful 3D globe</div></div>"
@@ -917,7 +917,7 @@ BEGIN
 
   email_body := format(
     '{
-      "from": "My Cosmos <noreply@send.littlecosmos.app>",
+      "from": "My Cosmos <cosmonaut@littlecosmos.app>",
       "to": ["%s"],
       "subject": "%s wants to share worlds with you on My Cosmos",
       "html": "<div style=\"font-family: Georgia, serif; max-width: 520px; margin: 0 auto; padding: 40px 24px; background: #0c0a12; color: #e8e0d0;\"><div style=\"text-align: center; margin-bottom: 32px;\"><div style=\"font-size: 28px; margin-bottom: 8px;\">&#10022;</div><div style=\"font-size: 11px; letter-spacing: 5px; color: #c9a96e; text-transform: uppercase;\">My Cosmos</div></div><div style=\"background: rgba(255,255,255,0.03); border: 1px solid rgba(200,170,110,0.15); border-radius: 16px; padding: 28px 24px; text-align: center;\"><div style=\"font-size: 18px; font-weight: 400; color: #e8e0d0; margin-bottom: 12px;\">%s wants to share worlds</div><div style=\"font-size: 13px; color: #a098a8; line-height: 1.8; margin-bottom: 8px;\">Accept their invite and you will both see each other''s travel worlds in your cosmos.</div>%s<a href=\"%s\" style=\"display: inline-block; margin-top: 16px; padding: 12px 32px; background: linear-gradient(135deg, rgba(160,192,232,0.25), rgba(160,192,232,0.1)); border: 1px solid rgba(160,192,232,0.3); border-radius: 24px; color: #a0c0e8; text-decoration: none; font-size: 13px; letter-spacing: 1px;\">Open My Cosmos</a></div><div style=\"text-align: center; margin-top: 24px; font-size: 10px; color: #504858;\">A place to map your adventures on a beautiful 3D globe</div></div>"

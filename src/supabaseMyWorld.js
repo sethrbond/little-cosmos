@@ -1,6 +1,6 @@
 import { supabase } from './supabaseClient.js'
 
-/* supabaseMyWorld.js — DB ops for my_entries + my_config tables */
+/* supabaseMyWorld.js — Personal world DB ops (consolidated: uses entries + config with world_id) */
 
 async function withRetry(fn, retries = 2) {
   for (let i = 0; i <= retries; i++) {
@@ -63,29 +63,29 @@ export async function deleteEntryPhotos(entryId) {
   } catch (err) { console.error('[my:deleteEntryPhotos] exception:', err); return false }
 }
 
-// ---- PHOTO HELPERS (used by factories) ----
+// ---- PHOTO HELPERS ----
 
 async function savePhotos(entryId, photos) {
   const arr = Array.isArray(photos) ? photos : []
-  const { error } = await supabase.from('my_entries').update({ photos: arr }).eq('id', entryId)
+  const { error } = await supabase.from('entries').update({ photos: arr }).eq('id', entryId)
   if (error) return { ok: false, error: error.message }
   return { ok: true, count: arr.length }
 }
 
 async function readPhotos(entryId) {
-  const { data, error } = await supabase.from('my_entries').select('photos').eq('id', entryId).single()
+  const { data, error } = await supabase.from('entries').select('photos').eq('id', entryId).single()
   if (error) return { ok: false, error: error.message }
   const arr = safeArray(data?.photos)
   return { ok: true, photos: arr, count: arr.length }
 }
 
-// ---- USER-SCOPED FACTORY (Phase 1 Auth) ----
+// ---- PERSONAL WORLD FACTORY (uses entries + config with world_id) ----
 
-export function createMyWorldDB(userId) {
+export function createMyWorldDB(worldId, userId) {
   return {
     loadEntries: async () => {
-      const { data, error } = await supabase.from('my_entries').select('*')
-        .eq('user_id', userId)
+      const { data, error } = await supabase.from('entries').select('*')
+        .eq('world_id', worldId)
         .order('date_start', { ascending: true })
       if (error) { console.error('[my:loadEntries] error:', error); return [] }
       return (data || []).map(row => ({
@@ -104,19 +104,20 @@ export function createMyWorldDB(userId) {
 
     saveEntry: async (entry) => {
       const row = {
-        id: entry.id, user_id: userId,
+        id: entry.id, user_id: userId, world_id: worldId,
         city: entry.city, country: entry.country || '',
         lat: entry.lat, lng: entry.lng,
         date_start: entry.dateStart, date_end: entry.dateEnd || null,
-        entry_type: entry.type,
+        entry_type: entry.type, who: 'solo',
         zoom_level: entry.zoomLevel || 1, notes: entry.notes || '',
         memories: cleanArray(entry.memories), museums: cleanArray(entry.museums),
         restaurants: cleanArray(entry.restaurants), highlights: cleanArray(entry.highlights),
         photos: cleanArray(entry.photos), stops: cleanArray(entry.stops),
         music_url: entry.musicUrl || null, favorite: entry.favorite || false,
+        love_note: '',
       }
       return withRetry(async () => {
-        const { error } = await supabase.from('my_entries').upsert(row, { onConflict: 'id' })
+        const { error } = await supabase.from('entries').upsert(row, { onConflict: 'id' })
         if (error) { console.error('[my:saveEntry] FAILED:', error.message); throw error }
         return true
       })
@@ -124,13 +125,13 @@ export function createMyWorldDB(userId) {
 
     deleteEntry: async (id) => {
       await deleteEntryPhotos(id)
-      const { error } = await supabase.from('my_entries').delete().eq('id', id)
+      const { error } = await supabase.from('entries').delete().eq('id', id)
       if (error) console.error('[my:deleteEntry] error:', error)
       return !error
     },
 
     loadConfig: async () => {
-      const { data, error } = await supabase.from('my_config').select('*').eq('id', userId).maybeSingle()
+      const { data, error } = await supabase.from('config').select('*').eq('world_id', worldId).maybeSingle()
       if (error || !data) return null
       const cfg = {
         startDate: data.start_date ?? '',
@@ -139,7 +140,7 @@ export function createMyWorldDB(userId) {
         travelerName: data.traveler_name ?? '',
       }
       if (data.metadata && typeof data.metadata === 'object') {
-        if (Array.isArray(data.metadata.bucketList))  cfg.bucketList = data.metadata.bucketList
+        if (Array.isArray(data.metadata.dreamDestinations)) cfg.bucketList = data.metadata.dreamDestinations
         if (Array.isArray(data.metadata.chapters))    cfg.chapters = data.metadata.chapters
         if (typeof data.metadata.darkMode === 'boolean') cfg.darkMode = data.metadata.darkMode
         if (data.metadata.customPalette && typeof data.metadata.customPalette === 'object') cfg.customPalette = data.metadata.customPalette
@@ -151,13 +152,13 @@ export function createMyWorldDB(userId) {
 
     saveConfig: async (config) => {
       const row = {
-        id: userId, user_id: userId,
+        id: worldId, user_id: userId, world_id: worldId,
         start_date: config.startDate || null,
         title: config.title ?? '',
         subtitle: config.subtitle ?? '',
         traveler_name: config.travelerName ?? '',
         metadata: {
-          bucketList: config.bucketList || [],
+          dreamDestinations: config.bucketList || [],
           chapters: config.chapters || [],
           darkMode: config.darkMode ?? false,
           customPalette: config.customPalette || {},
@@ -165,7 +166,7 @@ export function createMyWorldDB(userId) {
           ambientMusicUrl: config.ambientMusicUrl || '',
         },
       }
-      const { error } = await supabase.from('my_config').upsert(row, { onConflict: 'id' })
+      const { error } = await supabase.from('config').upsert(row, { onConflict: 'id' })
       if (error) {
         console.error('[my:saveConfig] error:', error)
         throw error
@@ -177,11 +178,11 @@ export function createMyWorldDB(userId) {
 }
 
 // Read-only factory for viewing a friend's My World
-export function createFriendWorldDB(friendUserId) {
+export function createFriendWorldDB(friendWorldId) {
   return {
     loadEntries: async () => {
-      const { data, error } = await supabase.from('my_entries').select('*')
-        .eq('user_id', friendUserId)
+      const { data, error } = await supabase.from('entries').select('*')
+        .eq('world_id', friendWorldId)
         .order('date_start', { ascending: true })
       if (error) { console.error('[friend:loadEntries] error:', error); return [] }
       return (data || []).map(row => ({
@@ -198,7 +199,7 @@ export function createFriendWorldDB(friendUserId) {
       }))
     },
     loadConfig: async () => {
-      const { data, error } = await supabase.from('my_config').select('*').eq('id', friendUserId).maybeSingle()
+      const { data, error } = await supabase.from('config').select('*').eq('world_id', friendWorldId).maybeSingle()
       if (error || !data) return null
       const cfg = {
         startDate: data.start_date ?? '',
@@ -207,7 +208,7 @@ export function createFriendWorldDB(friendUserId) {
         travelerName: data.traveler_name ?? '',
       }
       if (data.metadata && typeof data.metadata === 'object') {
-        if (Array.isArray(data.metadata.bucketList))  cfg.bucketList = data.metadata.bucketList
+        if (Array.isArray(data.metadata.dreamDestinations)) cfg.bucketList = data.metadata.dreamDestinations
         if (Array.isArray(data.metadata.chapters))    cfg.chapters = data.metadata.chapters
         if (typeof data.metadata.darkMode === 'boolean') cfg.darkMode = data.metadata.darkMode
         if (data.metadata.customPalette && typeof data.metadata.customPalette === 'object') cfg.customPalette = data.metadata.customPalette
@@ -224,7 +225,7 @@ export function createFriendWorldDB(friendUserId) {
     deletePhoto: async () => false,
     savePhotos: async () => ({ ok: false }),
     readPhotos: async (entryId) => {
-      const { data, error } = await supabase.from('my_entries').select('photos').eq('id', entryId).single()
+      const { data, error } = await supabase.from('entries').select('photos').eq('id', entryId).single()
       if (error) return { ok: false, error: error.message }
       const arr = safeArray(data?.photos); return { ok: true, photos: arr, count: arr.length }
     },
