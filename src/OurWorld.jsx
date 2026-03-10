@@ -1409,6 +1409,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [hoverLabel, setHoverLabel] = useState(null); // { city, date, x, y, photo }
   const searchMatchIdsRef = useRef(new Set());
   const hoverThrottleRef = useRef(0);
+  const longPressRef = useRef(null); // timer for touch long-press tooltip
   const cometRef = useRef(null); // active comet animation
   const nightShadowRef = useRef(null); // day/night terminator mesh
   const prevEntryCountRef = useRef(0);
@@ -3158,6 +3159,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     // Touch handlers registered imperatively so Safari respects preventDefault
     const handleTouchStart = (e) => {
       e.preventDefault();
+      if (longPressRef.current) { clearTimeout(longPressRef.current); longPressRef.current = null; }
       if (e.touches.length === 1) {
         dragR.current = true;
         prevR.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -3169,6 +3171,43 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         } else {
           lastTapRef.current = now;
         }
+        // Long-press tooltip: after 400ms without significant movement, show tooltip
+        const tx = e.touches[0].clientX, ty = e.touches[0].clientY;
+        longPressRef.current = setTimeout(() => {
+          longPressRef.current = null;
+          if (!mountRef.current || !camRef.current) return;
+          const rect = mountRef.current.getBoundingClientRect();
+          mRef.current.x = ((tx - rect.left) / rect.width) * 2 - 1;
+          mRef.current.y = -((ty - rect.top) / rect.height) * 2 + 1;
+          rayRef.current.setFromCamera(mRef.current, camRef.current);
+          const dots = mkRef.current.map(m => m.dot).filter(Boolean);
+          const hits = rayRef.current.intersectObjects(dots);
+          if (hits.length > 0) {
+            const id = hits[0].object.userData.entryId;
+            let label = null;
+            if (id.startsWith("group-")) {
+              const parts = id.replace("group-", "").split("-");
+              const glat = parseFloat(parts[0]), glng = parseFloat(parts.slice(1).join("-"));
+              const group = locationGroups.find(g => Math.abs(g.lat - glat) < 0.05 && Math.abs(g.lng - glng) < 0.05);
+              if (group) {
+                const groupPhoto = group.entries.find(en => en.photos?.length)?.photos[0] || null;
+                label = { city: group.city, date: `${group.entries.length} entries`, x: tx, y: ty, photo: groupPhoto };
+              }
+            } else if (!id.startsWith("dream-") && !id.startsWith("love-")) {
+              const entry = data.entries.find(en => en.id === id);
+              if (entry) {
+                const d = entry.dateStart ? new Date(entry.dateStart + "T00:00:00").toLocaleDateString("en-US", { month: "short", year: "numeric" }) : "";
+                label = { city: entry.city, date: d, x: tx, y: ty, photo: entry.photos?.length ? entry.photos[0] : null };
+              }
+            }
+            if (label) {
+              setHoverLabel(label);
+              dragR.current = false; // prevent drag after long-press
+              // Auto-dismiss tooltip after 2.5s
+              setTimeout(() => setHoverLabel(prev => prev === label ? null : prev), 2500);
+            }
+          }
+        }, 400);
       } else if (e.touches.length === 2) {
         dragR.current = false;
         const dx = e.touches[0].clientX - e.touches[1].clientX, dy = e.touches[0].clientY - e.touches[1].clientY;
@@ -3177,6 +3216,11 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     };
     const handleTouchMove = (e) => {
       e.preventDefault();
+      // Cancel long-press if finger moves more than 10px
+      if (longPressRef.current && e.touches.length === 1) {
+        const dx = e.touches[0].clientX - clickSR.current.x, dy = e.touches[0].clientY - clickSR.current.y;
+        if (dx * dx + dy * dy > 100) { clearTimeout(longPressRef.current); longPressRef.current = null; }
+      }
       if (e.touches.length === 1 && dragR.current) {
         tRot.current.y += (e.touches[0].clientX - prevR.current.x) * 0.005;
         tRot.current.x = clamp(tRot.current.x + (e.touches[0].clientY - prevR.current.y) * 0.005, -1.2, 1.2);
@@ -3188,7 +3232,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         tDistR.current = d;
       }
     };
-    const handleTouchEnd = () => { dragR.current = false; };
+    const handleTouchEnd = () => { dragR.current = false; if (longPressRef.current) { clearTimeout(longPressRef.current); longPressRef.current = null; } };
 
     el.addEventListener("touchstart", handleTouchStart, opts);
     el.addEventListener("touchmove", handleTouchMove, opts);
@@ -3300,7 +3344,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       {/* Hover label — floating city name + photo peek near cursor */}
       {hoverLabel && !selected && (
         <div style={{
-          position: "fixed", left: hoverLabel.x + 14, top: hoverLabel.y - (hoverLabel.photo ? 80 : 28),
+          position: "fixed",
+          left: Math.min(hoverLabel.x + 14, window.innerWidth - 200),
+          top: Math.max(8, hoverLabel.y - (hoverLabel.photo ? 80 : 28)),
           pointerEvents: "none", zIndex: 20,
           background: `${P.text}cc`, backdropFilter: "blur(12px)",
           borderRadius: hoverLabel.photo ? 10 : 8,
@@ -4149,7 +4195,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         return (
           <div style={{ position: "absolute", inset: 0, zIndex: 12, pointerEvents: "none" }}>
             {/* Top bar: title + progress */}
-            <div style={{ position: "absolute", top: 0, left: 0, right: 0, padding: "16px 24px 12px", background: `linear-gradient(180deg, ${SC.bg || '#0c0a12'}cc, transparent)`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, padding: "12px clamp(12px, 4vw, 24px) 10px", background: `linear-gradient(180deg, ${SC.bg || '#0c0a12'}cc, transparent)`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <div style={{ fontSize: 8, letterSpacing: ".2em", color: P.goldWarm, textTransform: "uppercase", opacity: 0.7 }}>
                   {isMyWorld ? "My Story" : isPartnerWorld ? "Our Story" : "Our Journey"}
@@ -4168,9 +4214,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             </div>
 
             {/* Bottom cinema card */}
-            <div style={{ position: "absolute", bottom: 90, left: 0, right: 0, display: "flex", justifyContent: "center" }}>
+            <div style={{ position: "absolute", bottom: "max(24px, 5vh)", left: 0, right: 0, display: "flex", justifyContent: "center", padding: "0 4vw" }}>
               <div style={{
-                maxWidth: 440, width: "90vw", borderRadius: 18, overflow: "hidden",
+                maxWidth: "min(440px, 92vw)", width: "100%", borderRadius: 18, overflow: "hidden",
                 background: P.card, backdropFilter: "blur(20px)",
                 boxShadow: `0 8px 32px ${SC.bg || '#0c0a12'}50`,
                 border: `1px solid ${P.rose}08`,
@@ -4180,7 +4226,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               }}>
                 {/* Photo with crossfade */}
                 {hasPhotos && (
-                  <div style={{ position: "relative", height: 180, overflow: "hidden" }}>
+                  <div style={{ position: "relative", height: "min(180px, 28vh)", overflow: "hidden" }}>
                     {photos.map((url, i) => (
                       <img key={url} src={url} alt="" style={{
                         position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover",
@@ -4201,18 +4247,18 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 )}
 
                 {/* Entry info */}
-                <div style={{ padding: hasPhotos ? "8px 20px 16px" : "18px 20px 16px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-                    <span style={{ fontSize: 26, filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.15))" }}>{ct.icon}</span>
-                    <div>
-                      <div style={{ fontSize: 18, fontWeight: 400, color: P.text, letterSpacing: ".02em" }}>{ce.city}</div>
-                      <div style={{ fontSize: 10, color: P.textMuted, letterSpacing: ".03em" }}>
+                <div style={{ padding: hasPhotos ? "8px clamp(12px, 4vw, 20px) 14px" : "16px clamp(12px, 4vw, 20px) 14px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, minWidth: 0 }}>
+                    <span style={{ fontSize: "clamp(20px, 5vw, 26px)", filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.15))", flexShrink: 0 }}>{ct.icon}</span>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: "clamp(14px, 4vw, 18px)", fontWeight: 400, color: P.text, letterSpacing: ".02em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ce.city}</div>
+                      <div style={{ fontSize: "clamp(9px, 2.5vw, 10px)", color: P.textMuted, letterSpacing: ".03em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {fmtDate(ce.dateStart)}{ce.dateEnd && ce.dateEnd !== ce.dateStart ? ` → ${fmtDate(ce.dateEnd)}` : ""}{ce.country ? `  ·  ${ce.country}` : ""}
                       </div>
                     </div>
                   </div>
-                  {ce.notes && <p style={{ fontSize: 11, color: P.textMid, margin: "6px 0 0", lineHeight: 1.6, maxHeight: 36, overflow: "hidden", opacity: 0.85 }}>{ce.notes}</p>}
-                  {ce.loveNote && isPartnerWorld && <p style={{ fontSize: 10, color: P.heart, margin: "4px 0 0", fontStyle: "italic", opacity: 0.8 }}>"{ce.loveNote}"</p>}
+                  {ce.notes && <p style={{ fontSize: "clamp(10px, 2.8vw, 11px)", color: P.textMid, margin: "6px 0 0", lineHeight: 1.6, maxHeight: 36, overflow: "hidden", opacity: 0.85 }}>{ce.notes}</p>}
+                  {ce.loveNote && isPartnerWorld && <p style={{ fontSize: "clamp(9px, 2.5vw, 10px)", color: P.heart, margin: "4px 0 0", fontStyle: "italic", opacity: 0.8 }}>"{ce.loveNote}"</p>}
                 </div>
               </div>
             </div>

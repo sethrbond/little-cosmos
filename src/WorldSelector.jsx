@@ -59,6 +59,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
   const [ready, setReady] = useState(false);
   const labelRefsMap = useRef({});
   const dragRef = useRef({ dragging: false, moved: false, prevX: 0, prevY: 0 });
+  const pinchRef = useRef({ active: false, startDist: 0 });
   const camAngleRef = useRef({ theta: 0.3, phi: 1.2, radius: 5.8 });
   const mountedRef = useRef(true);
   const toastTimerRef = useRef(null);
@@ -79,7 +80,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
 
   // Cosmos tour (first visit, per-user) — versioned so bumping ONBOARD_VERSION resets for all
   const cosmosTourKey = userId ? `v3_cosmos_tour_done_${userId}` : "v3_cosmos_tour_done";
-  const [showCosmosTour, setShowCosmosTour] = useState(() => !localStorage.getItem(cosmosTourKey));
+  const [showCosmosTour, setShowCosmosTour] = useState(() => { try { return !localStorage.getItem(cosmosTourKey); } catch { return true; } });
   const [cosmosTourStep, setCosmosTourStep] = useState(0);
 
   // Modal states
@@ -600,6 +601,35 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     window.addEventListener("pointermove", onMoveEvt);
     window.addEventListener("pointerup", onUp);
     mount.addEventListener("wheel", onWheelEvt, { passive: false });
+
+    // Pinch-to-zoom for mobile
+    const getTouchDist = (t) => {
+      const dx = t[0].clientX - t[1].clientX, dy = t[0].clientY - t[1].clientY;
+      return Math.sqrt(dx * dx + dy * dy);
+    };
+    const onTouchStart = (e) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        pinchRef.current = { active: true, startDist: getTouchDist(e.touches) };
+      }
+    };
+    const onTouchMove = (e) => {
+      if (e.touches.length === 2 && pinchRef.current.active) {
+        e.preventDefault();
+        const dist = getTouchDist(e.touches);
+        const delta = pinchRef.current.startDist - dist;
+        camAngleRef.current.radius = Math.max(3.5, Math.min(10, camAngleRef.current.radius + delta * 0.015));
+        pinchRef.current.startDist = dist;
+        updateCamera();
+      }
+    };
+    const onTouchEnd = (e) => {
+      if (e.touches.length < 2) pinchRef.current.active = false;
+    };
+    mount.addEventListener("touchstart", onTouchStart, { passive: false });
+    mount.addEventListener("touchmove", onTouchMove, { passive: false });
+    mount.addEventListener("touchend", onTouchEnd);
+
     const onResize = () => { W = mount.clientWidth; H = mount.clientHeight; cam.aspect = W / H; cam.updateProjectionMatrix(); rend.setSize(W, H); };
     window.addEventListener("resize", onResize);
     setTimeout(() => setReady(true), 400);
@@ -611,6 +641,9 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       window.removeEventListener("pointerup", onUp);
       mount.removeEventListener("pointerdown", onDown);
       mount.removeEventListener("wheel", onWheelEvt);
+      mount.removeEventListener("touchstart", onTouchStart);
+      mount.removeEventListener("touchmove", onTouchMove);
+      mount.removeEventListener("touchend", onTouchEnd);
       // Clean up shooting stars still in flight
       shootingStars.forEach(s => { scene.remove(s.line); s.geo.dispose(); s.mat.dispose(); });
       shootingStars.length = 0;
@@ -1013,7 +1046,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
             Invite to Cosmos
           </button>
         </div>
-        <div style={{ fontSize: 9, color: "#605868", marginTop: 8, letterSpacing: "1.5px", textAlign: "center", textTransform: "uppercase" }}>drag to orbit · scroll to zoom</div>
+        <div style={{ fontSize: 9, color: "#605868", marginTop: 8, letterSpacing: "1.5px", textAlign: "center", textTransform: "uppercase" }}>drag to orbit · scroll or pinch to zoom</div>
       </div>
 
       {/* Top right controls — glassmorphic */}
@@ -1030,7 +1063,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
           onMouseLeave={e => { if (!showActivity) { e.target.style.color = "#706878"; e.target.style.borderColor = "rgba(255,255,255,0.06)"; }}}>
           Activity
         </button>
-        <button onClick={(e) => { e.stopPropagation(); setCosmosTourStep(0); setShowCosmosTour(true); localStorage.removeItem(cosmosTourKey); }}
+        <button onClick={(e) => { e.stopPropagation(); setCosmosTourStep(0); setShowCosmosTour(true); try { localStorage.removeItem(cosmosTourKey); } catch {} }}
           style={{ background: "rgba(255,255,255,0.03)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "5px 14px", color: "#706878", fontSize: 9, fontFamily: F, letterSpacing: "0.8px", cursor: "pointer", transition: "all .3s", textTransform: "uppercase" }}
           onMouseEnter={e => { e.target.style.color = "#b0a8b8"; e.target.style.borderColor = "rgba(255,255,255,0.15)"; }}
           onMouseLeave={e => { e.target.style.color = "#706878"; e.target.style.borderColor = "rgba(255,255,255,0.06)"; }}>
@@ -1596,14 +1629,14 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
                 )}
                 <button onClick={() => {
                   if (cosmosTourStep < steps.length - 1) { setCosmosTourStep(s => s + 1); }
-                  else { setShowCosmosTour(false); localStorage.setItem(cosmosTourKey, "1"); }
+                  else { setShowCosmosTour(false); try { localStorage.setItem(cosmosTourKey, "1"); } catch {} }
                 }}
                   style={{ padding: "9px 24px", background: "linear-gradient(135deg, #c9a96e, #b8944f)", border: "none", borderRadius: 12, color: "#1a1520", fontSize: 13, fontWeight: 600, fontFamily: F, cursor: "pointer", boxShadow: "0 2px 12px rgba(200,170,110,0.2)" }}>
                   {cosmosTourStep < steps.length - 1 ? "Next" : "Explore My Cosmos"}
                 </button>
               </div>
               {cosmosTourStep === 0 && (
-                <button onClick={() => { setShowCosmosTour(false); localStorage.setItem(cosmosTourKey, "1"); }}
+                <button onClick={() => { setShowCosmosTour(false); try { localStorage.setItem(cosmosTourKey, "1"); } catch {} }}
                   style={{ marginTop: 14, background: "none", border: "none", color: "#605868", fontSize: 11, fontFamily: F, cursor: "pointer", letterSpacing: "0.3px" }}>
                   Skip tour
                 </button>

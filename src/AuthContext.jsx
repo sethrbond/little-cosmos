@@ -26,7 +26,11 @@ export function AuthProvider({ children }) {
       }
     )
 
-    return () => subscription.unsubscribe()
+    // Safety timeout: if INITIAL_SESSION never fires (network issue, SDK bug),
+    // stop showing the loading screen after 8 seconds so users aren't stuck forever
+    const timeout = setTimeout(() => setLoading(false), 8000)
+
+    return () => { subscription.unsubscribe(); clearTimeout(timeout) }
   }, [])
 
   const user = session?.user ?? null
