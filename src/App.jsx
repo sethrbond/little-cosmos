@@ -6,8 +6,8 @@ import WorldSelector from './WorldSelector.jsx'
 import OurWorld from './OurWorld.jsx'
 import WelcomeLetterScreen from './WelcomeLetterScreen.jsx'
 import CinematicOnboarding from './CinematicOnboarding.jsx'
-import { getWelcomeLetter, markLetterRead } from './supabaseWelcomeLetters.js'
-import { loadMyWorlds, loadMyWorldSubtitle, acceptInvite, getInviteInfo, getPendingWorldInvites, getPendingWorldInvitesForLetter, ensurePersonalWorld } from './supabaseWorlds.js'
+import { getWelcomeLetter, getAllWelcomeLetters, markLetterRead } from './supabaseWelcomeLetters.js'
+import { loadMyWorlds, loadMyWorldSubtitle, acceptInvite, getInviteInfo, getPendingWorldInvites, getPendingWorldInvitesForLetter, ensurePersonalWorld, clearWorldCaches } from './supabaseWorlds.js'
 import { getPendingRequests, getMyConnections } from './supabaseConnections.js'
 
 // Bump this to reset all onboarding/tour flags for every user
@@ -61,7 +61,7 @@ function AppInner() {
   const [activeWorldName, setActiveWorldName] = useState(() => safeGet('activeWorldName'))
   const [activeWorldRole, setActiveWorldRole] = useState(() => safeGet('activeWorldRole'))
   const [activeWorldType, setActiveWorldType] = useState(() => safeGet('activeWorldType'))
-  const [welcomeLetter, setWelcomeLetter] = useState(null)
+  const [welcomeLetters, setWelcomeLetters] = useState([])
   const [letterChecked, setLetterChecked] = useState(false)
   const [worlds, setWorlds] = useState([])
   const [worldsLoaded, setWorldsLoaded] = useState(false)
@@ -82,8 +82,8 @@ function AppInner() {
   // Check for welcome letter on login
   useEffect(() => {
     if (!user?.email) { setLetterChecked(true); return }
-    getWelcomeLetter(user.email).then(letter => {
-      setWelcomeLetter(letter)
+    getAllWelcomeLetters(user.email).then(letters => {
+      setWelcomeLetters(letters)
       setLetterChecked(true)
     }).catch(err => { console.error('[welcome letter]', err); setLetterChecked(true) })
   }, [user?.email])
@@ -170,6 +170,16 @@ function AppInner() {
     if (worldMode === 'my') { document.title = 'My World — Little Cosmos'; return }
     document.title = `${activeWorldName || 'Shared World'} — Little Cosmos`
   }, [worldMode, activeWorldName])
+
+  const handleSignOut = useCallback(() => {
+    safeRemove('worldMode')
+    safeRemove('activeWorldId')
+    safeRemove('activeWorldName')
+    safeRemove('activeWorldRole')
+    safeRemove('activeWorldType')
+    clearWorldCaches()
+    signOut()
+  }, [signOut])
 
   const selectWorld = useCallback((mode, worldId = null, worldName = null, worldRole = null, worldType = null) => {
     // Determine accent color for zoom transition
@@ -277,19 +287,20 @@ function AppInner() {
     return <LoadingScreen />
   }
 
-  // Show welcome letter before anything else
-  if (welcomeLetter) {
+  // Show welcome letters before anything else (one at a time)
+  if (welcomeLetters.length > 0) {
+    const currentLetter = welcomeLetters[0]
     return (
       <WelcomeLetterScreen
-        letter={welcomeLetter}
+        letter={currentLetter}
         onEnter={async () => {
-          markLetterRead(welcomeLetter.id).catch(err => console.error('[markLetterRead]', err))
+          markLetterRead(currentLetter.id).catch(err => console.error('[markLetterRead]', err))
           // Auto-accept any world invite associated with this letter
           try {
-            const invites = await getPendingWorldInvitesForLetter(welcomeLetter)
+            const invites = await getPendingWorldInvitesForLetter(currentLetter)
             for (const inv of invites) {
               const result = await acceptInvite(inv.token)
-              // invite accepted
+              if (!result?.ok && !result?.already_member) console.warn('[welcomeLetter] invite accept failed:', result)
             }
             // Refresh worlds list so the shared world appears on cosmos
             if (userId) {
@@ -299,7 +310,7 @@ function AppInner() {
           } catch (err) {
             console.error('[welcomeLetter] auto-accept error:', err)
           }
-          setWelcomeLetter(null)
+          setWelcomeLetters(prev => prev.slice(1))
         }}
       />
     )
@@ -311,6 +322,7 @@ function AppInner() {
       <ScreenErrorBoundary>
         <CinematicOnboarding
           userId={userId}
+          personalWorldId={personalWorldId}
           onComplete={() => {
             safeSet(obKey(`cosmos_hasVisited_${userId}`), '1')
             setShowCinematic(false)
@@ -326,7 +338,7 @@ function AppInner() {
         <ScreenErrorBoundary>
           <WorldSelector
             onSelect={selectWorld}
-            onSignOut={signOut}
+            onSignOut={handleSignOut}
             worlds={worlds}
             onWorldsChange={setWorlds}
             userId={userId}

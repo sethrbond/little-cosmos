@@ -366,7 +366,7 @@ ALTER TABLE cosmos_connections ENABLE ROW LEVEL SECURITY;
 --  This makes the entire script re-runnable.
 -- ============================================================
 
--- entries (8)
+-- entries (9)
 DROP POLICY IF EXISTS "entries_select" ON entries;
 DROP POLICY IF EXISTS "entries_insert" ON entries;
 DROP POLICY IF EXISTS "entries_update" ON entries;
@@ -375,8 +375,9 @@ DROP POLICY IF EXISTS "entries_world_select" ON entries;
 DROP POLICY IF EXISTS "entries_world_insert" ON entries;
 DROP POLICY IF EXISTS "entries_world_update" ON entries;
 DROP POLICY IF EXISTS "entries_world_delete" ON entries;
+DROP POLICY IF EXISTS "entries_friend_select" ON entries;
 
--- config (7)
+-- config (8)
 DROP POLICY IF EXISTS "config_select" ON config;
 DROP POLICY IF EXISTS "config_insert" ON config;
 DROP POLICY IF EXISTS "config_update" ON config;
@@ -384,6 +385,7 @@ DROP POLICY IF EXISTS "config_world_select" ON config;
 DROP POLICY IF EXISTS "config_world_insert" ON config;
 DROP POLICY IF EXISTS "config_world_update" ON config;
 DROP POLICY IF EXISTS "config_world_delete" ON config;
+DROP POLICY IF EXISTS "config_friend_select" ON config;
 
 -- my_entries (5)
 DROP POLICY IF EXISTS "my_entries_select" ON my_entries;
@@ -398,20 +400,23 @@ DROP POLICY IF EXISTS "my_config_insert" ON my_config;
 DROP POLICY IF EXISTS "my_config_update" ON my_config;
 DROP POLICY IF EXISTS "my_config_friend_access" ON my_config;
 
--- worlds (4)
+-- worlds (5)
 DROP POLICY IF EXISTS "worlds_select" ON worlds;
+DROP POLICY IF EXISTS "worlds_friend_select" ON worlds;
 DROP POLICY IF EXISTS "worlds_insert" ON worlds;
 DROP POLICY IF EXISTS "worlds_update" ON worlds;
 DROP POLICY IF EXISTS "worlds_delete" ON worlds;
 
--- world_members (4)
+-- world_members (5)
 DROP POLICY IF EXISTS "world_members_select" ON world_members;
+DROP POLICY IF EXISTS "world_members_friend_select" ON world_members;
 DROP POLICY IF EXISTS "world_members_insert" ON world_members;
 DROP POLICY IF EXISTS "world_members_update" ON world_members;
 DROP POLICY IF EXISTS "world_members_delete" ON world_members;
 
 -- world_invites (4)
 DROP POLICY IF EXISTS "world_invites_select" ON world_invites;
+DROP POLICY IF EXISTS "world_invites_select_by_token" ON world_invites;
 DROP POLICY IF EXISTS "world_invites_insert" ON world_invites;
 DROP POLICY IF EXISTS "world_invites_update" ON world_invites;
 DROP POLICY IF EXISTS "world_invites_delete" ON world_invites;
@@ -484,6 +489,19 @@ CREATE POLICY "entries_world_delete" ON entries FOR DELETE USING (
   world_id IN (SELECT get_user_world_ids_by_role(auth.uid(), ARRAY['owner', 'member']))
 );
 
+-- Friend access: read entries from accepted friends' personal worlds
+CREATE POLICY "entries_friend_select" ON entries FOR SELECT USING (
+  user_id IN (
+    SELECT CASE WHEN requester_id = auth.uid() THEN target_user_id ELSE requester_id END
+    FROM cosmos_connections
+    WHERE status = 'accepted'
+      AND (requester_id = auth.uid() OR target_user_id = auth.uid())
+  )
+  AND world_id IN (
+    SELECT w.id FROM worlds w WHERE w.type = 'personal' AND w.created_by = entries.user_id
+  )
+);
+
 
 -- ============================================================
 --  18. CREATE ALL POLICIES — config (7)
@@ -511,6 +529,16 @@ CREATE POLICY "config_world_update" ON config FOR UPDATE USING (
 CREATE POLICY "config_world_delete" ON config FOR DELETE USING (
   world_id IS NOT NULL AND
   world_id IN (SELECT get_user_world_ids_by_role(auth.uid(), ARRAY['owner']))
+);
+
+-- Friend access: read config from accepted friends' worlds
+CREATE POLICY "config_friend_select" ON config FOR SELECT USING (
+  user_id IN (
+    SELECT CASE WHEN requester_id = auth.uid() THEN target_user_id ELSE requester_id END
+    FROM cosmos_connections
+    WHERE status = 'accepted'
+      AND (requester_id = auth.uid() OR target_user_id = auth.uid())
+  )
 );
 
 
@@ -558,6 +586,16 @@ CREATE POLICY "my_config_friend_access" ON my_config FOR SELECT USING (
 CREATE POLICY "worlds_select" ON worlds FOR SELECT USING (
   id IN (SELECT get_user_world_ids(auth.uid()))
 );
+-- Friend access: read friends' personal worlds
+CREATE POLICY "worlds_friend_select" ON worlds FOR SELECT USING (
+  created_by IN (
+    SELECT CASE WHEN requester_id = auth.uid() THEN target_user_id ELSE requester_id END
+    FROM cosmos_connections
+    WHERE status = 'accepted'
+      AND (requester_id = auth.uid() OR target_user_id = auth.uid())
+  )
+  AND type = 'personal'
+);
 CREATE POLICY "worlds_insert" ON worlds FOR INSERT WITH CHECK (
   created_by = auth.uid()
 );
@@ -570,6 +608,15 @@ CREATE POLICY "worlds_delete" ON worlds FOR DELETE USING (
 
 CREATE POLICY "world_members_select" ON world_members FOR SELECT USING (
   world_id IN (SELECT get_user_world_ids(auth.uid()))
+);
+-- Friend access: read friends' world_members to find their personal world_id
+CREATE POLICY "world_members_friend_select" ON world_members FOR SELECT USING (
+  user_id IN (
+    SELECT CASE WHEN requester_id = auth.uid() THEN target_user_id ELSE requester_id END
+    FROM cosmos_connections
+    WHERE status = 'accepted'
+      AND (requester_id = auth.uid() OR target_user_id = auth.uid())
+  )
 );
 CREATE POLICY "world_members_insert" ON world_members FOR INSERT WITH CHECK (
   user_id = auth.uid() OR
@@ -586,8 +633,8 @@ CREATE POLICY "world_members_delete" ON world_members FOR DELETE USING (
 );
 
 CREATE POLICY "world_invites_select" ON world_invites FOR SELECT USING (
-  created_by = auth.uid() OR
-  world_id IN (SELECT get_user_world_ids(auth.uid()))
+  TRUE  -- Invite tokens are unguessable 16-char random strings. Any authenticated user
+        -- can read invites (needed for target_email lookup and token-based acceptance).
 );
 CREATE POLICY "world_invites_insert" ON world_invites FOR INSERT WITH CHECK (
   world_id IN (SELECT get_user_world_ids_by_role(auth.uid(), ARRAY['owner', 'member']))
@@ -679,7 +726,7 @@ CREATE POLICY "photos_read" ON storage.objects
 CREATE POLICY "photos_upload" ON storage.objects
   FOR INSERT WITH CHECK (bucket_id = 'photos' AND auth.role() = 'authenticated');
 CREATE POLICY "photos_delete" ON storage.objects
-  FOR DELETE USING (bucket_id = 'photos' AND auth.role() = 'authenticated');
+  FOR DELETE USING (bucket_id = 'photos' AND auth.uid() = owner);
 
 
 -- ============================================================
@@ -799,6 +846,30 @@ BEGIN
   RETURN jsonb_build_object('ok', true);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+
+-- ============================================================
+--  26b. RPC FUNCTION: Decline friend connection
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION decline_cosmos_connection(connection_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+  UPDATE cosmos_connections
+  SET status = 'declined', responded_at = NOW()
+  WHERE id = connection_id
+    AND lower(target_email) = lower(auth.email());
+  RETURN FOUND;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+
+-- ============================================================
+--  26c. UNIQUE INDEX: Prevent duplicate personal worlds
+-- ============================================================
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_worlds_personal_unique
+  ON worlds(created_by) WHERE type = 'personal';
 
 
 -- ============================================================

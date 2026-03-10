@@ -795,11 +795,15 @@ function reducer(st, a) {
     case "LOAD": return { ...st, entries: a.entries };
     case "ADD":
       next = { ...st, entries: [...st.entries, a.entry] };
-      _saveEntry(a.entry);
+      _saveEntry(a.entry).catch(() => {
+        window.dispatchEvent(new CustomEvent('cosmos-save-error', { detail: { city: a.entry?.city } }))
+      });
       break;
     case "UPDATE":
       next = { ...st, entries: st.entries.map(e => e.id === a.id ? { ...e, ...a.data } : e) };
-      { const updated = next.entries.find(e => e.id === a.id); if (updated) _saveEntry(updated); }
+      { const updated = next.entries.find(e => e.id === a.id); if (updated) _saveEntry(updated).catch(() => {
+        window.dispatchEvent(new CustomEvent('cosmos-save-error', { detail: { city: updated?.city } }))
+      }); }
       break;
     case "DELETE":
       { const doomed = st.entries.find(e => e.id === a.id);
@@ -1593,6 +1597,13 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     });
     return () => newTimers.forEach(clearTimeout);
   }, [toasts, dismissToast]);
+
+  // ---- SAVE ERROR NOTIFICATION ----
+  useEffect(() => {
+    const handler = (e) => showToast(`Failed to save ${e.detail?.city || 'entry'} — check your connection`, '⚠️', 8000)
+    window.addEventListener('cosmos-save-error', handler)
+    return () => window.removeEventListener('cosmos-save-error', handler)
+  }, [showToast])
 
   // ---- OFFLINE AWARENESS ----
   const [isOffline, setIsOffline] = useState(!navigator.onLine);

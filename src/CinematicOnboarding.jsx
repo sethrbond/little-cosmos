@@ -18,7 +18,7 @@ const ORBS = [
   { id: 'deco4', label: '', x: 68, y: 30, size: 13, color: '#a0c0e8', glow: 'rgba(160,192,232,0.15)', delay: 0.6 },
 ]
 
-export default function CinematicOnboarding({ userId, onComplete }) {
+export default function CinematicOnboarding({ userId, personalWorldId, onComplete }) {
   const [phase, setPhase] = useState(0)
   // 0 = starfield zoom + title reveal
   // 1 = subtitle + "Begin" button
@@ -184,7 +184,7 @@ export default function CinematicOnboarding({ userId, onComplete }) {
 
     // Create the "Home" entry in My World
     try {
-      const pwId = await ensurePersonalWorld(userId)
+      const pwId = personalWorldId || await ensurePersonalWorld(userId)
       if (!pwId) { console.error('[onboarding] failed to get personal world'); return }
       const db = createMyWorldDB(pwId, userId)
       const today = new Date().toISOString().slice(0, 10)

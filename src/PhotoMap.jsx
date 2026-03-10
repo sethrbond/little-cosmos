@@ -45,6 +45,7 @@ export default function PhotoMap({ entries = [], palette, onClose, worldMode }) 
 
   const containerRef = useRef(null);
   const [dragging, setDragging] = useState(false);
+  const draggingRef = useRef(false);
   const dragStart = useRef({ x: 0, y: 0 });
   const panStart = useRef({ x: 0, y: 0 });
 
@@ -126,12 +127,13 @@ export default function PhotoMap({ entries = [], palette, onClose, worldMode }) 
   const onPointerDown = useCallback((e) => {
     if (e.target.closest("[data-pin]") || e.target.closest("[data-control]")) return;
     setDragging(true);
+    draggingRef.current = true;
     dragStart.current = { x: e.clientX, y: e.clientY };
     panStart.current = { ...pan };
   }, [pan]);
 
   const onPointerMove = useCallback((e) => {
-    if (!dragging) return;
+    if (!draggingRef.current) return;
     const dx = e.clientX - dragStart.current.x;
     const dy = e.clientY - dragStart.current.y;
     setPan({ x: panStart.current.x + dx, y: panStart.current.y + dy });
@@ -139,6 +141,7 @@ export default function PhotoMap({ entries = [], palette, onClose, worldMode }) 
 
   const onPointerUp = useCallback(() => {
     setDragging(false);
+    draggingRef.current = false;
   }, []);
 
   const zoomIn = useCallback(() => {

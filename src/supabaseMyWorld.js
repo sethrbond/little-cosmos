@@ -112,7 +112,7 @@ export function createMyWorldDB(worldId, userId) {
         startDate: data.start_date ?? '',
         title: data.title ?? '',
         subtitle: data.subtitle ?? '',
-        travelerName: data.traveler_name ?? '',
+        travelerName: data.metadata?.travelerName || data.traveler_name || '',
       }
       if (data.metadata && typeof data.metadata === 'object') {
         if (Array.isArray(data.metadata.dreamDestinations)) cfg.bucketList = data.metadata.dreamDestinations
@@ -131,8 +131,8 @@ export function createMyWorldDB(worldId, userId) {
         start_date: config.startDate || null,
         title: config.title ?? '',
         subtitle: config.subtitle ?? '',
-        traveler_name: config.travelerName ?? '',
         metadata: {
+          travelerName: config.travelerName ?? '',
           dreamDestinations: config.bucketList || [],
           chapters: config.chapters || [],
           darkMode: config.darkMode ?? false,
@@ -180,7 +180,7 @@ export function createFriendWorldDB(friendWorldId) {
         startDate: data.start_date ?? '',
         title: data.title ?? '',
         subtitle: data.subtitle ?? '',
-        travelerName: data.traveler_name ?? '',
+        travelerName: data.metadata?.travelerName || data.traveler_name || '',
       }
       if (data.metadata && typeof data.metadata === 'object') {
         if (Array.isArray(data.metadata.dreamDestinations)) cfg.bucketList = data.metadata.dreamDestinations

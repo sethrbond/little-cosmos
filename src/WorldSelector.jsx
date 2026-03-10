@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import * as THREE from "three";
-import { createWorld, loadMyWorlds, createInvite, createInviteWithLetter, acceptInvite, createViewerInvite, getSentInvites, loadCrossWorldActivity, loadWorldEntryCounts, loadMyWorldEntryCount, searchCrossWorld, deleteWorld, leaveWorld, getPersonalWorldId } from "./supabaseWorlds.js";
+import { createWorld, loadMyWorlds, createInvite, createInviteWithLetter, acceptInvite, declineWorldInvite, createViewerInvite, getSentInvites, loadCrossWorldActivity, loadWorldEntryCounts, loadMyWorldEntryCount, searchCrossWorld, deleteWorld, leaveWorld, getPersonalWorldId } from "./supabaseWorlds.js";
 import { sendConnectionRequest, acceptConnection, declineConnection, getMyConnections, getPendingRequests } from "./supabaseConnections.js";
 import { sendWelcomeLetter } from "./supabaseWelcomeLetters.js";
 
@@ -1439,7 +1439,8 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
                   </div>
                   <div style={{ fontSize: 10, color: "#807888", marginBottom: 8 }}>{inv.worldType === "partner" ? "Partner World" : inv.worldType === "friends" ? "Friends World" : inv.worldType === "family" ? "Family World" : "Shared World"}</div>
                   <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                    <button onClick={() => {
+                    <button onClick={async () => {
+                      await declineWorldInvite(inv.token);
                       if (onPendingWorldInvitesChange) onPendingWorldInvitesChange(prev => prev.filter((_, i) => i !== idx));
                     }} style={{ ...btnS, padding: "5px 14px", fontSize: 11 }}>Decline</button>
                     <button onClick={async () => {

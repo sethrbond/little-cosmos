@@ -61,6 +61,7 @@ async function readPhotos(entryId) {
 // ---- USER-SCOPED FACTORY (Phase 1 Auth) ----
 
 export function createOurWorldDB(userId) {
+  console.warn('[createOurWorldDB] Legacy path used — no world_id on entries')
   return {
     loadEntries: async () => {
       const { data, error } = await supabase.from('entries').select('*')

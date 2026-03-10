@@ -7,6 +7,10 @@ import { supabase } from './supabaseClient.js'
 // Cache personal world IDs to avoid repeated lookups
 const personalWorldCache = new Map()
 
+export function clearWorldCaches() {
+  personalWorldCache.clear()
+}
+
 export async function getPersonalWorldId(userId) {
   if (personalWorldCache.has(userId)) return personalWorldCache.get(userId)
 
@@ -297,6 +301,16 @@ export async function acceptInvite(token) {
   return { ok: !!data, world_id: data?.world_id || null }
 }
 
+export async function declineWorldInvite(token) {
+  // Mark the invite as fully used so it won't reappear
+  const { error } = await supabase
+    .from('world_invites')
+    .update({ use_count: 9999 })
+    .eq('token', token)
+  if (error) console.error('[declineWorldInvite]', error)
+  return !error
+}
+
 export async function getInviteInfo(token) {
   const { data, error } = await supabase
     .from('world_invites')
@@ -412,130 +426,55 @@ export async function getSentInvites(worldId, userId) {
 export async function getPendingWorldInvites(userEmail) {
   if (!userEmail) return []
   const email = userEmail.toLowerCase()
-
-  // Find unread welcome letters for this email
-  const { data: letters, error: letErr } = await supabase
-    .from('welcome_letters')
-    .select('from_user_id, from_name, to_email, created_at, invite_token')
-    .eq('to_email', email)
-    .eq('read', false)
-
   const results = []
   const seenTokens = new Set()
 
-  // Strategy 1: Direct token link (new invites have invite_token on the letter)
-  if (!letErr && letters) {
-    for (const letter of letters) {
+  // Get current user + their memberships (one-time)
+  const { data: userData } = await supabase.auth.getUser()
+  const uid = userData?.user?.id
+  let memberWorldIds = new Set()
+  if (uid) {
+    const { data: memberships } = await supabase.from('world_members').select('world_id').eq('user_id', uid)
+    memberWorldIds = new Set((memberships || []).map(m => m.world_id))
+  }
+
+  // Strategy 1: Direct target_email lookup on world_invites (most reliable)
+  const { data: directInvites } = await supabase
+    .from('world_invites')
+    .select('token, world_id, max_uses, use_count, created_by, worlds(name, type)')
+    .eq('target_email', email)
+  for (const inv of (directInvites || [])) {
+    if (memberWorldIds.has(inv.world_id)) continue
+    if (inv.max_uses !== null && inv.use_count >= inv.max_uses) continue
+    seenTokens.add(inv.token)
+    results.push({
+      token: inv.token, worldName: inv.worlds?.name || 'A Shared World',
+      worldType: inv.worlds?.type || 'shared', fromName: 'Someone',
+    })
+  }
+
+  // Strategy 2: Welcome letters with invite_token (for invites created before target_email existed)
+  if (results.length === 0) {
+    const { data: letters } = await supabase
+      .from('welcome_letters')
+      .select('from_user_id, from_name, to_email, created_at, invite_token')
+      .eq('to_email', email)
+      .eq('read', false)
+
+    for (const letter of (letters || [])) {
       if (letter.invite_token) {
         const { data: inv } = await supabase
           .from('world_invites')
           .select('token, world_id, max_uses, use_count, worlds(name, type)')
           .eq('token', letter.invite_token)
           .maybeSingle()
-        if (inv && (inv.max_uses === null || inv.use_count < inv.max_uses)) {
+        if (inv && !seenTokens.has(inv.token) && !memberWorldIds.has(inv.world_id) &&
+            (inv.max_uses === null || inv.use_count < inv.max_uses)) {
           seenTokens.add(inv.token)
           results.push({
-            token: inv.token,
-            worldName: inv.worlds?.name || 'A Shared World',
-            worldType: inv.worlds?.type || 'shared',
-            fromName: letter.from_name || 'Someone',
+            token: inv.token, worldName: inv.worlds?.name || 'A Shared World',
+            worldType: inv.worlds?.type || 'shared', fromName: letter.from_name || 'Someone',
           })
-        }
-        continue
-      }
-
-      // Strategy 2: Fallback to time-proximity matching (old invites without invite_token)
-      const { data: invites } = await supabase
-        .from('world_invites')
-        .select('token, world_id, max_uses, use_count, created_at, worlds(name, type)')
-        .eq('created_by', letter.from_user_id)
-      if (!invites || invites.length === 0) continue
-      const letterTime = new Date(letter.created_at).getTime()
-      let best = null, bestDiff = Infinity
-      for (const inv of invites) {
-        if (seenTokens.has(inv.token)) continue
-        if (inv.max_uses !== null && inv.use_count >= inv.max_uses) continue
-        const diff = Math.abs(new Date(inv.created_at).getTime() - letterTime)
-        if (diff < bestDiff) { bestDiff = diff; best = inv }
-      }
-      if (best && bestDiff < 300000) { // 5 minutes (was 2, now more generous)
-        seenTokens.add(best.token)
-        results.push({
-          token: best.token,
-          worldName: best.worlds?.name || 'A Shared World',
-          worldType: best.worlds?.type || 'shared',
-          fromName: letter.from_name || 'Someone',
-        })
-      }
-    }
-  }
-
-  // Strategy 3: Direct email lookup on world_invites.target_email
-  // This is the most reliable — no welcome letter dependency at all
-  const { data: directInvites } = await supabase
-    .from('world_invites')
-    .select('token, world_id, max_uses, use_count, created_by, worlds(name, type)')
-    .eq('target_email', email)
-  if (directInvites) {
-    // Get user's current world memberships to skip worlds they're already in
-    const { data: user } = await supabase.auth.getUser()
-    const uid = user?.user?.id
-    let memberWorldIds = new Set()
-    if (uid) {
-      const { data: memberships } = await supabase.from('world_members').select('world_id').eq('user_id', uid)
-      memberWorldIds = new Set((memberships || []).map(m => m.world_id))
-    }
-    for (const inv of directInvites) {
-      if (seenTokens.has(inv.token)) continue
-      if (memberWorldIds.has(inv.world_id)) continue
-      if (inv.max_uses !== null && inv.use_count >= inv.max_uses) continue
-      seenTokens.add(inv.token)
-      results.push({
-        token: inv.token,
-        worldName: inv.worlds?.name || 'A Shared World',
-        worldType: inv.worlds?.type || 'shared',
-        fromName: 'Someone',
-      })
-    }
-  }
-
-  // Strategy 4: Fallback — check welcome_letters (including read ones) for any unaccepted invites
-  // This catches old invites created before target_email was added
-  if (results.length === 0) {
-    const { data: user } = await supabase.auth.getUser()
-    if (user?.user?.id) {
-      const uid = user.user.id
-      const { data: allInvites } = await supabase
-        .from('world_invites')
-        .select('token, world_id, max_uses, use_count, created_by, worlds(name, type)')
-      if (allInvites) {
-        let memberWorldIds = new Set()
-        const { data: memberships } = await supabase.from('world_members').select('world_id').eq('user_id', uid)
-        memberWorldIds = new Set((memberships || []).map(m => m.world_id))
-
-        const { data: allLetters } = await supabase
-          .from('welcome_letters')
-          .select('from_user_id, from_name, invite_token, created_at')
-          .eq('to_email', email)
-
-        for (const letter of (allLetters || [])) {
-          const matchingInvite = letter.invite_token
-            ? allInvites.find(i => i.token === letter.invite_token)
-            : allInvites.find(i =>
-                i.created_by === letter.from_user_id &&
-                Math.abs(new Date(i.created_at).getTime() - new Date(letter.created_at).getTime()) < 300000
-              )
-          if (matchingInvite && !seenTokens.has(matchingInvite.token) &&
-              !memberWorldIds.has(matchingInvite.world_id) &&
-              (matchingInvite.max_uses === null || matchingInvite.use_count < matchingInvite.max_uses)) {
-            seenTokens.add(matchingInvite.token)
-            results.push({
-              token: matchingInvite.token,
-              worldName: matchingInvite.worlds?.name || 'A Shared World',
-              worldType: matchingInvite.worlds?.type || 'shared',
-              fromName: letter.from_name || 'Someone',
-            })
-          }
         }
       }
     }

@@ -15,6 +15,19 @@ export async function getWelcomeLetter(email) {
   return data
 }
 
+// Fetch all unread welcome letters addressed to the current user's email
+export async function getAllWelcomeLetters(email) {
+  if (!email) return []
+  const { data, error } = await supabase
+    .from('welcome_letters')
+    .select('*')
+    .eq('to_email', email.toLowerCase())
+    .eq('read', false)
+    .order('created_at', { ascending: false })
+  if (error || !data) return []
+  return data
+}
+
 // Mark a welcome letter as read
 export async function markLetterRead(letterId) {
   const { error } = await supabase
