@@ -27,7 +27,8 @@ my-cosmos/
     TravelStats.jsx            ← 764 lines. Deep-dive statistics (heatmaps, charts, patterns, records)
     PhotoMap.jsx               ← 737 lines. 2D SVG world map with photo pins, clustering, lightbox
     supabaseWorlds.js          ← 674 lines. World CRUD, members, invites, comments, reactions
-    Achievements.jsx           ← 642 lines. 31 badges across 6 categories, gamification layer
+    Milestones.jsx             ← ~420 lines. Sentimental milestones & reflections (firsts, distances, memories)
+    Achievements.jsx           ← 642 lines. DEPRECATED — replaced by Milestones.jsx
     CinematicOnboarding.jsx    ← 603 lines. First-time user experience with star field + city picker
     EntryForms.jsx             ← 582 lines. Shared UI primitives (TBtn, TBtnGroup, Lbl, Fld) + entry forms + OverlayBoundary
     App.jsx                    ← 494 lines. Auth gate, routing, invite handling, cinematic onboarding
@@ -200,7 +201,7 @@ Run `docs/FULL_REBUILD.sql` in Supabase SQL Editor — idempotent, creates all t
 - Travel Stats deep-dive (heatmaps, bar charts, trip duration, distance records, year comparison)
 - Stats dashboard (adapted per world, expandable with farthest-apart, longest trip)
 - Photo Map (2D SVG world map with photo pins, clustering, pan/zoom, lightbox)
-- Achievements (31 badges across 6 categories — explorer, countries, distance, types, memory, special)
+- Milestones (sentimental moments — firsts, distances, time-based memories, partner-specific, expandable cards with photo/note previews)
 - Search with marker glow/dimming, favorites, filter, keyboard shortcuts overlay (? key)
 - Hover tooltips on markers (city, date, photo peek thumbnail)
 - Surprise Me (🎲) random entry fly-to with cinematic zoom

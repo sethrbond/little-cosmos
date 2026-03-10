@@ -6,7 +6,7 @@ import { useAuth } from "./AuthContext.jsx";
 
 // Lazy-loaded overlay components — code-split, only loaded when user opens them
 const PhotoMap = lazy(() => import("./PhotoMap.jsx"));
-const Achievements = lazy(() => import("./Achievements.jsx"));
+const Milestones = lazy(() => import("./Milestones.jsx"));
 const TravelStats = lazy(() => import("./TravelStats.jsx"));
 const ExportHub = lazy(() => import("./ExportHub.jsx"));
 const TripCard = lazy(() => import("./TripCard.jsx"));
@@ -1396,7 +1396,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [polaroidMode, setPolaroidMode] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [showPhotoMap, setShowPhotoMap] = useState(false);
-  const [showAchievements, setShowAchievements] = useState(false);
+  const [showMilestones, setShowMilestones] = useState(false);
   const [showTravelStats, setShowTravelStats] = useState(false);
   const [showExportHub, setShowExportHub] = useState(false);
   const [tripCardEntry, setTripCardEntry] = useState(null);
@@ -1514,7 +1514,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     return () => clearTimeout(t);
   }, [introComplete, isAnniversary, isPartnerWorld, config.startDate, worldId, userId, stats.trips, stats.countries, stats.totalMiles]);
 
-  // Milestone badges — celebrate round-number achievements
+  // Milestone celebrations — celebrate round-number moments
   const milestoneRef = useRef(null);
   useEffect(() => {
     if (!introComplete || data.entries.length < 2) return;
@@ -1524,7 +1524,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     const milestones = [
       { check: n === 5, msg: "5 Adventures!", sub: "Your globe is coming alive", icon: "🎯" },
       { check: n === 10, msg: "10 Adventures!", sub: "Double digits — you're on a roll", icon: "🌟" },
-      { check: n === 25, msg: "25 Adventures!", sub: "A seasoned traveler", icon: "🏆" },
+      { check: n === 25, msg: "25 Adventures!", sub: "A seasoned traveler", icon: "✨" },
       { check: n === 50, msg: "50 Adventures!", sub: "Half a century of adventures", icon: "👑" },
       { check: n === 100, msg: "100 Adventures!", sub: "Your globe is legendary", icon: "💎" },
       { check: c === 5, msg: "5 Countries!", sub: "Your world is expanding", icon: "🗺" },
@@ -2023,7 +2023,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       if (inInput && e.key !== "Escape") return;
       if (e.key === "ArrowLeft") { e.preventDefault(); stepDay(-1); }
       if (e.key === "ArrowRight") { e.preventDefault(); stepDay(1); }
-      if (e.key === "Escape") { flushConfigSave(); setSelected(null); setEditing(null); setShowAdd(false); setQuickAddMode(false); setShowLetter(null); setShowSettings(false); setShowGallery(false); setCardGallery(false); setShowFilter(false); setMarkerFilter("all"); setLocationList(null); setShowStats(false); setShowRecap(false); setShowSearch(false); setSearchQuery(""); setShowDreams(false); setConfirmDelete(null); setLightboxOpen(false); setShowShortcuts(false); setShowPhotoJourney(false); setShowCelebration(false); setShowOnboarding(false); setConfirmModal(null); setShowConstellation(false); setShowRoutes(false); setShowAchievements(false); setShowTravelStats(false); setShowLoveThread(false); setShowExportHub(false); setShowYearReview(false); setShowPhotoMap(false); setEditLetter(false); setTripCardEntry(null); localStorage.setItem(onboardKey, "1"); tSpinSpd.current = 0.002; if (isPlaying) stopPlay(); }
+      if (e.key === "Escape") { flushConfigSave(); setSelected(null); setEditing(null); setShowAdd(false); setQuickAddMode(false); setShowLetter(null); setShowSettings(false); setShowGallery(false); setCardGallery(false); setShowFilter(false); setMarkerFilter("all"); setLocationList(null); setShowStats(false); setShowRecap(false); setShowSearch(false); setSearchQuery(""); setShowDreams(false); setConfirmDelete(null); setLightboxOpen(false); setShowShortcuts(false); setShowPhotoJourney(false); setShowCelebration(false); setShowOnboarding(false); setConfirmModal(null); setShowConstellation(false); setShowRoutes(false); setShowMilestones(false); setShowTravelStats(false); setShowLoveThread(false); setShowExportHub(false); setShowYearReview(false); setShowPhotoMap(false); setEditLetter(false); setTripCardEntry(null); localStorage.setItem(onboardKey, "1"); tSpinSpd.current = 0.002; if (isPlaying) stopPlay(); }
       if (e.key === "?" && !showAdd && !editing && !showSettings) setShowShortcuts(v => !v);
       if (e.key === "f" && !showAdd && !editing && !showSettings) { setShowFilter(v => { if (v) { setMarkerFilter("all"); setLocationList(null); } return !v; }); }
       if (e.key === "i" && !showAdd && !editing && !showSettings) setShowStats(v => !v);
@@ -3512,7 +3512,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           <TBtnGroup icon="✨" label="discover">
             {data.entries.length > 2 && <TBtn a={showConstellation} onClick={() => setShowConstellation(v => !v)} tip="Constellation">⭐</TBtn>}
             {sorted.length > 1 && <TBtn a={showRoutes} onClick={() => setShowRoutes(v => !v)} tip="Travel Routes">🛤</TBtn>}
-            {data.entries.length > 0 && <TBtn a={showAchievements} onClick={() => setShowAchievements(v => !v)} tip="Achievements">🏆</TBtn>}
+            {data.entries.length > 0 && <TBtn a={showMilestones} onClick={() => setShowMilestones(v => !v)} tip="Milestones">✨</TBtn>}
             {data.entries.length > 2 && <TBtn a={showTravelStats} onClick={() => setShowTravelStats(v => !v)} tip="Travel Stats">📈</TBtn>}
             {isPartnerWorld && togetherList.length > 1 && <TBtn a={showLoveThread} onClick={() => setShowLoveThread(v => !v)} tip="Love Thread">🧵</TBtn>}
             <TBtn a={showDreams} onClick={() => setShowDreams(v => !v)} tip={isMyWorld ? "Bucket List" : isPartnerWorld ? "Dream Destinations" : "Wish List"}>{isMyWorld ? "🗺️" : "✦"}</TBtn>
@@ -5165,7 +5165,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         const isAnniv = cd.type === 'anniversary';
         const isMilestone = cd.type === 'milestone';
         const showConfetti = isAnniv || isMilestone;
-        const celebIcon = isAnniv ? "💕" : isMilestone ? (cd.message.includes("Countries") ? "🗺" : cd.message.includes("Miles") ? "🚀" : "🏆") : "✨";
+        const celebIcon = isAnniv ? "💕" : isMilestone ? (cd.message.includes("Countries") ? "🗺" : cd.message.includes("Miles") ? "🚀" : "✨") : "✨";
         const accentColor = isAnniv ? P.heart : isMilestone ? P.goldWarm : P.goldWarm;
         return (
           <div style={{ position: "fixed", inset: 0, zIndex: 250, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "auto", cursor: "pointer", background: showConfetti ? `radial-gradient(ellipse at center, ${accentColor}15, transparent 70%)` : 'transparent', animation: "fadeIn .4s ease" }}
@@ -5322,7 +5322,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
       {/* LAZY-LOADED OVERLAYS — code-split, only fetched when opened */}
       {showPhotoMap && <OverlayBoundary onClose={() => setShowPhotoMap(false)}><Suspense fallback={null}><PhotoMap entries={data.entries} palette={P} onClose={() => setShowPhotoMap(false)} worldMode={worldMode} /></Suspense></OverlayBoundary>}
-      {showAchievements && <OverlayBoundary onClose={() => setShowAchievements(false)}><Suspense fallback={null}><Achievements entries={data.entries} stats={stats} palette={P} onClose={() => setShowAchievements(false)} worldMode={worldMode} config={config} /></Suspense></OverlayBoundary>}
+      {showMilestones && <OverlayBoundary onClose={() => setShowMilestones(false)}><Suspense fallback={null}><Milestones entries={data.entries} palette={P} onClose={() => setShowMilestones(false)} worldMode={worldMode} config={config} /></Suspense></OverlayBoundary>}
       {showTravelStats && <OverlayBoundary onClose={() => setShowTravelStats(false)}><Suspense fallback={null}><TravelStats entries={data.entries} stats={stats} palette={P} onClose={() => setShowTravelStats(false)} worldMode={worldMode} config={config} /></Suspense></OverlayBoundary>}
       {showExportHub && <OverlayBoundary onClose={() => setShowExportHub(false)}><Suspense fallback={null}><ExportHub entries={data.entries} config={config} stats={stats} palette={P} onClose={() => setShowExportHub(false)} worldMode={worldMode} travelerName={isPartnerWorld ? (config.youName || '') : (config.travelerName || '')} /></Suspense></OverlayBoundary>}
       {tripCardEntry && <OverlayBoundary onClose={() => setTripCardEntry(null)}><Suspense fallback={null}><TripCard entry={tripCardEntry} palette={P} onClose={() => setTripCardEntry(null)} worldMode={worldMode} /></Suspense></OverlayBoundary>}

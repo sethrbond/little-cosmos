@@ -60,9 +60,9 @@ const features = [
     desc: 'Shooting stars, aurora glow, day/night shadow, seasonal tinting. Your globe breathes and changes with you.',
   },
   {
-    icon: '🏆',
-    title: 'Achievements & Stats',
-    desc: '31 badges to unlock. Track countries, distance, trip patterns. See your travel story in data.',
+    icon: '✨',
+    title: 'Milestones & Stats',
+    desc: 'Relive meaningful firsts, distance records, and sentimental moments. See your travel story in data.',
   },
   {
     icon: '🔗',
