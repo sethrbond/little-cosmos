@@ -271,20 +271,21 @@ export async function updateMemberRole(memberId, newRole) {
 
 // ---- INVITES ----
 
-export async function createInvite(worldId, userId, role = 'member', maxUses = 1) {
+export async function createInvite(worldId, userId, role = 'member', maxUses = 1, targetEmail = null) {
   const token = crypto.randomUUID().replace(/-/g, '').slice(0, 16)
-  const { data, error } = await supabase
-    .from('world_invites')
-    .insert({
-      world_id: worldId,
-      token,
-      created_by: userId,
-      role,
-      max_uses: maxUses,
-    })
-    .select()
-    .single()
-  if (error) { console.error('[createInvite]', error); return null }
+  const row = { world_id: worldId, token, created_by: userId, role, max_uses: maxUses }
+  if (targetEmail) row.target_email = targetEmail.toLowerCase()
+  const { data, error } = await supabase.from('world_invites').insert(row).select().single()
+  if (error) {
+    // If target_email column doesn't exist, retry without it
+    if (targetEmail && (error.message?.includes('target_email') || error.code === '42703')) {
+      delete row.target_email
+      const { data: d2, error: e2 } = await supabase.from('world_invites').insert(row).select().single()
+      if (e2) { console.error('[createInvite]', e2); return null }
+      return d2
+    }
+    console.error('[createInvite]', error); return null
+  }
   return data
 }
 
@@ -311,8 +312,8 @@ export async function getInviteInfo(token) {
 // Create invite + send a welcome letter notification to the invitee's email
 // Always creates a letter (used for in-app notifications) — uses default message if none provided
 export async function createInviteWithLetter(worldId, userId, fromName, toEmail, letterText) {
-  // 1. Create the invite token
-  const invite = await createInvite(worldId, userId)
+  // 1. Create the invite token (with target email for direct lookup)
+  const invite = await createInvite(worldId, userId, 'member', 1, toEmail)
   if (!invite) return null
 
   // 2. Always create a welcome letter so the invitee gets an in-app notification
@@ -342,7 +343,7 @@ export async function createInviteWithLetter(worldId, userId, fromName, toEmail,
 
 // Create a viewer invite (read-only access to someone's world)
 export async function createViewerInvite(worldId, userId, toEmail, letterText, fromName) {
-  const invite = await createInvite(worldId, userId, 'viewer')
+  const invite = await createInvite(worldId, userId, 'viewer', 1, toEmail)
   if (!invite) return null
 
   const name = fromName || 'A friend'
@@ -469,47 +470,72 @@ export async function getPendingWorldInvites(userEmail) {
     }
   }
 
-  // Strategy 3: Also check for any unused invites where this user might be the target
-  // even if the welcome letter was already read or never created
-  // This catches edge cases like: letter read during onboarding but invite not accepted
-  const { data: user } = await supabase.auth.getUser()
-  if (user?.user?.id) {
-    const uid = user.user.id
-    // Find worlds this user is NOT a member of but has unused invites for
-    const { data: allInvites } = await supabase
-      .from('world_invites')
-      .select('token, world_id, max_uses, use_count, created_by, worlds(name, type)')
-    if (allInvites) {
-      // Get user's current world memberships
-      const { data: memberships } = await supabase
-        .from('world_members')
-        .select('world_id')
-        .eq('user_id', uid)
-      const memberWorldIds = new Set((memberships || []).map(m => m.world_id))
+  // Strategy 3: Direct email lookup on world_invites.target_email
+  // This is the most reliable — no welcome letter dependency at all
+  const { data: directInvites } = await supabase
+    .from('world_invites')
+    .select('token, world_id, max_uses, use_count, created_by, worlds(name, type)')
+    .eq('target_email', email)
+  if (directInvites) {
+    // Get user's current world memberships to skip worlds they're already in
+    const { data: user } = await supabase.auth.getUser()
+    const uid = user?.user?.id
+    let memberWorldIds = new Set()
+    if (uid) {
+      const { data: memberships } = await supabase.from('world_members').select('world_id').eq('user_id', uid)
+      memberWorldIds = new Set((memberships || []).map(m => m.world_id))
+    }
+    for (const inv of directInvites) {
+      if (seenTokens.has(inv.token)) continue
+      if (memberWorldIds.has(inv.world_id)) continue
+      if (inv.max_uses !== null && inv.use_count >= inv.max_uses) continue
+      seenTokens.add(inv.token)
+      results.push({
+        token: inv.token,
+        worldName: inv.worlds?.name || 'A Shared World',
+        worldType: inv.worlds?.type || 'shared',
+        fromName: 'Someone',
+      })
+    }
+  }
 
-      // Check welcome_letters (including read ones) to find invites meant for this user
-      const { data: allLetters } = await supabase
-        .from('welcome_letters')
-        .select('from_user_id, from_name, invite_token, created_at')
-        .eq('to_email', email)
+  // Strategy 4: Fallback — check welcome_letters (including read ones) for any unaccepted invites
+  // This catches old invites created before target_email was added
+  if (results.length === 0) {
+    const { data: user } = await supabase.auth.getUser()
+    if (user?.user?.id) {
+      const uid = user.user.id
+      const { data: allInvites } = await supabase
+        .from('world_invites')
+        .select('token, world_id, max_uses, use_count, created_by, worlds(name, type)')
+      if (allInvites) {
+        let memberWorldIds = new Set()
+        const { data: memberships } = await supabase.from('world_members').select('world_id').eq('user_id', uid)
+        memberWorldIds = new Set((memberships || []).map(m => m.world_id))
 
-      for (const letter of (allLetters || [])) {
-        const matchingInvite = letter.invite_token
-          ? allInvites.find(i => i.token === letter.invite_token)
-          : allInvites.find(i =>
-              i.created_by === letter.from_user_id &&
-              Math.abs(new Date(i.created_at).getTime() - new Date(letter.created_at).getTime()) < 300000
-            )
-        if (matchingInvite && !seenTokens.has(matchingInvite.token) &&
-            !memberWorldIds.has(matchingInvite.world_id) &&
-            (matchingInvite.max_uses === null || matchingInvite.use_count < matchingInvite.max_uses)) {
-          seenTokens.add(matchingInvite.token)
-          results.push({
-            token: matchingInvite.token,
-            worldName: matchingInvite.worlds?.name || 'A Shared World',
-            worldType: matchingInvite.worlds?.type || 'shared',
-            fromName: letter.from_name || 'Someone',
-          })
+        const { data: allLetters } = await supabase
+          .from('welcome_letters')
+          .select('from_user_id, from_name, invite_token, created_at')
+          .eq('to_email', email)
+
+        for (const letter of (allLetters || [])) {
+          const matchingInvite = letter.invite_token
+            ? allInvites.find(i => i.token === letter.invite_token)
+            : allInvites.find(i =>
+                i.created_by === letter.from_user_id &&
+                Math.abs(new Date(i.created_at).getTime() - new Date(letter.created_at).getTime()) < 300000
+              )
+          if (matchingInvite && !seenTokens.has(matchingInvite.token) &&
+              !memberWorldIds.has(matchingInvite.world_id) &&
+              (matchingInvite.max_uses === null || matchingInvite.use_count < matchingInvite.max_uses)) {
+            seenTokens.add(matchingInvite.token)
+            results.push({
+              token: matchingInvite.token,
+              worldName: matchingInvite.worlds?.name || 'A Shared World',
+              worldType: matchingInvite.worlds?.type || 'shared',
+              fromName: letter.from_name || 'Someone',
+            })
+          }
         }
       }
     }

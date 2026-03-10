@@ -205,6 +205,7 @@ CREATE TABLE IF NOT EXISTS world_invites (
   world_id UUID REFERENCES worlds(id) ON DELETE CASCADE NOT NULL,
   token TEXT UNIQUE NOT NULL,
   created_by UUID REFERENCES auth.users(id) NOT NULL,
+  target_email TEXT,
   role TEXT NOT NULL DEFAULT 'member',
   expires_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '7 days'),
   max_uses INT DEFAULT 1,
@@ -260,6 +261,7 @@ CREATE TABLE IF NOT EXISTS welcome_letters (
   from_name TEXT NOT NULL DEFAULT '',
   to_email TEXT NOT NULL,
   letter_text TEXT NOT NULL DEFAULT '',
+  invite_token TEXT,
   read BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   read_at TIMESTAMPTZ
