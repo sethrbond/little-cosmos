@@ -41,33 +41,33 @@ function StarField() {
 const features = [
   {
     icon: '🌍',
-    title: 'Your Stories on a Globe',
-    desc: 'Pin your travels to a beautiful 3D globe. Every trip becomes a glowing marker in your personal universe.',
+    title: 'Pin It to the Globe',
+    desc: 'Every trip becomes a glowing marker on a 3D globe you can spin, zoom, and fly through. Your own little planet.',
   },
   {
-    icon: '💫',
-    title: 'Share Your Worlds',
-    desc: 'Create shared worlds with your partner, friends, or family. Each world has its own palette, entry types, and personality.',
+    icon: '💕',
+    title: 'Worlds to Share',
+    desc: 'A couples world. A friends world. A family world. Each one has its own colors, its own vibe, its own story.',
   },
   {
     icon: '📸',
-    title: 'Photos & Memories',
-    desc: 'Upload photos, write notes, track highlights. Relive your adventures with Photo Journey and Year in Review.',
+    title: 'Relive Everything',
+    desc: 'Photos, notes, highlights. Play them back as a cinematic journey or a year-in-review recap you can screenshot and share.',
   },
   {
     icon: '✨',
-    title: 'Living Atmosphere',
-    desc: 'Shooting stars, aurora glow, day/night shadow, seasonal tinting. Your globe breathes and changes with you.',
+    title: 'It Breathes',
+    desc: 'Shooting stars cross the sky. Aurora shifts with your mood. Night shadow follows the real sun. Your globe is alive.',
   },
   {
-    icon: '📊',
-    title: 'Milestones & Stats',
-    desc: 'Relive meaningful firsts, distance records, and sentimental moments. See your travel story in data.',
+    icon: '🏆',
+    title: 'Milestones That Matter',
+    desc: 'Your first trip abroad. Your farthest point from home. 10,000 miles traveled. The app remembers what you might forget.',
   },
   {
-    icon: '🔗',
-    title: 'Invite Anyone',
-    desc: 'Send a welcome letter with a wax seal. Your friends open it, join your world, and start adding their own pins.',
+    icon: '💌',
+    title: 'Invite with a Letter',
+    desc: 'Send a welcome letter sealed in wax. They open it, join your world, and start pinning memories alongside yours.',
   },
 ]
 
@@ -120,12 +120,18 @@ export default function LandingPage({ onSignIn, onSignUp }) {
             background: 'none', border: '1px solid rgba(200,170,110,0.3)',
             borderRadius: 8, padding: '8px 20px', color: '#c9a96e',
             fontSize: 14, fontFamily: FONT, cursor: 'pointer',
-          }}>Sign In</button>
+            transition: 'border-color 0.2s, color 0.2s',
+          }}
+          onMouseEnter={e => { e.target.style.borderColor = 'rgba(200,170,110,0.6)'; e.target.style.color = '#dcc088' }}
+          onMouseLeave={e => { e.target.style.borderColor = 'rgba(200,170,110,0.3)'; e.target.style.color = '#c9a96e' }}>Sign In</button>
           <button onClick={onSignUp} style={{
             background: 'linear-gradient(135deg, #c9a96e, #b8944f)',
             border: 'none', borderRadius: 8, padding: '8px 20px', color: '#1a1520',
             fontSize: 14, fontWeight: 600, fontFamily: FONT, cursor: 'pointer',
-          }}>Get Started</button>
+            transition: 'transform 0.2s, box-shadow 0.2s',
+          }}
+          onMouseEnter={e => { e.target.style.transform = 'translateY(-1px)'; e.target.style.boxShadow = '0 4px 16px rgba(200,170,110,0.3)' }}
+          onMouseLeave={e => { e.target.style.transform = 'translateY(0)'; e.target.style.boxShadow = 'none' }}>Get Started</button>
         </div>
       </nav>
 
@@ -138,48 +144,55 @@ export default function LandingPage({ onSignIn, onSignUp }) {
         opacity: heroOpacity, transform: `translateY(${heroTranslate}px)`,
       }}>
         <div style={{
-          width: 80, height: 80, borderRadius: '50%', marginBottom: 32,
-          background: 'radial-gradient(circle, rgba(200,170,110,0.15), transparent 70%)',
+          width: 100, height: 100, borderRadius: '50%', marginBottom: 36,
+          background: 'radial-gradient(circle, rgba(200,170,110,0.12) 0%, rgba(180,140,200,0.06) 50%, transparent 70%)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          animation: 'landingPulse 3s ease-in-out infinite',
+          animation: 'landingPulse 4s ease-in-out infinite',
+          boxShadow: '0 0 60px rgba(200,170,110,0.08)',
         }}>
-          <div style={{ fontSize: 40 }}>🌍</div>
+          <div style={{ fontSize: 48, filter: 'drop-shadow(0 0 12px rgba(200,170,110,0.3))' }}>🌍</div>
         </div>
         <h1 style={{
           fontSize: 'clamp(36px, 7vw, 64px)', fontWeight: 300,
-          letterSpacing: 3, margin: 0, lineHeight: 1.2,
+          letterSpacing: 4, margin: 0, lineHeight: 1.2,
+          background: 'linear-gradient(135deg, #f0e8d8 30%, #c9a96e 100%)',
+          WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
         }}>
           Little Cosmos
         </h1>
         <p style={{
-          fontSize: 'clamp(16px, 2.5vw, 22px)', opacity: 0.5,
-          marginTop: 12, fontWeight: 300, letterSpacing: 1,
+          fontSize: 'clamp(16px, 2.5vw, 20px)', opacity: 0.5,
+          marginTop: 16, fontWeight: 300, letterSpacing: 1.5,
+          fontStyle: 'italic',
         }}>
-          your travels, your stories, your universe
+          a travel diary that lives on a globe
         </p>
         <p style={{
           fontSize: 'clamp(14px, 1.8vw, 17px)', opacity: 0.35,
-          marginTop: 24, maxWidth: 520, lineHeight: 1.7,
+          marginTop: 28, maxWidth: 480, lineHeight: 1.8,
         }}>
-          Pin your adventures to a 3D globe. Create shared worlds with the people you love.
-          Watch your cosmos grow with every trip.
+          Pin your adventures. Create shared worlds with the people you love.
+          Watch your little cosmos grow with every trip.
         </p>
         <button onClick={onSignUp} style={{
-          marginTop: 40, padding: '14px 44px',
+          marginTop: 44, padding: '15px 48px',
           background: 'linear-gradient(135deg, #c9a96e, #b8944f)',
-          border: 'none', borderRadius: 10, color: '#1a1520',
+          border: 'none', borderRadius: 12, color: '#1a1520',
           fontSize: 17, fontWeight: 600, fontFamily: FONT,
           cursor: 'pointer', letterSpacing: 0.5,
-          boxShadow: '0 4px 24px rgba(200,170,110,0.2)',
-        }}>
+          boxShadow: '0 4px 24px rgba(200,170,110,0.25), 0 1px 3px rgba(0,0,0,0.2)',
+          transition: 'transform 0.2s, box-shadow 0.2s',
+        }}
+        onMouseEnter={e => { e.target.style.transform = 'translateY(-2px)'; e.target.style.boxShadow = '0 6px 32px rgba(200,170,110,0.35), 0 2px 6px rgba(0,0,0,0.2)' }}
+        onMouseLeave={e => { e.target.style.transform = 'translateY(0)'; e.target.style.boxShadow = '0 4px 24px rgba(200,170,110,0.25), 0 1px 3px rgba(0,0,0,0.2)' }}>
           Start Your Cosmos
         </button>
+        <div style={{ fontSize: 12, opacity: 0.25, marginTop: 16 }}>Free forever. No credit card.</div>
         <div style={{
-          marginTop: 56, opacity: 0.2, fontSize: 13,
+          marginTop: 48, opacity: 0.2, fontSize: 13,
           animation: 'landingBounce 2s ease-in-out infinite',
         }}>
-          scroll to explore
-        </div>
+          ↓
       </section>
 
       {/* Features */}
@@ -191,7 +204,7 @@ export default function LandingPage({ onSignIn, onSignUp }) {
           textAlign: 'center', fontSize: 'clamp(24px, 4vw, 36px)',
           fontWeight: 300, letterSpacing: 2, marginBottom: 64, opacity: 0.8,
         }}>
-          Everything you need to tell your travel story
+          More than a map. A living memory.
         </h2>
         <div style={{
           display: 'grid',
@@ -213,9 +226,9 @@ export default function LandingPage({ onSignIn, onSignUp }) {
                 transition: `opacity 0.6s ${i * 0.1}s, transform 0.6s ${i * 0.1}s`,
               }}
             >
-              <div style={{ fontSize: 32, marginBottom: 16 }}>{f.icon}</div>
-              <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 10, color: '#c9a96e' }}>{f.title}</div>
-              <div style={{ fontSize: 14, opacity: 0.5, lineHeight: 1.7 }}>{f.desc}</div>
+              <div style={{ fontSize: 32, marginBottom: 16, filter: 'drop-shadow(0 2px 8px rgba(200,170,110,0.15))' }}>{f.icon}</div>
+              <div style={{ fontSize: 17, fontWeight: 600, marginBottom: 10, color: '#c9a96e', letterSpacing: 0.3 }}>{f.title}</div>
+              <div style={{ fontSize: 14, opacity: 0.45, lineHeight: 1.8 }}>{f.desc}</div>
             </div>
           ))}
         </div>
@@ -236,24 +249,30 @@ export default function LandingPage({ onSignIn, onSignUp }) {
           fontSize: 15, opacity: 0.35, maxWidth: 420, margin: '0 auto 36px',
           lineHeight: 1.7,
         }}>
-          Free to use. Create your first world in under a minute.
+          Create your first world in under a minute. Add a trip. Watch it glow.
         </p>
         <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
           <button onClick={onSignUp} style={{
             padding: '13px 40px',
             background: 'linear-gradient(135deg, #c9a96e, #b8944f)',
-            border: 'none', borderRadius: 10, color: '#1a1520',
+            border: 'none', borderRadius: 12, color: '#1a1520',
             fontSize: 16, fontWeight: 600, fontFamily: FONT,
-            cursor: 'pointer',
-          }}>
-            Create Your Account
+            cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s',
+            boxShadow: '0 4px 20px rgba(200,170,110,0.2)',
+          }}
+          onMouseEnter={e => { e.target.style.transform = 'translateY(-2px)'; e.target.style.boxShadow = '0 6px 28px rgba(200,170,110,0.35)' }}
+          onMouseLeave={e => { e.target.style.transform = 'translateY(0)'; e.target.style.boxShadow = '0 4px 20px rgba(200,170,110,0.2)' }}>
+            Start Your Cosmos
           </button>
           <button onClick={onSignIn} style={{
             padding: '13px 40px',
             background: 'none', border: '1px solid rgba(200,170,110,0.3)',
-            borderRadius: 10, color: '#c9a96e',
+            borderRadius: 12, color: '#c9a96e',
             fontSize: 16, fontFamily: FONT, cursor: 'pointer',
-          }}>
+            transition: 'border-color 0.2s',
+          }}
+          onMouseEnter={e => e.target.style.borderColor = 'rgba(200,170,110,0.6)'}
+          onMouseLeave={e => e.target.style.borderColor = 'rgba(200,170,110,0.3)'}>
             Sign In
           </button>
         </div>
@@ -264,9 +283,9 @@ export default function LandingPage({ onSignIn, onSignUp }) {
         position: 'relative', zIndex: 1,
         borderTop: '1px solid rgba(255,255,255,0.05)',
         padding: '24px 32px', textAlign: 'center',
-        fontSize: 12, opacity: 0.25,
+        fontSize: 12, opacity: 0.2, letterSpacing: 0.5,
       }}>
-        Little Cosmos — built with love
+        Little Cosmos
       </footer>
 
       <style>{`

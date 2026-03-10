@@ -3380,9 +3380,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
       {/* MOBILE ZOOM BUTTONS */}
       {isMobile && introComplete && (
-        <div style={{ position: "absolute", bottom: 90, right: 14, zIndex: 20, display: "flex", flexDirection: "column", gap: 6 }}>
-          <button aria-label="Zoom in" onClick={() => { tZm.current = clamp(tZm.current - 0.4, MIN_Z, MAX_Z); }} style={{ width: 40, height: 40, borderRadius: 12, border: `1px solid ${P.textFaint}25`, background: P.glass, backdropFilter: "blur(12px)", fontSize: 18, color: P.text, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: `0 2px 8px ${P.text}10` }}>+</button>
-          <button aria-label="Zoom out" onClick={() => { tZm.current = clamp(tZm.current + 0.4, MIN_Z, MAX_Z); }} style={{ width: 40, height: 40, borderRadius: 12, border: `1px solid ${P.textFaint}25`, background: P.glass, backdropFilter: "blur(12px)", fontSize: 18, color: P.text, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: `0 2px 8px ${P.text}10` }}>−</button>
+        <div style={{ position: "absolute", bottom: 130, right: 14, zIndex: 20, display: "flex", flexDirection: "column", gap: 10 }}>
+          <button aria-label="Zoom in" onClick={() => { tZm.current = clamp(tZm.current - 0.4, MIN_Z, MAX_Z); }} style={{ width: 44, height: 44, borderRadius: 12, border: `1px solid ${P.textFaint}25`, background: P.glass, backdropFilter: "blur(12px)", fontSize: 20, color: P.text, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: `0 2px 8px ${P.text}10` }}>+</button>
+          <button aria-label="Zoom out" onClick={() => { tZm.current = clamp(tZm.current + 0.4, MIN_Z, MAX_Z); }} style={{ width: 44, height: 44, borderRadius: 12, border: `1px solid ${P.textFaint}25`, background: P.glass, backdropFilter: "blur(12px)", fontSize: 20, color: P.text, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: `0 2px 8px ${P.text}10` }}>−</button>
         </div>
       )}
 
@@ -3426,7 +3426,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         {/* Entry type filter + scrollable entry list */}
         {data.entries.length > 0 && (
           <div style={{ marginTop: 10, position: "relative" }}>
-            <button onClick={() => setShowFilter(v => !v)} style={{ background: showFilter ? P.blush : "rgba(255,255,255,.6)", border: `1px solid ${P.rose}20`, borderRadius: 8, padding: "4px 10px", fontSize: 8, cursor: "pointer", fontFamily: "inherit", color: P.textMid, letterSpacing: ".06em", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", gap: 4, marginLeft: "auto" }}>
+            <button onClick={() => setShowFilter(v => !v)} style={{ background: showFilter ? P.blush : "rgba(255,255,255,.6)", border: `1px solid ${P.rose}20`, borderRadius: 8, padding: "8px 12px", fontSize: 9, cursor: "pointer", fontFamily: "inherit", color: P.textMid, letterSpacing: ".06em", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", gap: 4, marginLeft: "auto" }}>
               {markerFilter === "all" ? "🌍 All Entries" : markerFilter === "favorites" ? "♥ Favorites" : `${(TYPES[markerFilter] || {}).icon || "✨"} ${(TYPES[markerFilter] || {}).label || markerFilter}`}
               <span style={{ fontSize: 6, opacity: 0.5 }}>{showFilter ? "▲" : "▼"}</span>
             </button>
@@ -3437,7 +3437,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                   ...Object.entries(TYPES).map(([k, v]) => ({ key: k, icon: v.icon, label: v.label, count: data.entries.filter(e => e.type === k).length }))
                 ].filter(f => f.count > 0 || f.key === "favorites").map(f => (
                   <button key={f.key} onClick={() => { setMarkerFilter(f.key); setShowFilter(false); setListRenderLimit(100); }}
-                    style={{ display: "flex", width: "100%", alignItems: "center", gap: 8, padding: "7px 12px", border: "none", borderBottom: `1px solid ${P.parchment}`, background: markerFilter === f.key ? P.blush : "transparent", cursor: "pointer", fontFamily: "inherit", fontSize: 9, color: markerFilter === f.key ? P.text : P.textMid, textAlign: "left" }}
+                    style={{ display: "flex", width: "100%", alignItems: "center", gap: 8, padding: "10px 12px", border: "none", borderBottom: `1px solid ${P.parchment}`, background: markerFilter === f.key ? P.blush : "transparent", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: markerFilter === f.key ? P.text : P.textMid, textAlign: "left" }}
                     onMouseEnter={e => { if (markerFilter !== f.key) e.currentTarget.style.background = P.lavMist; }}
                     onMouseLeave={e => { if (markerFilter !== f.key) e.currentTarget.style.background = "transparent"; }}
                   >
@@ -3644,7 +3644,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       {/* LOVE LETTER TRIGGERS — small ❀ markers in bottom-right (partner only) */}
       {isPartnerWorld && (config.loveLetters || []).length > 0 && (
         <div style={{ position: "absolute", bottom: 118, right: 22, zIndex: 12, display: "flex", flexDirection: "column", gap: 4 }}>
-          {(config.loveLetters || []).map((lt, i) => (
+          {(config.loveLetters || []).map((lt) => (
             <button key={lt.id} onClick={() => setShowLetter(lt.id)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, opacity: 0.22, transition: "opacity .5s", padding: 2 }}
               onMouseEnter={e => e.currentTarget.style.opacity = 0.55} onMouseLeave={e => e.currentTarget.style.opacity = 0.22}
               title={lt.city || "Love letter"}>❀</button>
@@ -3656,7 +3656,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       )}
 
       {/* SLIDER */}
-      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 105, background: P.glass, backdropFilter: "blur(16px)", borderTop: `1px solid ${P.rose}10`, zIndex: 15, display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 22px" }}>
+      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: P.glass, backdropFilter: "blur(16px)", borderTop: `1px solid ${P.rose}10`, zIndex: 15, display: "flex", flexDirection: "column", justifyContent: "center", padding: "12px 22px", paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 6 }}>
           <button onClick={() => jumpNext(-1)} disabled={isAnimating} style={navSt()} title={isPartnerWorld ? "Previous together" : "Previous entry"}>{isPartnerWorld ? "💕◂" : "⏮"}</button>
           <button onClick={() => stepDay(-1)} disabled={isAnimating} style={navSt()}>◂</button>
@@ -3677,7 +3677,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         <div style={{ position: "relative", width: "100%", height: 24, display: "flex", alignItems: "center" }}>
           <input type="range" min={0} max={totalDays} value={clamp(sliderVal, 0, totalDays)}
             onChange={e => { if (!isAnimating) setSliderDate(addDays(config.startDate, parseInt(e.target.value))); }}
-            style={{ width: "100%", height: 3, appearance: "none", WebkitAppearance: "none", background: `linear-gradient(90deg,${P.sky},${P.rose})`, borderRadius: 2, outline: "none", cursor: "pointer", opacity: 0.5 }} />
+            style={{ width: "100%", height: 4, appearance: "none", WebkitAppearance: "none", background: `linear-gradient(90deg,${P.sky},${P.rose})`, borderRadius: 2, outline: "none", cursor: "pointer", opacity: 0.5 }} />
           {sorted.map(e => {
             const d = daysBetween(config.startDate, e.dateStart);
             const pct = totalDays > 0 ? (d / totalDays) * 100 : 0;
@@ -4277,7 +4277,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             </div>
             <p style={{ fontSize: 10, color: P.textFaint, marginBottom: 14, fontStyle: "italic" }}>{isMyWorld ? "Places on your bucket list. They appear as golden ghost markers on the globe." : "Places you dream of visiting together. They appear as golden ghost markers on the globe."}</p>
 
-            {(config.dreamDestinations || []).map((dream, i) => (
+            {(config.dreamDestinations || []).map((dream) => (
               <div key={dream.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: `${P.gold}08`, borderRadius: 8, marginBottom: 6, borderLeft: `3px solid ${P.goldWarm}40` }}>
                 <span style={{ fontSize: 16 }}>✦</span>
                 <div style={{ flex: 1 }}>
@@ -5392,11 +5392,12 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:${P.textFaint}22;border-radius:2px}
         input:focus,textarea:focus,select:focus{outline:none;border-color:${P.rose}!important}
         input[type=range]{-webkit-appearance:none;appearance:none}
-        input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:${P.rose};cursor:pointer;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.12)}
-        input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:${P.rose};cursor:pointer;border:2px solid #fff}
+        input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:${P.rose};cursor:pointer;border:2px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.2);margin-top:-9px}
+        input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
+        input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:${P.rose};cursor:pointer;border:2px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.2)}
         @media(max-width:600px){
           h1{font-size:20px!important;letter-spacing:.12em!important}
-          h1+p{font-size:9px!important}
+          h1+p{font-size:11px!important}
         }
       `}</style>
     </div>

@@ -966,16 +966,16 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     <div style={{ position: "fixed", inset: 0, background: "#0c0a12", fontFamily: F, cursor: hovered ? "pointer" : "grab", overflow: "hidden" }}
       onClick={handleClick} onMouseMove={handleMove}>
 
-      <div ref={mountRef} style={{ position: "absolute", inset: 0 }} />
+      <div ref={mountRef} style={{ position: "absolute", inset: 0, touchAction: "none" }} />
 
       {/* Title */}
       <div style={{ position: "absolute", top: "4%", left: 0, right: 0, textAlign: "center", opacity: ready ? 1 : 0, transition: "opacity 1.2s", pointerEvents: "none" }}>
-        <div style={{ fontSize: 11, letterSpacing: "6px", color: "#c8c0d8", textTransform: "uppercase", fontWeight: 400, textShadow: "0 0 20px rgba(180,160,220,0.3), 0 1px 8px rgba(0,0,0,0.4)" }}>My Cosmos</div>
+        <div style={{ fontSize: 12, letterSpacing: "6px", color: "#dcd4ec", textTransform: "uppercase", fontWeight: 500, textShadow: "0 0 24px rgba(180,160,220,0.4), 0 2px 12px rgba(0,0,0,0.6)" }}>My Cosmos</div>
       </div>
 
       {/* Center label */}
       <div ref={makeLabelRef("my")} data-hov="false" style={{ position: "absolute", left: 0, top: 0, transform: "translate(-50%, -50%)", textAlign: "center", pointerEvents: "none", transition: "opacity .15s", opacity: 0 }}>
-        <div style={{ background: "radial-gradient(ellipse at center, rgba(10,8,18,0.55) 0%, transparent 70%)", padding: "12px 24px", borderRadius: 20 }}>
+        <div style={{ background: "radial-gradient(ellipse at center, rgba(10,8,18,0.75) 0%, rgba(10,8,18,0.35) 55%, transparent 85%)", padding: "16px 32px", borderRadius: 24 }}>
           <div style={{ fontSize: hovered === "my" ? 24 : 20, fontWeight: 500, color: "#f0e8d4", letterSpacing: "2px", textShadow: "0 0 24px rgba(208,176,128,0.5), 0 2px 10px rgba(0,0,0,0.8)", transition: "font-size .2s" }}>My World</div>
           <div style={{ fontSize: 12, color: "#e8dcc4", marginTop: 4, letterSpacing: "1.5px", fontWeight: 400, textTransform: "uppercase", textShadow: "0 0 12px rgba(208,176,128,0.5), 0 1px 6px rgba(0,0,0,0.8)" }}>{myWorldSubtitle ?? "Travel Diary"}</div>
           {myEntryCount > 0 && (
@@ -987,7 +987,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       {/* Orbiting world labels (shared + friend) */}
       {ALL_ORBS.map(w => (
         <div key={w.id} ref={makeLabelRef(w.id)} data-hov="false" style={{ position: "absolute", left: 0, top: 0, transform: "translate(-50%, -50%)", textAlign: "center", pointerEvents: "none", transition: "opacity .15s", opacity: 0 }}>
-          <div style={{ background: "radial-gradient(ellipse at center, rgba(10,8,18,0.5) 0%, transparent 70%)", padding: "8px 18px", borderRadius: 16 }}>
+          <div style={{ background: "radial-gradient(ellipse at center, rgba(10,8,18,0.7) 0%, rgba(10,8,18,0.3) 55%, transparent 85%)", padding: "12px 24px", borderRadius: 20 }}>
           <div style={{ fontSize: hovered === w.id ? 19 : 15, fontWeight: 500, color: w.id.startsWith("friend-") ? "#d4e0f0" : w.glowColor || "#f0d8e8", letterSpacing: "1.2px", textShadow: `0 0 20px ${w.color}80, 0 2px 8px rgba(0,0,0,0.8)`, transition: "font-size .2s" }}>{w.label}</div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 2 }}>
             <div style={{ fontSize: 12, color: w.id.startsWith("friend-") ? "#d0dce8" : (w.glowColor || "#e8d8e0"), letterSpacing: "0.8px", fontWeight: 400, textShadow: `0 0 10px ${w.color}60, 0 1px 6px rgba(0,0,0,0.8)` }}>{w.sub}</div>
@@ -1080,7 +1080,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
             Invite to Cosmos
           </button>
         </div>
-        <div style={{ fontSize: 10, color: "#807090", marginTop: 8, letterSpacing: "1.5px", textAlign: "center", textTransform: "uppercase" }}>drag to orbit · scroll or pinch to zoom</div>
+        <div style={{ fontSize: 10, color: "#9890a8", marginTop: 8, letterSpacing: "1.5px", textAlign: "center", textTransform: "uppercase", textShadow: "0 1px 6px rgba(0,0,0,0.5)" }}>drag to orbit · scroll or pinch to zoom</div>
       </div>
 
       {/* Top right controls — glassmorphic */}
@@ -1098,13 +1098,13 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
           Activity
         </button>
         <button onClick={(e) => { e.stopPropagation(); setCosmosTourStep(0); setShowCosmosTour(true); try { localStorage.removeItem(cosmosTourKey); } catch {} }}
-          style={{ background: "rgba(255,255,255,0.03)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "5px 14px", color: "#706878", fontSize: 9, fontFamily: F, letterSpacing: "0.8px", cursor: "pointer", transition: "all .3s", textTransform: "uppercase" }}
+          style={{ background: "rgba(255,255,255,0.03)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "5px 14px", color: "#908898", fontSize: 9, fontFamily: F, letterSpacing: "0.8px", cursor: "pointer", transition: "all .3s", textTransform: "uppercase" }}
           onMouseEnter={e => { e.target.style.color = "#b0a8b8"; e.target.style.borderColor = "rgba(255,255,255,0.15)"; }}
           onMouseLeave={e => { e.target.style.color = "#706878"; e.target.style.borderColor = "rgba(255,255,255,0.06)"; }}>
           Replay Tour
         </button>
         <button onClick={(e) => { e.stopPropagation(); setConfirmModal({ message: "Sign out of My Cosmos?", confirmLabel: "Sign Out", onConfirm: () => onSignOut() }); }}
-          style={{ background: "rgba(255,255,255,0.03)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "5px 14px", color: "#706878", fontSize: 9, fontFamily: F, letterSpacing: "0.8px", cursor: "pointer", transition: "all .3s", textTransform: "uppercase" }}
+          style={{ background: "rgba(255,255,255,0.03)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "5px 14px", color: "#908898", fontSize: 9, fontFamily: F, letterSpacing: "0.8px", cursor: "pointer", transition: "all .3s", textTransform: "uppercase" }}
           onMouseEnter={e => { e.target.style.color = "#b0a8b8"; e.target.style.borderColor = "rgba(255,255,255,0.15)"; }}
           onMouseLeave={e => { e.target.style.color = "#706878"; e.target.style.borderColor = "rgba(255,255,255,0.06)"; }}>
           Sign Out
@@ -1115,9 +1115,9 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       {showActivity && (
         <div style={{ position: "absolute", top: 50, right: 16, width: 290, maxHeight: "60vh", background: "rgba(20,16,28,0.88)", backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", border: "1px solid rgba(200,170,140,0.06)", borderRadius: 18, padding: "18px", zIndex: 20, overflowY: "auto", boxShadow: "0 1px 3px rgba(0,0,0,.1), 0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,245,230,0.03)", animation: "fadeIn .3s ease" }}
           onClick={e => e.stopPropagation()}>
-          <div style={{ fontSize: 9, letterSpacing: "2px", textTransform: "uppercase", color: "#807888", marginBottom: 12, fontFamily: F }}>Recent Activity</div>
+          <div style={{ fontSize: 9, letterSpacing: "2px", textTransform: "uppercase", color: "#a098b0", marginBottom: 12, fontFamily: F }}>Recent Activity</div>
           {activityData.length === 0 && (
-            <div style={{ fontSize: 12, color: "#605868", padding: "20px 0", textAlign: "center", fontFamily: F }}>
+            <div style={{ fontSize: 12, color: "#908898", padding: "20px 0", textAlign: "center", fontFamily: F }}>
               Your worlds are waiting for their first stories.
             </div>
           )}
@@ -1141,8 +1141,8 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
                 <div style={{ fontSize: 12, color: "#d0c8d8", fontFamily: F, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                   {a.city}{a.country ? `, ${a.country}` : ""}
                 </div>
-                <div style={{ fontSize: 9, color: "#686070", fontFamily: F, marginTop: 3, display: "flex", gap: 6, alignItems: "center" }}>
-                  <span style={{ color: "#807888" }}>{worldNameMap[a.world_id] || "Shared World"}</span>
+                <div style={{ fontSize: 9, color: "#888090", fontFamily: F, marginTop: 3, display: "flex", gap: 6, alignItems: "center" }}>
+                  <span style={{ color: "#a098b0" }}>{worldNameMap[a.world_id] || "Shared World"}</span>
                   <span style={{ opacity: 0.4 }}>·</span>
                   <span>{ago}</span>
                   {a.photos && a.photos.length > 1 && <><span style={{ opacity: 0.4 }}>·</span><span>📷 {a.photos.length}</span></>}
@@ -1152,7 +1152,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
             );
           })}
           {activityData.length > 0 && (
-            <div style={{ fontSize: 9, color: "#504860", textAlign: "center", marginTop: 10, fontFamily: F, letterSpacing: "0.5px" }}>
+            <div style={{ fontSize: 9, color: "#807090", textAlign: "center", marginTop: 10, fontFamily: F, letterSpacing: "0.5px" }}>
               {Object.values(entryCounts).reduce((s, c) => s + c, 0) + myEntryCount} total entries across {worlds.length + 1} world{worlds.length !== 0 ? "s" : ""}
             </div>
           )}

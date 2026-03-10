@@ -1,13 +1,15 @@
-import { useState, useEffect, useCallback, useRef, Component } from 'react'
+import { useState, useEffect, useCallback, useRef, Component, lazy, Suspense } from 'react'
 import { AuthProvider, useAuth } from './AuthContext.jsx'
 import { supabase } from './supabaseClient.js'
 import AuthScreen from './AuthScreen.jsx'
 import LandingPage from './LandingPage.jsx'
-import WorldSelector from './WorldSelector.jsx'
-import OurWorld from './OurWorld.jsx'
-import WelcomeLetterScreen from './WelcomeLetterScreen.jsx'
-import CinematicOnboarding from './CinematicOnboarding.jsx'
-import { getWelcomeLetter, getAllWelcomeLetters, markLetterRead } from './supabaseWelcomeLetters.js'
+
+// Route-level code splitting — only one screen renders at a time
+const WorldSelector = lazy(() => import('./WorldSelector.jsx'))
+const OurWorld = lazy(() => import('./OurWorld.jsx'))
+const WelcomeLetterScreen = lazy(() => import('./WelcomeLetterScreen.jsx'))
+const CinematicOnboarding = lazy(() => import('./CinematicOnboarding.jsx'))
+import { getAllWelcomeLetters, markLetterRead } from './supabaseWelcomeLetters.js'
 import { loadMyWorlds, loadMyWorldSubtitle, acceptInvite, getInviteInfo, getPendingWorldInvites, getPendingWorldInvitesForLetter, ensurePersonalWorld, clearWorldCaches } from './supabaseWorlds.js'
 import { getPendingRequests, getMyConnections } from './supabaseConnections.js'
 
@@ -442,40 +444,33 @@ function AppInner() {
             personalWorldId={personalWorldId}
           />
         </ScreenErrorBoundary>
-        {transitioning && (
-          <div style={{
-            position: 'fixed', inset: 0, zIndex: 9999, pointerEvents: 'none',
-            background: transitionColor,
-            opacity: 1,
-          }} />
-        )}
       </>
     )
   } else {
     content = (
-      <>
-        <OurWorld
-          worldMode={worldMode}
-          worldId={activeWorldId}
-          worldName={activeWorldName}
-          worldRole={activeWorldRole}
-          worldType={activeWorldType}
-          onSwitchWorld={switchWorld}
-        />
-        {transitioning && (
-          <div style={{
-            position: 'fixed', inset: 0, zIndex: 9999, pointerEvents: 'none',
-            background: transitionColor,
-            opacity: 1,
-          }} />
-        )}
-      </>
+      <OurWorld
+        worldMode={worldMode}
+        worldId={activeWorldId}
+        worldName={activeWorldName}
+        worldRole={activeWorldRole}
+        worldType={activeWorldType}
+        onSwitchWorld={switchWorld}
+      />
     )
   }
 
   return (
     <>
-      {content}
+      <Suspense fallback={<LoadingScreen />}>
+        {content}
+      </Suspense>
+      {transitioning && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999, pointerEvents: 'none',
+          background: transitionColor,
+          animation: 'cosmosFadeIn 0.4s ease forwards',
+        }} />
+      )}
       {errorToast && (
         <div style={{
           position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)',
@@ -490,7 +485,10 @@ function AppInner() {
           {errorToast}
         </div>
       )}
-      <style>{`@keyframes cosmosToastIn { from { opacity: 0; transform: translateX(-50%) translateY(12px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }`}</style>
+      <style>{`
+        @keyframes cosmosToastIn { from { opacity: 0; transform: translateX(-50%) translateY(12px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+        @keyframes cosmosFadeIn { from { opacity: 0; } to { opacity: 1; } }
+      `}</style>
       {confirmModal && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           onClick={() => setConfirmModal(null)}>

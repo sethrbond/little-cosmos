@@ -1,5 +1,5 @@
 # MY COSMOS — Complete Project Handoff for Claude Code
-### v13.0 | March 2026
+### v14.0 | March 2026
 
 ---
 
@@ -234,9 +234,9 @@ Run `docs/FULL_REBUILD.sql` in Supabase SQL Editor — idempotent, creates all t
 
 ## KNOWN ISSUES (cosmetic, not blocking)
 
-1. **Accessibility is basic** — aria labels on toolbar/buttons/modals, but no keyboard nav for globe or focus trapping in modals.
+1. **Accessibility is basic** — aria labels on toolbar/buttons/modals, focus trapping in settings/forms, but no keyboard nav for globe.
 2. **No automated tests** — manual QA only. No Jest/RTL/E2E tests.
-3. **OurWorld.jsx is ~5,350 lines** — works but hard to maintain. Future refactor target.
+3. **OurWorld.jsx is ~5,400 lines** — works but hard to maintain. Future refactor target.
 4. **No log aggregation** — 100+ console.error calls with no external monitoring (Sentry/LogRocket).
 5. **No entry pagination** — fetches all entries at once. OK at current scale (<200), needs work at 1000+.
 ### Previously Fixed
@@ -298,3 +298,4 @@ Run `docs/FULL_REBUILD.sql` in Supabase SQL Editor — idempotent, creates all t
 - **Session 19 (Claude Code):** 11 new components built via 10 parallel agents — Year-in-Review (885 lines, 10-slide animated recap), TripCard (470 lines, Instagram-style cards), TravelStats (755 lines, deep-dive with heatmaps/charts), PhotoMap (735 lines, SVG world map with pins), Achievements (626 lines, 31 badges), ExportHub (818 lines, 5 export formats), ThemeProvider/ThemeToggle (241 lines, dark mode system), KeyboardShortcuts (241 lines), useRealtimeSync (326 lines, Supabase Realtime + presence), SyncIndicator (92 lines). Full audit: fixed anniversary deps, setConfig deps, loadWorldEntryCounts N+1, dead code, duplicate title logic. +5,284 lines.
 - **Session 20 (Claude Code):** Visual effects sprint — shooting stars (5-pool meteors), aurora mood shift (entry type color blending), search glow (marker pulse/dim), comet arrival (Bezier arc + burst particles + flash), night shadow (GLSL shader, UTC sun position), hover tooltips (photo peek), Surprise Me button (🎲 cinematic zoom), keyboard shortcut R (random). Performance audit: cached THREE.Color in aurora, reused Vector3 in meteors, fixed _baseOpacity race condition, added precision highp float to shader, skip-when-stable aurora optimization.
 - **Session 21 (Claude Code):** Production polish sprint — Fixed night shadow sun direction (sunAngle formula corrected for ll2v coords). Restored TBtnGroup toolbar with chevron indicator. PWA setup (manifest.json, service worker, SVG/PNG icons, meta tags, SW registration). Accessibility pass (aria-label on TBtn/TBtnGroup, role=toolbar, role=dialog on confirm modal). Comprehensive audit (16,200 lines, 29 files): fixed heartPulse duplicate, extended Escape handler to close all 22+ modals, OverlayBoundary error boundary on 6 lazy components, ambient music state sync + URL validation + Test button, iOS apple-touch-icon PNG. Stale state audit: all 55 useState, 29 useRef, 22 useCallback, 28 useMemo confirmed active — zero dead code. Confirmed friend world viewing + cosmos connections ARE fully wired (was not a bug). Updated CLAUDE.md to v12.
+- **Session 22 (Claude Code):** UX polish + mobile + performance — Security patch SQL (3 RLS fixes), backfill_world_id SQL (legacy entry migration). Toast exit animation, mobile tap-to-reveal on WorldSelector orbs, radial dark backdrops behind world labels for text readability, brighter label colors throughout cosmos dashboard. Replaced all alert() calls with toasts. Auth form transitions (fade between login/signup/forgot), friendlier error messages, responsive welcome letter. Route-level code splitting (lazy-load OurWorld, WorldSelector, CinematicOnboarding, WelcomeLetterScreen). Mobile polish: timeline slider thumb 13→22px, safe-area padding on timeline, zoom buttons 40→44px, password eye button enlarged, autoComplete/inputMode on all auth inputs, filter button/dropdown touch targets enlarged, touch-action:none on WorldSelector canvas. Landing page rewrite (warmer copy, gradient title, hover effects, "Free forever" reassurance). Removed unused imports, cleaned up unused variables.

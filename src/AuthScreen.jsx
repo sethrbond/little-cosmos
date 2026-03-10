@@ -61,9 +61,9 @@ export default function AuthScreen({ initialMode = 'login', onBack }) {
 
   const pwWrap = { position: 'relative', width: '100%' }
   const eyeBtn = {
-    position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
+    position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)',
     background: 'none', border: 'none', color: '#e8e0d0', opacity: 0.5,
-    cursor: 'pointer', fontSize: 16, padding: '2px 4px', lineHeight: 1,
+    cursor: 'pointer', fontSize: 18, padding: '8px 10px', lineHeight: 1,
     marginBottom: 12,
   }
   const pwInp = { ...inp, paddingRight: 38 }
@@ -128,10 +128,10 @@ export default function AuthScreen({ initialMode = 'login', onBack }) {
         {mode === 'login' && (
           <form onSubmit={handleLogin}>
             <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 20, textAlign: 'center' }}>Sign In</div>
-            <input style={inp} type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required autoFocus />
+            <input style={inp} type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required autoFocus autoComplete="email" inputMode="email" />
             <div style={pwWrap}>
-              <input style={pwInp} type={showPassword ? 'text' : 'password'} placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required />
-              <button type="button" style={eyeBtn} onClick={() => setShowPassword(v => !v)} tabIndex={-1}>{showPassword ? '\u{1F441}\u200D\u{1F5E8}' : '\u{1F441}'}</button>
+              <input style={pwInp} type={showPassword ? 'text' : 'password'} placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="current-password" />
+              <button type="button" style={eyeBtn} onClick={() => setShowPassword(v => !v)} tabIndex={-1} aria-label="Toggle password visibility">{showPassword ? '\u{1F441}\u200D\u{1F5E8}' : '\u{1F441}'}</button>
             </div>
             {error && <div style={{ color: '#e57373', fontSize: 13, marginBottom: 8 }}>{error}</div>}
             <button style={{ ...btn, opacity: loading ? 0.6 : 1 }} disabled={loading} type="submit">
@@ -147,15 +147,15 @@ export default function AuthScreen({ initialMode = 'login', onBack }) {
         {mode === 'signup' && (
           <form onSubmit={handleSignup}>
             <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 20, textAlign: 'center' }}>Create Account</div>
-            <input style={inp} type="text" placeholder="Your name" value={displayName} onChange={e => setDisplayName(e.target.value)} required autoFocus />
-            <input style={inp} type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required />
+            <input style={inp} type="text" placeholder="Your name" value={displayName} onChange={e => setDisplayName(e.target.value)} required autoFocus autoComplete="name" />
+            <input style={inp} type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" inputMode="email" />
             <div style={pwWrap}>
-              <input style={pwInp} type={showPassword ? 'text' : 'password'} placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required />
-              <button type="button" style={eyeBtn} onClick={() => setShowPassword(v => !v)} tabIndex={-1}>{showPassword ? '\u{1F441}\u200D\u{1F5E8}' : '\u{1F441}'}</button>
+              <input style={pwInp} type={showPassword ? 'text' : 'password'} placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="new-password" />
+              <button type="button" style={eyeBtn} onClick={() => setShowPassword(v => !v)} tabIndex={-1} aria-label="Toggle password visibility">{showPassword ? '\u{1F441}\u200D\u{1F5E8}' : '\u{1F441}'}</button>
             </div>
             <div style={pwWrap}>
-              <input style={pwInp} type={showPassword ? 'text' : 'password'} placeholder="Confirm password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required />
-              <button type="button" style={eyeBtn} onClick={() => setShowPassword(v => !v)} tabIndex={-1}>{showPassword ? '\u{1F441}\u200D\u{1F5E8}' : '\u{1F441}'}</button>
+              <input style={pwInp} type={showPassword ? 'text' : 'password'} placeholder="Confirm password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required autoComplete="new-password" />
+              <button type="button" style={eyeBtn} onClick={() => setShowPassword(v => !v)} tabIndex={-1} aria-label="Toggle password visibility">{showPassword ? '\u{1F441}\u200D\u{1F5E8}' : '\u{1F441}'}</button>
             </div>
             {error && <div style={{ color: '#e57373', fontSize: 13, marginBottom: 8 }}>{error}</div>}
             <button style={{ ...btn, opacity: loading ? 0.6 : 1 }} disabled={loading} type="submit">
@@ -170,7 +170,7 @@ export default function AuthScreen({ initialMode = 'login', onBack }) {
         {mode === 'forgot' && (
           <form onSubmit={handleForgot}>
             <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 20, textAlign: 'center' }}>Reset Password</div>
-            <input style={inp} type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required autoFocus />
+            <input style={inp} type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required autoFocus autoComplete="email" inputMode="email" />
             {error && <div style={{ color: '#e57373', fontSize: 13, marginBottom: 8 }}>{error}</div>}
             {message && <div style={{ color: '#a5d6a7', fontSize: 13, marginBottom: 8 }}>{message}</div>}
             <button style={{ ...btn, opacity: loading ? 0.6 : 1 }} disabled={loading} type="submit">
