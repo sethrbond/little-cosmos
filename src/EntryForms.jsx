@@ -166,6 +166,8 @@ export function TBtnGroup({ icon, label, children, badge }) {
         }}
       >
         {icon}
+        {/* Expand indicator */}
+        <span style={{ position: "absolute", right: 2, bottom: 2, fontSize: 7, opacity: open ? 0.6 : 0.3, transition: "opacity .2s", lineHeight: 1 }}>›</span>
         {badge && <span style={{ position: "absolute", top: -2, right: -2, width: 8, height: 8, borderRadius: "50%", background: P.rose, border: `1.5px solid ${P.card}` }} />}
       </button>
       {open && (

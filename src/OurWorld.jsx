@@ -16,7 +16,7 @@ import SyncIndicator from "./SyncIndicator.jsx";
 import useRealtimeSync from "./useRealtimeSync.js";
 import { supabase } from "./supabaseClient.js";
 import { geocodeSearch } from "./geocode.js";
-import { inpSt, navSt, imgN, renderList, TBtn, Lbl, Fld, QuickAddForm, DreamAddForm, AddForm, EditForm, hasDraft, getDraftSummary } from "./EntryForms.jsx";
+import { inpSt, navSt, imgN, renderList, TBtn, TBtnGroup, Lbl, Fld, QuickAddForm, DreamAddForm, AddForm, EditForm, hasDraft, getDraftSummary } from "./EntryForms.jsx";
 import {
   OUR_WORLD_PALETTE, MY_WORLD_PALETTE,
   OUR_WORLD_TYPES, MY_WORLD_TYPES,
@@ -963,9 +963,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   useEffect(() => {
     (async () => {
       try {
-        console.log('[cosmos:load] starting — worldMode:', worldMode, 'worldId:', worldId, 'userId:', userId, 'isMyWorld:', isMyWorld, 'isSharedWorld:', isSharedWorld);
         const [entries, cfg] = await Promise.all([db.loadEntries(), db.loadConfig()]);
-        console.log('[cosmos:load] result — entries:', entries?.length, 'config:', !!cfg);
         dispatch({ type: "LOAD", entries: entries || [] });
         if (cfg) {
           const merged = { ...DEFAULT_CONFIG, ...cfg };
@@ -2688,9 +2686,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       // mesh is a child of globe, normals are object-space, ll2v coords are fixed)
       if (nightShadowRef.current?.material) {
         const uh = new Date().getUTCHours() + new Date().getUTCMinutes() / 60 + new Date().getUTCSeconds() / 3600;
-        const sunAngle = (uh / 24) * Math.PI * 2 - Math.PI / 2; // noon UTC = sun over 0° longitude (+z)
+        const sunAngle = (12 - uh) * Math.PI / 12; // subsolar longitude in ll2v coords
         nightShadowRef.current.material.uniforms.sunDir.value.set(
-          Math.cos(sunAngle), 0.15, Math.sin(sunAngle)
+          Math.cos(sunAngle), 0.15, -Math.sin(sunAngle)
         ).normalize();
       }
 
@@ -3509,40 +3507,50 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         {data.entries.length > 0 && <TBtn a={showSearch} onClick={() => setShowSearch(v => !v)} tip="Search Entries">🔍</TBtn>}
         {data.entries.length > 0 && <TBtn a={showStats} onClick={() => setShowStats(v => !v)} tip="Stats & Insights">📊</TBtn>}
 
-        {/* — Discover — */}
-        {data.entries.length > 2 && <TBtn a={showConstellation} onClick={() => setShowConstellation(v => !v)} tip="Constellation">⭐</TBtn>}
-        {sorted.length > 1 && <TBtn a={showRoutes} onClick={() => setShowRoutes(v => !v)} tip="Travel Routes">🛤</TBtn>}
-        {data.entries.length > 0 && <TBtn a={showAchievements} onClick={() => setShowAchievements(v => !v)} tip="Achievements">🏆</TBtn>}
-        {data.entries.length > 2 && <TBtn a={showTravelStats} onClick={() => setShowTravelStats(v => !v)} tip="Travel Stats">📈</TBtn>}
-        {isPartnerWorld && togetherList.length > 1 && <TBtn a={showLoveThread} onClick={() => setShowLoveThread(v => !v)} tip="Love Thread">🧵</TBtn>}
-        {data.entries.length > 0 && <TBtn a={showDreams} onClick={() => setShowDreams(v => !v)} tip={isMyWorld ? "Bucket List" : isPartnerWorld ? "Dream Destinations" : "Wish List"}>{isMyWorld ? "🗺️" : "✦"}</TBtn>}
+        {/* — Discover group — */}
+        {data.entries.length > 0 && (
+          <TBtnGroup icon="✨" label="discover">
+            {data.entries.length > 2 && <TBtn a={showConstellation} onClick={() => setShowConstellation(v => !v)} tip="Constellation">⭐</TBtn>}
+            {sorted.length > 1 && <TBtn a={showRoutes} onClick={() => setShowRoutes(v => !v)} tip="Travel Routes">🛤</TBtn>}
+            {data.entries.length > 0 && <TBtn a={showAchievements} onClick={() => setShowAchievements(v => !v)} tip="Achievements">🏆</TBtn>}
+            {data.entries.length > 2 && <TBtn a={showTravelStats} onClick={() => setShowTravelStats(v => !v)} tip="Travel Stats">📈</TBtn>}
+            {isPartnerWorld && togetherList.length > 1 && <TBtn a={showLoveThread} onClick={() => setShowLoveThread(v => !v)} tip="Love Thread">🧵</TBtn>}
+            <TBtn a={showDreams} onClick={() => setShowDreams(v => !v)} tip={isMyWorld ? "Bucket List" : isPartnerWorld ? "Dream Destinations" : "Wish List"}>{isMyWorld ? "🗺️" : "✦"}</TBtn>
+          </TBtnGroup>
+        )}
 
-        {/* — Photos — */}
-        {allPhotos.length > 0 && <div style={{ width: 20, height: 1, background: `${P.textFaint}18`, margin: "1px auto" }} />}
-        {allPhotos.length > 0 && <TBtn a={showGallery} onClick={() => setShowGallery(v => !v)} tip="Photo Gallery">📷</TBtn>}
-        {allPhotos.length > 2 && <TBtn onClick={() => { setShowPhotoJourney(true); setPjIndex(0); }} tip="Photo Journey">🎞</TBtn>}
-        {allPhotos.length > 0 && <TBtn a={showPhotoMap} onClick={() => setShowPhotoMap(v => !v)} tip="Photo Map">📍</TBtn>}
+        {/* — Photos group — */}
+        {allPhotos.length > 0 && (
+          <TBtnGroup icon="📷" label="photos">
+            <TBtn a={showGallery} onClick={() => setShowGallery(v => !v)} tip="Photo Gallery">📷</TBtn>
+            {allPhotos.length > 2 && <TBtn onClick={() => { setShowPhotoJourney(true); setPjIndex(0); }} tip="Photo Journey">🎞</TBtn>}
+            <TBtn a={showPhotoMap} onClick={() => setShowPhotoMap(v => !v)} tip="Photo Map">📍</TBtn>
+          </TBtnGroup>
+        )}
 
-        {/* — Play — */}
-        {data.entries.length > 1 && <div style={{ width: 20, height: 1, background: `${P.textFaint}18`, margin: "1px auto" }} />}
-        {(isPartnerWorld ? togetherList.length > 0 : sorted.length > 0) && !isPlaying && <TBtn onClick={playStory} tip={isPartnerWorld ? "Play Our Story" : "Play Story"}>▶</TBtn>}
-        {isPlaying && <TBtn onClick={stopPlay} a tip="Stop Playback">⏹</TBtn>}
-        {data.entries.length > 1 && <TBtn onClick={() => {
-          const pool = data.entries.filter(e => e.lat != null && e.lng != null);
-          if (!pool.length) return;
-          const pick = pool[Math.floor(Math.random() * pool.length)];
-          tZm.current = 4.5;
-          setTimeout(() => {
-            flyTo(pick.lat, pick.lng, 2.2);
-            setTimeout(() => { setSelected(pick); setPhotoIdx(0); setCardTab("overview"); }, 600);
-          }, 400);
-        }} tip="Surprise Me">🎲</TBtn>}
-        {config.ambientMusicUrl && <TBtn a={ambientPlaying} onClick={() => {
-          const au = ambientRef.current;
-          if (!au) return;
-          if (ambientPlaying) { au.pause(); setAmbientPlaying(false); }
-          else { au.play().catch(() => {}); setAmbientPlaying(true); }
-        }} tip={ambientPlaying ? "Pause Ambient Music" : "Play Ambient Music"}>{ambientPlaying ? "🔊" : "🎵"}</TBtn>}
+        {/* — Play group — */}
+        {data.entries.length > 1 && (
+          <TBtnGroup icon="▶" label="play">
+            {(isPartnerWorld ? togetherList.length > 0 : sorted.length > 0) && !isPlaying && <TBtn onClick={playStory} tip={isPartnerWorld ? "Play Our Story" : "Play Story"}>▶</TBtn>}
+            {isPlaying && <TBtn onClick={stopPlay} a tip="Stop Playback">⏹</TBtn>}
+            <TBtn onClick={() => {
+              const pool = data.entries.filter(e => e.lat != null && e.lng != null);
+              if (!pool.length) return;
+              const pick = pool[Math.floor(Math.random() * pool.length)];
+              tZm.current = 4.5;
+              setTimeout(() => {
+                flyTo(pick.lat, pick.lng, 2.2);
+                setTimeout(() => { setSelected(pick); setPhotoIdx(0); setCardTab("overview"); }, 600);
+              }, 400);
+            }} tip="Surprise Me">🎲</TBtn>
+            {config.ambientMusicUrl && <TBtn a={ambientPlaying} onClick={() => {
+              const au = ambientRef.current;
+              if (!au) return;
+              if (ambientPlaying) { au.pause(); setAmbientPlaying(false); }
+              else { au.play().catch(() => {}); setAmbientPlaying(true); }
+            }} tip={ambientPlaying ? "Pause Ambient Music" : "Play Ambient Music"}>{ambientPlaying ? "🔊" : "🎵"}</TBtn>}
+          </TBtnGroup>
+        )}
 
         {/* — divider — */}
         <div style={{ width: 20, height: 1, background: `${P.textFaint}18`, margin: "1px auto" }} />

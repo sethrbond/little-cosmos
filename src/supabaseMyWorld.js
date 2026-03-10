@@ -57,14 +57,11 @@ async function readPhotos(entryId) {
 // ---- PERSONAL WORLD FACTORY (uses entries + config with world_id) ----
 
 export function createMyWorldDB(worldId, userId) {
-  console.log('[createMyWorldDB] worldId:', worldId, 'userId:', userId)
   return {
     loadEntries: async () => {
-      console.log('[my:loadEntries] querying world_id:', worldId)
-      const { data, error, status } = await supabase.from('entries').select('*')
+      const { data, error } = await supabase.from('entries').select('*')
         .eq('world_id', worldId)
         .order('date_start', { ascending: true })
-      console.log('[my:loadEntries] status:', status, 'rows:', data?.length, 'error:', error)
       if (error) { console.error('[my:loadEntries] error:', error); return [] }
       return (data || []).map(row => ({
         id: row.id, city: row.city, country: row.country || '',
