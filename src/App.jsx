@@ -209,7 +209,7 @@ function AppInner() {
     setInvitePending(null)
 
     getInviteInfo(token).then(info => {
-      if (!info) { showErrorToast('This invite link has expired or isn't valid. Ask your friend to send a new one.'); return }
+      if (!info) { showErrorToast("This invite link has expired or isn\u2019t valid. Ask your friend to send a new one."); return }
       const worldName = info.worlds?.name || 'a shared world'
       setConfirmModal({
         message: `You've been invited to join "${worldName}"!\n\nWould you like to accept this invitation?`,
