@@ -477,12 +477,13 @@ export async function getPendingWorldInvites(userEmail) {
   }
 
   // Strategy 2: Welcome letters with invite_token (for invites created before target_email existed)
+  // Check ALL letters (including read ones) — user may have read the letter but invite acceptance
+  // failed because columns were missing at the time
   if (results.length === 0) {
     const { data: letters } = await supabase
       .from('welcome_letters')
       .select('from_user_id, from_name, to_email, created_at, invite_token')
       .eq('to_email', email)
-      .eq('read', false)
 
     const letterTokens = (letters || []).filter(l => l.invite_token).map(l => l.invite_token)
     if (letterTokens.length > 0) {
