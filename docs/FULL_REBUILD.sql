@@ -158,6 +158,12 @@ CREATE TABLE IF NOT EXISTS world_invites (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Ensure columns exist even if table was created in an earlier migration
+ALTER TABLE world_invites ADD COLUMN IF NOT EXISTS target_email TEXT;
+ALTER TABLE world_invites ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'member';
+ALTER TABLE world_invites ADD COLUMN IF NOT EXISTS max_uses INT DEFAULT 1;
+ALTER TABLE world_invites ADD COLUMN IF NOT EXISTS use_count INT DEFAULT 0;
+
 
 -- ============================================================
 --  9. ENTRY COMMENTS TABLE

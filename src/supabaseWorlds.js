@@ -314,8 +314,10 @@ export async function createInvite(worldId, userId, role = 'member', maxUses = 1
 }
 
 export async function acceptInvite(token) {
+  console.log(`[acceptInvite] calling RPC with token=${token?.slice(0, 6)}...`)
   const { data, error } = await supabase.rpc('accept_world_invite', { invite_token: token })
-  if (error) { console.error('[acceptInvite]', error); return { ok: false, error: error.message } }
+  if (error) { console.error('[acceptInvite] RPC error:', error.message, error.details, error.hint, error.code); return { ok: false, error: error.message } }
+  console.log('[acceptInvite] RPC result:', JSON.stringify(data))
   if (data && typeof data === 'object' && data.ok !== undefined) return data
   if (data && typeof data === 'object' && data.world_id) return { ok: true, ...data }
   return { ok: !!data, world_id: data?.world_id || null }
