@@ -8,6 +8,34 @@ import { geocodeSearch } from "./geocode.js";
  * on mount and updated whenever the palette changes.
  */
 
+// ---- FOCUS TRAP HOOK ----
+// Traps Tab/Shift+Tab within a container element. Moves focus into container on mount.
+export function useFocusTrap(active = true) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!active || !ref.current) return;
+    const el = ref.current;
+    const prev = document.activeElement;
+    const getFocusable = () => el.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    // Move focus into the trap
+    const items = getFocusable();
+    if (items.length) items[0].focus();
+    else { el.setAttribute('tabindex', '-1'); el.focus(); }
+    const handler = (e) => {
+      if (e.key !== 'Tab') return;
+      const focusable = getFocusable();
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey) { if (document.activeElement === first) { e.preventDefault(); last.focus(); } }
+      else { if (document.activeElement === last) { e.preventDefault(); first.focus(); } }
+    };
+    el.addEventListener('keydown', handler);
+    return () => { el.removeEventListener('keydown', handler); if (prev && prev.focus) prev.focus(); };
+  }, [active]);
+  return ref;
+}
+
 // Palette accessor — reads from mutable global set by OurWorldInner
 const P = (typeof window !== "undefined" && window.__cosmosP) || {};
 const getP = () => (typeof window !== "undefined" && window.__cosmosP) || P;
@@ -241,6 +269,7 @@ function FldR({ l, v, set, t = "text", ph = "", req }) {
 
 export function QuickAddForm({ types, onAdd, onClose, draftKey }) {
   const P = getP();
+  const trapRef = useFocusTrap(true);
   const initialQuick = { city: "", country: "", lat: "", lng: "", dateStart: "", dateEnd: "", type: Object.keys(types)[0] || "together", notes: "" };
   const [f, sf, draftRestored, clearDraft] = useDraft(draftKey, initialQuick);
   const [sugg, setSugg] = useState([]);
@@ -256,7 +285,7 @@ export function QuickAddForm({ types, onAdd, onClose, draftKey }) {
   const ok = f.city.trim() && f.lat && f.lng && f.dateStart;
 
   return (
-    <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", zIndex: 40, background: P.card, backdropFilter: "blur(28px)", borderRadius: 20, padding: 24, width: 340, boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 20px 56px rgba(61,53,82,.1)", border: `1px solid ${P.gold}15`, fontFamily: "'Palatino Linotype',Palatino,Georgia,serif", color: P.text, animation: "fadeIn .3s ease" }}>
+    <div ref={trapRef} style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", zIndex: 40, background: P.card, backdropFilter: "blur(28px)", borderRadius: 20, padding: 24, width: 340, boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 20px 56px rgba(61,53,82,.1)", border: `1px solid ${P.gold}15`, fontFamily: "'Palatino Linotype',Palatino,Georgia,serif", color: P.text, animation: "fadeIn .3s ease" }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
         <h3 style={{ margin: 0, fontSize: 15, fontWeight: 400, letterSpacing: ".04em" }}>⚡ Quick Add</h3>
         <button aria-label="Close quick add" onClick={onClose} style={{ background: "none", border: "none", fontSize: 16, color: P.textFaint, cursor: "pointer" }}>×</button>
@@ -337,6 +366,7 @@ export function DreamAddForm({ onAdd, isMyWorld }) {
 
 export function AddForm({ types, defaultType = "together", defaultWho = "both", fieldLabels, isMyWorld, worldName, onAdd, onClose, draftKey }) {
   const P = getP();
+  const trapRef = useFocusTrap(true);
   const initialForm = { city: "", country: "", lat: "", lng: "", dateStart: "", dateEnd: "", type: defaultType, who: defaultWho, zoomLevel: 1, notes: "", memories: "", museums: "", restaurants: "", highlights: "", musicUrl: "", stops: [] };
   const [f, sf, draftRestored, clearDraft, dismissRestored] = useDraft(draftKey, initialForm);
   const [suggestions, setSuggestions] = useState([]);
@@ -375,7 +405,7 @@ export function AddForm({ types, defaultType = "together", defaultWho = "both", 
   };
 
   return (
-    <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", zIndex: 40, background: P.card, backdropFilter: "blur(28px)", borderRadius: 22, padding: 28, width: 380, maxHeight: "88vh", overflowY: "auto", boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 20px 56px rgba(61,53,82,.1)", border: `1px solid ${P.rose}10`, fontFamily: "'Palatino Linotype',Palatino,Georgia,serif", color: P.text, animation: "fadeIn .3s ease" }}>
+    <div ref={trapRef} style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", zIndex: 40, background: P.card, backdropFilter: "blur(28px)", borderRadius: 22, padding: 28, width: 380, maxHeight: "88vh", overflowY: "auto", boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 20px 56px rgba(61,53,82,.1)", border: `1px solid ${P.rose}10`, fontFamily: "'Palatino Linotype',Palatino,Georgia,serif", color: P.text, animation: "fadeIn .3s ease" }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}><h3 style={{ margin: 0, fontSize: 17, fontWeight: 400, letterSpacing: ".04em" }}>Add a New Chapter</h3><button aria-label="Close add form" onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, color: P.textFaint, cursor: "pointer" }}>×</button></div>
       <p style={{ fontSize: 9, color: P.textMuted, marginBottom: 12, fontStyle: "italic" }}>{isMyWorld ? "Add a new adventure 🧭" : "Another page in your story ✨"}</p>
 
@@ -484,6 +514,7 @@ export function AddForm({ types, defaultType = "together", defaultWho = "both", 
 
 export function EditForm({ entry, types, fieldLabels, onChange, onSave, onClose, onDelete, onAddStop }) {
   const P = getP();
+  const trapRef = useFocusTrap(true);
   const [ns, setNs] = useState({ city: "", lat: "", lng: "", notes: "", dateStart: "", dateEnd: "" });
   const [stopSugg, setStopSugg] = useState([]);
   const [showStopSugg, setShowStopSugg] = useState(false);
@@ -514,7 +545,7 @@ export function EditForm({ entry, types, fieldLabels, onChange, onSave, onClose,
   };
 
   return (
-    <div style={{ position: "absolute", top: "42%", right: 18, transform: "translateY(-50%)", zIndex: 30, background: P.card, backdropFilter: "blur(28px)", borderRadius: 20, padding: 22, maxWidth: 340, minWidth: 270, maxHeight: "65vh", overflowY: "auto", boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 20px 56px rgba(61,53,82,.1)", border: `1px solid ${P.together}12`, fontFamily: "'Palatino Linotype',Palatino,Georgia,serif", animation: "fadeIn .3s ease" }}>
+    <div ref={trapRef} style={{ position: "absolute", top: "42%", right: 18, transform: "translateY(-50%)", zIndex: 30, background: P.card, backdropFilter: "blur(28px)", borderRadius: 20, padding: 22, maxWidth: 340, minWidth: 270, maxHeight: "65vh", overflowY: "auto", boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 20px 56px rgba(61,53,82,.1)", border: `1px solid ${P.together}12`, fontFamily: "'Palatino Linotype',Palatino,Georgia,serif", animation: "fadeIn .3s ease" }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}><h3 style={{ margin: 0, fontSize: 15, fontWeight: 400, letterSpacing: ".04em" }}>Edit</h3><button aria-label="Close edit form" onClick={onClose} style={{ background: "none", border: "none", fontSize: 16, color: P.textFaint, cursor: "pointer" }}>×</button></div>
       <div style={{ marginBottom: 9, position: "relative" }}>
         <Lbl>City</Lbl>

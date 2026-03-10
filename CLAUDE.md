@@ -239,10 +239,9 @@ Run `docs/FULL_REBUILD.sql` in Supabase SQL Editor — idempotent, creates all t
 3. **OurWorld.jsx is ~5,350 lines** — works but hard to maintain. Future refactor target.
 4. **No log aggregation** — 100+ console.error calls with no external monitoring (Sentry/LogRocket).
 5. **No entry pagination** — fetches all entries at once. OK at current scale (<200), needs work at 1000+.
-6. **Legacy entries have world_id = NULL** — pre-multi-world entries invisible to cross-world search/activity. See `docs/backfill_world_id.sql`.
-7. **Run `docs/security_patch.sql`** — RLS fixes for config_friend_select, world_invites_select, photos_delete.
-
 ### Previously Fixed
+- ~~Legacy entries world_id NULL~~ — FIXED: backfill_world_id.sql run March 2026
+- ~~Security patch needed~~ — FIXED: security_patch.sql run March 2026 (config_friend_select, world_invites_select, photos_delete)
 - ~~ambientMusicUrl incomplete~~ — FIXED: settings has URL input + Test button, audio syncs via onPlay/onPause/onError
 - ~~No error boundary on overlays~~ — FIXED: OverlayBoundary wraps all 6 lazy-loaded components
 - ~~Duplicate heartPulse keyframe~~ — FIXED: single definition at 1.06

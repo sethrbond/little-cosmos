@@ -16,7 +16,7 @@ import SyncIndicator from "./SyncIndicator.jsx";
 import useRealtimeSync from "./useRealtimeSync.js";
 import { supabase } from "./supabaseClient.js";
 import { geocodeSearch } from "./geocode.js";
-import { inpSt, navSt, imgN, renderList, TBtn, TBtnGroup, Lbl, Fld, QuickAddForm, DreamAddForm, AddForm, EditForm, hasDraft, getDraftSummary, OverlayBoundary } from "./EntryForms.jsx";
+import { inpSt, navSt, imgN, renderList, TBtn, TBtnGroup, Lbl, Fld, QuickAddForm, DreamAddForm, AddForm, EditForm, hasDraft, getDraftSummary, OverlayBoundary, useFocusTrap } from "./EntryForms.jsx";
 import {
   OUR_WORLD_PALETTE, MY_WORLD_PALETTE,
   OUR_WORLD_TYPES, MY_WORLD_TYPES,
@@ -1570,6 +1570,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     const idx = togetherList.findIndex(e => e.id === id);
     return idx >= 0 ? idx + 1 : null;
   }, [togetherList]);
+
+  // ---- FOCUS TRAP (settings modal) ----
+  const settingsTrapRef = useFocusTrap(showSettings);
 
   // ---- TOAST SYSTEM (queue/stack with undo support) ----
   const showToast = useCallback((message, icon = "✓", duration = 2500, undoAction = null) => {
@@ -4309,7 +4312,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
       {showSettings && !isViewer && (
         <div role="dialog" aria-modal="true" aria-label="Settings" onClick={() => { flushConfigSave(); setShowSettings(false); }} style={{ position: "absolute", inset: 0, zIndex: 45, background: `linear-gradient(135deg, rgba(22,16,40,.82), rgba(30,24,48,.88))`, backdropFilter: "blur(24px)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", animation: "fadeIn .3s ease" }}>
-          <div onClick={e => e.stopPropagation()} style={{ width: 400, maxWidth: "92vw", maxHeight: "85vh", overflowY: "auto", padding: 30, background: P.card, borderRadius: 22, boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 24px 64px rgba(61,53,82,.1)", cursor: "default" }}>
+          <div ref={settingsTrapRef} onClick={e => e.stopPropagation()} style={{ width: 400, maxWidth: "92vw", maxHeight: "85vh", overflowY: "auto", padding: 30, background: P.card, borderRadius: 22, boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 24px 64px rgba(61,53,82,.1)", cursor: "default" }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}><h3 style={{ margin: 0, fontSize: 16, fontWeight: 400, letterSpacing: ".06em" }}>Settings</h3><button aria-label="Close settings" onClick={() => { flushConfigSave(); setShowSettings(false); }} style={{ background: "none", border: "none", fontSize: 17, color: P.textFaint, cursor: "pointer", transition: "color .2s" }}>×</button></div>
             <Fld l={isMyWorld ? "First Trip Date" : isPartnerWorld ? "Date You Met" : "First Trip Date"} v={config.startDate} t="date" set={v => setConfig({ startDate: v })} />
             <Fld l="Title" v={config.title} set={v => setConfig({ title: v })} />
