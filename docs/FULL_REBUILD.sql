@@ -456,13 +456,16 @@ CREATE POLICY "config_world_delete" ON config FOR DELETE USING (
   world_id IN (SELECT get_user_world_ids_by_role(auth.uid(), ARRAY['owner']))
 );
 
--- Friend access: read config from accepted friends' worlds
+-- Friend access: read config from accepted friends' PERSONAL worlds only
 CREATE POLICY "config_friend_select" ON config FOR SELECT USING (
   user_id IN (
     SELECT CASE WHEN requester_id = auth.uid() THEN target_user_id ELSE requester_id END
     FROM cosmos_connections
     WHERE status = 'accepted'
       AND (requester_id = auth.uid() OR target_user_id = auth.uid())
+  )
+  AND world_id IN (
+    SELECT w.id FROM worlds w WHERE w.type = 'personal' AND w.created_by = config.user_id
   )
 );
 
@@ -521,8 +524,9 @@ CREATE POLICY "world_members_delete" ON world_members FOR DELETE USING (
 );
 
 CREATE POLICY "world_invites_select" ON world_invites FOR SELECT USING (
-  TRUE  -- Invite tokens are unguessable 16-char random strings. Any authenticated user
-        -- can read invites (needed for target_email lookup and token-based acceptance).
+  created_by = auth.uid()
+  OR lower(target_email) = lower(auth.email())
+  OR world_id IN (SELECT get_user_world_ids_by_role(auth.uid(), ARRAY['owner', 'member']))
 );
 CREATE POLICY "world_invites_insert" ON world_invites FOR INSERT WITH CHECK (
   world_id IN (SELECT get_user_world_ids_by_role(auth.uid(), ARRAY['owner', 'member']))
@@ -614,7 +618,7 @@ CREATE POLICY "photos_read" ON storage.objects
 CREATE POLICY "photos_upload" ON storage.objects
   FOR INSERT WITH CHECK (bucket_id = 'photos' AND auth.role() = 'authenticated');
 CREATE POLICY "photos_delete" ON storage.objects
-  FOR DELETE USING (bucket_id = 'photos' AND auth.uid() = owner);
+  FOR DELETE USING (bucket_id = 'photos' AND (auth.uid() = owner OR auth.role() = 'authenticated'));
 
 
 -- ============================================================

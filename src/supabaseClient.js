@@ -12,7 +12,7 @@ export async function withRetry(fn, retries = 2) {
   for (let i = 0; i <= retries; i++) {
     try { return await fn() }
     catch (err) {
-      if (i === retries) { console.error('[withRetry] all retries failed:', err); return null }
+      if (i === retries) { console.error('[withRetry] all retries failed:', err); throw err }
       await new Promise(r => setTimeout(r, 1000 * (i + 1)))
     }
   }

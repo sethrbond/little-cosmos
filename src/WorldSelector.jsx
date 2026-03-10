@@ -687,7 +687,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     if (!mountedRef.current) return;
     setCreatingPersonal(false);
     if (!world || world._error) {
-      alert("Failed to create world: " + (world?._error || "unknown error"));
+      showToast("Failed to create world: " + (world?._error || "unknown error"));
     } else {
       const updated = await loadMyWorlds(userId);
       if (!mountedRef.current) return;
@@ -709,14 +709,14 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     });
     if (!mountedRef.current) return;
     setCreatingShared(false);
-    if (!world || world._error) { alert("Failed to create world: " + (world?._error || "unknown error")); return; }
+    if (!world || world._error) { showToast("Failed to create world: " + (world?._error || "unknown error")); return; }
     setCreatedWorldId(world.id);
     setSharedStep(1);
   };
 
   const handleSendInvite = async () => {
     if (!inviteEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail.trim())) {
-      alert("Please enter a valid email address.");
+      showToast("Please enter a valid email address.");
       return;
     }
     setCreatingShared(true);
@@ -728,7 +728,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     if (result) {
       setGeneratedLink(result.inviteLink);
       setSharedStep(2);
-    } else { alert("Failed to generate invite."); }
+    } else { showToast("Failed to generate invite."); }
   };
 
   const handleFinishShared = async () => {
@@ -749,11 +749,11 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       if (!mountedRef.current) return;
       setInviteGenerating(false);
       if (inv) { setInviteLink(`${window.location.origin}?invite=${inv.token}`); refreshInvites(); }
-      else alert("Failed to generate invite.");
+      else showToast("Failed to generate invite.");
       return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(existingInviteEmail.trim())) {
-      alert("Please enter a valid email address.");
+      showToast("Please enter a valid email address.");
       return;
     }
     setInviteGenerating(true);
@@ -764,7 +764,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       if (!mountedRef.current) return;
       setInviteGenerating(false);
       if (result) { setInviteLink(result.inviteLink); refreshInvites(); }
-      else { alert("Failed to generate invite."); }
+      else { showToast("Failed to generate invite."); }
     } else {
       const result = await createInviteWithLetter(
         showInviteModal.id, userId, userDisplayName || "Someone special", existingInviteEmail.trim(), existingInviteLetter
@@ -772,14 +772,14 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       if (!mountedRef.current) return;
       setInviteGenerating(false);
       if (result) { setInviteLink(result.inviteLink); refreshInvites(); }
-      else { alert("Failed to generate invite."); }
+      else { showToast("Failed to generate invite."); }
     }
   };
 
   // Invite to Cosmos (platform invite with optional letter)
   const handleCosmosInvite = async () => {
     if (!cosmosInviteEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cosmosInviteEmail.trim())) {
-      alert("Please enter a valid email address.");
+      showToast("Please enter a valid email address.");
       return;
     }
     setCosmosInviteSending(true);
@@ -790,7 +790,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     } catch (err) {
       console.error('[cosmosInvite]', err);
       if (!mountedRef.current) return;
-      alert("Failed to send invite.");
+      showToast("Failed to send invite.");
     }
     if (mountedRef.current) setCosmosInviteSending(false);
   };
@@ -798,7 +798,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
   // Add a Friend (connection request)
   const handleAddFriend = async () => {
     if (!friendEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(friendEmail.trim())) {
-      alert("Please enter a valid email address.");
+      showToast("Please enter a valid email address.");
       return;
     }
     setFriendSending(true);
@@ -809,7 +809,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       setFriendSent(true);
       showToast("Friend request sent!");
     } else {
-      alert("Failed to send friend request" + (result?._error ? ": " + result._error : "."));
+      showToast("Failed to send friend request" + (result?._error ? ": " + result._error : "."));
     }
   };
 
@@ -833,7 +833,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       if (onConnectionsChange) onConnectionsChange(conn);
       showToast(`You and ${req.requester_name || "your friend"} are now connected!`);
     } else {
-      alert(result?.error || "Failed to accept request.");
+      showToast(result?.error || "Failed to accept request.");
     }
   };
 
@@ -949,13 +949,13 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
                     setConfirmModal({ message: `Permanently delete "${w.label}"? All entries, photos, and settings will be lost forever. This cannot be undone.`, confirmLabel: "Delete Forever", onConfirm: async () => {
                       const ok = await deleteWorld(w.id, userId);
                       if (ok) { onWorldsChange(worlds.filter(x => x.id !== w.id)); }
-                      else { alert("Failed to delete world."); }
+                      else { showToast("Failed to delete world."); }
                     }});
                   } else {
                     setConfirmModal({ message: `Leave "${w.label}"? You'll lose access to this world.`, confirmLabel: "Leave World", onConfirm: async () => {
                       const ok = await leaveWorld(w.id, userId);
                       if (ok) { onWorldsChange(worlds.filter(x => x.id !== w.id)); }
-                      else { alert("Failed to leave world."); }
+                      else { showToast("Failed to leave world."); }
                     }});
                   }
                 }}
@@ -1455,7 +1455,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
                         closeAllModals();
                         const joined = updated.find(w => w.id === result.world_id);
                         onSelect("our", result.world_id, inv.worldName, joined?.role || "member", inv.worldType || joined?.type || "shared");
-                      } else { alert(result?.error || "Failed to accept invite."); }
+                      } else { showToast(result?.error || "Failed to accept invite."); }
                     }} style={{ ...btnP, padding: "5px 14px", fontSize: 11 }}>Accept & Enter</button>
                   </div>
                 </div>

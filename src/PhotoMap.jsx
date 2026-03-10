@@ -39,10 +39,6 @@ export default function PhotoMap({ entries = [], palette, onClose, worldMode }) 
   const P = palette || {};
   const accent = P.rose || "#c48aa8";
   const bg = "#0d0d1a";
-  const cardBg = P.card || "rgba(252,249,246,0.96)";
-  const textColor = P.text || "#2e2440";
-  const textMuted = P.textMuted || "#8878a0";
-
   const containerRef = useRef(null);
   const [dragging, setDragging] = useState(false);
   const draggingRef = useRef(false);
@@ -53,7 +49,7 @@ export default function PhotoMap({ entries = [], palette, onClose, worldMode }) 
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [hovered, setHovered] = useState(null);
   const [lightbox, setLightbox] = useState(null); // { entry, photoIdx }
-  const [mapSize, setMapSize] = useState({ w: 1200, h: 600 });
+  const [mapSize, setMapSize] = useState({ w: 0, h: 0 });
 
   // Measure container
   useEffect(() => {
@@ -627,6 +623,7 @@ export default function PhotoMap({ entries = [], palette, onClose, worldMode }) 
         onPointerUp={onPointerUp}
         onPointerLeave={onPointerUp}
       >
+        {mapSize.w === 0 ? null : <>
         {/* SVG map */}
         <svg
           width={mapSize.w}
@@ -728,6 +725,7 @@ export default function PhotoMap({ entries = [], palette, onClose, worldMode }) 
             <span style={{ fontSize: 13, opacity: 0.6 }}>Add photos to your entries to see them on the map</span>
           </div>
         )}
+        </>}
       </div>
 
       {/* Lightbox */}

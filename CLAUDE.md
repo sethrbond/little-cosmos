@@ -250,7 +250,7 @@ Run `docs/FULL_REBUILD.sql` in Supabase SQL Editor — idempotent, creates all t
 
 ```javascript
 {
-  id: "e1709312345678",        // "e" + timestamp
+  id: "e-1709312345678",       // "e-" + timestamp
   city: "Paris",
   country: "France",
   lat: 48.8566, lng: 2.3522,
@@ -258,8 +258,8 @@ Run `docs/FULL_REBUILD.sql` in Supabase SQL Editor — idempotent, creates all t
   dateEnd: "2023-06-22",
   type: "together",            // Partner: together|special|home-seth|home-rosie|seth-solo|rosie-solo
                                // My World: adventure|road-trip|city|beach|cruise|backpacking|friends|family|event|nature|work|home
-                               // Friends: group-trip|meetup|concert|road-trip|adventure|food-crawl|sports|hangout
-                               // Family: vacation|reunion|holiday|road-trip|visit|milestone|adventure|home
+                               // Friends: group-trip|weekend|night-out|hangout|concert|sports|food|reunion|adventure|milestone
+                               // Family: family-trip|holiday|gathering|celebration|road-trip|outdoors|beach|tradition|milestone|home
   who: "both",                 // Partner: both|seth|rosie. All others: "solo"
   notes: "Our first trip abroad",
   memories: ["Eiffel Tower at sunset"],

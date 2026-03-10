@@ -60,7 +60,7 @@ const features = [
     desc: 'Shooting stars, aurora glow, day/night shadow, seasonal tinting. Your globe breathes and changes with you.',
   },
   {
-    icon: '✨',
+    icon: '📊',
     title: 'Milestones & Stats',
     desc: 'Relive meaningful firsts, distance records, and sentimental moments. See your travel story in data.',
   },
@@ -77,7 +77,10 @@ export default function LandingPage({ onSignIn, onSignUp }) {
   const featureRefs = useRef([])
 
   useEffect(() => {
-    const onScroll = () => setScrollY(window.scrollY)
+    let ticking = false
+    const onScroll = () => {
+      if (!ticking) { ticking = true; requestAnimationFrame(() => { setScrollY(window.scrollY); ticking = false }) }
+    }
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])

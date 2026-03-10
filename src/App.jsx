@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, Component } from 'react'
+import { useState, useEffect, useCallback, useRef, Component } from 'react'
 import { AuthProvider, useAuth } from './AuthContext.jsx'
 import { supabase } from './supabaseClient.js'
 import AuthScreen from './AuthScreen.jsx'
@@ -150,6 +150,13 @@ function AppInner() {
   const [transitionColor, setTransitionColor] = useState('#0c0a12')
   const [showCinematic, setShowCinematic] = useState(false)
   const [confirmModal, setConfirmModal] = useState(null)
+  const [errorToast, setErrorToast] = useState(null)
+  const errorToastTimer = useRef(null)
+  const showErrorToast = useCallback((msg) => {
+    if (errorToastTimer.current) clearTimeout(errorToastTimer.current)
+    setErrorToast(msg)
+    errorToastTimer.current = setTimeout(() => { setErrorToast(null); errorToastTimer.current = null }, 4000)
+  }, [])
 
   // User's display name from auth metadata
   const userDisplayName = user?.user_metadata?.display_name || ''
@@ -202,7 +209,7 @@ function AppInner() {
     setInvitePending(null)
 
     getInviteInfo(token).then(info => {
-      if (!info) { alert('This invite link is invalid or expired.'); return }
+      if (!info) { showErrorToast('This invite link is invalid or expired.'); return }
       const worldName = info.worlds?.name || 'a shared world'
       setConfirmModal({
         message: `You've been invited to join "${worldName}"!\n\nWould you like to accept this invitation?`,
@@ -221,12 +228,12 @@ function AppInner() {
                 }
               })
             } else {
-              alert(result?.error || 'Failed to accept invite.')
+              showErrorToast(result?.error || 'Failed to accept invite.')
             }
-          }).catch(err => { console.error('[acceptInvite]', err); alert('Something went wrong accepting the invite. Please try again.') })
+          }).catch(err => { console.error('[acceptInvite]', err); showErrorToast('Something went wrong accepting the invite. Please try again.') })
         }
       })
-    }).catch(err => { console.error('[getInviteInfo]', err); alert('Could not load invite details. Please check your connection and try again.') })
+    }).catch(err => { console.error('[getInviteInfo]', err); showErrorToast('Could not load invite details. Please check your connection and try again.') })
   }, [invitePending, userId])
 
   // Brand new users: show cinematic onboarding (always, regardless of how they arrived)
@@ -469,6 +476,21 @@ function AppInner() {
   return (
     <>
       {content}
+      {errorToast && (
+        <div style={{
+          position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)',
+          background: 'rgba(20,16,30,0.92)', backdropFilter: 'blur(12px)',
+          border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12,
+          padding: '12px 24px', color: '#e8e0d0', fontSize: 13,
+          fontFamily: '"Palatino Linotype", serif', letterSpacing: '0.2px',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.4)', zIndex: 10001,
+          maxWidth: '90vw', textAlign: 'center',
+          animation: 'cosmosToastIn 0.3s ease',
+        }}>
+          {errorToast}
+        </div>
+      )}
+      <style>{`@keyframes cosmosToastIn { from { opacity: 0; transform: translateX(-50%) translateY(12px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }`}</style>
       {confirmModal && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           onClick={() => setConfirmModal(null)}>

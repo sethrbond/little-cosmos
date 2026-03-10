@@ -31,6 +31,7 @@ export default function CinematicOnboarding({ userId, personalWorldId, onComplet
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
   const [selectedCity, setSelectedCity] = useState(null)
+  const [saveError, setSaveError] = useState(false)
   const inputRef = useRef(null)
   const orbZoomRef = useRef(false)
 
@@ -211,6 +212,7 @@ export default function CinematicOnboarding({ userId, personalWorldId, onComplet
       })
     } catch (err) {
       console.error('[onboarding] save home entry:', err)
+      setSaveError(true)
     }
   }, [userId, personalWorldId])
 
@@ -453,11 +455,11 @@ export default function CinematicOnboarding({ userId, personalWorldId, onComplet
               {selectedCity.country}
             </div>
             <div style={{
-              fontSize: 12, color: '#c9a96e',
+              fontSize: 12, color: saveError ? '#f87171' : '#c9a96e',
               marginTop: 20, letterSpacing: '0.1em',
               opacity: 0.7,
             }}>
-              Placing your first marker...
+              {saveError ? "Couldn't save — don't worry, you can add it later" : 'Placing your first marker...'}
             </div>
           </div>
         )}

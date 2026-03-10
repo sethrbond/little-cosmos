@@ -292,20 +292,20 @@ export default function TripCard({ entry, palette, onClose, worldMode }) {
   useEffect(() => {
     if (!canvasRef.current || !entry) return;
     if (bgLoading) return;
-    drawTripCard(canvasRef.current, entry, P, worldMode, bgImage);
-  }, [entry, P, worldMode, bgImage, bgLoading]);
+    drawTripCard(canvasRef.current, entry, palette || {}, worldMode, bgImage);
+  }, [entry, palette, worldMode, bgImage, bgLoading]);
+
+  const handleClose = useCallback(() => {
+    setVisible(false);
+    setTimeout(() => onClose?.(), 280);
+  }, [onClose]);
 
   // close on escape
   useEffect(() => {
     const handler = (e) => { if (e.key === "Escape") handleClose(); };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, []);
-
-  const handleClose = useCallback(() => {
-    setVisible(false);
-    setTimeout(() => onClose?.(), 280);
-  }, [onClose]);
+  }, [handleClose]);
 
   const handleOverlayClick = useCallback((e) => {
     if (e.target === overlayRef.current) handleClose();

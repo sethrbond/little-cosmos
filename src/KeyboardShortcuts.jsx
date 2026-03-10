@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from "react";
+import { useEffect } from "react";
 
 /* =================================================================
    KeyboardShortcuts — full-screen overlay listing all keyboard

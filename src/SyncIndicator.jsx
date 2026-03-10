@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect } from 'react'
 
 /**
  * SyncIndicator — small status dot showing real-time sync state.
@@ -46,6 +46,7 @@ export default function SyncIndicator({ isConnected, lastSync, palette = {}, sty
       }}
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
+      onClick={() => setHovering(v => !v)}
       aria-label={`${label}. ${syncText}`}
     >
       <div style={{

@@ -832,11 +832,6 @@ function reducer(st, a) {
   return next;
 }
 
-// ---- SEASONAL TINT (delegates to worldConfigs.js) ----
-function seasonalHue(dateStr, isMyWorld) {
-  return getSeasonalHue(dateStr, isMyWorld);
-}
-
 // ---- FIRST BADGES ----
 function getFirstBadges(entries) {
   const badges = {};
@@ -1420,11 +1415,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const mouseRef = useRef({ x: 0, y: 0 });
 
   // Theme colors (always light mode)
-  const T = useMemo(() => ({
-    bg: null, card: P.card, glass: P.glass,
-    text: P.text, textMid: P.textMid, textMuted: P.textMuted, textFaint: P.textFaint,
-    parchment: P.parchment, blush: P.blush, border: `${P.rose}18`,
-  }), [_paletteBase]);
   const lastTapRef = useRef(0); // for double-tap to zoom
   const playRef = useRef(null);
   const animRef = useRef(null);
@@ -1462,7 +1452,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const togetherList = useMemo(() => sorted.filter(e => e.who === "both"), [sorted]);
   const firstBadges = useMemo(() => isPartnerWorld ? getFirstBadges(data.entries) : {}, [data.entries, isPartnerWorld]);
   const memberNameMap = useMemo(() => Object.fromEntries(worldMembers.map(m => [m.user_id, m.display_name || "Member"])), [worldMembers]);
-  const season = useMemo(() => seasonalHue(sliderDate, isMyWorld), [sliderDate, isMyWorld]);
+  const season = useMemo(() => getSeasonalHue(sliderDate, isMyWorld), [sliderDate, isMyWorld]);
 
   // Auto-hide zoom hint after 4 seconds
   useEffect(() => {
@@ -2546,9 +2536,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               r * Math.cos(phi)
             );
             // Direction: mostly tangential with slight inward bias
-            const tangent = new THREE.Vector3(-idle.origin.y, idle.origin.x, 0).normalize();
-            const inward = idle.origin.clone().normalize().multiplyScalar(-0.3);
-            idle.dir.copy(tangent).add(inward).normalize();
+            _meteorV1.set(-idle.origin.y, idle.origin.x, 0).normalize();
+            _meteorV2.copy(idle.origin).normalize().multiplyScalar(-0.3);
+            idle.dir.copy(_meteorV1).add(_meteorV2).normalize();
             idle.length = 1.5 + Math.random() * 2.5; // streak length
             idle.speed = 0.08 + Math.random() * 0.12; // speed
             idle.progress = 0;
@@ -2685,7 +2675,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       // Night shadow — sun direction in globe-local space (no counter-rotation needed;
       // mesh is a child of globe, normals are object-space, ll2v coords are fixed)
       if (nightShadowRef.current?.material) {
-        const uh = new Date().getUTCHours() + new Date().getUTCMinutes() / 60 + new Date().getUTCSeconds() / 3600;
+        const _now = new Date();
+        const uh = _now.getUTCHours() + _now.getUTCMinutes() / 60 + _now.getUTCSeconds() / 3600;
         const sunAngle = (12 - uh) * Math.PI / 12; // subsolar longitude in ll2v coords
         nightShadowRef.current.material.uniforms.sunDir.value.set(
           Math.cos(sunAngle), 0.15, -Math.sin(sunAngle)
@@ -3301,7 +3292,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   </div>;
 
   return (
-    <div style={{ width: "100%", height: "100vh", position: "relative", overflow: "hidden", background: `linear-gradient(155deg,${P.cream} 0%,${P.blush} 40%,${P.lavMist} 100%)`, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", color: T.text, userSelect: "none", transition: "background .6s ease, color .4s ease" }}>
+    <div style={{ width: "100%", height: "100vh", position: "relative", overflow: "hidden", background: `linear-gradient(155deg,${P.cream} 0%,${P.blush} 40%,${P.lavMist} 100%)`, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", color: P.text, userSelect: "none", transition: "background .6s ease, color .4s ease" }}>
 
       <div ref={mountRef} style={{ width: "100%", height: "100%", touchAction: "none" }}
         onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} />
@@ -4060,9 +4051,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
       {isPartnerWorld && editLetter && (
         <div onClick={() => setEditLetter(false)} style={{ position: "fixed", inset: 0, zIndex: 55, background: "rgba(22,16,40,.82)", backdropFilter: "blur(20px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .2s ease" }}>
-          <div onClick={e => e.stopPropagation()} style={{ width: 420, padding: 28, background: P.card, borderRadius: 16, boxShadow: "0 14px 48px rgba(61,53,82,.1)" }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: 420, maxWidth: "92vw", padding: 28, background: P.card, borderRadius: 16, boxShadow: "0 14px 48px rgba(61,53,82,.1)" }}>
             <h3 style={{ margin: "0 0 10px", fontSize: 16, fontWeight: 400 }}>💌 {letterEditId ? "Edit" : "New"} Love Letter</h3>
-            <p style={{ fontSize: 9, color: P.textMuted, marginBottom: 12, fontStyle: "italic" }}>Hidden as an easter egg ❀ on the globe — she'll discover it!</p>
+            <p style={{ fontSize: 9, color: P.textMuted, marginBottom: 12, fontStyle: "italic" }}>Hidden as an easter egg ❀ on the globe — {config.partnerName || "your partner"} will discover it!</p>
             <div style={{ marginBottom: 8, position: "relative" }}>
               <label style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".13em", textTransform: "uppercase", display: "block", marginBottom: 2 }}>Place on globe near...</label>
               <input value={letterCity} onChange={e => {
@@ -4321,14 +4312,15 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               const cs = config.customScene || {};
               const setCP = (key, val) => setConfig({ customPalette: { ...cp, [key]: val } });
               const setCS = (key, val) => setConfig({ customScene: { ...cs, [key]: val } });
-              const baseP = isMyWorld ? MY_WORLD_PALETTE : OUR_WORLD_PALETTE;
-              const baseSC = isMyWorld ? MY_WORLD_SCENE : OUR_WORLD_SCENE;
+              const sharedCfg = (!isMyWorld && worldType) ? getSharedWorldConfig(worldType) : null;
+              const baseP = isMyWorld ? MY_WORLD_PALETTE : sharedCfg ? sharedCfg.palette : OUR_WORLD_PALETTE;
+              const baseSC = isMyWorld ? MY_WORLD_SCENE : sharedCfg ? sharedCfg.scene : OUR_WORLD_SCENE;
               return <>
                 <div style={{ fontSize: 7, color: P.textMid, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 4, marginTop: 2 }}>Interface Colors</div>
                 {cPick("Primary Accent", "Markers, buttons, borders, highlights", cp.rose || baseP.rose, v => setCP("rose", v))}
                 {cPick("Secondary Accent", "Cards, backgrounds, subtle accents", cp.sky || baseP.sky, v => setCP("sky", v))}
                 {cPick("Highlight Color", "Special entries, gold elements", cp.special || baseP.special, v => setCP("special", v))}
-                {cPick("Heart / Love Color", "Together markers, love features", cp.heart || baseP.heart, v => setCP("heart", v))}
+                {cPick(isPartnerWorld ? "Heart / Love Color" : "Highlight / Special", isPartnerWorld ? "Together markers, love features" : "Featured markers, special entries", cp.heart || baseP.heart, v => setCP("heart", v))}
                 {cPick("Text Color", "Main text throughout the app", cp.text || baseP.text, v => setCP("text", v))}
                 {cPick("Card Background", "Cards, panels, form backgrounds", cp.cream || baseP.cream, v => setCP("cream", v))}
 
@@ -5278,7 +5270,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       )}
 
       {/* KEYBOARD SHORTCUTS OVERLAY */}
-      {showShortcuts && <Suspense fallback={null}><KeyboardShortcuts onClose={() => setShowShortcuts(false)} palette={P} worldMode={worldMode} /></Suspense>}
+      {showShortcuts && <Suspense fallback={<div style={{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(8,6,18,0.7)",backdropFilter:"blur(8px)"}}><div style={{color:"rgba(255,255,255,0.4)",fontSize:14,fontFamily:"'Palatino Linotype',Georgia,serif",letterSpacing:".05em"}}>Loading…</div></div>}><KeyboardShortcuts onClose={() => setShowShortcuts(false)} palette={P} worldMode={worldMode} /></Suspense>}
 
       {/* FULLSCREEN PHOTO LIGHTBOX */}
       {lightboxOpen && cur?.photos?.length > 0 && (() => {
@@ -5321,12 +5313,12 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       })()}
 
       {/* LAZY-LOADED OVERLAYS — code-split, only fetched when opened */}
-      {showPhotoMap && <OverlayBoundary onClose={() => setShowPhotoMap(false)}><Suspense fallback={null}><PhotoMap entries={data.entries} palette={P} onClose={() => setShowPhotoMap(false)} worldMode={worldMode} /></Suspense></OverlayBoundary>}
-      {showMilestones && <OverlayBoundary onClose={() => setShowMilestones(false)}><Suspense fallback={null}><Milestones entries={data.entries} palette={P} onClose={() => setShowMilestones(false)} worldMode={worldMode} config={config} /></Suspense></OverlayBoundary>}
-      {showTravelStats && <OverlayBoundary onClose={() => setShowTravelStats(false)}><Suspense fallback={null}><TravelStats entries={data.entries} stats={stats} palette={P} onClose={() => setShowTravelStats(false)} worldMode={worldMode} config={config} /></Suspense></OverlayBoundary>}
-      {showExportHub && <OverlayBoundary onClose={() => setShowExportHub(false)}><Suspense fallback={null}><ExportHub entries={data.entries} config={config} stats={stats} palette={P} onClose={() => setShowExportHub(false)} worldMode={worldMode} travelerName={isPartnerWorld ? (config.youName || '') : (config.travelerName || '')} /></Suspense></OverlayBoundary>}
-      {tripCardEntry && <OverlayBoundary onClose={() => setTripCardEntry(null)}><Suspense fallback={null}><TripCard entry={tripCardEntry} palette={P} onClose={() => setTripCardEntry(null)} worldMode={worldMode} /></Suspense></OverlayBoundary>}
-      {showYearReview && <OverlayBoundary onClose={() => setShowYearReview(false)}><Suspense fallback={null}><YearInReview entries={data.entries} stats={stats} palette={P} onClose={() => setShowYearReview(false)} worldMode={worldMode} config={config} /></Suspense></OverlayBoundary>}
+      {showPhotoMap && <OverlayBoundary onClose={() => setShowPhotoMap(false)}><Suspense fallback={<div style={{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(8,6,18,0.7)",backdropFilter:"blur(8px)"}}><div style={{color:"rgba(255,255,255,0.4)",fontSize:14,fontFamily:"'Palatino Linotype',Georgia,serif",letterSpacing:".05em"}}>Loading…</div></div>}><PhotoMap entries={data.entries} palette={P} onClose={() => setShowPhotoMap(false)} worldMode={worldMode} /></Suspense></OverlayBoundary>}
+      {showMilestones && <OverlayBoundary onClose={() => setShowMilestones(false)}><Suspense fallback={<div style={{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(8,6,18,0.7)",backdropFilter:"blur(8px)"}}><div style={{color:"rgba(255,255,255,0.4)",fontSize:14,fontFamily:"'Palatino Linotype',Georgia,serif",letterSpacing:".05em"}}>Loading…</div></div>}><Milestones entries={data.entries} palette={P} onClose={() => setShowMilestones(false)} worldMode={worldMode} config={config} /></Suspense></OverlayBoundary>}
+      {showTravelStats && <OverlayBoundary onClose={() => setShowTravelStats(false)}><Suspense fallback={<div style={{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(8,6,18,0.7)",backdropFilter:"blur(8px)"}}><div style={{color:"rgba(255,255,255,0.4)",fontSize:14,fontFamily:"'Palatino Linotype',Georgia,serif",letterSpacing:".05em"}}>Loading…</div></div>}><TravelStats entries={data.entries} stats={stats} palette={P} onClose={() => setShowTravelStats(false)} worldMode={worldMode} config={config} /></Suspense></OverlayBoundary>}
+      {showExportHub && <OverlayBoundary onClose={() => setShowExportHub(false)}><Suspense fallback={<div style={{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(8,6,18,0.7)",backdropFilter:"blur(8px)"}}><div style={{color:"rgba(255,255,255,0.4)",fontSize:14,fontFamily:"'Palatino Linotype',Georgia,serif",letterSpacing:".05em"}}>Loading…</div></div>}><ExportHub entries={data.entries} config={config} stats={stats} palette={P} onClose={() => setShowExportHub(false)} worldMode={worldMode} travelerName={isPartnerWorld ? (config.youName || '') : (config.travelerName || '')} /></Suspense></OverlayBoundary>}
+      {tripCardEntry && <OverlayBoundary onClose={() => setTripCardEntry(null)}><Suspense fallback={<div style={{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(8,6,18,0.7)",backdropFilter:"blur(8px)"}}><div style={{color:"rgba(255,255,255,0.4)",fontSize:14,fontFamily:"'Palatino Linotype',Georgia,serif",letterSpacing:".05em"}}>Loading…</div></div>}><TripCard entry={tripCardEntry} palette={P} onClose={() => setTripCardEntry(null)} worldMode={worldMode} /></Suspense></OverlayBoundary>}
+      {showYearReview && <OverlayBoundary onClose={() => setShowYearReview(false)}><Suspense fallback={<div style={{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(8,6,18,0.7)",backdropFilter:"blur(8px)"}}><div style={{color:"rgba(255,255,255,0.4)",fontSize:14,fontFamily:"'Palatino Linotype',Georgia,serif",letterSpacing:".05em"}}>Loading…</div></div>}><YearInReview entries={data.entries} stats={stats} palette={P} onClose={() => setShowYearReview(false)} worldMode={worldMode} config={config} /></Suspense></OverlayBoundary>}
 
       {/* CONFIRM MODAL — replaces browser confirm() */}
       {confirmModal && (

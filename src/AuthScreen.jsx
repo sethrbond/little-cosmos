@@ -54,8 +54,9 @@ export default function AuthScreen({ initialMode = 'login', onBack }) {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
+  const [resendStatus, setResendStatus] = useState('') // '' | 'sending' | 'sent' | error message
 
-  const clearState = () => { setError(''); setMessage(''); setPassword(''); setConfirmPassword('') }
+  const clearState = () => { setError(''); setMessage(''); setPassword(''); setConfirmPassword(''); setResendStatus('') }
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -164,7 +165,26 @@ export default function AuthScreen({ initialMode = 'login', onBack }) {
         {mode === 'verify' && (
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 20 }}>Verify Your Email</div>
-            <div style={{ fontSize: 14, opacity: 0.7, lineHeight: 1.6, marginBottom: 20 }}>{message}</div>
+            <div style={{ fontSize: 14, opacity: 0.7, lineHeight: 1.6, marginBottom: 8 }}>{message}</div>
+            {email && <div style={{ fontSize: 13, opacity: 0.5, marginBottom: 20 }}>Sent to <span style={{ color: '#c9a96e' }}>{email}</span></div>}
+            <button
+              type="button"
+              style={{ ...btn, background: 'rgba(255,255,255,0.06)', color: '#e8e0d0', fontWeight: 400, fontSize: 13, marginBottom: 12, opacity: resendStatus === 'sending' ? 0.5 : 0.8 }}
+              disabled={resendStatus === 'sending' || resendStatus === 'sent'}
+              onClick={async () => {
+                setResendStatus('sending')
+                try {
+                  const { error } = await supabase.auth.resend({ type: 'signup', email })
+                  if (error) { setResendStatus(error.message); setTimeout(() => setResendStatus(''), 4000) }
+                  else { setResendStatus('sent'); setTimeout(() => setResendStatus(''), 4000) }
+                } catch { setResendStatus('Something went wrong'); setTimeout(() => setResendStatus(''), 4000) }
+              }}
+            >
+              {resendStatus === 'sending' ? 'Sending...' : resendStatus === 'sent' ? 'Sent!' : 'Resend verification email'}
+            </button>
+            {resendStatus && resendStatus !== 'sending' && resendStatus !== 'sent' && (
+              <div style={{ color: '#e57373', fontSize: 12, marginBottom: 8 }}>{resendStatus}</div>
+            )}
             <button type="button" style={link} onClick={() => switchMode('login')}>Back to sign in</button>
           </div>
         )}

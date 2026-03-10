@@ -283,12 +283,6 @@ export function useRealtimePresence({
         }
         setOnlineUsers(users)
       })
-      .on('presence', { event: 'join' }, ({ key, newPresences }) => {
-        // presence join
-      })
-      .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
-        // presence leave
-      })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
           await channel.track({

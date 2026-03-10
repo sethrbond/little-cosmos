@@ -501,9 +501,9 @@ export default function YearInReview({ entries = [], stats = {}, palette, onClos
             </div>
             <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "center", gap: 8, height: 120, marginBottom: 12 }}>
               {monthlyBreakdown.map((count, i) => (
-                <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, flex: 1, minWidth: 0 }}>
                   <div style={{
-                    width: 28, borderRadius: 4,
+                    width: "100%", borderRadius: 4,
                     height: Math.max(4, (count / maxMonth) * 100),
                     background: count > 0
                       ? `linear-gradient(180deg, ${accent}, ${accent2})`
