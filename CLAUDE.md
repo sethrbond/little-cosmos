@@ -46,12 +46,16 @@ my-cosmos/
     supabaseClient.js          ← 6 lines. Shared Supabase client instance
     worldConfigs.js            ← 350 lines. Palettes, types, scene configs per world type
     geocode.js                 ← 33 lines. Nominatim geocoding with debounce
-    main.jsx                   ← 9 lines. Vite entry point
+    main.jsx                   ← 14 lines. Vite entry point + SW registration
+  public/
+    manifest.json              ← PWA manifest
+    sw.js                      ← Service worker (cache-first assets, network-first API)
+    icons/icon.svg             ← App icon (globe SVG)
   docs/
     FULL_REBUILD.sql           ← 984 lines. Complete DB setup (idempotent, one-push deploy)
     COSMOS_ROADMAP_v91.md      ← Full roadmap document
     email_templates.html       ← Email templates for invites/connections
-  index.html                   ← Vite HTML entry (title: "Little Cosmos")
+  index.html                   ← Vite HTML entry (title: "Little Cosmos") + PWA meta tags
   package.json                 ← react 18, three 0.160, @supabase/supabase-js 2.39
   vite.config.js               ← Vite + React plugin
 ```
@@ -218,8 +222,8 @@ Run `docs/FULL_REBUILD.sql` in Supabase SQL Editor — idempotent, creates all t
 
 1. **`ambientMusicUrl` in config** — persistence exists but settings UI for it may be incomplete.
 2. ~~**No error boundary on WorldSelector or CinematicOnboarding**~~ — FIXED: both wrapped in ScreenErrorBoundary.
-3. **Accessibility is minimal** — no aria labels, no keyboard nav for globe, no focus trapping in modals.
-4. **Duplicate `heartPulse` keyframe** — defined twice (loading screen at 1.08, main at 1.06). Second wins.
+3. **Accessibility is basic** — aria labels on toolbar/buttons/modals, but no keyboard nav for globe or focus trapping.
+4. ~~**Duplicate `heartPulse` keyframe**~~ — FIXED: removed duplicate from loading screen, single definition at 1.06.
 5. ~~**ThemeProvider not wired**~~ — FIXED: ThemeProvider deleted (dead code), dark mode handled in config.
 6. ~~**Forms use Our World colors in My World**~~ — FIXED: module-level P is mutated via window.__cosmosP when world mode changes.
 7. ~~**Seasonal tinting bug**~~ — FIXED: `&&` → `||` no longer present, correct ranges confirmed.

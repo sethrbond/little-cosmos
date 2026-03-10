@@ -123,7 +123,7 @@ export function TBtn({ a, onClick, children, accent, tip }) {
   const onLeave = () => { setHov(false); clearTimeout(tipTimer.current); setShowTip(false); };
   return (
     <div style={{ position: "relative" }} onMouseEnter={onEnter} onMouseLeave={onLeave}>
-      <button onClick={onClick} style={{ width: 38, height: 38, borderRadius: 12, border: `1px solid ${a ? P.rose + "50" : accent ? P.lavender + "40" : P.textFaint + "20"}`, background: a ? P.card : P.glass, backdropFilter: "blur(12px)", cursor: "pointer", fontSize: accent ? 15 : 14, display: "flex", alignItems: "center", justifyContent: "center", transition: "all .3s ease", fontFamily: "inherit", color: P.text, boxShadow: hov ? `0 4px 16px ${P.text}12, 0 1px 3px ${P.text}08` : `0 1px 4px ${P.text}06`, transform: hov ? "translateY(-1px)" : "none" }}>{children}</button>
+      <button onClick={onClick} aria-label={tip} style={{ width: 38, height: 38, borderRadius: 12, border: `1px solid ${a ? P.rose + "50" : accent ? P.lavender + "40" : P.textFaint + "20"}`, background: a ? P.card : P.glass, backdropFilter: "blur(12px)", cursor: "pointer", fontSize: accent ? 15 : 14, display: "flex", alignItems: "center", justifyContent: "center", transition: "all .3s ease", fontFamily: "inherit", color: P.text, boxShadow: hov ? `0 4px 16px ${P.text}12, 0 1px 3px ${P.text}08` : `0 1px 4px ${P.text}06`, transform: hov ? "translateY(-1px)" : "none" }}>{children}</button>
       {showTip && tip && (
         <div style={{ position: "absolute", left: 46, top: "50%", transform: "translateY(-50%)", whiteSpace: "nowrap", background: P.card, backdropFilter: "blur(14px)", border: `1px solid ${P.rose}15`, borderRadius: 10, padding: "6px 14px", fontSize: 10, color: P.textMid, boxShadow: `0 4px 20px ${P.text}12, 0 1px 4px ${P.text}06`, pointerEvents: "none", animation: "fadeIn .2s ease", zIndex: 30, letterSpacing: ".05em" }}>{tip}</div>
       )}
@@ -153,6 +153,8 @@ export function TBtnGroup({ icon, label, children, badge }) {
         onClick={() => setOpen(v => !v)}
         onMouseEnter={() => setHov(true)}
         onMouseLeave={() => setHov(false)}
+        aria-label={label ? `${label} menu` : "More options"}
+        aria-expanded={open}
         style={{
           width: 38, height: 38, borderRadius: 12,
           border: `1px solid ${open ? P.rose + "40" : P.textFaint + "20"}`,
