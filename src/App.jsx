@@ -101,7 +101,7 @@ function PasswordResetModal({ onDone }) {
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: '#0c0a12', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: '"Palatino Linotype", serif', color: '#e8e0d0', zIndex: 10000 }}>
+    <div role="dialog" aria-modal="true" aria-label="Set new password" style={{ position: 'fixed', inset: 0, background: '#0c0a12', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: '"Palatino Linotype", serif', color: '#e8e0d0', zIndex: 10000 }}>
       <div style={{ marginBottom: 28, textAlign: 'center' }}>
         <div style={{ fontSize: 28, fontWeight: 300, letterSpacing: 2, opacity: 0.9 }}>Little Cosmos</div>
         <div style={{ fontSize: 13, opacity: 0.4, marginTop: 4 }}>Create a new password</div>
@@ -182,25 +182,46 @@ function AppInner() {
   }, [user?.email])
 
   // Load user's shared worlds + connections + ensure personal world exists
+  // Also auto-accept any pending world invites so shared worlds appear immediately
   useEffect(() => {
     if (!userId) { setWorldsLoaded(true); return }
-    Promise.all([
-      loadMyWorlds(userId),
-      getMyConnections(userId),
-      getPendingRequests(user?.email),
-      getPendingWorldInvites(user?.email),
-      loadMyWorldSubtitle(userId),
-      ensurePersonalWorld(userId),
-    ]).then(([w, conn, pending, worldInvites, myInfo, pwId]) => {
-      setWorlds(w)
-      setConnections(conn)
-      setPendingRequests(pending)
-      setPendingWorldInvites(worldInvites || [])
-      setMyWorldSubtitle(myInfo?.subtitle ?? '')
-      setMyWorldColors({ customPalette: myInfo?.customPalette || {}, customScene: myInfo?.customScene || {} })
-      setPersonalWorldId(pwId)
-      setWorldsLoaded(true)
-    }).catch(err => { console.error('[loadData]', err); setWorldsLoaded(true) })
+    (async () => {
+      try {
+        // First pass: load everything including pending invites
+        const [w, conn, pending, worldInvites, myInfo, pwId] = await Promise.all([
+          loadMyWorlds(userId),
+          getMyConnections(userId),
+          getPendingRequests(user?.email),
+          getPendingWorldInvites(user?.email),
+          loadMyWorldSubtitle(userId),
+          ensurePersonalWorld(userId),
+        ])
+        setConnections(conn)
+        setPendingRequests(pending)
+        setMyWorldSubtitle(myInfo?.subtitle ?? '')
+        setMyWorldColors({ customPalette: myInfo?.customPalette || {}, customScene: myInfo?.customScene || {} })
+        setPersonalWorldId(pwId)
+
+        // Auto-accept any pending world invites so shared worlds appear immediately
+        if (worldInvites && worldInvites.length > 0) {
+          console.log(`[autoAccept] Found ${worldInvites.length} pending invite(s), auto-accepting...`)
+          for (const inv of worldInvites) {
+            try {
+              const result = await acceptInvite(inv.token)
+              console.log(`[autoAccept] ${inv.worldName}: ${result?.ok ? 'accepted' : result?.error || 'failed'}`)
+            } catch (e) { console.error('[autoAccept] error:', e) }
+          }
+          // Reload worlds now that invites are accepted
+          const freshWorlds = await loadMyWorlds(userId)
+          setWorlds(freshWorlds)
+          setPendingWorldInvites([])
+        } else {
+          setWorlds(w)
+          setPendingWorldInvites([])
+        }
+        setWorldsLoaded(true)
+      } catch (err) { console.error('[loadData]', err); setWorldsLoaded(true) }
+    })()
   }, [userId, user?.email])
 
   // Check for invite token in URL
@@ -454,6 +475,12 @@ function AppInner() {
         </ScreenErrorBoundary>
       </>
     )
+  } else if (worldMode === 'our' && !activeWorldId) {
+    // Safety: shared world mode but no worldId — redirect to cosmos instead of using legacy DB
+    console.warn('[App] worldMode=our but no activeWorldId, redirecting to cosmos')
+    safeRemove('worldMode')
+    setWorldMode(null)
+    content = null
   } else {
     content = (
       <OurWorld
@@ -479,9 +506,9 @@ function AppInner() {
           animation: 'cosmosFadeIn 0.4s ease forwards',
         }} />
       )}
-      {errorToast && (
-        <div style={{
+      <div aria-live="polite" role="status" style={{
           position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)',
+          display: errorToast ? 'block' : 'none',
           background: 'rgba(20,16,30,0.92)', backdropFilter: 'blur(12px)',
           border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12,
           padding: '12px 24px', color: '#e8e0d0', fontSize: 13,
@@ -492,13 +519,12 @@ function AppInner() {
         }}>
           {errorToast}
         </div>
-      )}
       <style>{`
         @keyframes cosmosToastIn { from { opacity: 0; transform: translateX(-50%) translateY(12px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
         @keyframes cosmosFadeIn { from { opacity: 0; } to { opacity: 1; } }
       `}</style>
       {confirmModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        <div role="dialog" aria-modal="true" aria-label="Confirm action" style={{ position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           onClick={() => setConfirmModal(null)}>
           <div onClick={e => e.stopPropagation()} style={{ background: '#1e1930', borderRadius: 16, padding: '24px 28px', maxWidth: 360, width: '90%', boxShadow: '0 12px 48px rgba(0,0,0,.25)', border: '1px solid rgba(196,138,168,0.12)', textAlign: 'center' }}>
             <div style={{ fontSize: 13, color: '#e8e0d0', lineHeight: 1.6, marginBottom: 20, fontFamily: 'inherit', whiteSpace: 'pre-line' }}>{confirmModal.message}</div>

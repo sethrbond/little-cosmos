@@ -30,7 +30,10 @@ import {
 } from "./worldConfigs.js";
 import { sendWelcomeLetter, getMyLetters, deleteWelcomeLetter } from "./supabaseWelcomeLetters.js";
 import { loadComments, addComment, deleteComment, loadAllWorldReactions, toggleReaction, getWorldMembers, removeWorldMember, updateMemberRole, deleteWorld, leaveWorld, updateWorld, loadMyWorlds, shareEntryToWorld, getPersonalWorldId } from "./supabaseWorlds.js";
-import { thumbnail } from "./imageUtils.js";
+import { thumbnail, compressImage } from "./imageUtils.js";
+import StatsOverlay from "./StatsOverlay.jsx";
+import RecapOverlay from "./RecapOverlay.jsx";
+import OnboardingOverlay from "./OnboardingOverlay.jsx";
 
 /* =================================================================
    🌍 OUR WORLD / MY WORLD — Multi-World Globe Engine
@@ -917,6 +920,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     if (isFriendWorld) return createFriendWorldDB(worldId);
     if (isMyWorld) return createMyWorldDB(worldId, userId);
     if (isSharedWorld) return createSharedWorldDB(worldId, userId);
+    if (worldMode === 'our') console.warn('[OurWorld] worldMode=our but no worldId — using legacy DB, entries from other users will NOT be visible');
     return createOurWorldDB(userId);
   }, [isMyWorld, isFriendWorld, isSharedWorld, worldId, userId]);
   const dbKey = useMemo(() => `${worldId || 'default'}-${userId}`, [worldId, userId]);
@@ -1409,7 +1413,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [showConstellation, setShowConstellation] = useState(false);
   const [showRoutes, setShowRoutes] = useState(false);
   const [showDreams, setShowDreams] = useState(false);
-  const [cardTab, setCardTab] = useState("overview"); // overview, memories, places, photos
+  const [cardTab, setCardTab] = useState("overview"); // overview, highlights, places, photos
   const [locationList, setLocationList] = useState(null); // for multi-entry popup
   // Comments & Reactions (shared/viewer worlds)
   const [entryComments, setEntryComments] = useState([]);
@@ -1459,6 +1463,12 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
   // ---- DERIVED ----
   const sorted = useMemo(() => [...data.entries].sort((a, b) => (a.dateStart || "").localeCompare(b.dateStart || "")), [data.entries]);
+  // Fallback startDate for timeline when config.startDate isn't set (common in shared worlds)
+  const effectiveStartDate = useMemo(() => {
+    if (config.startDate) return config.startDate;
+    if (sorted.length > 0 && sorted[0].dateStart) return sorted[0].dateStart;
+    return todayStr();
+  }, [config.startDate, sorted]);
   const filteredList = useMemo(() => {
     const list = markerFilter === "all" ? data.entries : markerFilter === "favorites" ? data.entries.filter(e => e.favorite) : data.entries.filter(e => e.type === markerFilter);
     return [...list].sort((a, b) => (b.dateStart || "").localeCompare(a.dateStart || "")); // newest first
@@ -1714,7 +1724,13 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     if (localStorage.getItem(guidedKey)) return;
     const msgs = isMyWorld
       ? [["This is everywhere you've been", "🌍"], ["Click any marker to explore a memory", "📍"], ["Press ▶ to watch your story unfold", "▶"]]
-      : [["This is everywhere you've been together", "💕"], ["Click any heart to explore a memory", "💜"], ["Press ▶ to watch your story unfold", "▶"]];
+      : isPartnerWorld
+      ? [["This is everywhere you've been together", "💕"], ["Click any heart to explore a memory", "💜"], ["Press ▶ to watch your story unfold", "▶"]]
+      : worldType === "friends"
+      ? [["This is everywhere you've adventured together", "🌍"], ["Click any marker to explore", "📍"], ["Press ▶ to watch your story unfold", "▶"]]
+      : worldType === "family"
+      ? [["This is everywhere your family has been", "🌍"], ["Click any marker to explore", "📍"], ["Press ▶ to watch your story unfold", "▶"]]
+      : [["This is everywhere you've been together", "🌍"], ["Click any marker to explore", "📍"], ["Press ▶ to watch your story unfold", "▶"]];
     const timers = msgs.map((m, i) => setTimeout(() => showToast(m[0], m[1], 3000), 2000 + i * 3500));
     localStorage.setItem(guidedKey, "1");
     return () => timers.forEach(clearTimeout);
@@ -1722,7 +1738,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
   // ---- MILESTONES on timeline ----
   const milestones = useMemo(() => {
-    if (!config.startDate) return [];
+    if (!effectiveStartDate) return [];
     const ms = [
       { days: 100, label: "100 Days" }, { days: 182, label: "6 Months" },
       { days: 365, label: "1 Year" }, { days: 500, label: "500 Days" },
@@ -1731,11 +1747,11 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       { days: 1826, label: "5 Years" }, { days: 2557, label: "7 Years" },
       { days: 3652, label: "10 Years" },
     ];
-    const total = daysBetween(config.startDate, todayStr());
+    const total = daysBetween(effectiveStartDate, todayStr());
     return ms.filter(m => m.days <= total).map(m => ({
-      ...m, date: addDays(config.startDate, m.days), pct: (m.days / Math.max(1, total)) * 100
+      ...m, date: addDays(effectiveStartDate, m.days), pct: (m.days / Math.max(1, total)) * 100
     }));
-  }, [config.startDate]);
+  }, [effectiveStartDate]);
 
   // ---- EXPANDED STATS for dashboard ----
   const expandedStats = useMemo(() => {
@@ -1804,7 +1820,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       (e.city || "").toLowerCase().includes(q) ||
       (e.country || "").toLowerCase().includes(q) ||
       (e.notes || "").toLowerCase().includes(q) ||
-      (e.memories || []).some(m => m.toLowerCase().includes(q)) ||
+      (e.highlights || []).some(m => m.toLowerCase().includes(q)) ||
       (e.highlights || []).some(h => h.toLowerCase().includes(q)) ||
       (e.restaurants || []).some(r => r.toLowerCase().includes(q)) ||
       (e.museums || []).some(m => m.toLowerCase().includes(q)) ||
@@ -1916,7 +1932,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     const daysSince = daysBetween(lastEntry.dateEnd || lastEntry.dateStart, todayStr());
     if (daysSince >= 30) {
       const t = setTimeout(() => {
-        showToast(`It's been ${daysSince} days — any new memories to add?`, "💭", 6000);
+        showToast(`It's been ${daysSince} days — any new highlights to add?`, "✨", 6000);
         setMonthlyPromptShown(true);
       }, 4000);
       return () => clearTimeout(t);
@@ -1928,12 +1944,12 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const stepDay = useCallback(dir => {
     if (isAnimating) return;
     const next = addDays(sliderDate, dir);
-    if (next < config.startDate || next > todayStr()) return;
+    if (next < effectiveStartDate || next > todayStr()) return;
     setSliderDate(next);
     tSpinSpd.current = 0.018;
     clearTimeout(stepDayTimer.current);
     stepDayTimer.current = setTimeout(() => { tSpinSpd.current = 0.001; }, 350);
-  }, [sliderDate, config.startDate, isAnimating]);
+  }, [sliderDate, effectiveStartDate, isAnimating]);
 
   const jumpNext = useCallback(dir => {
     if (isAnimating) return;
@@ -3357,7 +3373,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         const urls = [];
         for (let i = 0; i < files.length; i++) {
           try {
-            const url = await curDb.uploadPhoto(files[i], id);
+            const compressed = await compressImage(files[i]);
+            const url = await curDb.uploadPhoto(compressed, id);
             if (url && typeof url === 'string') urls.push(url);
           } catch (err) { /* skip failed uploads */ }
           setUploadProgress({ done: i + 1, total: files.length });
@@ -3404,8 +3421,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   }, [showToast]);
 
   const cur = selected ? data.entries.find(e => e.id === selected.id) : null;
-  const totalDays = Math.max(1, daysBetween(config.startDate, todayStr()));
-  const sliderVal = daysBetween(config.startDate, sliderDate);
+  const totalDays = Math.max(1, daysBetween(effectiveStartDate, todayStr()));
+  const sliderVal = daysBetween(effectiveStartDate, sliderDate);
 
   if (loading) return <div style={{ width: "100%", height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: SC.bg, fontFamily: "Georgia,serif", color: P.textFaint }}>
     <div style={{ fontSize: 48, animation: "heartPulse 2s ease infinite", marginBottom: 16 }}>🌍</div>
@@ -3687,7 +3704,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       {/* SEARCH PANEL */}
       {showSearch && (
         <div style={{ position: "absolute", top: 22, left: 66, zIndex: 22, width: isMobile ? "calc(100% - 80px)" : 280, animation: "fadeIn .2s ease" }}>
-          <input autoFocus value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search cities, notes, memories..."
+          <input autoFocus value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search cities, notes, highlights..."
             style={{ width: "100%", padding: "9px 12px", border: `1px solid ${P.rose}25`, borderRadius: 10, fontSize: 11, fontFamily: "inherit", color: P.text, background: P.card, backdropFilter: "blur(16px)", boxShadow: "0 4px 16px rgba(0,0,0,.08)", outline: "none", boxSizing: "border-box" }}
           />
           {searchQuery.length >= 2 && (
@@ -3754,10 +3771,10 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         </div>
         <div style={{ position: "relative", width: "100%", height: 24, display: "flex", alignItems: "center" }}>
           <input type="range" min={0} max={totalDays} value={clamp(sliderVal, 0, totalDays)}
-            onChange={e => { if (!isAnimating) setSliderDate(addDays(config.startDate, parseInt(e.target.value))); }}
+            onChange={e => { if (!isAnimating) setSliderDate(addDays(effectiveStartDate, parseInt(e.target.value))); }}
             style={{ width: "100%", height: 4, appearance: "none", WebkitAppearance: "none", background: `linear-gradient(90deg,${P.sky},${P.rose})`, borderRadius: 2, outline: "none", cursor: "pointer", opacity: 0.5 }} />
           {sorted.map(e => {
-            const d = daysBetween(config.startDate, e.dateStart);
+            const d = daysBetween(effectiveStartDate, e.dateStart);
             const pct = totalDays > 0 ? (d / totalDays) * 100 : 0;
             if (pct < 0 || pct > 100) return null;
             const typeColor = (TYPES[e.type] || DEFAULT_TYPE).color;
@@ -3771,8 +3788,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             </div>
           ))}
           {(config.chapters || []).map((ch, i) => {
-            const cStart = daysBetween(config.startDate, ch.startDate || config.startDate);
-            const cEnd = daysBetween(config.startDate, ch.endDate || todayStr());
+            const cStart = daysBetween(effectiveStartDate, ch.startDate || effectiveStartDate);
+            const cEnd = daysBetween(effectiveStartDate, ch.endDate || todayStr());
             const pctStart = totalDays > 0 ? (cStart / totalDays) * 100 : 0;
             const pctEnd = totalDays > 0 ? (cEnd / totalDays) * 100 : 100;
             if (pctStart > 100 || pctEnd < 0) return null;
@@ -3782,7 +3799,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           })}
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 7, color: P.textFaint, letterSpacing: ".1em", marginTop: 1 }}>
-          <span>{fmtDate(config.startDate)}</span>
+          <span>{fmtDate(effectiveStartDate)}</span>
           <span>today</span>
         </div>
       </div>
@@ -3966,7 +3983,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             <div style={{ display: "flex", gap: 0, marginTop: 10, borderBottom: `1px solid ${P.rose}12` }}>
               {[
                 { key: "overview", label: "Overview" },
-                { key: "memories", label: isMyWorld ? "Highlights" : "Memories" },
+                { key: "highlights", label: "Highlights" },
                 { key: "places", label: isMyWorld ? "Details" : "Places" },
                 ...(cur.photos?.length > 0 ? [{ key: "photos", label: `📷 ${cur.photos.length}` }] : []),
               ].map(tab => (
@@ -3994,10 +4011,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 </div>}
               </>)}
 
-              {cardTab === "memories" && (<>
-                {renderList(FIELD_LABELS.memories.label, cur.memories, FIELD_LABELS.memories.icon, P.rose)}
+              {cardTab === "highlights" && (<>
                 {renderList(FIELD_LABELS.highlights.label, cur.highlights, FIELD_LABELS.highlights.icon, P.gold)}
-                {!(cur.memories?.length) && !(cur.highlights?.length) && <div style={{ fontSize: 10, color: P.textFaint, textAlign: "center", padding: 20 }}>{isMyWorld ? "No highlights added yet" : "No memories added yet"}</div>}
+                {!(cur.highlights?.length) && <div style={{ fontSize: 10, color: P.textFaint, textAlign: "center", padding: 20 }}>No highlights added yet</div>}
               </>)}
 
               {cardTab === "places" && (<>
@@ -4135,7 +4151,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         onAddStop={stop => { const updated = { ...editing, stops: [...(editing.stops || []), stop] }; setEditing(updated); dispatch({ type: "UPDATE", id: editing.id, data: { stops: updated.stops } }); }} /></div></div>}
 
       {confirmDelete && (
-        <div onClick={() => setConfirmDelete(null)} style={{ position: "fixed", inset: 0, zIndex: 60, background: `linear-gradient(135deg, rgba(22,16,40,.82), rgba(30,24,48,.88))`, backdropFilter: "blur(20px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .2s ease" }}>
+        <div role="dialog" aria-modal="true" aria-label="Confirm delete" onClick={() => setConfirmDelete(null)} style={{ position: "fixed", inset: 0, zIndex: 60, background: `linear-gradient(135deg, rgba(22,16,40,.82), rgba(30,24,48,.88))`, backdropFilter: "blur(20px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .2s ease" }}>
           <div onClick={e => e.stopPropagation()} style={{ background: P.card, borderRadius: 20, padding: 32, maxWidth: 340, textAlign: "center", boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 20px 56px rgba(61,53,82,.1)" }}>
             <p style={{ fontSize: 14, margin: "0 0 16px" }}>Delete this memory forever?</p>
             <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
@@ -4160,7 +4176,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         const letter = (config.loveLetters || []).find(l => l.id === showLetter);
         if (!letter) return null;
         return (
-        <div onClick={() => setShowLetter(null)} style={{ position: "absolute", inset: 0, zIndex: 50, background: `linear-gradient(135deg, rgba(22,16,40,.84), rgba(30,24,48,.90))`, backdropFilter: "blur(30px)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", animation: "fadeIn .8s ease" }}>
+        <div role="dialog" aria-modal="true" aria-label="Love letter" onClick={() => setShowLetter(null)} style={{ position: "absolute", inset: 0, zIndex: 50, background: `linear-gradient(135deg, rgba(22,16,40,.84), rgba(30,24,48,.90))`, backdropFilter: "blur(30px)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", animation: "fadeIn .8s ease" }}>
           <div style={{ maxWidth: 460, padding: 36, textAlign: "center" }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 30, marginBottom: 14 }}>💌</div>
             {letter.city && <div style={{ fontSize: 9, color: "#a098b0", letterSpacing: ".12em", marginBottom: 8 }}>found near {letter.city}</div>}
@@ -4175,7 +4191,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       })()}
 
       {isPartnerWorld && editLetter && (
-        <div onClick={() => setEditLetter(false)} style={{ position: "fixed", inset: 0, zIndex: 55, background: "rgba(22,16,40,.82)", backdropFilter: "blur(20px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .2s ease" }}>
+        <div role="dialog" aria-modal="true" aria-label="Edit love letter" onClick={() => setEditLetter(false)} style={{ position: "fixed", inset: 0, zIndex: 55, background: "rgba(22,16,40,.82)", backdropFilter: "blur(20px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .2s ease" }}>
           <div onClick={e => e.stopPropagation()} style={{ width: 420, maxWidth: "92vw", padding: 28, background: P.card, borderRadius: 16, boxShadow: "0 14px 48px rgba(61,53,82,.1)" }}>
             <h3 style={{ margin: "0 0 10px", fontSize: 16, fontWeight: 400 }}>💌 {letterEditId ? "Edit" : "New"} Love Letter</h3>
             <p style={{ fontSize: 9, color: P.textMuted, marginBottom: 12, fontStyle: "italic" }}>Hidden as an easter egg ❀ on the globe — {config.partnerName || "your partner"} will discover it!</p>
@@ -4347,7 +4363,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
       {/* DREAM DESTINATIONS PANEL */}
       {showDreams && (
-        <div onClick={() => setShowDreams(false)} style={{ position: "absolute", inset: 0, zIndex: 45, background: `linear-gradient(135deg, rgba(22,16,40,.82), rgba(30,24,48,.88))`, backdropFilter: "blur(24px)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", animation: "fadeIn .4s ease" }}>
+        <div role="dialog" aria-modal="true" aria-label="Dream destinations" onClick={() => setShowDreams(false)} style={{ position: "absolute", inset: 0, zIndex: 45, background: `linear-gradient(135deg, rgba(22,16,40,.82), rgba(30,24,48,.88))`, backdropFilter: "blur(24px)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", animation: "fadeIn .4s ease" }}>
           <div onClick={e => e.stopPropagation()} style={{ width: 440, maxWidth: "92vw", maxHeight: "85vh", overflowY: "auto", padding: 32, background: P.card, borderRadius: 22, boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 24px 64px rgba(61,53,82,.1)", cursor: "default" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
               <h2 style={{ margin: 0, fontSize: 18, fontWeight: 400, letterSpacing: ".08em" }}>{isMyWorld ? "🗺 Bucket List" : "✦ Dream Destinations"}</h2>
@@ -4688,443 +4704,20 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       })()}
 
       {/* STATS DASHBOARD */}
-      {showStats && (
-        <div onClick={() => setShowStats(false)} style={{ position: "absolute", inset: 0, zIndex: 45, background: `linear-gradient(135deg, rgba(22,16,40,.82), rgba(30,24,48,.88))`, backdropFilter: "blur(24px)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", animation: "fadeIn .4s ease" }}>
-          <div onClick={e => e.stopPropagation()} style={{ width: 440, maxWidth: "92vw", maxHeight: "85vh", overflowY: "auto", padding: 32, background: P.card, borderRadius: 22, boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 24px 64px rgba(61,53,82,.1)", cursor: "default" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 400, letterSpacing: ".08em" }}>{isMyWorld ? "📊 My Travel Stats" : "📊 Our Story in Numbers"}</h2>
-              <button aria-label="Close stats" onClick={() => setShowStats(false)} style={{ background: "none", border: "none", fontSize: 18, color: P.textFaint, cursor: "pointer", transition: "color .2s" }}>×</button>
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 18 }}>
-              {[
-                isPartnerWorld ? { label: "Days Together", value: stats.daysTog, icon: "💕" } : { label: "Days Exploring", value: stats.daysTog, icon: "🧭" },
-                { label: "Trips", value: stats.trips, icon: "🗺" },
-                { label: "Countries", value: stats.countries, icon: "🌍" },
-                { label: "Photos", value: stats.photos, icon: "📷" },
-                { label: "Miles Traveled", value: stats.totalMiles.toLocaleString(), icon: "✈️" },
-                ...(isPartnerWorld ? [{ label: "Reunions", value: reunionStats.reunions, icon: "🫂" }] : [{ label: "Cities", value: expandedStats.cityCount, icon: "🏙" }]),
-              ].map((s, i) => (
-                <div key={i} style={{ padding: "14px 16px", background: `linear-gradient(145deg, ${P.parchment}, ${P.cream})`, borderRadius: 14, textAlign: "center", boxShadow: `0 1px 3px ${P.text}04, 0 4px 12px ${P.text}03`, border: `1px solid ${P.rose}06`, transition: "transform .2s, box-shadow .2s" }}
-                  onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = `0 2px 6px ${P.text}06, 0 8px 20px ${P.text}05`; }}
-                  onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = `0 1px 3px ${P.text}04, 0 4px 12px ${P.text}03`; }}>
-                  <div style={{ fontSize: 20, marginBottom: 4 }}>{s.icon}</div>
-                  <div style={{ fontSize: 24, fontWeight: 400, color: P.text, letterSpacing: ".02em" }}>{s.value}</div>
-                  <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginTop: 2 }}>{s.label}</div>
-                </div>
-              ))}
-            </div>
-
-            {/* Distance Scoreboard */}
-            {isPartnerWorld && <div style={{ padding: "14px 18px", background: `linear-gradient(135deg,${P.blush},${P.lavMist})`, borderRadius: 14, marginBottom: 16, textAlign: "center", boxShadow: `0 1px 4px ${P.text}04` }}>
-              <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 6 }}>The Scoreboard</div>
-              <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 12 }}>
-                <div><span style={{ fontSize: 16, color: P.heart }}>💕</span><div style={{ fontSize: 18, fontWeight: 400 }}>{reunionStats.daysTogether}</div><div style={{ fontSize: 7, color: P.textFaint }}>days together</div></div>
-                <div style={{ fontSize: 11, color: reunionStats.togetherWinning ? P.heart : P.textFaint, fontStyle: "italic" }}>vs</div>
-                <div><span style={{ fontSize: 16 }}>🌍</span><div style={{ fontSize: 18, fontWeight: 400 }}>{reunionStats.daysApart}</div><div style={{ fontSize: 7, color: P.textFaint }}>days apart</div></div>
-              </div>
-              <div style={{ fontSize: 10, color: reunionStats.togetherWinning ? P.heart : P.sky, marginTop: 6, fontStyle: "italic" }}>
-                {reunionStats.togetherWinning ? "Together is winning 💕" : "Distance makes the heart grow fonder 💙"}
-              </div>
-            </div>}
-
-            <div style={{ margin: "14px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}20,transparent)` }} />
-
-            <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 10 }}>Highlights</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {expandedStats.longestTrip.entry && (
-                <div style={{ padding: "12px 14px", background: `linear-gradient(135deg, ${P.together}06, ${P.together}03)`, borderRadius: 12, borderLeft: `3px solid ${P.together}`, transition: "transform .2s" }}
-                  onMouseEnter={e => e.currentTarget.style.transform = "translateX(2px)"}
-                  onMouseLeave={e => e.currentTarget.style.transform = "none"}>
-                  <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>{isPartnerWorld ? "Longest Trip Together" : "Longest Trip"}</div>
-                  <div style={{ fontSize: 13, marginTop: 2 }}>{expandedStats.longestTrip.entry.city} — {expandedStats.longestTrip.days} days</div>
-                </div>
-              )}
-              {isPartnerWorld && expandedStats.farthestApart.dist > 0 && (
-                <div style={{ padding: "12px 14px", background: `linear-gradient(135deg, ${P.sky}06, ${P.sky}03)`, borderRadius: 12, borderLeft: `3px solid ${P.sky}`, transition: "transform .2s" }}
-                  onMouseEnter={e => e.currentTarget.style.transform = "translateX(2px)"}
-                  onMouseLeave={e => e.currentTarget.style.transform = "none"}>
-                  <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>Farthest Apart</div>
-                  <div style={{ fontSize: 13, marginTop: 2 }}>{expandedStats.farthestApart.dist.toLocaleString()} miles</div>
-                </div>
-              )}
-              {expandedStats.topCity && (
-                <div style={{ padding: "12px 14px", background: `linear-gradient(135deg, ${P.rose}06, ${P.rose}03)`, borderRadius: 12, borderLeft: `3px solid ${P.rose}`, transition: "transform .2s" }}
-                  onMouseEnter={e => e.currentTarget.style.transform = "translateX(2px)"}
-                  onMouseLeave={e => e.currentTarget.style.transform = "none"}>
-                  <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>{isPartnerWorld ? "Most Visited Together" : "Most Visited"}</div>
-                  <div style={{ fontSize: 13, marginTop: 2 }}>{expandedStats.topCity[0]} — {expandedStats.topCity[1]} times</div>
-                </div>
-              )}
-              {isPartnerWorld && expandedStats.longestApart > 0 && (
-                <div style={{ padding: "12px 14px", background: `linear-gradient(135deg, ${P.lavender}06, ${P.lavender}03)`, borderRadius: 12, borderLeft: `3px solid ${P.lavender}`, transition: "transform .2s" }}
-                  onMouseEnter={e => e.currentTarget.style.transform = "translateX(2px)"}
-                  onMouseLeave={e => e.currentTarget.style.transform = "none"}>
-                  <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>Longest Apart</div>
-                  <div style={{ fontSize: 13, marginTop: 2 }}>{expandedStats.longestApart} days</div>
-                </div>
-              )}
-              {expandedStats.avgTripLength > 0 && (
-                <div style={{ padding: "12px 14px", background: `linear-gradient(135deg, ${P.rose}06, ${P.rose}03)`, borderRadius: 12, borderLeft: `3px solid ${P.rose}`, transition: "transform .2s" }}
-                  onMouseEnter={e => e.currentTarget.style.transform = "translateX(2px)"}
-                  onMouseLeave={e => e.currentTarget.style.transform = "none"}>
-                  <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>Average Trip Length</div>
-                  <div style={{ fontSize: 13, marginTop: 2 }}>{expandedStats.avgTripLength} days</div>
-                </div>
-              )}
-            </div>
-
-            {expandedStats.countryList.length > 0 && (
-              <div style={{ marginTop: 14 }}>
-                <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 6 }}>Countries Visited</div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                  {[...expandedStats.countryList].sort().map(c => (
-                    <span key={c} style={{ padding: "4px 10px", background: `linear-gradient(145deg, ${P.parchment}, ${P.cream})`, borderRadius: 14, fontSize: 9, color: P.textMid, border: `1px solid ${P.rose}06` }}>{c}</span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {expandedStats.years.length > 0 && (
-              <div style={{ marginTop: 16 }}>
-                <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 6 }}>Year in Review</div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                  {expandedStats.years.map(y => (
-                    <button key={y} onClick={() => startRecap(y)} style={{ padding: "8px 16px", background: `linear-gradient(135deg,${P.blush},${P.lavMist})`, border: `1px solid ${P.rose}12`, borderRadius: 12, cursor: "pointer", fontSize: 10, fontFamily: "inherit", color: P.textMid, transition: "all .25s", boxShadow: `0 1px 4px ${P.text}04` }}
-                      onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px) scale(1.03)"; e.currentTarget.style.boxShadow = `0 3px 12px ${P.text}08`; }}
-                      onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = `0 1px 4px ${P.text}04`; }}
-                    >🎬 {y}</button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {milestones.length > 0 && (
-              <div style={{ marginTop: 16 }}>
-                <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 6 }}>Milestones Reached</div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                  {milestones.map(m => (
-                    <span key={m.days} style={{ padding: "4px 10px", background: `linear-gradient(135deg, ${P.gold}12, ${P.gold}06)`, borderRadius: 14, fontSize: 9, color: P.goldWarm, border: `1px solid ${P.gold}10` }}>◆ {m.label} — {fmtDate(m.date)}</span>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {showStats && <StatsOverlay P={P} stats={stats} expandedStats={expandedStats} reunionStats={reunionStats} milestones={milestones} isMyWorld={isMyWorld} isPartnerWorld={isPartnerWorld} fmtDate={fmtDate} startRecap={startRecap} onClose={() => setShowStats(false)} setTripCardEntry={setTripCardEntry} />}
 
       {/* YEAR-IN-REVIEW RECAP — Full-screen cinematic */}
-      {showRecap && recapEntries.length > 0 && recapYearStats && (() => {
-        const closeRecap = () => { setShowRecap(false); setRecapYear(null); setRecapAutoPlay(false); setRecapPhase('title'); };
-        const rS = recapYearStats;
-        const statCards = [
-          { val: rS.entries, lbl: rS.entries === 1 ? "Adventure" : "Adventures", icon: "🗺" },
-          { val: rS.countries, lbl: rS.countries === 1 ? "Country" : "Countries", icon: "🌍" },
-          { val: rS.cities, lbl: rS.cities === 1 ? "City" : "Cities", icon: "🏙" },
-          { val: rS.totalDays, lbl: "Days Exploring", icon: "🧭" },
-          { val: Math.round(rS.totalMiles).toLocaleString(), lbl: "Miles Traveled", icon: "✈️" },
-          { val: rS.photos, lbl: "Photos Captured", icon: "📷" },
-        ];
-        return (
-          <div style={{ position: "fixed", inset: 0, zIndex: 55, background: recapPhase === 'journey' ? 'transparent' : (SC.bg || "#0c0a12"), display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .6s ease", pointerEvents: recapPhase === 'journey' ? 'none' : 'auto', transition: "background .5s ease" }}>
-            {/* Close button (hidden during journey — card has its own) */}
-            {recapPhase !== 'journey' && <button onClick={closeRecap} style={{ position: "absolute", top: 20, right: 24, background: "none", border: "none", fontSize: 20, color: `${P.textFaint}80`, cursor: "pointer", zIndex: 60, transition: "color .2s", pointerEvents: "auto" }}
-              onMouseEnter={e => e.currentTarget.style.color = P.text} onMouseLeave={e => e.currentTarget.style.color = `${P.textFaint}80`}>×</button>}
-
-            {/* PHASE: Title */}
-            {recapPhase === 'title' && (
-              <div style={{ textAlign: "center", animation: "fadeIn 1s ease", maxWidth: 500, padding: "0 24px" }}>
-                <div style={{ fontSize: 11, letterSpacing: "0.3em", color: P.goldWarm, textTransform: "uppercase", marginBottom: 16, opacity: 0.7 }}>Year in Review</div>
-                <div style={{ fontSize: 72, fontWeight: 200, color: P.text, lineHeight: 1, marginBottom: 12, fontFamily: "Georgia, 'Palatino Linotype', serif", animation: "recapNumIn 1.2s cubic-bezier(0.16,1,0.3,1) both" }}>{recapYear}</div>
-                <div style={{ fontSize: 13, color: P.textMuted, lineHeight: 1.6, marginBottom: 32 }}>
-                  {rS.entries} {rS.entries === 1 ? "adventure" : "adventures"} across {rS.countries} {rS.countries === 1 ? "country" : "countries"}
-                </div>
-                {/* Photo mosaic preview */}
-                {rS.allPhotos.length > 0 && (
-                  <div style={{ display: "flex", justifyContent: "center", gap: 4, marginBottom: 32, animation: "recapSlideUp .8s .4s cubic-bezier(0.16,1,0.3,1) both" }}>
-                    {rS.allPhotos.slice(0, 5).map((p, i) => (
-                      <div key={i} style={{ width: 52, height: 52, borderRadius: 8, overflow: "hidden", opacity: 0.85, transform: `rotate(${(i - 2) * 3}deg)`, transition: "transform .3s, opacity .3s" }}
-                        onMouseEnter={e => { e.currentTarget.style.transform = `rotate(0deg) scale(1.15)`; e.currentTarget.style.opacity = "1"; }}
-                        onMouseLeave={e => { e.currentTarget.style.transform = `rotate(${(i - 2) * 3}deg)`; e.currentTarget.style.opacity = "0.85"; }}>
-                        <img src={p.url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <button onClick={() => { setRecapPhase('stats'); setRecapStatIdx(0); }} style={{
-                  padding: "14px 40px", background: `linear-gradient(135deg, ${P.goldWarm}25, ${P.goldWarm}10)`,
-                  border: `1px solid ${P.goldWarm}40`, borderRadius: 28, color: P.goldWarm,
-                  fontSize: 13, letterSpacing: ".08em", cursor: "pointer", fontFamily: "inherit",
-                  transition: "all .3s", animation: "recapSlideUp 1s .6s cubic-bezier(0.16,1,0.3,1) both",
-                }}
-                  onMouseEnter={e => { e.currentTarget.style.background = `linear-gradient(135deg, ${P.goldWarm}35, ${P.goldWarm}18)`; e.currentTarget.style.transform = "translateY(-2px)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = `linear-gradient(135deg, ${P.goldWarm}25, ${P.goldWarm}10)`; e.currentTarget.style.transform = "none"; }}
-                >Begin Your Recap</button>
-              </div>
-            )}
-
-            {/* PHASE: Stats reveal */}
-            {recapPhase === 'stats' && (
-              <div style={{ textAlign: "center", maxWidth: 520, width: "92vw", padding: "0 20px", animation: "fadeIn .5s ease" }}>
-                <div style={{ fontSize: 9, letterSpacing: "0.25em", color: P.goldWarm, textTransform: "uppercase", marginBottom: 24, opacity: 0.6 }}>{recapYear} — By the Numbers</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 28 }}>
-                  {statCards.map((s, i) => (
-                    <div key={s.lbl} style={{
-                      padding: "20px 12px", background: `linear-gradient(145deg, ${P.rose}08, ${P.rose}03)`,
-                      borderRadius: 16, border: `1px solid ${P.rose}08`,
-                      opacity: i <= recapStatIdx ? 1 : 0,
-                      transform: i <= recapStatIdx ? "translateY(0) scale(1)" : "translateY(20px) scale(0.9)",
-                      transition: "all .6s cubic-bezier(0.16,1,0.3,1)",
-                    }}>
-                      <div style={{ fontSize: 22, marginBottom: 6 }}>{s.icon}</div>
-                      <div style={{ fontSize: 28, fontWeight: 300, color: P.goldWarm, fontFamily: "Georgia, serif", lineHeight: 1 }}>{s.val}</div>
-                      <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginTop: 6 }}>{s.lbl}</div>
-                    </div>
-                  ))}
-                </div>
-                {/* Highlights row */}
-                <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", marginBottom: 24, opacity: recapStatIdx >= 5 ? 1 : 0, transition: "opacity .6s .2s" }}>
-                  {rS.longestTrip.entry && (
-                    <div style={{ padding: "10px 16px", background: `${P.rose}06`, borderRadius: 12, borderLeft: `3px solid ${P.goldWarm}60` }}>
-                      <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>Longest Trip</div>
-                      <div style={{ fontSize: 12, color: P.text, marginTop: 2 }}>{rS.longestTrip.entry.city} — {rS.longestTrip.days} days</div>
-                    </div>
-                  )}
-                  {rS.topCity && (
-                    <div style={{ padding: "10px 16px", background: `${P.rose}06`, borderRadius: 12, borderLeft: `3px solid ${P.rose}60` }}>
-                      <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>Most Visited</div>
-                      <div style={{ fontSize: 12, color: P.text, marginTop: 2 }}>{rS.topCity.name} — {rS.topCity.count} {rS.topCity.count === 1 ? "time" : "times"}</div>
-                    </div>
-                  )}
-                  {rS.months > 0 && (
-                    <div style={{ padding: "10px 16px", background: `${P.rose}06`, borderRadius: 12, borderLeft: `3px solid ${P.sky}60` }}>
-                      <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>Active Months</div>
-                      <div style={{ fontSize: 12, color: P.text, marginTop: 2 }}>{rS.months} of 12</div>
-                    </div>
-                  )}
-                </div>
-                {/* Countries list */}
-                {rS.countryNames.length > 0 && (
-                  <div style={{ marginBottom: 24, opacity: recapStatIdx >= 5 ? 1 : 0, transition: "opacity .6s .4s" }}>
-                    <div style={{ fontSize: 9, color: P.textMid, lineHeight: 1.8 }}>{rS.countryNames.join("  ·  ")}</div>
-                  </div>
-                )}
-                <button onClick={() => { setRecapPhase('journey'); setRecapIdx(0); const e = recapEntries[0]; if (e) { setSliderDate(e.dateStart); flyTo(e.lat, e.lng, 2.4); } }}
-                  style={{ padding: "12px 36px", background: `linear-gradient(135deg, ${P.goldWarm}25, ${P.goldWarm}10)`, border: `1px solid ${P.goldWarm}40`, borderRadius: 28, color: P.goldWarm, fontSize: 12, letterSpacing: ".06em", cursor: "pointer", fontFamily: "inherit", transition: "all .3s", opacity: recapStatIdx >= 5 ? 1 : 0 }}
-                  onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; }} onMouseLeave={e => { e.currentTarget.style.transform = "none"; }}
-                >Relive the Journey</button>
-              </div>
-            )}
-
-            {/* PHASE: Journey (entry-by-entry with globe visible) */}
-            {recapPhase === 'journey' && recapIdx >= 0 && (() => {
-              const e = recapEntries[recapIdx];
-              const t = TYPES[e.type] || DEFAULT_TYPE;
-              return (
-                <div style={{ position: "fixed", inset: 0, zIndex: 55, background: "transparent", pointerEvents: "none" }}>
-                  {/* Semi-transparent overlay so globe is visible */}
-                  <div style={{ position: "absolute", inset: 0, background: `${SC.bg || '#0c0a12'}90`, pointerEvents: "none" }} />
-                  {/* Entry card — bottom center */}
-                  <div style={{ position: "absolute", bottom: 100, left: 0, right: 0, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
-                    <div style={{ pointerEvents: "auto", background: P.card, backdropFilter: "blur(24px)", borderRadius: 20, padding: "20px 24px", boxShadow: `0 8px 32px ${SC.bg || '#0c0a12'}60`, maxWidth: 460, width: "92vw", animation: "recapSlideUp .5s cubic-bezier(0.16,1,0.3,1)", border: `1px solid ${P.rose}10` }}>
-                      {/* Header */}
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                        <span style={{ fontSize: 8, color: P.goldWarm, letterSpacing: ".14em", textTransform: "uppercase" }}>
-                          {recapYear} — {recapIdx + 1} of {recapEntries.length}
-                        </span>
-                        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                          <button onClick={() => setRecapAutoPlay(v => !v)} style={{ background: "none", border: "none", fontSize: 11, color: recapAutoPlay ? P.goldWarm : P.textFaint, cursor: "pointer" }}>
-                            {recapAutoPlay ? "⏸" : "▶"}
-                          </button>
-                          <button aria-label="Close recap" onClick={closeRecap} style={{ background: "none", border: "none", fontSize: 13, color: P.textFaint, cursor: "pointer" }}>×</button>
-                        </div>
-                      </div>
-
-                      {/* Photo */}
-                      {(e.photos || []).length > 0 && (
-                        <div style={{ marginBottom: 10, borderRadius: 12, overflow: "hidden", maxHeight: 160 }}>
-                          <img loading="lazy" src={thumbnail(e.photos[0], 400)} alt="" style={{ width: "100%", height: 160, objectFit: "cover", animation: "fadeIn .4s ease" }} />
-                        </div>
-                      )}
-
-                      {/* Entry info */}
-                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-                        <span style={{ fontSize: 24, filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.2))" }}>{t.icon}</span>
-                        <div>
-                          <div style={{ fontSize: 17, fontWeight: 400, color: P.text }}>{e.city}</div>
-                          <div style={{ fontSize: 10, color: P.textMuted }}>{fmtDate(e.dateStart)}{e.dateEnd ? ` → ${fmtDate(e.dateEnd)}` : ""} · {e.country}</div>
-                        </div>
-                      </div>
-                      {e.notes && <p style={{ fontSize: 11, color: P.textMid, margin: "6px 0", lineHeight: 1.6, maxHeight: 48, overflow: "hidden" }}>{e.notes}</p>}
-
-                      {/* Extra photos strip */}
-                      {(e.photos || []).length > 1 && (
-                        <div style={{ display: "flex", gap: 4, marginTop: 8, overflowX: "auto" }}>
-                          {e.photos.slice(1, 6).map(url => (
-                            <img key={url} loading="lazy" src={thumbnail(url, 100)} alt="" style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 6, opacity: 0.9 }} />
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Progress bar */}
-                      <div style={{ display: "flex", gap: 2, marginTop: 12, marginBottom: 10 }}>
-                        {Array.from({ length: recapEntries.length }, (_, i) => (
-                          <div key={i} style={{ flex: 1, height: 2.5, borderRadius: 2, background: i <= recapIdx ? P.goldWarm : `${P.textFaint}25`, transition: "background .4s" }} />
-                        ))}
-                      </div>
-
-                      {/* Navigation */}
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <button onClick={() => { if (recapIdx === 0) { setRecapPhase('stats'); setRecapStatIdx(5); } else { setRecapIdx(recapIdx - 1); const prev = recapEntries[recapIdx - 1]; if (prev) { setSliderDate(prev.dateStart); flyTo(prev.lat, prev.lng, 2.4); } } }}
-                          style={navSt()}>◂ Prev</button>
-                        <div style={{ display: "flex", gap: 6 }}>
-                          <button onClick={() => { setSelected(e); setPhotoIdx(0); setCardTab("overview"); }} style={{ ...navSt(), color: P.heart, fontSize: 10 }}>View</button>
-                          <button onClick={() => setTripCardEntry(e)} style={{ ...navSt(), fontSize: 10 }} title="Trip Card">🎴</button>
-                        </div>
-                        <button onClick={() => {
-                          if (recapIdx >= recapEntries.length - 1) { setRecapPhase('summary'); }
-                          else { const next = recapIdx + 1; setRecapIdx(next); const ne = recapEntries[next]; if (ne) { setSliderDate(ne.dateStart); flyTo(ne.lat, ne.lng, 2.4); } }
-                        }} style={navSt()}>{recapIdx >= recapEntries.length - 1 ? "Summary ✨" : "Next ▸"}</button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* PHASE: Summary — shareable recap card */}
-            {recapPhase === 'summary' && (
-              <div style={{ textAlign: "center", maxWidth: 480, width: "92vw", padding: "0 20px", animation: "fadeIn .6s ease" }}>
-                <div style={{ fontSize: 9, letterSpacing: "0.25em", color: P.goldWarm, textTransform: "uppercase", marginBottom: 20, opacity: 0.6 }}>Your {recapYear} Wrapped</div>
-
-                {/* Summary card */}
-                <div id="recap-summary-card" style={{
-                  background: `linear-gradient(145deg, ${SC.bg || '#0c0a12'}, ${P.card})`,
-                  borderRadius: 20, padding: "32px 28px", border: `1px solid ${P.rose}10`,
-                  boxShadow: `0 8px 32px ${SC.bg || '#0c0a12'}40`, marginBottom: 24,
-                }}>
-                  <div style={{ fontSize: 9, letterSpacing: "0.3em", color: P.goldWarm, textTransform: "uppercase", marginBottom: 4, opacity: 0.5 }}>My Cosmos</div>
-                  <div style={{ fontSize: 48, fontWeight: 200, color: P.text, fontFamily: "Georgia, serif", marginBottom: 4 }}>{recapYear}</div>
-                  <div style={{ fontSize: 10, color: P.textMuted, letterSpacing: ".06em", marginBottom: 20 }}>Year in Review</div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 20 }}>
-                    {[
-                      { val: rS.entries, lbl: "Adventures" },
-                      { val: rS.countries, lbl: "Countries" },
-                      { val: rS.cities, lbl: "Cities" },
-                      { val: rS.totalDays, lbl: "Days" },
-                      { val: Math.round(rS.totalMiles).toLocaleString(), lbl: "Miles" },
-                      { val: rS.photos, lbl: "Photos" },
-                    ].map(s => (
-                      <div key={s.lbl} style={{ padding: "10px 6px" }}>
-                        <div style={{ fontSize: 22, fontWeight: 300, color: P.goldWarm }}>{s.val}</div>
-                        <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>{s.lbl}</div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Photo mosaic */}
-                  {rS.allPhotos.length > 0 && (
-                    <div style={{ display: "flex", justifyContent: "center", gap: 4, marginBottom: 16 }}>
-                      {rS.allPhotos.slice(0, 6).map((p, i) => (
-                        <div key={i} style={{ width: 48, height: 48, borderRadius: 6, overflow: "hidden" }}>
-                          <img src={p.url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {rS.countryNames.length > 0 && (
-                    <div style={{ fontSize: 9, color: P.textMid, lineHeight: 1.8, opacity: 0.7 }}>{rS.countryNames.join("  ·  ")}</div>
-                  )}
-                </div>
-
-                {/* Actions */}
-                <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-                  <button onClick={() => {
-                    const el = document.getElementById('recap-summary-card');
-                    if (!el) return;
-                    const W = 600, H = 700;
-                    const cvs = document.createElement('canvas'); cvs.width = W; cvs.height = H;
-                    const ctx = cvs.getContext('2d');
-                    const grad = ctx.createLinearGradient(0, 0, W, H);
-                    grad.addColorStop(0, SC.bg || '#0c0a12'); grad.addColorStop(1, '#1a1428');
-                    ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
-                    ctx.fillStyle = (P.goldWarm || '#c9a96e') + '80'; ctx.font = '11px Georgia, serif'; ctx.textAlign = 'center';
-                    ctx.fillText('MY COSMOS', W / 2, 50);
-                    ctx.fillStyle = P.text || '#e8e0d0'; ctx.font = '200 72px Georgia, serif';
-                    ctx.fillText(String(recapYear), W / 2, 130);
-                    ctx.fillStyle = (P.textMuted || '#a098a8') + 'cc'; ctx.font = '13px Georgia, serif';
-                    ctx.fillText('Year in Review', W / 2, 155);
-                    const grid = [
-                      { val: String(rS.entries), lbl: 'Adventures' }, { val: String(rS.countries), lbl: 'Countries' }, { val: String(rS.cities), lbl: 'Cities' },
-                      { val: String(rS.totalDays), lbl: 'Days' }, { val: Math.round(rS.totalMiles).toLocaleString(), lbl: 'Miles' }, { val: String(rS.photos), lbl: 'Photos' },
-                    ];
-                    const cols = 3, cellW = 160, cellH = 70, startX = (W - cols * cellW) / 2, startY = 190;
-                    grid.forEach((s, i) => {
-                      const col = i % cols, row = Math.floor(i / cols);
-                      const cx = startX + col * cellW + cellW / 2, cy = startY + row * cellH;
-                      ctx.fillStyle = P.goldWarm || '#c9a96e'; ctx.font = '300 32px Georgia, serif';
-                      ctx.fillText(s.val, cx, cy + 28);
-                      ctx.fillStyle = (P.textFaint || '#807888') + 'cc'; ctx.font = '9px Georgia, serif'; ctx.letterSpacing = '2px';
-                      ctx.fillText(s.lbl.toUpperCase(), cx, cy + 44);
-                    });
-                    if (rS.countryNames.length > 0) {
-                      ctx.fillStyle = (P.textMid || '#c0b8c8') + '99'; ctx.font = '11px Georgia, serif';
-                      const countryStr = rS.countryNames.join('  ·  ');
-                      const lines = []; let line = '';
-                      for (const word of countryStr.split('  ')) {
-                        const test = line + (line ? '  ' : '') + word;
-                        if (ctx.measureText(test).width > W - 80 && line) { lines.push(line); line = word; }
-                        else line = test;
-                      }
-                      if (line) lines.push(line);
-                      lines.slice(0, 3).forEach((l, i) => ctx.fillText(l, W / 2, 380 + i * 18));
-                    }
-                    ctx.strokeStyle = (P.goldWarm || '#c9a96e') + '20'; ctx.lineWidth = 1;
-                    ctx.beginPath(); ctx.moveTo(80, H - 60); ctx.lineTo(W - 80, H - 60); ctx.stroke();
-                    ctx.fillStyle = (P.textFaint || '#504858') + '80'; ctx.font = '9px Georgia, serif';
-                    ctx.fillText('my-cosmos.app', W / 2, H - 36);
-                    cvs.toBlob(blob => {
-                      if (!blob) return;
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a'); a.href = url;
-                      a.download = `my-cosmos-${recapYear}-recap.png`;
-                      a.click(); URL.revokeObjectURL(url);
-                    });
-                  }} style={{
-                    padding: "12px 28px", background: `linear-gradient(135deg, ${P.goldWarm}25, ${P.goldWarm}10)`,
-                    border: `1px solid ${P.goldWarm}40`, borderRadius: 24, color: P.goldWarm,
-                    fontSize: 11, letterSpacing: ".06em", cursor: "pointer", fontFamily: "inherit", transition: "all .3s",
-                  }} onMouseEnter={e => e.currentTarget.style.transform = "translateY(-1px)"} onMouseLeave={e => e.currentTarget.style.transform = "none"}>
-                    Save as Image
-                  </button>
-                  <button onClick={() => { setRecapPhase('journey'); setRecapIdx(0); const e = recapEntries[0]; if (e) { setSliderDate(e.dateStart); flyTo(e.lat, e.lng, 2.4); } }}
-                    style={{ padding: "12px 28px", background: `${P.rose}08`, border: `1px solid ${P.rose}15`, borderRadius: 24, color: P.textMid, fontSize: 11, letterSpacing: ".06em", cursor: "pointer", fontFamily: "inherit", transition: "all .3s" }}
-                    onMouseEnter={e => e.currentTarget.style.transform = "translateY(-1px)"} onMouseLeave={e => e.currentTarget.style.transform = "none"}>
-                    Replay Journey
-                  </button>
-                  <button onClick={closeRecap}
-                    style={{ padding: "12px 28px", background: "transparent", border: `1px solid ${P.textFaint}30`, borderRadius: 24, color: P.textFaint, fontSize: 11, letterSpacing: ".06em", cursor: "pointer", fontFamily: "inherit", transition: "all .3s" }}
-                    onMouseEnter={e => e.currentTarget.style.transform = "translateY(-1px)"} onMouseLeave={e => e.currentTarget.style.transform = "none"}>
-                    Close
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Recap-specific keyframes */}
-            <style>{`
-              @keyframes recapNumIn { from { opacity: 0; transform: scale(0.7) translateY(20px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-              @keyframes recapSlideUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
-            `}</style>
-          </div>
-        );
-      })()}
+      {showRecap && recapEntries.length > 0 && recapYearStats && <RecapOverlay
+        P={P} SC={SC} TYPES={TYPES} DEFAULT_TYPE={DEFAULT_TYPE} thumbnail={thumbnail} fmtDate={fmtDate} navSt={navSt}
+        recapYear={recapYear} recapYearStats={recapYearStats} recapEntries={recapEntries}
+        recapPhase={recapPhase} recapIdx={recapIdx} recapStatIdx={recapStatIdx} recapAutoPlay={recapAutoPlay}
+        setRecapPhase={setRecapPhase} setRecapIdx={setRecapIdx} setRecapStatIdx={setRecapStatIdx} setRecapAutoPlay={setRecapAutoPlay}
+        setSliderDate={setSliderDate} setSelected={setSelected} setPhotoIdx={setPhotoIdx} setCardTab={setCardTab} setTripCardEntry={setTripCardEntry}
+        onClose={() => { setShowRecap(false); setRecapYear(null); setRecapAutoPlay(false); setRecapPhase('title'); }} flyTo={flyTo}
+      />}
 
       {/* TOAST NOTIFICATIONS (stacked) */}
-      {toasts.length > 0 && (
-        <div style={{ position: "absolute", bottom: 120, left: "50%", transform: "translateX(-50%)", zIndex: 55, display: "flex", flexDirection: "column-reverse", gap: 6, alignItems: "center", maxHeight: "30vh", overflow: "hidden", maxWidth: "90vw" }}>
+      <div aria-live="polite" role="status" style={{ position: "absolute", bottom: 120, left: "50%", transform: "translateX(-50%)", zIndex: 55, display: toasts.length > 0 ? "flex" : "none", flexDirection: "column-reverse", gap: 6, alignItems: "center", maxHeight: "30vh", overflow: "hidden", maxWidth: "90vw" }}>
           {toasts.map((t, i) => (
             <div key={t.key} style={{ pointerEvents: t.undoAction ? "auto" : "none", animation: t.exiting ? undefined : "fadeIn .3s ease", opacity: t.exiting ? 0 : (i < toasts.length - 1 ? 0.7 : 1), transform: `scale(${t.exiting ? 0.9 : (i < toasts.length - 1 ? 0.95 : 1)})${t.exiting ? " translateY(8px)" : ""}`, transition: "opacity .3s, transform .3s" }}>
               <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 18px", background: P.card, backdropFilter: "blur(16px)", borderRadius: 24, boxShadow: "0 4px 20px rgba(0,0,0,.1)", border: `1px solid ${P.rose}15`, fontSize: 12, color: P.text, letterSpacing: ".05em", whiteSpace: "nowrap" }}>
@@ -5134,10 +4727,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               </div>
             </div>
           ))}
-        </div>
-      )}
+      </div>
 
-      {/* ON THIS DAY (clickable if memories exist) */}
+      {/* ON THIS DAY (clickable if entries exist) */}
       {onThisDay.length > 0 && introComplete && !showStats && !showRecap && toasts.length === 0 && (
         <button onClick={() => {
           const mem = onThisDay[0];
@@ -5159,121 +4751,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       )}
 
       {/* ONBOARDING OVERLAY */}
-      {showOnboarding && introComplete && (() => {
-        const steps = isSharedWorld && !isPartnerWorld ? [
-          { title: `Welcome to ${worldName || "Your Shared World"}`,
-            body: worldType === "family"
-              ? "This is your family's travel globe. Every trip, vacation, and reunion becomes a glowing marker. Everyone in the family can add entries, photos, and memories."
-              : worldType === "friends"
-              ? "This is your crew's travel globe. Group trips, meetups, and adventures all light up as markers. Everyone can add entries, photos, and memories."
-              : "This is a shared travel globe. Every adventure you add together lights up your world as a glowing marker. Everyone in this world can add entries, photos, and memories.",
-            icon: worldType === "family" ? "👨‍👩‍👧‍👦" : worldType === "friends" ? "👯" : "🌍",
-            hint: worldType === "family" ? "Every family adventure in one place" : worldType === "friends" ? "Your squad's adventures, all mapped out" : "Your globe fills up as you add trips together" },
-          { title: "Navigate Your Globe",
-            body: "Drag to spin the globe. Scroll to zoom in and out. Click any marker to open its details — photos, notes, memories, and more.",
-            icon: "🖱", hint: "Try it! The globe is interactive" },
-          { title: "Your Toolkit",
-            body: "The toolbar has everything: search, filter by type, stats dashboard, constellation view, gallery, and color customization in settings.",
-            icon: "🧰", hint: "The toolbar has all your tools" },
-          { title: "Timeline & Story",
-            body: "Use the timeline slider at the bottom to travel through time. Press the play button to watch your story unfold, marker by marker.",
-            icon: "▶", hint: "The best part — watching your story play out" },
-          { title: "Add Your First Trip",
-            body: "Click the + button in the toolbar to add your first entry. Fill in the city, dates, type, and add photos and memories to bring it to life.",
-            icon: "✨", hint: "Start with somewhere meaningful" },
-        ] : isSharedWorld && isPartnerWorld ? [
-          { title: `Welcome to ${worldName || "Your Shared World"}`,
-            body: "This is your shared travel globe — a living map of your relationship. Every adventure you add together lights up as a glowing marker. Both of you can add entries, photos, and memories.",
-            icon: "💕", hint: "Your love story, mapped across the world" },
-          { title: "Navigate Your Globe",
-            body: "Drag to spin the globe. Scroll to zoom in and out. Click any marker to open its details — photos, notes, memories, and more.",
-            icon: "🖱", hint: "Try it! The globe is interactive" },
-          { title: "Partner Features",
-            body: "Write love letters that live on the globe. Add love notes to any entry. Watch the love thread connect your journeys. See your constellation of adventures. Track days together vs apart.",
-            icon: "💌", hint: "These features are unique to partner worlds" },
-          { title: "Celebrations & Milestones",
-            body: "Your world celebrates with you — anniversaries trigger a special popup, milestone entries (5, 10, 25, 50, 100) earn badges, and your Year-in-Review replays your story.",
-            icon: "🎉", hint: "Keep adding adventures to unlock celebrations" },
-          { title: "Timeline & Story",
-            body: "Use the timeline slider to travel through time. Press play to watch your story unfold, marker by marker, with photos fading in at each stop.",
-            icon: "▶", hint: "The best part — watching your story play out" },
-          { title: "Add Your First Trip",
-            body: "Click + to add your first entry. Fill in the city, dates, and type. Add photos and memories to bring it to life. Quick-add (⚡) is there for fast entries.",
-            icon: "✨", hint: "Start with somewhere meaningful to you both" },
-        ] : isMyWorld ? [
-          { title: "Welcome to My World",
-            body: "This is your personal travel globe. Every trip you add becomes a glowing marker, building a visual story of everywhere you've been.",
-            icon: "🌍", hint: "Your world grows with every adventure" },
-          { title: "Navigate Your Globe",
-            body: "Drag to spin the globe. Scroll to zoom in and out. Click any marker to see its full details — photos, notes, highlights, and more.",
-            icon: "🖱", hint: "Try it! The globe is interactive" },
-          { title: "12 Trip Types",
-            body: "Adventures, road trips, city breaks, beach getaways, cruises, backpacking, friends trips, family visits, events, nature escapes, work travel, and home. Each gets its own unique marker shape.",
-            icon: "🎨", hint: "Different markers for different adventures" },
-          { title: "Features to Explore",
-            body: "Bucket list for dream destinations. Photo journey for a cinematic slideshow. Year-in-Review to replay any year. Stats dashboard. Constellation view. Custom color themes in settings.",
-            icon: "🧰", hint: "All in the toolbar on the left" },
-          { title: "Timeline & Story",
-            body: "The timeline slider lets you travel through time. Press play to watch your story unfold, trip by trip, with photos at every stop.",
-            icon: "▶", hint: "Best with a few entries added" },
-          { title: "Add Your First Trip",
-            body: "Click + to add your first entry. Pick a city, choose your trip type, add dates, photos, and memories. Quick-add (⚡) is there for speed.",
-            icon: "✨", hint: "Start with your favorite trip" },
-        ] : [
-          { title: "Welcome to Our World",
-            body: "This is your shared travel globe. Every adventure you add together lights up your world as a glowing marker on the map.",
-            icon: "🌍", hint: "Your love story, mapped across the world" },
-          { title: "Navigate Your Globe",
-            body: "Drag to spin the globe. Scroll to zoom in and out. Click any marker to open its details — photos, memories, and love notes.",
-            icon: "🖱", hint: "Try it! The globe is interactive" },
-          { title: "Your Toolkit",
-            body: "The left toolbar has everything: search, filter, stats, love letters, constellation view, dark mode, and color customization in settings.",
-            icon: "🧰", hint: "Lots to discover in the toolbar" },
-          { title: "Timeline & Story",
-            body: "Use the timeline slider to travel through time. Press play to watch your story unfold across the globe, adventure by adventure.",
-            icon: "▶", hint: "The best part — watching it all play out" },
-          { title: "Add Your First Trip",
-            body: "Click the + button to add your first entry. Fill in the city, dates, and type, then add photos and memories to bring it to life.",
-            icon: "✨", hint: "Start with somewhere special to you both" },
-        ];
-        const step = steps[onboardStep];
-        return (
-          <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(4,2,10,0.50)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .5s ease" }}>
-            <div style={{ background: "rgba(22,16,32,0.88)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 22, padding: "36px 32px", width: 380, maxWidth: "90vw", textAlign: "center", boxShadow: "0 8px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)" }}>
-              <div style={{ fontSize: 44, marginBottom: 14 }}>{step.icon}</div>
-              <div style={{ fontSize: 19, fontWeight: 500, color: "#e8e0d0", marginBottom: 10, letterSpacing: ".04em" }}>{step.title}</div>
-              <div style={{ fontSize: 13, color: "#a098a8", lineHeight: 1.7, marginBottom: 10 }}>{step.body}</div>
-              {step.hint && <div style={{ fontSize: 10, color: "#c9a96e", letterSpacing: "0.5px", marginBottom: 18, fontStyle: "italic" }}>{step.hint}</div>}
-              <div style={{ display: "flex", justifyContent: "center", gap: 6, marginBottom: 20 }}>
-                {steps.map((_, i) => (
-                  <div key={i} style={{ width: 7, height: 7, borderRadius: "50%", background: i === onboardStep ? "#c9a96e" : "rgba(255,255,255,0.12)", transition: "background .3s", boxShadow: i === onboardStep ? "0 0 6px rgba(200,170,110,0.4)" : "none" }} />
-                ))}
-              </div>
-              <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-                {onboardStep > 0 && (
-                  <button onClick={() => setOnboardStep(s => s - 1)}
-                    style={{ padding: "9px 20px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 12, color: "#a098a8", fontSize: 13, fontFamily: "inherit", cursor: "pointer" }}>
-                    Back
-                  </button>
-                )}
-                <button onClick={() => {
-                  if (onboardStep < steps.length - 1) { setOnboardStep(s => s + 1); }
-                  else { setShowOnboarding(false); localStorage.setItem(onboardKey, "1"); }
-                }}
-                  style={{ padding: "9px 24px", background: "linear-gradient(135deg, #c9a96e, #b8944f)", border: "none", borderRadius: 12, color: "#1a1520", fontSize: 13, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", boxShadow: "0 2px 12px rgba(200,170,110,0.2)" }}>
-                  {onboardStep < steps.length - 1 ? "Next" : "Start Exploring"}
-                </button>
-              </div>
-              {onboardStep === 0 && (
-                <button onClick={() => { setShowOnboarding(false); localStorage.setItem(onboardKey, "1"); }}
-                  style={{ marginTop: 14, background: "none", border: "none", color: "#605868", fontSize: 11, fontFamily: "inherit", cursor: "pointer", letterSpacing: "0.3px" }}>
-                  Skip tour
-                </button>
-              )}
-            </div>
-          </div>
-        );
-      })()}
+      {showOnboarding && introComplete && <OnboardingOverlay worldName={worldName} worldType={worldType} isSharedWorld={isSharedWorld} isPartnerWorld={isPartnerWorld} isMyWorld={isMyWorld} onboardStep={onboardStep} setOnboardStep={setOnboardStep} onClose={() => setShowOnboarding(false)} onboardKey={onboardKey} />}
 
 
       {/* FIRST ENTRY CELEBRATION */}
@@ -5285,7 +4763,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         const celebIcon = isAnniv ? "💕" : isMilestone ? (cd.message.includes("Countries") ? "🗺" : cd.message.includes("Miles") ? "🚀" : "✨") : "✨";
         const accentColor = isAnniv ? P.heart : isMilestone ? P.goldWarm : P.goldWarm;
         return (
-          <div style={{ position: "fixed", inset: 0, zIndex: 250, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "auto", cursor: "pointer", background: showConfetti ? `radial-gradient(ellipse at center, ${accentColor}15, transparent 70%)` : 'transparent', animation: "fadeIn .4s ease" }}
+          <div role="alert" aria-label="Celebration" style={{ position: "fixed", inset: 0, zIndex: 250, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "auto", cursor: "pointer", background: showConfetti ? `radial-gradient(ellipse at center, ${accentColor}15, transparent 70%)` : 'transparent', animation: "fadeIn .4s ease" }}
             onClick={() => setShowCelebration(false)}>
             {/* Confetti particles */}
             {showConfetti && Array.from({ length: isMilestone ? 16 : 24 }, (_, i) => (
@@ -5340,7 +4818,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         const entry = sorted.find(e => e.id === ph.id);
         const note = entry?.notes || '';
         return (
-          <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}
+          <div role="dialog" aria-modal="true" aria-label="Photo journey" style={{ position: "fixed", inset: 0, zIndex: 200, background: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}
             onClick={() => { if (pjAutoPlay) { setPjAutoPlay(false); } else if (pjIndex < allPhotos.length - 1) setPjIndex(i => i + 1); else { setShowPhotoJourney(false); setPjAutoPlay(false); } }}>
             {/* Crossfade: previous image fades out behind current */}
             {prevPh && <img src={prevPh.url} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", opacity: 0, transition: "opacity 0.8s ease", pointerEvents: "none" }} />}

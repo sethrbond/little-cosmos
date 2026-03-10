@@ -173,31 +173,9 @@ function drawTripCard(canvas, entry, palette, worldMode, bgImage) {
     curY += Math.min(noteLines.length, maxNoteLines) * 36 + 30;
   }
 
-  // -- Memories --
-  const memories = (entry.memories || []).filter(Boolean);
-  if (memories.length > 0) {
-    ctx.font = "600 22px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-    ctx.fillStyle = mutedCol;
-    ctx.textAlign = "left";
-    ctx.fillText("MEMORIES", 80, curY);
-    curY += 10;
-    ctx.font = "400 24px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-    ctx.fillStyle = subCol;
-    const maxMem = 4;
-    memories.slice(0, maxMem).forEach(m => {
-      curY += 34;
-      const lines = wrapText(ctx, `\u2022  ${m}`, W - 180);
-      lines.slice(0, 2).forEach((line, li) => {
-        ctx.fillText(line, 90, curY + li * 30);
-      });
-      curY += (Math.min(lines.length, 2) - 1) * 30;
-    });
-    curY += 30;
-  }
-
   // -- Highlights --
   const highlights = (entry.highlights || []).filter(Boolean);
-  if (highlights.length > 0 && curY < H - 300) {
+  if (highlights.length > 0) {
     ctx.font = "600 22px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
     ctx.fillStyle = mutedCol;
     ctx.textAlign = "left";
@@ -205,7 +183,7 @@ function drawTripCard(canvas, entry, palette, worldMode, bgImage) {
     curY += 10;
     ctx.font = "400 24px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
     ctx.fillStyle = subCol;
-    const maxHl = 3;
+    const maxHl = 6;
     highlights.slice(0, maxHl).forEach(h => {
       curY += 34;
       const lines = wrapText(ctx, `\u2726  ${h}`, W - 180);
@@ -337,8 +315,6 @@ export default function TripCard({ entry, palette, onClose, worldMode }) {
     statParts.push(`${(entry.photos || []).length} photos`);
     lines.push(statParts.join(" | "));
     if (entry.notes) lines.push(`"${entry.notes}"`);
-    const memories = (entry.memories || []).filter(Boolean);
-    if (memories.length) lines.push("Memories: " + memories.join(", "));
     const highlights = (entry.highlights || []).filter(Boolean);
     if (highlights.length) lines.push("Highlights: " + highlights.join(", "));
     lines.push("");

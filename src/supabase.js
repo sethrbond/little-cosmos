@@ -1,7 +1,18 @@
 import { supabase, withRetry, safeArray, cleanArray } from './supabaseClient.js'
 export { supabase }
 
-/* supabase.js v8.3 — Our World + Shared World DB factories */
+/* supabase.js v8.4 — Our World + Shared World DB factories */
+
+// Merge legacy "memories" into "highlights" on read (deduplicated, memories appended)
+function mergeMemoriesIntoHighlights(row) {
+  const highlights = safeArray(row.highlights)
+  const memories = safeArray(row.memories)
+  if (memories.length === 0) return highlights
+  const set = new Set(highlights)
+  const merged = [...highlights]
+  for (const m of memories) { if (m && !set.has(m)) { merged.push(m); set.add(m) } }
+  return merged
+}
 
 // ---- PHOTO STORAGE ----
 
@@ -74,8 +85,8 @@ export function createOurWorldDB(userId) {
         dateStart: row.date_start, dateEnd: row.date_end || null,
         type: row.entry_type, who: row.who,
         zoomLevel: row.zoom_level || 1, notes: row.notes || '',
-        memories: safeArray(row.memories), museums: safeArray(row.museums),
-        restaurants: safeArray(row.restaurants), highlights: safeArray(row.highlights),
+        museums: safeArray(row.museums),
+        restaurants: safeArray(row.restaurants), highlights: mergeMemoriesIntoHighlights(row),
         photos: safeArray(row.photos), stops: safeArray(row.stops),
         musicUrl: row.music_url || null, favorite: row.favorite || false,
         loveNote: row.love_note || '',
@@ -90,7 +101,7 @@ export function createOurWorldDB(userId) {
         date_start: entry.dateStart, date_end: entry.dateEnd || null,
         entry_type: entry.type, who: entry.who,
         zoom_level: entry.zoomLevel || 1, notes: entry.notes || '',
-        memories: cleanArray(entry.memories), museums: cleanArray(entry.museums),
+        memories: [], museums: cleanArray(entry.museums),
         restaurants: cleanArray(entry.restaurants), highlights: cleanArray(entry.highlights),
         photos: cleanArray(entry.photos), stops: cleanArray(entry.stops),
         music_url: entry.musicUrl || null, favorite: entry.favorite || false,
@@ -179,9 +190,10 @@ export function createOurWorldDB(userId) {
 export function createSharedWorldDB(worldId, userId) {
   return {
     loadEntries: async () => {
-      const { data, error } = await supabase.from('entries').select('*')
+      const { data, error, count } = await supabase.from('entries').select('*', { count: 'exact' })
         .eq('world_id', worldId)
         .order('date_start', { ascending: true })
+      console.log(`[shared:loadEntries] worldId=${worldId}, userId=${userId}, rows=${data?.length ?? 0}, count=${count}, error=${error?.message || 'none'}`)
       if (error) { console.error('[shared:loadEntries] error:', error); return [] }
       return (data || []).map(row => ({
         id: row.id, city: row.city, country: row.country || '',
@@ -189,8 +201,8 @@ export function createSharedWorldDB(worldId, userId) {
         dateStart: row.date_start, dateEnd: row.date_end || null,
         type: row.entry_type, who: row.who,
         zoomLevel: row.zoom_level || 1, notes: row.notes || '',
-        memories: safeArray(row.memories), museums: safeArray(row.museums),
-        restaurants: safeArray(row.restaurants), highlights: safeArray(row.highlights),
+        museums: safeArray(row.museums),
+        restaurants: safeArray(row.restaurants), highlights: mergeMemoriesIntoHighlights(row),
         photos: safeArray(row.photos), stops: safeArray(row.stops),
         musicUrl: row.music_url || null, favorite: row.favorite || false,
         loveNote: row.love_note || '',
@@ -206,7 +218,7 @@ export function createSharedWorldDB(worldId, userId) {
         date_start: entry.dateStart, date_end: entry.dateEnd || null,
         entry_type: entry.type, who: entry.who,
         zoom_level: entry.zoomLevel || 1, notes: entry.notes || '',
-        memories: cleanArray(entry.memories), museums: cleanArray(entry.museums),
+        memories: [], museums: cleanArray(entry.museums),
         restaurants: cleanArray(entry.restaurants), highlights: cleanArray(entry.highlights),
         photos: cleanArray(entry.photos), stops: cleanArray(entry.stops),
         music_url: entry.musicUrl || null, favorite: entry.favorite || false,

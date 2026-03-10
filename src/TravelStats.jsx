@@ -307,8 +307,8 @@ export default function TravelStats({ entries = [], stats = {}, palette: P, onCl
   const favs = useMemo(() => {
     const favorited = entries.filter(e => e.favorite);
     const byPhotos = [...entries].filter(e => (e.photos || []).length > 0).sort((a, b) => (b.photos || []).length - (a.photos || []).length).slice(0, 5);
-    const byMemories = [...entries].filter(e => (e.memories || []).length + (e.highlights || []).length > 0)
-      .sort((a, b) => ((b.memories || []).length + (b.highlights || []).length) - ((a.memories || []).length + (a.highlights || []).length)).slice(0, 5);
+    const byMemories = [...entries].filter(e => (e.highlights || []).length > 0)
+      .sort((a, b) => (b.highlights || []).length - (a.highlights || []).length).slice(0, 5);
     return { favorited, byPhotos, byMemories };
   }, [entries]);
 
@@ -354,7 +354,7 @@ export default function TravelStats({ entries = [], stats = {}, palette: P, onCl
 
   // ---- RENDER ----
   return (
-    <div style={{
+    <div role="dialog" aria-modal="true" aria-label="Travel statistics" style={{
       position: "fixed", inset: 0, zIndex: 10000,
       background: "linear-gradient(180deg, #0c0a14 0%, #161226 40%, #1a1030 100%)",
       opacity: mounted ? 1 : 0,
@@ -624,8 +624,8 @@ export default function TravelStats({ entries = [], stats = {}, palette: P, onCl
             <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 16 }}>
               <StatCard label="Favorited" value={favs.favorited.length} icon="❤️" palette={P} animTarget={favs.favorited.length} />
               <StatCard label="Total Photos" value={(stats.photos || 0)} icon="📸" palette={P} animTarget={stats.photos || entries.reduce((s, e) => s + (e.photos || []).length, 0)} />
-              <StatCard label="Memories Logged" value={entries.reduce((s, e) => s + (e.memories || []).length, 0)} icon="💭" palette={P}
-                animTarget={entries.reduce((s, e) => s + (e.memories || []).length, 0)} />
+              <StatCard label="Highlights Logged" value={entries.reduce((s, e) => s + (e.highlights || []).length, 0)} icon="✨" palette={P}
+                animTarget={entries.reduce((s, e) => s + (e.highlights || []).length, 0)} />
             </div>
 
             {favs.byPhotos.length > 0 && (
@@ -651,7 +651,7 @@ export default function TravelStats({ entries = [], stats = {}, palette: P, onCl
 
             {favs.byMemories.length > 0 && (
               <>
-                <div style={{ fontSize: 12, color: "#9088a8", fontWeight: 600, marginBottom: 8, marginTop: 16 }}>Most Memories</div>
+                <div style={{ fontSize: 12, color: "#9088a8", fontWeight: 600, marginBottom: 8, marginTop: 16 }}>Most Highlights</div>
                 {favs.byMemories.map((e, i) => (
                   <div key={e.id} style={{
                     display: "flex", justifyContent: "space-between", alignItems: "center",
@@ -663,7 +663,7 @@ export default function TravelStats({ entries = [], stats = {}, palette: P, onCl
                       {e.city}{e.country ? `, ${e.country}` : ""}
                     </span>
                     <span style={{ fontSize: 12, color: accent3, fontWeight: 600 }}>
-                      {(e.memories || []).length + (e.highlights || []).length} entries
+                      {(e.highlights || []).length} entries
                     </span>
                   </div>
                 ))}

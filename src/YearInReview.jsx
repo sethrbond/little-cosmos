@@ -139,7 +139,7 @@ export default function YearInReview({ entries = [], stats = {}, palette, onClos
   const topMemories = useMemo(() => {
     const all = [];
     yearEntries.forEach(e => {
-      (e.memories || []).forEach(m => {
+      (e.highlights || []).forEach(m => {
         if (m && m.trim()) all.push({ text: m.trim(), city: e.city, country: e.country });
       });
     });
@@ -225,8 +225,8 @@ export default function YearInReview({ entries = [], stats = {}, palette, onClos
     if (longestTrip) s.push({ id: "longest" });
     // 6: New cities
     if (newCities.length > 0) s.push({ id: "new-cities" });
-    // 7: Top memories
-    if (topMemories.length > 0) s.push({ id: "memories" });
+    // 7: Top highlights
+    if (topMemories.length > 0) s.push({ id: "highlights" });
     // 8: Photos
     if (photoHighlights.length > 0) s.push({ id: "photos" });
     // 9: Summary
@@ -579,10 +579,10 @@ export default function YearInReview({ entries = [], stats = {}, palette, onClos
           </div>
         );
 
-      case "memories":
+      case "highlights":
         return (
           <div key={slideKey} style={slideStyle}>
-            <div style={labelStyle}>Top Memories</div>
+            <div style={labelStyle}>Top Highlights</div>
             <div style={{ maxWidth: 440, margin: "0 auto" }}>
               {topMemories.map((m, i) => (
                 <div key={i} style={{
@@ -736,7 +736,7 @@ export default function YearInReview({ entries = [], stats = {}, palette, onClos
   // ---- Empty state ----
   if (yearEntries.length === 0) {
     return (
-      <div style={overlayStyle}>
+      <div role="dialog" aria-modal="true" aria-label="Year in review" style={overlayStyle}>
         <Starfield color={accent} />
         <div style={progressBarContainerStyle}><div style={progressBarStyle} /></div>
         <button style={closeBtnStyle} onClick={onClose}
@@ -767,7 +767,7 @@ export default function YearInReview({ entries = [], stats = {}, palette, onClos
 
   // ---- Main render ----
   return (
-    <div style={overlayStyle}>
+    <div role="dialog" aria-modal="true" aria-label="Year in review" style={overlayStyle}>
       <Starfield color={accent} />
 
       {/* Progress bar */}

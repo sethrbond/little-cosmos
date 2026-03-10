@@ -300,10 +300,10 @@ function detectMilestones(entries, config, worldMode) {
     });
   }
 
-  // Entry with most memories (richest story)
+  // Entry with most highlights (richest story)
   let richestEntry = null, maxMemories = 0;
   sorted.forEach(e => {
-    const count = (e.memories || []).length + (e.highlights || []).length;
+    const count = (e.highlights || []).length;
     if (count > maxMemories) { maxMemories = count; richestEntry = e; }
   });
   if (richestEntry && maxMemories >= 3) {
@@ -312,7 +312,7 @@ function detectMilestones(entries, config, worldMode) {
       category: "richness",
       icon: "📖",
       title: "Your most detailed story",
-      detail: `${richestEntry.city || ""}${richestEntry.country ? `, ${richestEntry.country}` : ""} — ${maxMemories} memories and highlights`,
+      detail: `${richestEntry.city || ""}${richestEntry.country ? `, ${richestEntry.country}` : ""} — ${maxMemories} highlights`,
       date: richestEntry.dateStart,
       entry: richestEntry,
       warmth: 0.65,
@@ -660,12 +660,12 @@ export default function Milestones({ entries, palette, onClose, worldMode, confi
                     </div>
                   )}
 
-                  {/* Expanded: memories */}
-                  {isExpanded && m.entry && (m.entry.memories || []).length > 0 && (
+                  {/* Expanded: highlights */}
+                  {isExpanded && m.entry && (m.entry.highlights || []).length > 0 && (
                     <div style={{
                       marginTop: 8, animation: "mlFadeIn .3s ease",
                     }}>
-                      {m.entry.memories.slice(0, 3).map((mem, mi) => (
+                      {m.entry.highlights.slice(0, 3).map((mem, mi) => (
                         <div key={mi} style={{
                           color: "rgba(255,255,255,0.35)", fontSize: 11,
                           marginTop: 3, paddingLeft: 10,

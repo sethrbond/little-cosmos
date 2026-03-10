@@ -2,6 +2,17 @@ import { supabase, withRetry, safeArray, cleanArray } from './supabaseClient.js'
 
 /* supabaseMyWorld.js — Personal world + friend world DB factories */
 
+// Merge legacy "memories" into "highlights" on read (deduplicated)
+function mergeMemoriesIntoHighlights(row) {
+  const highlights = safeArray(row.highlights)
+  const memories = safeArray(row.memories)
+  if (memories.length === 0) return highlights
+  const set = new Set(highlights)
+  const merged = [...highlights]
+  for (const m of memories) { if (m && !set.has(m)) { merged.push(m); set.add(m) } }
+  return merged
+}
+
 // ---- PHOTO STORAGE (shared bucket, "my/" prefix) ----
 
 export async function uploadPhoto(file, entryId) {
@@ -69,8 +80,8 @@ export function createMyWorldDB(worldId, userId) {
         dateStart: row.date_start, dateEnd: row.date_end || null,
         type: row.entry_type, who: 'solo',
         zoomLevel: row.zoom_level || 1, notes: row.notes || '',
-        memories: safeArray(row.memories), museums: safeArray(row.museums),
-        restaurants: safeArray(row.restaurants), highlights: safeArray(row.highlights),
+        museums: safeArray(row.museums),
+        restaurants: safeArray(row.restaurants), highlights: mergeMemoriesIntoHighlights(row),
         photos: safeArray(row.photos), stops: safeArray(row.stops),
         musicUrl: row.music_url || null, favorite: row.favorite || false,
         loveNote: '',
@@ -85,7 +96,7 @@ export function createMyWorldDB(worldId, userId) {
         date_start: entry.dateStart, date_end: entry.dateEnd || null,
         entry_type: entry.type, who: 'solo',
         zoom_level: entry.zoomLevel || 1, notes: entry.notes || '',
-        memories: cleanArray(entry.memories), museums: cleanArray(entry.museums),
+        memories: [], museums: cleanArray(entry.museums),
         restaurants: cleanArray(entry.restaurants), highlights: cleanArray(entry.highlights),
         photos: cleanArray(entry.photos), stops: cleanArray(entry.stops),
         music_url: entry.musicUrl || null, favorite: entry.favorite || false,
@@ -166,8 +177,8 @@ export function createFriendWorldDB(friendWorldId) {
         dateStart: row.date_start, dateEnd: row.date_end || null,
         type: row.entry_type, who: 'solo',
         zoomLevel: row.zoom_level || 1, notes: row.notes || '',
-        memories: safeArray(row.memories), museums: safeArray(row.museums),
-        restaurants: safeArray(row.restaurants), highlights: safeArray(row.highlights),
+        museums: safeArray(row.museums),
+        restaurants: safeArray(row.restaurants), highlights: mergeMemoriesIntoHighlights(row),
         photos: safeArray(row.photos), stops: safeArray(row.stops),
         musicUrl: row.music_url || null, favorite: row.favorite || false,
         loveNote: '',

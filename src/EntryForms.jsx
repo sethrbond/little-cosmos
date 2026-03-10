@@ -50,7 +50,7 @@ export class OverlayBoundary extends Component {
     if (this.state.error) {
       const P = getP();
       return (
-        <div style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center" }}
+        <div role="dialog" aria-modal="true" aria-label="Error" style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center" }}
           onClick={this.props.onClose}>
           <div onClick={e => e.stopPropagation()} style={{ background: P.card || "#1a1a2e", borderRadius: 16, padding: "28px 32px", maxWidth: 340, textAlign: "center", border: `1px solid ${(P.rose || "#c9a96e")}20` }}>
             <div style={{ fontSize: 32, marginBottom: 12 }}>😵</div>
@@ -367,7 +367,7 @@ export function DreamAddForm({ onAdd, isMyWorld }) {
 export function AddForm({ types, defaultType = "together", defaultWho = "both", fieldLabels, isMyWorld, worldName, onAdd, onClose, draftKey }) {
   const P = getP();
   const trapRef = useFocusTrap(true);
-  const initialForm = { city: "", country: "", lat: "", lng: "", dateStart: "", dateEnd: "", type: defaultType, who: defaultWho, zoomLevel: 1, notes: "", memories: "", museums: "", restaurants: "", highlights: "", musicUrl: "", stops: [] };
+  const initialForm = { city: "", country: "", lat: "", lng: "", dateStart: "", dateEnd: "", type: defaultType, who: defaultWho, zoomLevel: 1, notes: "", museums: "", restaurants: "", highlights: "", musicUrl: "", stops: [] };
   const [f, sf, draftRestored, clearDraft, dismissRestored] = useDraft(draftKey, initialForm);
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -380,8 +380,8 @@ export function AddForm({ types, defaultType = "together", defaultWho = "both", 
   const lat = parseFloat(f.lat), lng = parseFloat(f.lng);
   const validCoords = !isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
   const validDates = f.dateStart && f.dateEnd && f.dateEnd >= f.dateStart;
-  const ok = f.city?.trim() && validCoords && validDates && f.notes?.trim();
-  const validationMsg = !f.city?.trim() ? "Enter a city name" : !validCoords ? "Lat must be -90 to 90, Lng -180 to 180" : !f.dateStart ? "Set a start date" : !f.dateEnd ? "Set an end date" : f.dateEnd < f.dateStart ? "End date must be after start" : !f.notes?.trim() ? "Add some notes" : "";
+  const ok = f.city?.trim() && validCoords && validDates;
+  const validationMsg = !f.city?.trim() ? "Enter a city name" : !validCoords ? "Lat must be -90 to 90, Lng -180 to 180" : !f.dateStart ? "Set a start date" : !f.dateEnd ? "Set an end date" : f.dateEnd < f.dateStart ? "End date must be after start" : "";
 
   const onCityInput = v => {
     sf(p => ({ ...p, city: v }));
@@ -448,17 +448,16 @@ export function AddForm({ types, defaultType = "together", defaultWho = "both", 
         <div style={{ flex: 1 }}><FldR l="Longitude" v={f.lng} t="number" set={v => sf(p => ({ ...p, lng: v }))} ph="Auto-filled" req /></div>
       </div>
       <div style={{ display: "flex", gap: 8 }}>
-        <div style={{ flex: 1, marginBottom: 9 }}><RLbl req>Start Date</RLbl><input type="date" value={f.dateStart || ""} onChange={e => { sf(p => ({ ...p, dateStart: e.target.value })); setTimeout(() => { if (dateEndRef.current) { dateEndRef.current.showPicker?.(); dateEndRef.current.focus(); } }, 50); }} style={inpSt()} /></div>
-        <div style={{ flex: 1, marginBottom: 9 }}><RLbl req>End Date</RLbl><input ref={dateEndRef} type="date" value={f.dateEnd || ""} onChange={e => { sf(p => ({ ...p, dateEnd: e.target.value })); setTimeout(() => { if (notesRef.current) notesRef.current.focus(); }, 50); }} style={inpSt()} /></div>
+        <div style={{ flex: 1, marginBottom: 9 }}><RLbl req>Start Date</RLbl><input type="date" value={f.dateStart || ""} onChange={e => { const v = e.target.value; sf(p => ({ ...p, dateStart: v })); if (parseInt(v?.split('-')[0], 10) >= 1000) setTimeout(() => { if (dateEndRef.current) { dateEndRef.current.showPicker?.(); dateEndRef.current.focus(); } }, 50); }} style={inpSt()} /></div>
+        <div style={{ flex: 1, marginBottom: 9 }}><RLbl req>End Date</RLbl><input ref={dateEndRef} type="date" value={f.dateEnd || ""} onChange={e => { const v = e.target.value; sf(p => ({ ...p, dateEnd: v })); if (parseInt(v?.split('-')[0], 10) >= 1000) setTimeout(() => { if (notesRef.current) notesRef.current.focus(); }, 50); }} style={inpSt()} /></div>
       </div>
 
       <div style={{ margin: "10px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
 
-      <div style={{ marginBottom: 8 }}><RLbl req>Notes</RLbl><textarea ref={notesRef} value={f.notes} onChange={e => sf(p => ({ ...p, notes: e.target.value }))} rows={2} placeholder="What made this place special?" style={{ ...inpSt(), resize: "vertical" }} /></div>
-      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.memories?.label || "Memories"} (one per line)</Lbl><textarea value={f.memories} onChange={e => sf(p => ({ ...p, memories: e.target.value }))} rows={2} placeholder={isMyWorld ? "Hiked the summit trail\nSunrise over the valley" : "The sunset was perfect\nDancing until midnight"} style={{ ...inpSt(), resize: "vertical" }} /></div>
+      <div style={{ marginBottom: 8 }}><Lbl>Notes</Lbl><textarea ref={notesRef} value={f.notes} onChange={e => sf(p => ({ ...p, notes: e.target.value }))} rows={2} placeholder="What made this place special?" style={{ ...inpSt(), resize: "vertical" }} /></div>
+      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.highlights?.label || "Highlights"} (one per line)</Lbl><textarea value={f.highlights} onChange={e => sf(p => ({ ...p, highlights: e.target.value }))} rows={2} placeholder={isMyWorld ? "Hiked the summit trail\nSunrise over the valley" : "The sunset was perfect\nDancing until midnight"} style={{ ...inpSt(), resize: "vertical" }} /></div>
       <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.museums?.label || "Museums & Culture"}</Lbl><textarea value={f.museums} onChange={e => sf(p => ({ ...p, museums: e.target.value }))} rows={1} style={{ ...inpSt(), resize: "vertical" }} /></div>
       <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.restaurants?.label || "Restaurants & Food"}</Lbl><textarea value={f.restaurants} onChange={e => sf(p => ({ ...p, restaurants: e.target.value }))} rows={1} style={{ ...inpSt(), resize: "vertical" }} /></div>
-      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.highlights?.label || "Highlights"}</Lbl><textarea value={f.highlights} onChange={e => sf(p => ({ ...p, highlights: e.target.value }))} rows={1} style={{ ...inpSt(), resize: "vertical" }} /></div>
       <div style={{ marginBottom: 8 }}><Lbl>Music URL</Lbl><input value={f.musicUrl} onChange={e => sf(p => ({ ...p, musicUrl: e.target.value }))} placeholder="Paste audio URL (optional)" style={inpSt()} /></div>
 
       <div style={{ margin: "6px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
@@ -497,7 +496,7 @@ export function AddForm({ types, defaultType = "together", defaultWho = "both", 
       <button disabled={!ok} onClick={() => { setShowSuggestions(false); clearDraft(); onAdd({
         id: `e-${Date.now()}`, city: f.city, country: f.country, lat: parseFloat(f.lat), lng: parseFloat(f.lng),
         dateStart: f.dateStart, dateEnd: f.dateEnd || null, type: f.type, who: f.who, zoomLevel: f.zoomLevel,
-        notes: f.notes, memories: f.memories.split("\n").filter(Boolean), museums: f.museums.split("\n").filter(Boolean),
+        notes: f.notes, memories: [], museums: f.museums.split("\n").filter(Boolean),
         restaurants: f.restaurants.split("\n").filter(Boolean), highlights: f.highlights.split("\n").filter(Boolean),
         photos: [], stops: f.stops, musicUrl: f.musicUrl || null,
       }); }} style={{ width: "100%", padding: "12px 0", background: ok ? `linear-gradient(135deg, ${P.rose}, ${P.sky})` : `${P.textFaint}60`, color: "#fff", border: "none", borderRadius: 14, cursor: ok ? "pointer" : "default", fontSize: 12, letterSpacing: ".1em", fontFamily: "inherit", transition: "all .3s", boxShadow: ok ? `0 2px 8px ${P.rose}30, 0 4px 16px ${P.rose}15` : "none" }}>
@@ -563,13 +562,12 @@ export function EditForm({ entry, types, fieldLabels, onChange, onSave, onClose,
       </div>
       <Fld l="Country" v={entry.country} set={v => onChange(p => ({ ...p, country: v }))} />
       <div style={{ display: "flex", gap: 6 }}><div style={{ flex: 1 }}><Fld l="Lat" v={entry.lat} t="number" set={v => onChange(p => ({ ...p, lat: parseFloat(v) || 0 }))} /></div><div style={{ flex: 1 }}><Fld l="Lng" v={entry.lng} t="number" set={v => onChange(p => ({ ...p, lng: parseFloat(v) || 0 }))} /></div></div>
-      <div style={{ display: "flex", gap: 6 }}><div style={{ flex: 1, marginBottom: 9 }}><Lbl>Start</Lbl><input type="date" value={entry.dateStart || ""} onChange={e => { onChange(p => ({ ...p, dateStart: e.target.value })); setTimeout(() => { if (editDateEndRef.current) { editDateEndRef.current.showPicker?.(); editDateEndRef.current.focus(); } }, 50); }} style={inpSt()} /></div><div style={{ flex: 1, marginBottom: 9 }}><Lbl>End</Lbl><input ref={editDateEndRef} type="date" value={entry.dateEnd || ""} onChange={e => { onChange(p => ({ ...p, dateEnd: e.target.value || null })); setTimeout(() => { if (editNotesRef.current) editNotesRef.current.focus(); }, 50); }} style={inpSt()} /></div></div>
+      <div style={{ display: "flex", gap: 6 }}><div style={{ flex: 1, marginBottom: 9 }}><Lbl>Start</Lbl><input type="date" value={entry.dateStart || ""} onChange={e => { const v = e.target.value; onChange(p => ({ ...p, dateStart: v })); if (parseInt(v?.split('-')[0], 10) >= 1000) setTimeout(() => { if (editDateEndRef.current) { editDateEndRef.current.showPicker?.(); editDateEndRef.current.focus(); } }, 50); }} style={inpSt()} /></div><div style={{ flex: 1, marginBottom: 9 }}><Lbl>End</Lbl><input ref={editDateEndRef} type="date" value={entry.dateEnd || ""} onChange={e => { const v = e.target.value; onChange(p => ({ ...p, dateEnd: v || null })); if (parseInt(v?.split('-')[0], 10) >= 1000) setTimeout(() => { if (editNotesRef.current) editNotesRef.current.focus(); }, 50); }} style={inpSt()} /></div></div>
       <div style={{ marginBottom: 8 }}><Lbl>Type</Lbl><select value={entry.type} onChange={e => { const t = e.target.value; onChange(p => ({ ...p, type: t, who: types[t]?.who || "both" })); }} style={inpSt()}>{Object.entries(types).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}</select></div>
       <div style={{ marginBottom: 8 }}><Lbl>Notes</Lbl><textarea ref={editNotesRef} value={entry.notes || ""} onChange={e => onChange(p => ({ ...p, notes: e.target.value }))} rows={2} style={{ ...inpSt(), resize: "vertical" }} /></div>
-      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.memories?.label || "Memories"}</Lbl><textarea value={(entry.memories || []).join("\n")} onChange={e => onChange(p => ({ ...p, memories: e.target.value.split("\n").filter(Boolean) }))} rows={2} style={{ ...inpSt(), resize: "vertical" }} /></div>
+      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.highlights?.label || "Highlights"}</Lbl><textarea value={(entry.highlights || []).join("\n")} onChange={e => onChange(p => ({ ...p, highlights: e.target.value.split("\n").filter(Boolean) }))} rows={2} style={{ ...inpSt(), resize: "vertical" }} /></div>
       <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.museums?.label || "Museums"}</Lbl><textarea value={(entry.museums || []).join("\n")} onChange={e => onChange(p => ({ ...p, museums: e.target.value.split("\n").filter(Boolean) }))} rows={1} style={{ ...inpSt(), resize: "vertical" }} /></div>
       <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.restaurants?.label || "Restaurants"}</Lbl><textarea value={(entry.restaurants || []).join("\n")} onChange={e => onChange(p => ({ ...p, restaurants: e.target.value.split("\n").filter(Boolean) }))} rows={1} style={{ ...inpSt(), resize: "vertical" }} /></div>
-      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.highlights?.label || "Highlights"}</Lbl><textarea value={(entry.highlights || []).join("\n")} onChange={e => onChange(p => ({ ...p, highlights: e.target.value.split("\n").filter(Boolean) }))} rows={1} style={{ ...inpSt(), resize: "vertical" }} /></div>
       <div style={{ marginBottom: 8 }}><Lbl>Music URL</Lbl><input value={entry.musicUrl || ""} onChange={e => onChange(p => ({ ...p, musicUrl: e.target.value || null }))} placeholder="paste audio URL" style={inpSt()} /></div>
 
       <div style={{ margin: "8px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />

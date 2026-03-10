@@ -90,6 +90,7 @@ export async function loadMyWorlds(userId) {
     .select('world_id, role')
     .eq('user_id', userId)
   if (memErr) { console.error('[loadMyWorlds] memberships:', memErr); return [] }
+  console.log(`[loadMyWorlds] userId=${userId}, memberships=${memberships?.length ?? 0}`, memberships?.map(m => `${m.world_id} (${m.role})`))
   if (!memberships || memberships.length === 0) return []
 
   const worldIds = memberships.map(m => m.world_id)
@@ -99,6 +100,7 @@ export async function loadMyWorlds(userId) {
     .in('id', worldIds)
     .order('created_at', { ascending: true })
   if (error) { console.error('[loadMyWorlds]', error); return [] }
+  console.log(`[loadMyWorlds] worlds found=${worlds?.length ?? 0}`, worlds?.map(w => `${w.name} (${w.type}, id=${w.id})`))
 
   // Also fetch config data (names, subtitle, metadata for members) for each world
   const { data: configs, error: cfgErr } = await supabase
@@ -457,13 +459,14 @@ export async function getPendingWorldInvites(userEmail) {
   }
 
   // Strategy 1: Direct target_email lookup on world_invites (most reliable)
-  const { data: directInvites } = await supabase
+  const { data: directInvites, error: invErr } = await supabase
     .from('world_invites')
     .select('token, world_id, max_uses, use_count, created_by, worlds(name, type)')
     .eq('target_email', email)
+  console.log(`[getPendingWorldInvites] email=${email}, directInvites=${directInvites?.length ?? 0}, memberWorlds=${[...memberWorldIds]}, error=${invErr?.message || 'none'}`)
   for (const inv of (directInvites || [])) {
-    if (memberWorldIds.has(inv.world_id)) continue
-    if (inv.max_uses !== null && inv.use_count >= inv.max_uses) continue
+    if (memberWorldIds.has(inv.world_id)) { console.log(`[getPendingWorldInvites] skipping ${inv.worlds?.name} — already a member`); continue }
+    if (inv.max_uses !== null && inv.use_count >= inv.max_uses) { console.log(`[getPendingWorldInvites] skipping ${inv.worlds?.name} — invite used up (${inv.use_count}/${inv.max_uses})`); continue }
     seenTokens.add(inv.token)
     results.push({
       token: inv.token, worldName: inv.worlds?.name || 'A Shared World',
@@ -672,7 +675,7 @@ export async function shareEntryToWorld(entry, targetWorldId, userId) {
     date_start: entry.dateStart, date_end: entry.dateEnd || null,
     entry_type: entry.type, who: entry.who || 'solo',
     zoom_level: entry.zoomLevel || 1, notes: entry.notes || '',
-    memories: entry.memories || [], museums: entry.museums || [],
+    memories: [], museums: entry.museums || [],
     restaurants: entry.restaurants || [], highlights: entry.highlights || [],
     photos: entry.photos || [], stops: entry.stops || [],
     music_url: entry.musicUrl || null, favorite: false,

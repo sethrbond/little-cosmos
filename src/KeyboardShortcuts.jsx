@@ -184,7 +184,7 @@ function KeyboardShortcuts({ onClose, palette: P, worldMode }) {
   return (
     <>
       <style>{FADE_IN_KEYFRAMES}</style>
-      <div style={backdrop} onClick={onClose}>
+      <div role="dialog" aria-modal="true" aria-label="Keyboard shortcuts" style={backdrop} onClick={onClose}>
         <div style={card} onClick={(e) => e.stopPropagation()}>
           <button
             style={closeBtn}

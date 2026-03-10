@@ -226,7 +226,7 @@ export default function CinematicOnboarding({ userId, personalWorldId, onComplet
   const showText = phase <= 3
 
   return (
-    <div style={{
+    <div role="dialog" aria-modal="true" aria-label="Welcome to Little Cosmos" style={{
       position: 'fixed', inset: 0, zIndex: 10000,
       background: '#06040c', overflow: 'hidden',
       fontFamily: F, color: '#e8e0d0',
@@ -296,7 +296,7 @@ export default function CinematicOnboarding({ userId, personalWorldId, onComplet
               maxWidth: 440,
               marginBottom: 40,
             }}>
-              Every journey, every memory, every place that shaped you
+              Every journey, every highlight, every place that shaped you
               <span style={{ display: 'block', marginTop: 4, opacity: 0.7 }}>
                 — all mapped on your personal globe.
               </span>

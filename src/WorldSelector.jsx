@@ -847,7 +847,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     }
     setCosmosInviteSending(true);
     try {
-      await sendWelcomeLetter(userId, userDisplayName || "A friend", cosmosInviteEmail.trim(), cosmosInviteLetter || `I'd love for you to join me on Little Cosmos — a place to map our adventures and memories on a beautiful 3D globe. Sign up at ${window.location.origin}`);
+      await sendWelcomeLetter(userId, userDisplayName || "A friend", cosmosInviteEmail.trim(), cosmosInviteLetter || `I'd love for you to join me on Little Cosmos — a place to map our adventures on a beautiful 3D globe. Sign up at ${window.location.origin}`);
       if (!mountedRef.current) return;
       setCosmosInviteSent(true);
     } catch (err) {
@@ -1644,7 +1644,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
         ];
         const step = steps[cosmosTourStep];
         return (
-          <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(4,2,10,0.55)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .5s ease" }}
+          <div role="dialog" aria-modal="true" aria-label="Cosmos tour" style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(4,2,10,0.55)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .5s ease" }}
             onClick={e => e.stopPropagation()}>
             <div style={{ background: "rgba(22,16,32,0.88)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 22, padding: "36px 32px", width: 380, maxWidth: "90vw", textAlign: "center", boxShadow: "0 8px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)" }}>
               <div style={{ fontSize: 44, marginBottom: 14 }}>{step.icon}</div>
@@ -1707,14 +1707,12 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       )}
 
       {/* Toast notification */}
-      {toast && (
-        <div style={{ position: "absolute", top: "10%", left: "50%", transform: "translateX(-50%)", background: "rgba(20,16,30,0.85)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", border: "1px solid rgba(200,170,110,0.25)", borderRadius: 16, padding: "12px 24px", color: "#e8e0d0", fontSize: 13, fontFamily: F, letterSpacing: "0.3px", boxShadow: "0 8px 32px rgba(0,0,0,0.4)", zIndex: 100, animation: "fadeIn 0.3s ease", pointerEvents: "none" }}>
-          {toast}
-        </div>
-      )}
+      <div aria-live="polite" role="status" style={{ position: "absolute", top: "10%", left: "50%", transform: "translateX(-50%)", background: "rgba(20,16,30,0.85)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", border: "1px solid rgba(200,170,110,0.25)", borderRadius: 16, padding: "12px 24px", color: "#e8e0d0", fontSize: 13, fontFamily: F, letterSpacing: "0.3px", boxShadow: "0 8px 32px rgba(0,0,0,0.4)", zIndex: 100, animation: "fadeIn 0.3s ease", pointerEvents: "none", display: toast ? "block" : "none" }}>
+        {toast}
+      </div>
 
       {confirmModal && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 999, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center" }}
+        <div role="dialog" aria-modal="true" aria-label="Confirm action" style={{ position: "fixed", inset: 0, zIndex: 999, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center" }}
           onClick={() => setConfirmModal(null)}>
           <div onClick={e => e.stopPropagation()} style={{ background: "#1e1930", borderRadius: 16, padding: "24px 28px", maxWidth: 360, width: "90%", boxShadow: "0 12px 48px rgba(0,0,0,.25)", border: "1px solid rgba(196,138,168,0.12)", textAlign: "center" }}>
             <div style={{ fontSize: 13, color: "#e8e0d0", lineHeight: 1.6, marginBottom: 20, fontFamily: F }}>{confirmModal.message}</div>

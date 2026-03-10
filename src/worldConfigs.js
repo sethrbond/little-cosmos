@@ -43,7 +43,6 @@ export const OUR_WORLD_DEFAULT_CONFIG = {
 };
 
 export const OUR_WORLD_FIELDS = {
-  memories:    { label: "Memories",          icon: "\u{1F4AB}" },
   highlights:  { label: "Highlights",        icon: "\u2728" },
   museums:     { label: "Museums & Culture", icon: "\u{1F3DB}" },
   restaurants: { label: "Restaurants & Food",icon: "\u{1F37D}" },
@@ -99,8 +98,7 @@ export const MY_WORLD_DEFAULT_CONFIG = {
 };
 
 export const MY_WORLD_FIELDS = {
-  memories:    { label: "Adventures",        icon: "\u26F0\uFE0F" },
-  highlights:  { label: "Nature & Outdoors", icon: "\u{1F33F}" },
+  highlights:  { label: "Highlights",        icon: "\u2728" },
   museums:     { label: "Culture",           icon: "\u{1F3DB}" },
   restaurants: { label: "Food & Drink",      icon: "\u{1F37A}" },
 };
@@ -246,7 +244,6 @@ export const FRIENDS_TYPES = {
 };
 
 export const FRIENDS_FIELDS = {
-  memories:    { label: "Best Moments",      icon: "\u{1F4AB}" },
   highlights:  { label: "Highlights",        icon: "\u2728" },
   museums:     { label: "Places & Culture",  icon: "\u{1F3DB}" },
   restaurants: { label: "Food & Drinks",     icon: "\u{1F37B}" },
@@ -283,7 +280,6 @@ export const FAMILY_TYPES = {
 };
 
 export const FAMILY_FIELDS = {
-  memories:    { label: "Family Moments",    icon: "\u{1F4AB}" },
   highlights:  { label: "Highlights",        icon: "\u2728" },
   museums:     { label: "Places & Culture",  icon: "\u{1F3DB}" },
   restaurants: { label: "Food & Meals",      icon: "\u{1F37D}" },

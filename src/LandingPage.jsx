@@ -67,7 +67,7 @@ const features = [
   {
     icon: '💌',
     title: 'Invite with a Letter',
-    desc: 'Send a welcome letter sealed in wax. They open it, join your world, and start pinning memories alongside yours.',
+    desc: 'Send a welcome letter sealed in wax. They open it, join your world, and start pinning adventures alongside yours.',
   },
 ]
 

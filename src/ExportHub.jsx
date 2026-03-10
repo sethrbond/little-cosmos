@@ -107,7 +107,7 @@ function generateCSV(entries, worldMode) {
   const columns = [
     "City", "Country", "Start Date", "End Date", "Type",
     "Notes", "Latitude", "Longitude", "Favorite",
-    "Memories", "Highlights", "Museums/Culture", "Restaurants/Food",
+    "Highlights", "Museums/Culture", "Restaurants/Food",
     "Stops Count", "Stop Cities", "Photo Count", "Photo URLs",
     ...(hasOurFields ? ["Who", "Love Note"] : []),
   ];
@@ -126,7 +126,6 @@ function generateCSV(entries, worldMode) {
       escapeCSV(e.lat),
       escapeCSV(e.lng),
       escapeCSV(e.favorite ? "Yes" : "No"),
-      escapeCSV((e.memories || []).join("; ")),
       escapeCSV((e.highlights || []).join("; ")),
       escapeCSV((e.museums || []).join("; ")),
       escapeCSV((e.restaurants || []).join("; ")),
@@ -169,7 +168,6 @@ function generateHTMLReport(entries, config, stats, travelerName, palette, world
     const sections = [];
     if (e.notes) sections.push(`<p class="notes">${escapeHTML(e.notes)}</p>`);
     const listFields = [
-      { key: "memories", label: "Memories" },
       { key: "highlights", label: "Highlights" },
       { key: "museums", label: "Culture" },
       { key: "restaurants", label: "Food & Drink" },
@@ -451,7 +449,6 @@ function generateKML(entries, config, worldMode) {
     if (dates) descParts.push(dates);
     if (e.type) descParts.push(`Type: ${e.type}`);
     if (e.notes) descParts.push(e.notes);
-    if (e.memories?.length) descParts.push(`Memories: ${e.memories.join(", ")}`);
     if (e.highlights?.length) descParts.push(`Highlights: ${e.highlights.join(", ")}`);
     const stops = e.stops || [];
     if (stops.length > 0) {
@@ -691,7 +688,7 @@ export default function ExportHub({ entries = [], config = {}, stats = {}, palet
           to { opacity: 1; transform: none; }
         }
       `}</style>
-      <div ref={overlayRef} style={overlayStyle} onClick={handleOverlayClick}>
+      <div ref={overlayRef} role="dialog" aria-modal="true" aria-label="Export hub" style={overlayStyle} onClick={handleOverlayClick}>
         <div style={modalStyle}>
           {/* Close button */}
           <button
