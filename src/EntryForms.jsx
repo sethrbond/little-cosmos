@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, Component } from "react";
 import { geocodeSearch } from "./geocode.js";
 
 /* EntryForms.jsx — Shared UI primitives + entry forms
@@ -11,6 +11,31 @@ import { geocodeSearch } from "./geocode.js";
 // Palette accessor — reads from mutable global set by OurWorldInner
 const P = (typeof window !== "undefined" && window.__cosmosP) || {};
 const getP = () => (typeof window !== "undefined" && window.__cosmosP) || P;
+
+// ---- OVERLAY ERROR BOUNDARY ----
+
+export class OverlayBoundary extends Component {
+  state = { error: null };
+  static getDerivedStateFromError(error) { return { error }; }
+  componentDidCatch(err) { console.error('[OverlayBoundary]', err); }
+  render() {
+    if (this.state.error) {
+      const P = getP();
+      return (
+        <div style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center" }}
+          onClick={this.props.onClose}>
+          <div onClick={e => e.stopPropagation()} style={{ background: P.card || "#1a1a2e", borderRadius: 16, padding: "28px 32px", maxWidth: 340, textAlign: "center", border: `1px solid ${(P.rose || "#c9a96e")}20` }}>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>😵</div>
+            <div style={{ fontSize: 13, color: P.text || "#e8e0d0", marginBottom: 8 }}>Something went wrong</div>
+            <div style={{ fontSize: 10, color: P.textFaint || "#999", marginBottom: 16 }}>This feature encountered an error. Your data is safe.</div>
+            <button onClick={this.props.onClose} style={{ padding: "8px 20px", background: `${(P.rose || "#c9a96e")}18`, border: `1px solid ${(P.rose || "#c9a96e")}30`, borderRadius: 10, color: P.rose || "#c9a96e", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Close</button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // ---- DRAFT AUTO-SAVE HOOK ----
 

@@ -109,8 +109,10 @@ export default function TravelStats({ entries = [], stats = {}, palette: P, onCl
   useEffect(() => {
     requestAnimationFrame(() => setMounted(true));
     const hide = setTimeout(() => setShowScrollHint(false), 4000);
-    return () => clearTimeout(hide);
-  }, []);
+    const esc = e => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", esc);
+    return () => { clearTimeout(hide); window.removeEventListener("keydown", esc); };
+  }, [onClose]);
 
   const handleScroll = useCallback(() => {
     if (showScrollHint) setShowScrollHint(false);
