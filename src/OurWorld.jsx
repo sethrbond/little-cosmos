@@ -963,7 +963,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   useEffect(() => {
     (async () => {
       try {
+        console.log('[cosmos:load] starting — worldMode:', worldMode, 'worldId:', worldId, 'userId:', userId, 'isMyWorld:', isMyWorld, 'isSharedWorld:', isSharedWorld);
         const [entries, cfg] = await Promise.all([db.loadEntries(), db.loadConfig()]);
+        console.log('[cosmos:load] result — entries:', entries?.length, 'config:', !!cfg);
         dispatch({ type: "LOAD", entries: entries || [] });
         if (cfg) {
           const merged = { ...DEFAULT_CONFIG, ...cfg };
