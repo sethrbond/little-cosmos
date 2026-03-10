@@ -106,62 +106,7 @@ CREATE TRIGGER config_updated
 
 
 -- ============================================================
---  4. MY_ENTRIES TABLE (personal My World)
--- ============================================================
-
-CREATE TABLE IF NOT EXISTS my_entries (
-  id TEXT PRIMARY KEY,
-  city TEXT NOT NULL DEFAULT '',
-  country TEXT DEFAULT '',
-  lat DOUBLE PRECISION NOT NULL DEFAULT 0,
-  lng DOUBLE PRECISION NOT NULL DEFAULT 0,
-  date_start TEXT DEFAULT '',
-  date_end TEXT DEFAULT '',
-  entry_type TEXT DEFAULT 'adventure',
-  zoom_level INTEGER DEFAULT 1,
-  notes TEXT DEFAULT '',
-  memories JSONB DEFAULT '[]'::jsonb,
-  museums JSONB DEFAULT '[]'::jsonb,
-  restaurants JSONB DEFAULT '[]'::jsonb,
-  highlights JSONB DEFAULT '[]'::jsonb,
-  photos JSONB DEFAULT '[]'::jsonb,
-  stops JSONB DEFAULT '[]'::jsonb,
-  music_url TEXT DEFAULT '',
-  favorite BOOLEAN DEFAULT false,
-  user_id UUID,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-DROP TRIGGER IF EXISTS my_entries_updated ON my_entries;
-CREATE TRIGGER my_entries_updated
-  BEFORE UPDATE ON my_entries
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-
-
--- ============================================================
---  5. MY_CONFIG TABLE (personal My World)
--- ============================================================
-
-CREATE TABLE IF NOT EXISTS my_config (
-  id TEXT PRIMARY KEY,
-  start_date TEXT DEFAULT '',
-  title TEXT DEFAULT 'My World',
-  subtitle TEXT DEFAULT '',
-  traveler_name TEXT DEFAULT 'Explorer',
-  metadata JSONB DEFAULT '{}'::jsonb,
-  user_id UUID,
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-DROP TRIGGER IF EXISTS my_config_updated ON my_config;
-CREATE TRIGGER my_config_updated
-  BEFORE UPDATE ON my_config
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-
-
--- ============================================================
---  6. WORLDS TABLE (shared worlds hub)
+--  4. WORLDS TABLE (shared worlds hub)
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS worlds (
@@ -299,11 +244,6 @@ DO $$ BEGIN
   ALTER TABLE config ADD COLUMN IF NOT EXISTS user_id UUID;
   ALTER TABLE config ADD COLUMN IF NOT EXISTS world_id UUID;
   ALTER TABLE config ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
-  ALTER TABLE my_entries ADD COLUMN IF NOT EXISTS user_id UUID;
-  ALTER TABLE my_entries ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
-  ALTER TABLE my_entries ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
-  ALTER TABLE my_config ADD COLUMN IF NOT EXISTS user_id UUID;
-  ALTER TABLE my_config ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 END $$;
 
 
@@ -329,8 +269,6 @@ CREATE INDEX IF NOT EXISTS idx_entries_user_id ON entries(user_id);
 CREATE INDEX IF NOT EXISTS idx_entries_world_id ON entries(world_id);
 CREATE INDEX IF NOT EXISTS idx_config_user_id ON config(user_id);
 CREATE INDEX IF NOT EXISTS idx_config_world_id ON config(world_id);
-CREATE INDEX IF NOT EXISTS idx_my_entries_user_id ON my_entries(user_id);
-CREATE INDEX IF NOT EXISTS idx_my_config_user_id ON my_config(user_id);
 CREATE INDEX IF NOT EXISTS idx_world_members_user ON world_members(user_id);
 CREATE INDEX IF NOT EXISTS idx_world_members_world ON world_members(world_id);
 CREATE INDEX IF NOT EXISTS idx_world_invites_token ON world_invites(token);
@@ -350,8 +288,6 @@ CREATE INDEX IF NOT EXISTS idx_cosmos_connections_target_user ON cosmos_connecti
 
 ALTER TABLE entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE config ENABLE ROW LEVEL SECURITY;
-ALTER TABLE my_entries ENABLE ROW LEVEL SECURITY;
-ALTER TABLE my_config ENABLE ROW LEVEL SECURITY;
 ALTER TABLE worlds ENABLE ROW LEVEL SECURITY;
 ALTER TABLE world_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE world_invites ENABLE ROW LEVEL SECURITY;
@@ -386,19 +322,6 @@ DROP POLICY IF EXISTS "config_world_insert" ON config;
 DROP POLICY IF EXISTS "config_world_update" ON config;
 DROP POLICY IF EXISTS "config_world_delete" ON config;
 DROP POLICY IF EXISTS "config_friend_select" ON config;
-
--- my_entries (5)
-DROP POLICY IF EXISTS "my_entries_select" ON my_entries;
-DROP POLICY IF EXISTS "my_entries_insert" ON my_entries;
-DROP POLICY IF EXISTS "my_entries_update" ON my_entries;
-DROP POLICY IF EXISTS "my_entries_delete" ON my_entries;
-DROP POLICY IF EXISTS "my_entries_friend_access" ON my_entries;
-
--- my_config (4)
-DROP POLICY IF EXISTS "my_config_select" ON my_config;
-DROP POLICY IF EXISTS "my_config_insert" ON my_config;
-DROP POLICY IF EXISTS "my_config_update" ON my_config;
-DROP POLICY IF EXISTS "my_config_friend_access" ON my_config;
 
 -- worlds (5)
 DROP POLICY IF EXISTS "worlds_select" ON worlds;
@@ -543,44 +466,7 @@ CREATE POLICY "config_friend_select" ON config FOR SELECT USING (
 
 
 -- ============================================================
---  19. CREATE ALL POLICIES — my_entries (5) + my_config (4)
--- ============================================================
-
-CREATE POLICY "my_entries_select" ON my_entries FOR SELECT
-  USING (auth.uid() = user_id);
-CREATE POLICY "my_entries_insert" ON my_entries FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "my_entries_update" ON my_entries FOR UPDATE
-  USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "my_entries_delete" ON my_entries FOR DELETE
-  USING (auth.uid() = user_id);
-CREATE POLICY "my_entries_friend_access" ON my_entries FOR SELECT USING (
-  user_id IN (
-    SELECT CASE WHEN requester_id = auth.uid() THEN target_user_id ELSE requester_id END
-    FROM cosmos_connections
-    WHERE status = 'accepted'
-      AND (requester_id = auth.uid() OR target_user_id = auth.uid())
-  )
-);
-
-CREATE POLICY "my_config_select" ON my_config FOR SELECT
-  USING (auth.uid() = user_id);
-CREATE POLICY "my_config_insert" ON my_config FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "my_config_update" ON my_config FOR UPDATE
-  USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "my_config_friend_access" ON my_config FOR SELECT USING (
-  user_id IN (
-    SELECT CASE WHEN requester_id = auth.uid() THEN target_user_id ELSE requester_id END
-    FROM cosmos_connections
-    WHERE status = 'accepted'
-      AND (requester_id = auth.uid() OR target_user_id = auth.uid())
-  )
-);
-
-
--- ============================================================
---  20. CREATE ALL POLICIES — worlds (4) + members (4) + invites (4)
+--  19. CREATE ALL POLICIES — worlds (4) + members (4) + invites (4)
 -- ============================================================
 
 CREATE POLICY "worlds_select" ON worlds FOR SELECT USING (
@@ -1044,9 +930,8 @@ DELETE FROM config WHERE world_id IS NOT NULL AND world_id NOT IN (SELECT id FRO
 --  31. VERIFY — Results appear in SQL Editor output
 -- ============================================================
 
--- Tables (expect 11: config, cosmos_connections, entries, entry_comments,
---   entry_reactions, my_config, my_entries, welcome_letters, world_invites,
---   world_members, worlds)
+-- Tables (expect 9: config, cosmos_connections, entries, entry_comments,
+--   entry_reactions, welcome_letters, world_invites, world_members, worlds)
 SELECT '--- TABLES ---' AS section;
 SELECT table_name FROM information_schema.tables
 WHERE table_schema = 'public' ORDER BY table_name;

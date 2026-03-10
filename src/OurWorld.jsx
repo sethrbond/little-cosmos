@@ -9,6 +9,11 @@ const PhotoMap = lazy(() => import("./PhotoMap.jsx"));
 const Achievements = lazy(() => import("./Achievements.jsx"));
 const TravelStats = lazy(() => import("./TravelStats.jsx"));
 const ExportHub = lazy(() => import("./ExportHub.jsx"));
+const TripCard = lazy(() => import("./TripCard.jsx"));
+const YearInReview = lazy(() => import("./YearInReview.jsx"));
+const KeyboardShortcuts = lazy(() => import("./KeyboardShortcuts.jsx"));
+import SyncIndicator from "./SyncIndicator.jsx";
+import useRealtimeSync from "./useRealtimeSync.js";
 import { supabase } from "./supabaseClient.js";
 import { geocodeSearch } from "./geocode.js";
 import { inpSt, navSt, imgN, renderList, TBtn, TBtnGroup, Lbl, Fld, QuickAddForm, DreamAddForm, AddForm, EditForm, hasDraft, getDraftSummary } from "./EntryForms.jsx";
@@ -795,22 +800,22 @@ function reducer(st, a) {
     case "LOAD": return { ...st, entries: a.entries };
     case "ADD":
       next = { ...st, entries: [...st.entries, a.entry] };
-      _saveEntry(a.entry).catch(() => {
+      if (_saveEntry && !a._skipSave) _saveEntry(a.entry).catch(() => {
         window.dispatchEvent(new CustomEvent('cosmos-save-error', { detail: { city: a.entry?.city } }))
       });
       break;
     case "UPDATE":
       next = { ...st, entries: st.entries.map(e => e.id === a.id ? { ...e, ...a.data } : e) };
-      { const updated = next.entries.find(e => e.id === a.id); if (updated) _saveEntry(updated).catch(() => {
+      if (_saveEntry && !a._skipSave) { const updated = next.entries.find(e => e.id === a.id); if (updated) _saveEntry(updated).catch(() => {
         window.dispatchEvent(new CustomEvent('cosmos-save-error', { detail: { city: updated?.city } }))
       }); }
       break;
     case "DELETE":
-      { const doomed = st.entries.find(e => e.id === a.id);
+      if (_deletePhoto && !a._skipSave) { const doomed = st.entries.find(e => e.id === a.id);
         if (doomed?.photos?.length) doomed.photos.forEach(url => _deletePhoto(url));
       }
       next = { ...st, entries: st.entries.filter(e => e.id !== a.id) };
-      _deleteEntry(a.id);
+      if (_deleteEntry && !a._skipSave) _deleteEntry(a.id);
       break;
     case "ADD_PHOTOS":
       next = { ...st, entries: st.entries.map(e => e.id === a.id ? { ...e, photos: [...(e.photos || []), ...a.urls] } : e) };
@@ -1292,19 +1297,21 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     loadComments(worldId, selected.id).then(setEntryComments).catch(() => setEntryComments([]));
   }, [isSharedWorld, worldId, selected?.id]);
 
-  // Real-time subscription — live updates for shared worlds
+  // Real-time entry sync via useRealtimeSync hook (entries table)
+  const { isConnected: realtimeConnected, lastSync } = useRealtimeSync({
+    tableName: 'entries',
+    userId,
+    worldId: isSharedWorld ? worldId : undefined,
+    onInsert: useCallback((entry) => { _dispatch({ type: 'ADD', entry, _skipSave: true }); showToast(`New entry added: ${entry.city || 'somewhere new'}`, "✨", 4000); }, []),
+    onUpdate: useCallback((entry) => { _dispatch({ type: 'UPDATE', id: entry.id, data: entry, _skipSave: true }); }, []),
+    onDelete: useCallback(({ id }) => { _dispatch({ type: 'DELETE', id, _skipSave: true }); }, []),
+  });
+
+  // Real-time subscription — comments & reactions for shared worlds
   useEffect(() => {
     if (!isSharedWorld || !worldId) return;
     const channel = supabase
-      .channel(`world-${worldId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'entries', filter: `world_id=eq.${worldId}` }, (payload) => {
-        db.loadEntries().then(entries => { if (entries) _dispatch({ type: 'LOAD', entries }); });
-        // Notify when someone else adds a new entry
-        if (payload.eventType === 'INSERT' && payload.new && payload.new.user_id !== userId) {
-          const city = payload.new.city || 'somewhere new';
-          showToast(`New entry added: ${city}`, "✨", 4000);
-        }
-      })
+      .channel(`world-${worldId}-social`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'entry_comments', filter: `world_id=eq.${worldId}` }, () => {
         const sel = selectedRef.current;
         if (sel?.id) loadComments(worldId, sel.id).then(setEntryComments).catch(() => {});
@@ -1314,7 +1321,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [isSharedWorld, worldId, db]); // showToast omitted — stable ref ([] deps), including it causes TDZ in production
+  }, [isSharedWorld, worldId]);
 
   // zoom tracked via zmR ref (used in animation loop directly)
   const [ready, setReady] = useState(false);
@@ -1392,6 +1399,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [showAchievements, setShowAchievements] = useState(false);
   const [showTravelStats, setShowTravelStats] = useState(false);
   const [showExportHub, setShowExportHub] = useState(false);
+  const [tripCardEntry, setTripCardEntry] = useState(null);
+  const [showYearReview, setShowYearReview] = useState(false);
+  const [confirmModal, setConfirmModal] = useState(null); // { message, onConfirm }
   const starsRef = useRef(null);
   const auroraRef = useRef(null);
   const loveThreadRef = useRef([]);
@@ -2123,108 +2133,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     }, 3500);
     return () => clearTimeout(t);
   }, [pjAutoPlay, showPhotoJourney, pjIndex, allPhotos.length]);
-
-  // ---- TRIP CARD GENERATOR ----
-  const generateTripCard = useCallback(async (entry) => {
-    const W = 600, H = 400;
-    const cvs = document.createElement("canvas"); cvs.width = W; cvs.height = H;
-    const ctx = cvs.getContext("2d");
-
-    // Background gradient
-    const grad = ctx.createLinearGradient(0, 0, W, H);
-    grad.addColorStop(0, SC.bg || "#0c0a12");
-    grad.addColorStop(1, SC.bg || "#1a1428");
-    ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
-
-    // Photo (if available)
-    let photoLoaded = false;
-    if ((entry.photos || []).length > 0) {
-      try {
-        const img = new Image(); img.crossOrigin = "anonymous";
-        await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = entry.photos[0]; });
-        // Draw photo on left half with gradient overlay
-        ctx.save();
-        ctx.beginPath(); ctx.roundRect(16, 16, 240, H - 32, 12); ctx.clip();
-        const aspect = img.width / img.height;
-        const dH = H - 32, dW = dH * aspect;
-        ctx.drawImage(img, 16 + (240 - dW) / 2, 16, dW, dH);
-        ctx.restore();
-        photoLoaded = true;
-      } catch { /* skip photo */ }
-    }
-
-    const textX = photoLoaded ? 276 : 40;
-    const textW = photoLoaded ? W - 296 : W - 80;
-
-    // Type badge
-    const t = TYPES[entry.type] || DEFAULT_TYPE;
-    ctx.fillStyle = (t.color || P.rose) + "30";
-    ctx.beginPath(); ctx.roundRect(textX, 40, 70, 18, 9); ctx.fill();
-    ctx.fillStyle = t.color || P.rose;
-    ctx.font = "11px Georgia, serif";
-    ctx.fillText(`${t.icon} ${t.label}`, textX + 8, 53);
-
-    // City name
-    ctx.fillStyle = P.text || "#e8e0d0";
-    ctx.font = "500 26px Georgia, serif";
-    ctx.fillText(entry.city || "Unknown", textX, 92);
-
-    // Country
-    ctx.fillStyle = P.textMuted || "#a098a8";
-    ctx.font = "13px Georgia, serif";
-    ctx.fillText(entry.country || "", textX, 112);
-
-    // Date
-    ctx.fillStyle = P.textMid || "#c0b8c8";
-    ctx.font = "12px Georgia, serif";
-    const dateStr = fmtDate(entry.dateStart) + (entry.dateEnd ? ` → ${fmtDate(entry.dateEnd)}` : "");
-    ctx.fillText(`📅 ${dateStr}`, textX, 140);
-
-    // Notes (truncated)
-    if (entry.notes) {
-      ctx.fillStyle = P.textMid || "#c0b8c8";
-      ctx.font = "11px Georgia, serif";
-      const lines = [];
-      let line = "";
-      for (const word of entry.notes.split(" ")) {
-        const test = line + (line ? " " : "") + word;
-        if (ctx.measureText(test).width > textW && line) { lines.push(line); line = word; }
-        else line = test;
-        if (lines.length >= 4) break;
-      }
-      if (line && lines.length < 4) lines.push(line);
-      lines.forEach((l, i) => ctx.fillText(i === 3 ? l.slice(0, -3) + "..." : l, textX, 168 + i * 16));
-    }
-
-    // Memories/highlights snippet
-    const memos = [...(entry.memories || []), ...(entry.highlights || [])].slice(0, 3);
-    if (memos.length) {
-      const mY = entry.notes ? 248 : 168;
-      ctx.fillStyle = P.textFaint || "#807888";
-      ctx.font = "10px Georgia, serif";
-      memos.forEach((m, i) => ctx.fillText(`✦ ${m}`, textX, mY + i * 14));
-    }
-
-    // Branding
-    ctx.fillStyle = P.textFaint || "#504858";
-    ctx.font = "9px Georgia, serif";
-    ctx.fillText("My Cosmos", textX, H - 28);
-
-    // Decorative line
-    ctx.strokeStyle = (P.goldWarm || "#c9a96e") + "30";
-    ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(textX, H - 44); ctx.lineTo(textX + textW, H - 44); ctx.stroke();
-
-    // Download
-    cvs.toBlob(blob => {
-      if (!blob) return;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = `${(entry.city || "trip").toLowerCase().replace(/\s+/g, "-")}-trip-card.png`;
-      a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
-      showToast("Trip card saved!", "🎴", 2500);
-    }, "image/png");
-  }, [TYPES, P, showToast]);
 
   // ---- EXPORT / IMPORT ----
   const exportData = useCallback(() => {
@@ -3647,8 +3555,10 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
         {/* — System — */}
         {data.entries.length > 0 && <TBtn onClick={() => setShowExportHub(true)} tip="Export">📤</TBtn>}
+        {data.entries.length > 0 && <TBtn onClick={() => setShowYearReview(true)} tip="Year in Review">🎬</TBtn>}
         {onSwitchWorld && <TBtn onClick={() => { flushConfigSave(); onSwitchWorld(); }} tip="Switch World">🔄</TBtn>}
-        <TBtn onClick={() => { if (window.confirm("Sign out of My Cosmos?")) signOut(); }} tip="Sign Out">🚪</TBtn>
+        <SyncIndicator isConnected={realtimeConnected} lastSync={lastSync} palette={{ bg: SC.bg, text: P.text }} style={{ margin: '4px auto' }} />
+        <TBtn onClick={() => setConfirmModal({ message: "Sign out of My Cosmos?", onConfirm: () => signOut() })} tip="Sign Out">🚪</TBtn>
       </div>
 
       {/* AMBIENT MUSIC — persistent audio element */}
@@ -3906,7 +3816,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                   ))}
                 </div>
               )}
-              <button onClick={() => generateTripCard(cur)} style={{ background: "none", border: "none", fontSize: 12, cursor: "pointer", color: P.textFaint, transition: "color .2s" }} title="Save Trip Card">🎴</button>
+              <button onClick={() => setTripCardEntry(cur)} style={{ background: "none", border: "none", fontSize: 12, cursor: "pointer", color: P.textFaint, transition: "color .2s" }} title="Save Trip Card">🎴</button>
               <button onClick={() => toggleFavorite(cur.id, cur.favorite)} style={{ background: "none", border: "none", fontSize: 14, cursor: "pointer", color: cur.favorite ? P.heart : P.textFaint, transition: "color .2s" }} title={cur.favorite ? "Unfavorite" : "Favorite"}>
                 {cur.favorite ? "♥" : "♡"}
               </button>
@@ -4522,10 +4432,11 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                               <option value="member">Member</option>
                               <option value="viewer">Viewer</option>
                             </select>
-                            <button onClick={async () => {
-                              if (!confirm(`Remove this member from the world?`)) return;
-                              const ok = await removeWorldMember(worldId, m.id);
-                              if (ok) { const members = await getWorldMembers(worldId); setWorldMembers(members); }
+                            <button onClick={() => {
+                              setConfirmModal({ message: "Remove this member from the world?", onConfirm: async () => {
+                                const ok = await removeWorldMember(worldId, m.id);
+                                if (ok) { const members = await getWorldMembers(worldId); setWorldMembers(members); }
+                              }});
                             }} style={{ background: "none", border: "none", color: "#c9777a", cursor: "pointer", fontSize: 11, padding: "0 4px" }}>×</button>
                           </div>
                         )}
@@ -4554,23 +4465,24 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                   </button>
                 )}
                 {worldRole === "owner" ? (
-                  <button onClick={async () => {
-                    if (!confirm(`Are you sure you want to permanently delete "${worldName}"? This cannot be undone. All entries, photos, and settings will be lost.`)) return;
-                    if (!confirm("This is permanent. Type the world name to confirm.")) return;
-                    const ok = await deleteWorld(worldId, userId);
-                    if (ok) { flushConfigSave(); setShowSettings(false); onSwitchWorld(); }
-                    else { alert("Failed to delete world."); }
+                  <button onClick={() => {
+                    setConfirmModal({ message: `Are you sure you want to permanently delete "${worldName}"? This cannot be undone. All entries, photos, and settings will be lost.`, onConfirm: async () => {
+                      const ok = await deleteWorld(worldId, userId);
+                      if (ok) { flushConfigSave(); setShowSettings(false); onSwitchWorld(); }
+                      else { showToast("Failed to delete world.", "⚠️", 4000); }
+                    }});
                   }} style={{ width: "100%", padding: "8px", background: "transparent", border: "1px solid rgba(200,100,100,0.25)", borderRadius: 8, cursor: "pointer", fontSize: 10, fontFamily: "inherit", color: "#c97777", marginBottom: 6, transition: "all .2s" }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(200,100,100,0.5)"; e.currentTarget.style.background = "rgba(200,100,100,0.06)"; }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(200,100,100,0.25)"; e.currentTarget.style.background = "transparent"; }}>
                     Delete World
                   </button>
                 ) : (
-                  <button onClick={async () => {
-                    if (!confirm(`Leave "${worldName}"? You'll lose access to this world.`)) return;
-                    const ok = await leaveWorld(worldId, userId);
-                    if (ok) { flushConfigSave(); setShowSettings(false); onSwitchWorld(); }
-                    else { alert("Failed to leave world."); }
+                  <button onClick={() => {
+                    setConfirmModal({ message: `Leave "${worldName}"? You'll lose access to this world.`, onConfirm: async () => {
+                      const ok = await leaveWorld(worldId, userId);
+                      if (ok) { flushConfigSave(); setShowSettings(false); onSwitchWorld(); }
+                      else { showToast("Failed to leave world.", "⚠️", 4000); }
+                    }});
                   }} style={{ width: "100%", padding: "8px", background: "transparent", border: "1px solid rgba(200,160,100,0.25)", borderRadius: 8, cursor: "pointer", fontSize: 10, fontFamily: "inherit", color: "#c9a077", marginBottom: 6, transition: "all .2s" }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(200,160,100,0.5)"; e.currentTarget.style.background = "rgba(200,160,100,0.06)"; }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(200,160,100,0.25)"; e.currentTarget.style.background = "transparent"; }}>
@@ -4941,7 +4853,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                           style={navSt()}>◂ Prev</button>
                         <div style={{ display: "flex", gap: 6 }}>
                           <button onClick={() => { setSelected(e); setPhotoIdx(0); setCardTab("overview"); }} style={{ ...navSt(), color: P.heart, fontSize: 10 }}>View</button>
-                          <button onClick={() => generateTripCard(e)} style={{ ...navSt(), fontSize: 10 }} title="Trip Card">🎴</button>
+                          <button onClick={() => setTripCardEntry(e)} style={{ ...navSt(), fontSize: 10 }} title="Trip Card">🎴</button>
                         </div>
                         <button onClick={() => {
                           if (recapIdx >= recapEntries.length - 1) { setRecapPhase('summary'); }
@@ -5357,33 +5269,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       )}
 
       {/* KEYBOARD SHORTCUTS OVERLAY */}
-      {showShortcuts && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 190, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(12px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .2s ease" }}
-          onClick={() => setShowShortcuts(false)}>
-          <div onClick={e => e.stopPropagation()} style={{ background: P.card, borderRadius: 16, padding: "28px 32px", maxWidth: 340, width: "90%", boxShadow: "0 12px 48px rgba(0,0,0,.2)", border: `1px solid ${P.rose}15` }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: P.text, letterSpacing: ".08em" }}>Keyboard Shortcuts</div>
-              <button onClick={() => setShowShortcuts(false)} style={{ background: "none", border: "none", fontSize: 16, color: P.textFaint, cursor: "pointer" }}>×</button>
-            </div>
-            {[
-              ["←  →", "Step through timeline"],
-              ["Space", isPartnerWorld ? "Play Our Story" : "Play Story"],
-              ["F", "Toggle filter panel"],
-              ["S", "Open search"],
-              ["G", "Toggle gallery"],
-              ["I", "Toggle stats"],
-              ["T", "Jump to today"],
-              ["?", "Show this help"],
-              ["Esc", "Close any panel"],
-            ].map(([key, desc]) => (
-              <div key={key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: `1px solid ${P.textFaint}10` }}>
-                <span style={{ fontSize: 11, color: P.textMuted }}>{desc}</span>
-                <kbd style={{ fontSize: 10, fontFamily: "monospace", padding: "2px 8px", background: P.parchment, borderRadius: 4, color: P.textMid, border: `1px solid ${P.textFaint}20`, letterSpacing: ".05em" }}>{key}</kbd>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {showShortcuts && <Suspense fallback={null}><KeyboardShortcuts onClose={() => setShowShortcuts(false)} palette={P} worldMode={worldMode} /></Suspense>}
 
       {/* FULLSCREEN PHOTO LIGHTBOX */}
       {lightboxOpen && cur?.photos?.length > 0 && (() => {
@@ -5430,6 +5316,22 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       {showAchievements && <Suspense fallback={null}><Achievements entries={data.entries} stats={stats} palette={P} onClose={() => setShowAchievements(false)} worldMode={worldMode} config={config} /></Suspense>}
       {showTravelStats && <Suspense fallback={null}><TravelStats entries={data.entries} stats={stats} palette={P} onClose={() => setShowTravelStats(false)} worldMode={worldMode} config={config} /></Suspense>}
       {showExportHub && <Suspense fallback={null}><ExportHub entries={data.entries} config={config} stats={stats} palette={P} onClose={() => setShowExportHub(false)} worldMode={worldMode} travelerName={isPartnerWorld ? (config.youName || '') : (config.travelerName || '')} /></Suspense>}
+      {tripCardEntry && <Suspense fallback={null}><TripCard entry={tripCardEntry} palette={P} onClose={() => setTripCardEntry(null)} worldMode={worldMode} /></Suspense>}
+      {showYearReview && <Suspense fallback={null}><YearInReview entries={data.entries} stats={stats} palette={P} onClose={() => setShowYearReview(false)} worldMode={worldMode} config={config} /></Suspense>}
+
+      {/* CONFIRM MODAL — replaces browser confirm() */}
+      {confirmModal && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 999, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .2s ease" }}
+          onClick={() => setConfirmModal(null)}>
+          <div onClick={e => e.stopPropagation()} style={{ background: P.card, borderRadius: 16, padding: "24px 28px", maxWidth: 360, width: "90%", boxShadow: "0 12px 48px rgba(0,0,0,.25)", border: `1px solid ${P.rose}15`, textAlign: "center" }}>
+            <div style={{ fontSize: 13, color: P.text, lineHeight: 1.6, marginBottom: 20, fontFamily: "inherit" }}>{confirmModal.message}</div>
+            <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+              <button onClick={() => setConfirmModal(null)} style={{ padding: "8px 20px", background: "transparent", border: `1px solid ${P.textFaint}30`, borderRadius: 10, color: P.textMuted, fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+              <button onClick={() => { const cb = confirmModal.onConfirm; setConfirmModal(null); cb(); }} style={{ padding: "8px 20px", background: `${P.rose}18`, border: `1px solid ${P.rose}30`, borderRadius: 10, color: P.rose, fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>Confirm</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes cardIn{from{opacity:0;transform:translateY(-50%) translateX(18px)}to{opacity:1;transform:translateY(-50%) translateX(0)}}

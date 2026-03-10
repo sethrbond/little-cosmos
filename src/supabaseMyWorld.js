@@ -115,7 +115,7 @@ export function createMyWorldDB(worldId, userId) {
         travelerName: data.metadata?.travelerName || data.traveler_name || '',
       }
       if (data.metadata && typeof data.metadata === 'object') {
-        if (Array.isArray(data.metadata.dreamDestinations)) cfg.bucketList = data.metadata.dreamDestinations
+        if (Array.isArray(data.metadata.dreamDestinations)) cfg.dreamDestinations = data.metadata.dreamDestinations
         if (Array.isArray(data.metadata.chapters))    cfg.chapters = data.metadata.chapters
         if (typeof data.metadata.darkMode === 'boolean') cfg.darkMode = data.metadata.darkMode
         if (data.metadata.customPalette && typeof data.metadata.customPalette === 'object') cfg.customPalette = data.metadata.customPalette
@@ -133,7 +133,7 @@ export function createMyWorldDB(worldId, userId) {
         subtitle: config.subtitle ?? '',
         metadata: {
           travelerName: config.travelerName ?? '',
-          dreamDestinations: config.bucketList || [],
+          dreamDestinations: config.dreamDestinations || [],
           chapters: config.chapters || [],
           darkMode: config.darkMode ?? false,
           customPalette: config.customPalette || {},
@@ -183,7 +183,7 @@ export function createFriendWorldDB(friendWorldId) {
         travelerName: data.metadata?.travelerName || data.traveler_name || '',
       }
       if (data.metadata && typeof data.metadata === 'object') {
-        if (Array.isArray(data.metadata.dreamDestinations)) cfg.bucketList = data.metadata.dreamDestinations
+        if (Array.isArray(data.metadata.dreamDestinations)) cfg.dreamDestinations = data.metadata.dreamDestinations
         if (Array.isArray(data.metadata.chapters))    cfg.chapters = data.metadata.chapters
         if (typeof data.metadata.darkMode === 'boolean') cfg.darkMode = data.metadata.darkMode
         if (data.metadata.customPalette && typeof data.metadata.customPalette === 'object') cfg.customPalette = data.metadata.customPalette

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, Component } from 'react'
 import { AuthProvider, useAuth } from './AuthContext.jsx'
+import { supabase } from './supabaseClient.js'
 import AuthScreen from './AuthScreen.jsx'
 import LandingPage from './LandingPage.jsx'
 import WorldSelector from './WorldSelector.jsx'
@@ -52,8 +53,81 @@ class ScreenErrorBoundary extends Component {
   }
 }
 
+function PasswordResetModal({ onDone }) {
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [success, setSuccess] = useState(false)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setError('')
+    if (newPassword.length < 6) { setError('Password must be at least 6 characters'); return }
+    if (newPassword !== confirmPassword) { setError('Passwords do not match'); return }
+    setSaving(true)
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    setSaving(false)
+    if (error) { setError(error.message); return }
+    setSuccess(true)
+    setTimeout(onDone, 1500)
+  }
+
+  const modalCard = {
+    background: 'rgba(255,255,255,0.04)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: 16, padding: '36px 32px',
+    width: 340, maxWidth: '90vw',
+    backdropFilter: 'blur(12px)',
+  }
+  const modalInp = {
+    width: '100%', padding: '10px 14px',
+    background: 'rgba(255,255,255,0.06)',
+    border: '1px solid rgba(255,255,255,0.12)',
+    borderRadius: 8, color: '#e8e0d0',
+    fontSize: 15, fontFamily: 'inherit',
+    outline: 'none', boxSizing: 'border-box',
+    marginBottom: 12,
+  }
+  const modalBtn = {
+    width: '100%', padding: '11px 0',
+    background: 'linear-gradient(135deg, #c9a96e, #b8944f)',
+    border: 'none', borderRadius: 8,
+    color: '#1a1520', fontSize: 15,
+    fontWeight: 600, fontFamily: 'inherit',
+    cursor: 'pointer', marginTop: 4,
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: '#0c0a12', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: '"Palatino Linotype", serif', color: '#e8e0d0', zIndex: 10000 }}>
+      <div style={{ marginBottom: 28, textAlign: 'center' }}>
+        <div style={{ fontSize: 28, fontWeight: 300, letterSpacing: 2, opacity: 0.9 }}>Little Cosmos</div>
+        <div style={{ fontSize: 13, opacity: 0.4, marginTop: 4 }}>set your new password</div>
+      </div>
+      <div style={modalCard}>
+        {success ? (
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 12 }}>Password Updated</div>
+            <div style={{ fontSize: 14, opacity: 0.6 }}>Redirecting...</div>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit}>
+            <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 20, textAlign: 'center' }}>Set New Password</div>
+            <input style={modalInp} type="password" placeholder="New password" value={newPassword} onChange={e => setNewPassword(e.target.value)} required autoFocus />
+            <input style={modalInp} type="password" placeholder="Confirm new password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required />
+            {error && <div style={{ color: '#e57373', fontSize: 13, marginBottom: 8 }}>{error}</div>}
+            <button style={{ ...modalBtn, opacity: saving ? 0.6 : 1 }} disabled={saving} type="submit">
+              {saving ? 'Updating...' : 'Update Password'}
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function AppInner() {
-  const { user, userId, loading, emailVerified, signOut } = useAuth()
+  const { user, userId, loading, emailVerified, passwordRecovery, clearPasswordRecovery, signOut } = useAuth()
   const [authMode, setAuthMode] = useState(null) // null = landing, 'login' | 'signup'
 
   const [worldMode, setWorldMode] = useState(() => safeGet('worldMode'))
@@ -75,6 +149,7 @@ function AppInner() {
   const [transitioning, setTransitioning] = useState(false)
   const [transitionColor, setTransitionColor] = useState('#0c0a12')
   const [showCinematic, setShowCinematic] = useState(false)
+  const [confirmModal, setConfirmModal] = useState(null)
 
   // User's display name from auth metadata
   const userDisplayName = user?.user_metadata?.display_name || ''
@@ -129,24 +204,28 @@ function AppInner() {
     getInviteInfo(token).then(info => {
       if (!info) { alert('This invite link is invalid or expired.'); return }
       const worldName = info.worlds?.name || 'a shared world'
-      if (confirm(`You've been invited to join "${worldName}". Accept?`)) {
-        acceptInvite(token).then(result => {
-          if (result?.ok) {
-            loadMyWorlds(userId).then(w => {
-              setWorlds(w)
-              // If brand-new user, don't navigate — let cinematic play first.
-              // The world will appear on their cosmos screen after cinematic.
-              const isNewUser = !safeGet(obKey(`cosmos_hasVisited_${userId}`))
-              if (!isNewUser) {
-                const joined = w.find(x => x.id === result.world_id)
-                selectWorld('our', result.world_id, worldName, joined?.role || 'member', joined?.type || 'shared')
-              }
-            })
-          } else {
-            alert(result?.error || 'Failed to accept invite.')
-          }
-        }).catch(err => { console.error('[acceptInvite]', err); alert('Something went wrong accepting the invite. Please try again.') })
-      }
+      setConfirmModal({
+        message: `You've been invited to join "${worldName}"!\n\nWould you like to accept this invitation?`,
+        confirmLabel: 'Accept Invitation',
+        onConfirm: () => {
+          acceptInvite(token).then(result => {
+            if (result?.ok) {
+              loadMyWorlds(userId).then(w => {
+                setWorlds(w)
+                // If brand-new user, don't navigate — let cinematic play first.
+                // The world will appear on their cosmos screen after cinematic.
+                const isNewUser = !safeGet(obKey(`cosmos_hasVisited_${userId}`))
+                if (!isNewUser) {
+                  const joined = w.find(x => x.id === result.world_id)
+                  selectWorld('our', result.world_id, worldName, joined?.role || 'member', joined?.type || 'shared')
+                }
+              })
+            } else {
+              alert(result?.error || 'Failed to accept invite.')
+            }
+          }).catch(err => { console.error('[acceptInvite]', err); alert('Something went wrong accepting the invite. Please try again.') })
+        }
+      })
     }).catch(err => { console.error('[getInviteInfo]', err); alert('Could not load invite details. Please check your connection and try again.') })
   }, [invitePending, userId])
 
@@ -260,6 +339,11 @@ function AppInner() {
     return <LoadingScreen />
   }
 
+  // Password recovery: user clicked reset link in email, Supabase auto-logged them in
+  if (passwordRecovery && user) {
+    return <PasswordResetModal onDone={clearPasswordRecovery} />
+  }
+
   if (!user) {
     // Check for invite token — go straight to auth if present
     const hasInvite = invitePending || new URLSearchParams(window.location.search).has('invite')
@@ -283,14 +367,14 @@ function AppInner() {
   }
 
   // For logged-in users, wait for letter check and worlds to load
+  // Determine main content — confirm modal overlays on top of any screen
+  let content
   if (!letterChecked || !worldsLoaded) {
-    return <LoadingScreen />
-  }
-
-  // Show welcome letters before anything else (one at a time)
-  if (welcomeLetters.length > 0) {
+    content = <LoadingScreen />
+  } else if (welcomeLetters.length > 0) {
+    // Show welcome letters before anything else (one at a time)
     const currentLetter = welcomeLetters[0]
-    return (
+    content = (
       <WelcomeLetterScreen
         letter={currentLetter}
         onEnter={async () => {
@@ -314,11 +398,9 @@ function AppInner() {
         }}
       />
     )
-  }
-
-  // Cinematic onboarding for brand-new users — lands on cosmos screen after
-  if (showCinematic) {
-    return (
+  } else if (showCinematic) {
+    // Cinematic onboarding for brand-new users — lands on cosmos screen after
+    content = (
       <ScreenErrorBoundary>
         <CinematicOnboarding
           userId={userId}
@@ -330,10 +412,8 @@ function AppInner() {
         />
       </ScreenErrorBoundary>
     )
-  }
-
-  if (!worldMode) {
-    return (
+  } else if (!worldMode) {
+    content = (
       <>
         <ScreenErrorBoundary>
           <WorldSelector
@@ -364,24 +444,42 @@ function AppInner() {
         )}
       </>
     )
+  } else {
+    content = (
+      <>
+        <OurWorld
+          worldMode={worldMode}
+          worldId={activeWorldId}
+          worldName={activeWorldName}
+          worldRole={activeWorldRole}
+          worldType={activeWorldType}
+          onSwitchWorld={switchWorld}
+        />
+        {transitioning && (
+          <div style={{
+            position: 'fixed', inset: 0, zIndex: 9999, pointerEvents: 'none',
+            background: transitionColor,
+            opacity: 1,
+          }} />
+        )}
+      </>
+    )
   }
 
   return (
     <>
-      <OurWorld
-        worldMode={worldMode}
-        worldId={activeWorldId}
-        worldName={activeWorldName}
-        worldRole={activeWorldRole}
-        worldType={activeWorldType}
-        onSwitchWorld={switchWorld}
-      />
-      {transitioning && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 9999, pointerEvents: 'none',
-          background: transitionColor,
-          opacity: 1,
-        }} />
+      {content}
+      {confirmModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={() => setConfirmModal(null)}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#1e1930', borderRadius: 16, padding: '24px 28px', maxWidth: 360, width: '90%', boxShadow: '0 12px 48px rgba(0,0,0,.25)', border: '1px solid rgba(196,138,168,0.12)', textAlign: 'center' }}>
+            <div style={{ fontSize: 13, color: '#e8e0d0', lineHeight: 1.6, marginBottom: 20, fontFamily: 'inherit', whiteSpace: 'pre-line' }}>{confirmModal.message}</div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+              <button onClick={() => setConfirmModal(null)} style={{ padding: '8px 20px', background: 'transparent', border: '1px solid rgba(184,174,200,0.2)', borderRadius: 10, color: '#a098a8', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+              <button onClick={() => { setConfirmModal(null); confirmModal.onConfirm(); }} style={{ padding: '8px 20px', background: 'rgba(196,138,168,0.12)', border: '1px solid rgba(196,138,168,0.2)', borderRadius: 10, color: '#c48aa8', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>{confirmModal.confirmLabel || 'Confirm'}</button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   )

@@ -108,10 +108,14 @@ function generateCSV(entries, worldMode) {
     "City", "Country", "Start Date", "End Date", "Type",
     "Notes", "Latitude", "Longitude", "Favorite",
     "Memories", "Highlights", "Museums/Culture", "Restaurants/Food",
+    "Stops Count", "Stop Cities", "Photo Count", "Photo URLs",
     ...(hasOurFields ? ["Who", "Love Note"] : []),
   ];
   const rows = [columns.map(escapeCSV).join(",")];
   for (const e of sortedEntries(entries)) {
+    const stops = e.stops || [];
+    const photos = e.photos || [];
+    const stopCities = stops.map(s => [s.city, s.country].filter(Boolean).join("/")).join("; ");
     const row = [
       escapeCSV(e.city),
       escapeCSV(e.country),
@@ -126,6 +130,10 @@ function generateCSV(entries, worldMode) {
       escapeCSV((e.highlights || []).join("; ")),
       escapeCSV((e.museums || []).join("; ")),
       escapeCSV((e.restaurants || []).join("; ")),
+      escapeCSV(stops.length),
+      escapeCSV(stopCities),
+      escapeCSV(photos.length),
+      escapeCSV(photos.join("; ")),
       ...(hasOurFields ? [escapeCSV(e.who), escapeCSV(e.loveNote)] : []),
     ];
     rows.push(row.join(","));
@@ -172,6 +180,29 @@ function generateHTMLReport(entries, config, stats, travelerName, palette, world
         sections.push(`<div class="list-section"><strong>${escapeHTML(f.label)}:</strong> ${items.map(i => escapeHTML(i)).join(" &middot; ")}</div>`);
       }
     }
+    // Stops section
+    const stops = e.stops || [];
+    let stopsHTML = "";
+    if (stops.length > 0) {
+      const stopItems = stops.map(s => {
+        const sLoc = [s.city, s.country].filter(Boolean).join(", ");
+        const sDates = formatDateRange(s.dateStart, s.dateEnd);
+        return `<span class="stop-item">${escapeHTML(sLoc)}${sDates ? ` <span class="stop-dates">(${escapeHTML(sDates)})</span>` : ""}</span>`;
+      }).join(" &rarr; ");
+      stopsHTML = `<div class="stops-section"><strong>Stops:</strong> ${stopItems}</div>`;
+    }
+
+    // Photos section
+    const photos = e.photos || [];
+    let photosHTML = "";
+    if (photos.length > 0) {
+      const thumbs = photos.slice(0, 6).map(url =>
+        `<img src="${escapeHTML(url)}" class="photo-thumb" alt="Photo" onerror="this.style.display='none'" />`
+      ).join("");
+      const moreLabel = photos.length > 6 ? `<span class="photo-more">+${photos.length - 6} more</span>` : "";
+      photosHTML = `<div class="photos-section">${thumbs}${moreLabel}</div>`;
+    }
+
     return `
       <div class="entry-card">
         <div class="entry-header">
@@ -180,6 +211,8 @@ function generateHTMLReport(entries, config, stats, travelerName, palette, world
         </div>
         <div class="entry-type">${escapeHTML(e.type || "")}</div>
         ${sections.join("\n")}
+        ${stopsHTML}
+        ${photosHTML}
         ${e.favorite ? '<div class="favorite-badge">Favorite</div>' : ""}
       </div>`;
   }).join("\n");
@@ -302,6 +335,42 @@ function generateHTMLReport(entries, config, stats, travelerName, palette, world
   .list-section strong {
     color: ${textColor}dd;
   }
+  .stops-section {
+    font-size: 13px;
+    color: ${textColor}bb;
+    margin-bottom: 8px;
+    line-height: 1.7;
+  }
+  .stops-section strong {
+    color: ${textColor}dd;
+  }
+  .stop-item {
+    white-space: nowrap;
+  }
+  .stop-dates {
+    font-size: 11px;
+    color: ${textColor}80;
+  }
+  .photos-section {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+    margin-bottom: 8px;
+    align-items: center;
+  }
+  .photo-thumb {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid ${accent}20;
+  }
+  .photo-more {
+    font-size: 11px;
+    color: ${textColor}80;
+    padding-left: 4px;
+  }
   .favorite-badge {
     display: inline-block;
     margin-top: 10px;
@@ -384,6 +453,15 @@ function generateKML(entries, config, worldMode) {
     if (e.notes) descParts.push(e.notes);
     if (e.memories?.length) descParts.push(`Memories: ${e.memories.join(", ")}`);
     if (e.highlights?.length) descParts.push(`Highlights: ${e.highlights.join(", ")}`);
+    const stops = e.stops || [];
+    if (stops.length > 0) {
+      const stopList = stops.map(s => [s.city, s.country].filter(Boolean).join(", ")).join(" → ");
+      descParts.push(`Stops: ${stopList}`);
+    }
+    const photos = e.photos || [];
+    if (photos.length > 0) {
+      descParts.push(`Photos: ${photos.length}`);
+    }
     const desc = descParts.map(escapeXML).join("<br/>");
     const styleRef = e.type ? `#style-${escapeXML(e.type)}` : "";
 
@@ -414,7 +492,12 @@ function generateTimeline(entries) {
     const loc = [e.city, e.country].filter(Boolean).join(", ") || "Unknown";
     const dates = formatDateRange(e.dateStart, e.dateEnd);
     const note = e.notes ? `: ${e.notes}` : "";
-    return `${dates || "No date"} -- ${loc}${note}`;
+    const stops = e.stops || [];
+    const stopsStr = stops.length > 0
+      ? ` [Stops: ${stops.map(s => [s.city, s.country].filter(Boolean).join(", ")).join(" → ")}]`
+      : "";
+    const photoStr = (e.photos || []).length > 0 ? ` (${e.photos.length} photos)` : "";
+    return `${dates || "No date"} -- ${loc}${note}${stopsStr}${photoStr}`;
   });
   return lines.join("\n");
 }

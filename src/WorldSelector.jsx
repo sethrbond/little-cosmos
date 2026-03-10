@@ -815,6 +815,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
 
   // Toast system
   const [toast, setToast] = useState(null);
+  const [confirmModal, setConfirmModal] = useState(null);
   const showToast = useCallback((msg) => {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     setToast(msg);
@@ -884,7 +885,8 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
   // safeDismiss: used on backdrop clicks — confirms if there's unsaved input
   const safeDismiss = useCallback(() => {
     if (hasUnsavedInput()) {
-      if (!window.confirm("You have unsaved changes. Are you sure you want to close?")) return
+      setConfirmModal({ message: "You have unsaved changes. Are you sure you want to close?", confirmLabel: "Discard", onConfirm: () => closeAllModals() });
+      return
     }
     closeAllModals()
   }, [hasUnsavedInput, closeAllModals])
@@ -939,21 +941,22 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
                 style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 12, padding: "3px 10px", color: "#c0b8c8", fontSize: 9, fontFamily: F, cursor: "pointer", pointerEvents: "auto", letterSpacing: "0.5px" }}>
                 Invite
               </button>}
-              <button onClick={async (e) => {
+              <button onClick={(e) => {
                   e.stopPropagation();
                   const ww = worlds.find(x => x.id === w.id);
                   if (!ww) return;
                   if (w.role === "owner") {
-                    if (!window.confirm(`Permanently delete "${w.label}"? All entries, photos, and settings will be lost.`)) return;
-                    if (!window.confirm("This cannot be undone. Are you sure?")) return;
-                    const ok = await deleteWorld(w.id, userId);
-                    if (ok) { onWorldsChange(worlds.filter(x => x.id !== w.id)); }
-                    else { alert("Failed to delete world."); }
+                    setConfirmModal({ message: `Permanently delete "${w.label}"? All entries, photos, and settings will be lost forever. This cannot be undone.`, confirmLabel: "Delete Forever", onConfirm: async () => {
+                      const ok = await deleteWorld(w.id, userId);
+                      if (ok) { onWorldsChange(worlds.filter(x => x.id !== w.id)); }
+                      else { alert("Failed to delete world."); }
+                    }});
                   } else {
-                    if (!window.confirm(`Leave "${w.label}"? You'll lose access to this world.`)) return;
-                    const ok = await leaveWorld(w.id, userId);
-                    if (ok) { onWorldsChange(worlds.filter(x => x.id !== w.id)); }
-                    else { alert("Failed to leave world."); }
+                    setConfirmModal({ message: `Leave "${w.label}"? You'll lose access to this world.`, confirmLabel: "Leave World", onConfirm: async () => {
+                      const ok = await leaveWorld(w.id, userId);
+                      if (ok) { onWorldsChange(worlds.filter(x => x.id !== w.id)); }
+                      else { alert("Failed to leave world."); }
+                    }});
                   }
                 }}
                 style={{ background: "rgba(200,100,100,0.08)", border: "1px solid rgba(200,100,100,0.20)", borderRadius: 12, padding: "3px 10px", color: "#c09090", fontSize: 9, fontFamily: F, cursor: "pointer", pointerEvents: "auto", letterSpacing: "0.5px" }}>
@@ -1033,7 +1036,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
           onMouseLeave={e => { e.target.style.color = "#706878"; e.target.style.borderColor = "rgba(255,255,255,0.06)"; }}>
           Replay Tour
         </button>
-        <button onClick={(e) => { e.stopPropagation(); if (window.confirm("Sign out of My Cosmos?")) onSignOut(); }}
+        <button onClick={(e) => { e.stopPropagation(); setConfirmModal({ message: "Sign out of My Cosmos?", confirmLabel: "Sign Out", onConfirm: () => onSignOut() }); }}
           style={{ background: "rgba(255,255,255,0.03)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "5px 14px", color: "#706878", fontSize: 9, fontFamily: F, letterSpacing: "0.8px", cursor: "pointer", transition: "all .3s", textTransform: "uppercase" }}
           onMouseEnter={e => { e.target.style.color = "#b0a8b8"; e.target.style.borderColor = "rgba(255,255,255,0.15)"; }}
           onMouseLeave={e => { e.target.style.color = "#706878"; e.target.style.borderColor = "rgba(255,255,255,0.06)"; }}>
@@ -1638,6 +1641,19 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       {toast && (
         <div style={{ position: "absolute", top: "10%", left: "50%", transform: "translateX(-50%)", background: "rgba(20,16,30,0.85)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", border: "1px solid rgba(200,170,110,0.25)", borderRadius: 16, padding: "12px 24px", color: "#e8e0d0", fontSize: 13, fontFamily: F, letterSpacing: "0.3px", boxShadow: "0 8px 32px rgba(0,0,0,0.4)", zIndex: 100, animation: "fadeIn 0.3s ease", pointerEvents: "none" }}>
           {toast}
+        </div>
+      )}
+
+      {confirmModal && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 999, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center" }}
+          onClick={() => setConfirmModal(null)}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "#1e1930", borderRadius: 16, padding: "24px 28px", maxWidth: 360, width: "90%", boxShadow: "0 12px 48px rgba(0,0,0,.25)", border: "1px solid rgba(196,138,168,0.12)", textAlign: "center" }}>
+            <div style={{ fontSize: 13, color: "#e8e0d0", lineHeight: 1.6, marginBottom: 20, fontFamily: F }}>{confirmModal.message}</div>
+            <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+              <button onClick={() => setConfirmModal(null)} style={{ padding: "8px 20px", background: "transparent", border: "1px solid rgba(184,174,200,0.2)", borderRadius: 10, color: "#a098a8", fontSize: 11, cursor: "pointer", fontFamily: F }}>Cancel</button>
+              <button onClick={() => { setConfirmModal(null); confirmModal.onConfirm(); }} style={{ padding: "8px 20px", background: "rgba(196,138,168,0.12)", border: "1px solid rgba(196,138,168,0.2)", borderRadius: 10, color: "#c48aa8", fontSize: 11, cursor: "pointer", fontFamily: F, fontWeight: 600 }}>{confirmModal.confirmLabel || "Confirm"}</button>
+            </div>
+          </div>
         </div>
       )}
 

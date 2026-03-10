@@ -92,7 +92,7 @@ export const MY_WORLD_DEFAULT_CONFIG = {
   subtitle: "",
   travelerName: "Explorer",
   chapters: [],
-  bucketList: [],
+  dreamDestinations: [],
   darkMode: false,
   customPalette: {},
   customScene: {},
@@ -261,6 +261,8 @@ export const FRIENDS_DEFAULT_CONFIG = {
   chapters: [],
   dreamDestinations: [],
   darkMode: false,
+  customPalette: {},
+  customScene: {},
 };
 
 // ============================================================
@@ -296,6 +298,8 @@ export const FAMILY_DEFAULT_CONFIG = {
   chapters: [],
   dreamDestinations: [],
   darkMode: false,
+  customPalette: {},
+  customScene: {},
 };
 
 // Helper to get palette/scene for a shared world type
