@@ -241,7 +241,7 @@ function AppInner() {
       }
       setShowCinematic(true)
     }
-  }, [userId, worldsLoaded])
+  }, [userId, worldsLoaded, worldMode])
 
   // Dynamic document title
   useEffect(() => {

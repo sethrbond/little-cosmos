@@ -272,11 +272,13 @@ CREATE INDEX IF NOT EXISTS idx_config_world_id ON config(world_id);
 CREATE INDEX IF NOT EXISTS idx_world_members_user ON world_members(user_id);
 CREATE INDEX IF NOT EXISTS idx_world_members_world ON world_members(world_id);
 CREATE INDEX IF NOT EXISTS idx_world_invites_token ON world_invites(token);
+CREATE INDEX IF NOT EXISTS idx_world_invites_target_email ON world_invites(target_email);
 CREATE INDEX IF NOT EXISTS idx_entry_comments_entry ON entry_comments(entry_id);
 CREATE INDEX IF NOT EXISTS idx_entry_comments_world ON entry_comments(world_id);
 CREATE INDEX IF NOT EXISTS idx_entry_reactions_entry ON entry_reactions(entry_id);
 CREATE INDEX IF NOT EXISTS idx_entry_reactions_world ON entry_reactions(world_id);
 CREATE INDEX IF NOT EXISTS idx_welcome_letters_to_email ON welcome_letters(to_email);
+CREATE INDEX IF NOT EXISTS idx_welcome_letters_invite_token ON welcome_letters(invite_token);
 CREATE INDEX IF NOT EXISTS idx_cosmos_connections_requester ON cosmos_connections(requester_id);
 CREATE INDEX IF NOT EXISTS idx_cosmos_connections_target ON cosmos_connections(target_email);
 CREATE INDEX IF NOT EXISTS idx_cosmos_connections_target_user ON cosmos_connections(target_user_id);
@@ -936,13 +938,14 @@ SELECT '--- TABLES ---' AS section;
 SELECT table_name FROM information_schema.tables
 WHERE table_schema = 'public' ORDER BY table_name;
 
--- Public policies (expect 55)
+-- Public policies (expect 50)
 SELECT '--- POLICIES (' || COUNT(*) || ' total) ---' AS section
 FROM pg_policies WHERE schemaname = 'public';
 
--- RPC functions (expect 6: update_updated_at, get_user_world_ids,
+-- RPC functions (expect 9: update_updated_at, get_user_world_ids,
 --   get_user_world_ids_by_role, create_world, accept_world_invite,
---   accept_cosmos_connection)
+--   accept_cosmos_connection, decline_cosmos_connection,
+--   notify_invite_email, notify_connection_email)
 SELECT '--- RPC FUNCTIONS ---' AS section;
 SELECT routine_name FROM information_schema.routines
 WHERE routine_schema = 'public' AND routine_type = 'FUNCTION'

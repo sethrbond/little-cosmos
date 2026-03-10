@@ -1,17 +1,10 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { haversine, daysBetween } from "./utils.js";
 
 /* =================================================================
    TravelStats — Deep-dive statistics overlay for My Cosmos
    Pure CSS visualizations, animated counters, dark cosmic aesthetic
    ================================================================= */
-
-// ---- UTILS ----
-const haversine = (lat1, lng1, lat2, lng2) => {
-  const R = 3959, dLat = (lat2 - lat1) * Math.PI / 180, dLng = (lng2 - lng1) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
-  return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
-};
-const daysBetween = (a, b) => Math.max(1, Math.round((new Date(b + "T12:00:00") - new Date(a + "T12:00:00")) / 86400000));
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 // ---- ANIMATED COUNTER ----

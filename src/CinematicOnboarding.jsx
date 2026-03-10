@@ -212,7 +212,7 @@ export default function CinematicOnboarding({ userId, personalWorldId, onComplet
     } catch (err) {
       console.error('[onboarding] save home entry:', err)
     }
-  }, [userId])
+  }, [userId, personalWorldId])
 
   const handleSkip = useCallback(() => {
     setPhase(4)

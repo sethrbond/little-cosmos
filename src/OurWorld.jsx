@@ -1642,13 +1642,15 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   }, [data.entries]);
 
   // Show "On This Day" toast on load
+  // Note: TYPES/DEFAULT_TYPE are stable per world session (derived from worldType prop)
   useEffect(() => {
     if (onThisDay.length > 0 && introComplete) {
       const mem = onThisDay[0];
       const label = mem.yearsAgo === 1 ? "1 year ago today" : `${mem.yearsAgo} years ago today`;
-      showToast(`${label}: ${mem.city} ${(TYPES[mem.type] || DEFAULT_TYPE).icon}`, "💫", 5000);
+      const icon = (TYPES[mem.type] || DEFAULT_TYPE).icon;
+      showToast(`${label}: ${mem.city} ${icon}`, "💫", 5000);
     }
-  }, [onThisDay, introComplete, showToast]);
+  }, [onThisDay, introComplete, showToast]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- CONFIG LOAD ERROR NOTIFICATION ----
   useEffect(() => {
@@ -1769,7 +1771,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   // ---- FAVORITES ----
   const toggleFavorite = useCallback((id, currentFavorite) => {
     dispatch({ type: "UPDATE", id, data: { favorite: !currentFavorite } });
-  }, []);
+  }, [dispatch]);
 
   const favorites = useMemo(() => data.entries.filter(e => e.favorite), [data.entries]);
 
