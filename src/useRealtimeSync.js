@@ -140,10 +140,10 @@ export default function useRealtimeSync({
       .subscribe((status, err) => {
         if (status === 'SUBSCRIBED') {
           setIsConnected(true)
-          console.log(`[realtime] subscribed to ${tableName}`)
+          // connected
         } else if (status === 'CLOSED') {
           setIsConnected(false)
-          console.log(`[realtime] channel closed: ${tableName}`)
+          // disconnected
         } else if (status === 'CHANNEL_ERROR') {
           setIsConnected(false)
           console.error(`[realtime] channel error on ${tableName}:`, err)
@@ -167,7 +167,7 @@ export default function useRealtimeSync({
     if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current)
     const attempt = reconnectAttemptRef.current
     const delay = Math.min(1000 * Math.pow(2, attempt), 30000) // max 30s
-    console.log(`[realtime] reconnecting in ${delay}ms (attempt ${attempt + 1})`)
+    // exponential backoff reconnect
     reconnectTimerRef.current = setTimeout(() => {
       reconnectAttemptRef.current = attempt + 1
       subscribe()
@@ -198,13 +198,13 @@ export default function useRealtimeSync({
   // Online/offline handling
   useEffect(() => {
     function handleOnline() {
-      console.log('[realtime] network online — reconnecting')
+      // network restored
       reconnectAttemptRef.current = 0
       subscribe()
     }
 
     function handleOffline() {
-      console.log('[realtime] network offline')
+      // network lost
       setIsConnected(false)
     }
 
@@ -284,10 +284,10 @@ export function useRealtimePresence({
         setOnlineUsers(users)
       })
       .on('presence', { event: 'join' }, ({ key, newPresences }) => {
-        console.log(`[presence] ${key} joined world ${worldId}`)
+        // presence join
       })
       .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
-        console.log(`[presence] ${key} left world ${worldId}`)
+        // presence leave
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {

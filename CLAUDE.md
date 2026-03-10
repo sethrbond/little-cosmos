@@ -1,5 +1,5 @@
 # MY COSMOS — Complete Project Handoff for Claude Code
-### v11.0 | March 2026
+### v12.0 | March 2026
 
 ---
 
@@ -10,7 +10,7 @@
 **Live:** https://littlecosmos.app
 **Stack:** React 18 (Vite), Three.js r160 (vanilla, NOT React Three Fiber), Supabase (Postgres + Auth + Storage), Vercel hosting
 **Repo:** GitHub → auto-deploys to Vercel on push
-**Total codebase:** ~15,550 lines across 28 source files
+**Total codebase:** ~16,200 lines across 29 source files
 
 ---
 
@@ -20,37 +20,40 @@
 my-cosmos/
   CLAUDE.md                    ← this file (project context for Claude Code)
   src/
-    OurWorld.jsx               ← 5,139 lines. THE app. Single component, everything inline.
-    WorldSelector.jsx          ← 1,352 lines. "My Cosmos" cosmos dashboard + world management
-    App.jsx                    ← 339 lines. Auth gate, routing, invite handling, cinematic onboarding
-    CinematicOnboarding.jsx    ← 598 lines. First-time user experience with star field + city picker
-    AuthScreen.jsx             ← 165 lines. Login / signup / forgot password
-    AuthContext.jsx            ← 44 lines. React context for Supabase Auth session
-    WelcomeLetterScreen.jsx    ← 117 lines. Welcome letter display when invited
-    YearInReview.jsx           ← 885 lines. Animated annual travel recap (10 slides, starfield, counters)
-    TravelStats.jsx            ← 755 lines. Deep-dive statistics (heatmaps, charts, patterns, records)
-    PhotoMap.jsx               ← 735 lines. 2D SVG world map with photo pins, clustering, lightbox
-    Achievements.jsx           ← 626 lines. 31 badges across 6 categories, gamification layer
-    ExportHub.jsx              ← 818 lines. Multi-format export (JSON, CSV, HTML, KML, timeline)
+    OurWorld.jsx               ← 5,371 lines. THE app. Single component, everything inline.
+    WorldSelector.jsx          ← 1,663 lines. "My Cosmos" cosmos dashboard + world management
+    ExportHub.jsx              ← 907 lines. Multi-format export (JSON, CSV, HTML, KML, timeline)
+    YearInReview.jsx           ← 833 lines. Animated annual travel recap (10 slides, starfield, counters)
+    TravelStats.jsx            ← 764 lines. Deep-dive statistics (heatmaps, charts, patterns, records)
+    PhotoMap.jsx               ← 737 lines. 2D SVG world map with photo pins, clustering, lightbox
+    supabaseWorlds.js          ← 674 lines. World CRUD, members, invites, comments, reactions
+    Achievements.jsx           ← 642 lines. 31 badges across 6 categories, gamification layer
+    CinematicOnboarding.jsx    ← 603 lines. First-time user experience with star field + city picker
+    EntryForms.jsx             ← 582 lines. Shared UI primitives (TBtn, TBtnGroup, Lbl, Fld) + entry forms + OverlayBoundary
+    App.jsx                    ← 494 lines. Auth gate, routing, invite handling, cinematic onboarding
     TripCard.jsx               ← 470 lines. Shareable Instagram-style trip cards with Canvas download
-    KeyboardShortcuts.jsx      ← 241 lines. Keyboard shortcut reference overlay
-    ThemeProvider.jsx           ← 152 lines. Dark mode system (auto/light/dark, system preference)
-    ThemeToggle.jsx            ← 89 lines. Sun/moon theme toggle button
-    SyncIndicator.jsx          ← 92 lines. Real-time connection status dot
-    useRealtimeSync.js         ← 326 lines. Supabase Realtime subscriptions + presence hook
-    supabase.js                ← 318 lines. Our World + shared world DB factories
-    supabaseMyWorld.js         ← 232 lines. My World + friend world DB factories
-    supabaseWorlds.js          ← 490 lines. World CRUD, members, invites, comments, reactions
-    supabaseConnections.js     ← 67 lines. Friend connection requests
-    supabaseWelcomeLetters.js  ← 63 lines. Welcome letter DB operations
-    supabaseClient.js          ← 6 lines. Shared Supabase client instance
     worldConfigs.js            ← 350 lines. Palettes, types, scene configs per world type
-    geocode.js                 ← 33 lines. Nominatim geocoding with debounce
-    main.jsx                   ← 14 lines. Vite entry point + SW registration
+    useRealtimeSync.js         ← 314 lines. Supabase Realtime subscriptions + presence hook
+    supabase.js                ← 296 lines. Our World + shared world DB factories
+    LandingPage.jsx            ← 281 lines. Pre-login marketing page with feature showcase
+    KeyboardShortcuts.jsx      ← 241 lines. Keyboard shortcut reference overlay
+    supabaseMyWorld.js         ← 208 lines. My World + friend world (read-only) DB factories
+    AuthScreen.jsx             ← 174 lines. Login / signup / forgot password
+    WelcomeLetterScreen.jsx    ← 135 lines. Welcome letter display when invited
+    SyncIndicator.jsx          ← 86 lines. Real-time connection status dot
+    supabaseWelcomeLetters.js  ← 76 lines. Welcome letter DB operations
+    supabaseConnections.js     ← 67 lines. Friend connection requests
+    AuthContext.jsx            ← 51 lines. React context for Supabase Auth session
+    utils.js                   ← 48 lines. Shared utilities (haversine, daysBetween, country flags)
+    imageUtils.js              ← 41 lines. Photo thumbnail generation + preloading
+    supabaseClient.js          ← 35 lines. Shared Supabase client + withRetry, safeArray, cleanArray
+    geocode.js                 ← 34 lines. Nominatim geocoding with debounce
+    main.jsx                   ← 16 lines. Vite entry point + SW registration
   public/
-    manifest.json              ← PWA manifest
+    manifest.json              ← PWA manifest (installable on mobile/desktop)
     sw.js                      ← Service worker (cache-first assets, network-first API)
-    icons/icon.svg             ← App icon (globe SVG)
+    icons/icon.svg             ← App icon (globe SVG, Android/desktop)
+    icons/apple-touch-icon.png ← iOS app icon (180x180 dark globe PNG)
   docs/
     FULL_REBUILD.sql           ← 984 lines. Complete DB setup (idempotent, one-push deploy)
     COSMOS_ROADMAP_v91.md      ← Full roadmap document
@@ -115,8 +118,8 @@ Each world has 10 color pickers in Settings → "Theme & Colors":
    - Photo Journey (auto-play, crossfade, notes overlay)
    - Event handlers (drag, click, wheel, touch, keyboard)
    - JSX: globe, title, right panel, toolbar, search, filter, stats, detail card, forms, overlays, timeline, onboarding, celebrations
-9. **External components** (4688-5094) — `inpSt`, `navSt`, `TBtn`, `Lbl`, `Fld`, `QuickAddForm`, `DreamAddForm`, `AddForm`, `EditForm`
-10. **Export** (5096) — wraps OurWorldInner in ErrorBoundary, passes all world props
+9. **External components** — moved to `EntryForms.jsx`: `inpSt`, `navSt`, `TBtn`, `TBtnGroup`, `Lbl`, `Fld`, `QuickAddForm`, `DreamAddForm`, `AddForm`, `EditForm`, `OverlayBoundary`
+10. **Export** — wraps OurWorldInner in ErrorBoundary, passes all world props
 
 ---
 
@@ -127,7 +130,7 @@ Each world has 10 color pickers in Settings → "Theme & Colors":
 
 ### Tables (11 total)
 
-**Core data:** entries, config, my_entries, my_config
+**Core data:** entries, config (all world types share these via world_id)
 **Multi-user:** worlds, world_members, world_invites
 **Social:** entry_comments, entry_reactions
 **Sharing:** welcome_letters, cosmos_connections
@@ -212,22 +215,33 @@ Run `docs/FULL_REBUILD.sql` in Supabase SQL Editor — idempotent, creates all t
 - Sync indicator (green/red connection dot)
 - Comments & reactions on shared world entries
 - Export Hub (JSON backup, CSV, standalone HTML report, KML/Google Earth, timeline text)
-- Error boundary
+- Error boundaries (OurWorldErrorBoundary, ScreenErrorBoundary, OverlayBoundary on all lazy overlays)
 - Mobile responsive
+- PWA (installable, service worker, offline shell, iOS/Android icons)
+- Friend world viewing (read-only orbs in cosmos, click to explore)
+- Cosmos connections (send/accept/decline friend requests, view friend's personal world)
+- Landing page (pre-login marketing with feature showcase)
+- Escape key closes ALL overlays (22+ modals/panels handled)
 - Easter egg ("you are my world" visible when zoomed all the way out on partner worlds)
 
 ---
 
 ## KNOWN ISSUES (cosmetic, not blocking)
 
-1. **`ambientMusicUrl` in config** — persistence exists but settings UI for it may be incomplete.
-2. ~~**No error boundary on WorldSelector or CinematicOnboarding**~~ — FIXED: both wrapped in ScreenErrorBoundary.
-3. **Accessibility is basic** — aria labels on toolbar/buttons/modals, but no keyboard nav for globe or focus trapping.
-4. ~~**Duplicate `heartPulse` keyframe**~~ — FIXED: removed duplicate from loading screen, single definition at 1.06.
-5. ~~**ThemeProvider not wired**~~ — FIXED: ThemeProvider deleted (dead code), dark mode handled in config.
-6. ~~**Forms use Our World colors in My World**~~ — FIXED: module-level P is mutated via window.__cosmosP when world mode changes.
-7. ~~**Seasonal tinting bug**~~ — FIXED: `&&` → `||` no longer present, correct ranges confirmed.
-8. ~~**my_entries/my_config separate tables**~~ — FIXED: consolidated into entries/config with world_id.
+1. **Accessibility is basic** — aria labels on toolbar/buttons/modals, but no keyboard nav for globe or focus trapping in modals.
+2. **No automated tests** — manual QA only. No Jest/RTL/E2E tests.
+3. **OurWorld.jsx is 5,371 lines** — works but hard to maintain. Future refactor target.
+4. **No log aggregation** — 100+ console.error calls with no external monitoring (Sentry/LogRocket).
+5. **No entry pagination** — fetches all entries at once. OK at current scale (<200), needs work at 1000+.
+
+### Previously Fixed
+- ~~ambientMusicUrl incomplete~~ — FIXED: settings has URL input + Test button, audio syncs via onPlay/onPause/onError
+- ~~No error boundary on overlays~~ — FIXED: OverlayBoundary wraps all 6 lazy-loaded components
+- ~~Duplicate heartPulse keyframe~~ — FIXED: single definition at 1.06
+- ~~Forms use Our World colors in My World~~ — FIXED: module-level P mutated via window.__cosmosP
+- ~~Seasonal tinting bug~~ — FIXED: correct ranges confirmed
+- ~~my_entries/my_config separate tables~~ — FIXED: consolidated into entries/config with world_id
+- ~~Night shadow wrong direction~~ — FIXED: sunAngle formula corrected for ll2v coordinate system
 
 ---
 
@@ -276,3 +290,4 @@ Run `docs/FULL_REBUILD.sql` in Supabase SQL Editor — idempotent, creates all t
 - **Session 18 (Claude Code):** Full audit — 7 bug fixes (photo reorder, pulse animation, starTint, firstTrip/lastTrip, activity feed nav, glow colors, photo slideshow), milestone badges, enhanced onboarding per world type, onboard version reset, 300+ lines dead code removed, User-Agent update
 - **Session 19 (Claude Code):** 11 new components built via 10 parallel agents — Year-in-Review (885 lines, 10-slide animated recap), TripCard (470 lines, Instagram-style cards), TravelStats (755 lines, deep-dive with heatmaps/charts), PhotoMap (735 lines, SVG world map with pins), Achievements (626 lines, 31 badges), ExportHub (818 lines, 5 export formats), ThemeProvider/ThemeToggle (241 lines, dark mode system), KeyboardShortcuts (241 lines), useRealtimeSync (326 lines, Supabase Realtime + presence), SyncIndicator (92 lines). Full audit: fixed anniversary deps, setConfig deps, loadWorldEntryCounts N+1, dead code, duplicate title logic. +5,284 lines.
 - **Session 20 (Claude Code):** Visual effects sprint — shooting stars (5-pool meteors), aurora mood shift (entry type color blending), search glow (marker pulse/dim), comet arrival (Bezier arc + burst particles + flash), night shadow (GLSL shader, UTC sun position), hover tooltips (photo peek), Surprise Me button (🎲 cinematic zoom), keyboard shortcut R (random). Performance audit: cached THREE.Color in aurora, reused Vector3 in meteors, fixed _baseOpacity race condition, added precision highp float to shader, skip-when-stable aurora optimization.
+- **Session 21 (Claude Code):** Production polish sprint — Fixed night shadow sun direction (sunAngle formula corrected for ll2v coords). Restored TBtnGroup toolbar with chevron indicator. PWA setup (manifest.json, service worker, SVG/PNG icons, meta tags, SW registration). Accessibility pass (aria-label on TBtn/TBtnGroup, role=toolbar, role=dialog on confirm modal). Comprehensive audit (16,200 lines, 29 files): fixed heartPulse duplicate, extended Escape handler to close all 22+ modals, OverlayBoundary error boundary on 6 lazy components, ambient music state sync + URL validation + Test button, iOS apple-touch-icon PNG. Stale state audit: all 55 useState, 29 useRef, 22 useCallback, 28 useMemo confirmed active — zero dead code. Confirmed friend world viewing + cosmos connections ARE fully wired (was not a bug). Updated CLAUDE.md to v12.

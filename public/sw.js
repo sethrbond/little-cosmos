@@ -1,18 +1,17 @@
-/* Little Cosmos — Service Worker (cache-first for assets, network-first for API) */
+/* Little Cosmos — Service Worker
+   Strategy:
+   - Navigation (HTML): network-first (always get latest), cache fallback for offline
+   - Hashed assets (/assets/*): cache-first (immutable, Vite content-hashes filenames)
+   - Other static files: stale-while-revalidate (serve cached, update in background)
+   - Supabase/API: skip (let browser handle auth tokens, realtime WebSocket)
+*/
 
-const CACHE_NAME = 'cosmos-v1';
-const STATIC_ASSETS = ['/', '/index.html'];
+const CACHE_NAME = 'cosmos-v2';
 
-// Install — cache shell
-self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(STATIC_ASSETS))
-      .then(() => self.skipWaiting())
-  );
-});
+// Install — skip waiting to activate immediately
+self.addEventListener('install', () => self.skipWaiting());
 
-// Activate — clean old caches
+// Activate — claim clients + purge old caches
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
@@ -23,41 +22,58 @@ self.addEventListener('activate', e => {
   );
 });
 
-// Fetch — network-first for API/auth, cache-first for static assets
+// Fetch handler
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
-  // Skip non-GET, Supabase API, auth, and realtime
+  // Skip: non-GET, Supabase, WebSocket, chrome-extension
   if (e.request.method !== 'GET') return;
   if (url.hostname.includes('supabase')) return;
-  if (url.pathname.startsWith('/auth')) return;
+  if (url.protocol === 'chrome-extension:') return;
 
-  // For navigation requests (HTML), network-first with cache fallback
+  // Navigation (HTML pages) — network-first, cache fallback for offline
   if (e.request.mode === 'navigate') {
     e.respondWith(
       fetch(e.request)
         .then(res => {
           const clone = res.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
+          caches.open(CACHE_NAME).then(c => c.put(e.request, clone));
           return res;
         })
-        .catch(() => caches.match(e.request) || caches.match('/'))
+        .catch(() => caches.match(e.request).then(c => c || caches.match('/')))
     );
     return;
   }
 
-  // For static assets (JS, CSS, images, fonts), cache-first
-  if (url.pathname.match(/\.(js|css|png|jpg|jpeg|svg|woff2?|ico)$/)) {
+  // Vite hashed assets (/assets/index-abc123.js) — cache-first (immutable)
+  if (url.pathname.startsWith('/assets/')) {
     e.respondWith(
       caches.match(e.request).then(cached => {
         if (cached) return cached;
         return fetch(e.request).then(res => {
           if (res.ok) {
             const clone = res.clone();
-            caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
+            caches.open(CACHE_NAME).then(c => c.put(e.request, clone));
           }
           return res;
         });
+      })
+    );
+    return;
+  }
+
+  // Other static files (icons, manifest, og-image) — stale-while-revalidate
+  if (url.pathname.match(/\.(js|css|png|jpg|jpeg|svg|woff2?|ico|json|webp)$/)) {
+    e.respondWith(
+      caches.match(e.request).then(cached => {
+        const fetchPromise = fetch(e.request).then(res => {
+          if (res.ok) {
+            const clone = res.clone();
+            caches.open(CACHE_NAME).then(c => c.put(e.request, clone));
+          }
+          return res;
+        }).catch(() => cached);
+        return cached || fetchPromise;
       })
     );
     return;
