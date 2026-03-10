@@ -9,7 +9,7 @@ import { useState, useRef, useEffect } from 'react'
  *   palette      (object)    — optional, { primary, text, bg } for theming
  *   style        (object)    — optional, extra styles on the wrapper
  */
-export default function SyncIndicator({ isConnected, lastSync, palette = {}, style = {} }) {
+export default function SyncIndicator({ isConnected, lastSync, pendingOffline = 0, palette = {}, style = {} }) {
   const [hovering, setHovering] = useState(false)
   const injectedRef = useRef(false)
 
@@ -26,9 +26,10 @@ export default function SyncIndicator({ isConnected, lastSync, palette = {}, sty
     injectedRef.current = true
   }, [])
 
-  const dotColor = isConnected ? '#4ade80' : '#f87171'
-  const pulseColor = isConnected ? 'rgba(74,222,128,0.4)' : 'rgba(248,113,113,0.4)'
-  const label = isConnected ? 'Connected' : 'Disconnected'
+  const hasOffline = pendingOffline > 0
+  const dotColor = hasOffline ? '#facc15' : isConnected ? '#4ade80' : '#f87171'
+  const pulseColor = hasOffline ? 'rgba(250,204,21,0.4)' : isConnected ? 'rgba(74,222,128,0.4)' : 'rgba(248,113,113,0.4)'
+  const label = hasOffline ? `${pendingOffline} pending` : isConnected ? 'Connected' : 'Disconnected'
   const syncText = lastSync
     ? `Last sync: ${(lastSync instanceof Date ? lastSync : new Date(lastSync)).toLocaleTimeString()}`
     : 'No sync events yet'
@@ -80,6 +81,7 @@ export default function SyncIndicator({ isConnected, lastSync, palette = {}, sty
         lineHeight: 1.4,
       }}>
         <div style={{ fontWeight: 600, marginBottom: 2 }}>{label}</div>
+        {hasOffline && <div style={{ opacity: 0.85, fontSize: 10, color: '#facc15' }}>Will sync when online</div>}
         <div style={{ opacity: 0.75, fontSize: 10 }}>{syncText}</div>
       </div>
     </div>

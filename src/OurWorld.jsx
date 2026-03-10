@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { createOurWorldDB, createSharedWorldDB } from "./supabase.js";
 import { createMyWorldDB, createFriendWorldDB } from "./supabaseMyWorld.js";
 import { useAuth } from "./AuthContext.jsx";
+import { wrapDbForOffline, onQueueChange, flushQueue } from "./offlineQueue.js";
 
 // Lazy-loaded overlay components — code-split, only loaded when user opens them
 const PhotoMap = lazy(() => import("./PhotoMap.jsx"));
@@ -912,12 +913,29 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   }, [isMyWorld, isFriendWorld, worldName, worldType]);
 
   // DB functions selected by mode, scoped to current user or shared world
-  const db = useMemo(() => {
+  const _rawDb = useMemo(() => {
     if (isFriendWorld) return createFriendWorldDB(worldId);
     if (isMyWorld) return createMyWorldDB(worldId, userId);
     if (isSharedWorld) return createSharedWorldDB(worldId, userId);
     return createOurWorldDB(userId);
   }, [isMyWorld, isFriendWorld, isSharedWorld, worldId, userId]);
+  const dbKey = useMemo(() => `${worldId || 'default'}-${userId}`, [worldId, userId]);
+  const db = useMemo(() => isFriendWorld ? _rawDb : wrapDbForOffline(_rawDb, dbKey), [_rawDb, dbKey, isFriendWorld]);
+
+  // Offline queue: pending count + flush on reconnect
+  const [pendingOffline, setPendingOffline] = useState(0);
+  useEffect(() => {
+    const unsub = onQueueChange(setPendingOffline);
+    const handleOnline = () => {
+      flushQueue({ [dbKey]: _rawDb }).then(({ flushed }) => {
+        if (flushed > 0) showToast(`${flushed} offline ${flushed === 1 ? 'change' : 'changes'} synced`, "☁️", 3000);
+      });
+    };
+    window.addEventListener('online', handleOnline);
+    // Attempt flush on mount if online
+    if (navigator.onLine) handleOnline();
+    return () => { unsub(); window.removeEventListener('online', handleOnline); };
+  }, [dbKey, _rawDb]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [data, _dispatch] = useReducer(reducer, { entries: [] });
   const dispatch = useCallback(action => _dispatch({ ...action, db }), [db]);
@@ -3377,12 +3395,13 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   }, []);
 
   const handlePhotos = useCallback((id) => {
+    if (!navigator.onLine) { showToast("Photos can't be uploaded while offline", "📵", 3000); return; }
     photoEntryIdRef.current = id;
     if (fileInputRef.current) {
       fileInputRef.current.value = ""; // reset
       fileInputRef.current.click();
     }
-  }, []);
+  }, [showToast]);
 
   const cur = selected ? data.entries.find(e => e.id === selected.id) : null;
   const totalDays = Math.max(1, daysBetween(config.startDate, todayStr()));
@@ -3656,7 +3675,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         {data.entries.length > 0 && <TBtn onClick={() => setShowExportHub(true)} tip="Export">📤</TBtn>}
         {data.entries.length > 0 && <TBtn onClick={() => setShowYearReview(true)} tip="Year in Review">🎬</TBtn>}
         {onSwitchWorld && <TBtn onClick={() => { flushConfigSave(); onSwitchWorld(); }} tip="Switch World">🔄</TBtn>}
-        <SyncIndicator isConnected={realtimeConnected} lastSync={lastSync} palette={{ bg: SC.bg, text: P.text }} style={{ margin: '4px auto' }} />
+        <SyncIndicator isConnected={realtimeConnected} lastSync={lastSync} pendingOffline={pendingOffline} palette={{ bg: SC.bg, text: P.text }} style={{ margin: '4px auto' }} />
         <TBtn onClick={() => setConfirmModal({ message: "Sign out of My Cosmos?", onConfirm: () => signOut() })} tip="Sign Out">🚪</TBtn>
       </div>
 
