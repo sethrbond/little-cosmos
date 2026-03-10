@@ -1580,7 +1580,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     setToasts(prev => [...prev.slice(-4), t]); // keep max 5
   }, []);
   const dismissToast = useCallback((key) => {
-    setToasts(prev => prev.filter(t => t.key !== key));
+    setToasts(prev => prev.map(t => t.key === key ? { ...t, exiting: true } : t));
+    setTimeout(() => setToasts(prev => prev.filter(t => t.key !== key)), 300);
   }, []);
   const handleUndo = useCallback((toast) => {
     if (toast?.undoAction) toast.undoAction();
@@ -3373,7 +3374,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       {/* TITLE */}
       <div style={{ position: "absolute", top: 22, left: 0, right: 0, textAlign: "center", zIndex: 10, pointerEvents: "none", opacity: ready ? 1 : 0, transform: ready ? "none" : "translateY(-12px)", transition: "all 1.8s cubic-bezier(.23,1,.32,1)" }}>
         <h1 style={{ fontSize: 28, fontWeight: 400, margin: 0, letterSpacing: ".2em", textTransform: "uppercase", color: "#f0e8d8", textShadow: "0 1px 12px rgba(0,0,0,0.5), 0 0 40px rgba(255,255,255,0.12)" }}>{config.title}</h1>
-        <p style={{ fontSize: 11, color: "#c8bca8", marginTop: 3, letterSpacing: ".35em", fontStyle: "italic", textShadow: "0 1px 8px rgba(0,0,0,0.4)" }}>{config.subtitle}</p>
+        <p style={{ fontSize: 12, color: "#d8cebb", marginTop: 3, letterSpacing: ".3em", fontStyle: "italic", textShadow: "0 1px 8px rgba(0,0,0,0.5)" }}>{config.subtitle}</p>
         {isPartnerWorld && isAnniversary && <div style={{ fontSize: 11, color: P.heart, marginTop: 6, letterSpacing: ".15em", animation: "heartPulse 2s ease infinite" }}>✨ Happy Anniversary ✨</div>}
       </div>
 
@@ -5047,7 +5048,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       {toasts.length > 0 && (
         <div style={{ position: "absolute", bottom: 120, left: "50%", transform: "translateX(-50%)", zIndex: 55, display: "flex", flexDirection: "column-reverse", gap: 6, alignItems: "center", maxHeight: "30vh", overflow: "hidden", maxWidth: "90vw" }}>
           {toasts.map((t, i) => (
-            <div key={t.key} style={{ pointerEvents: t.undoAction ? "auto" : "none", animation: "fadeIn .3s ease", opacity: i < toasts.length - 1 ? 0.7 : 1, transform: `scale(${i < toasts.length - 1 ? 0.95 : 1})`, transition: "opacity .2s, transform .2s" }}>
+            <div key={t.key} style={{ pointerEvents: t.undoAction ? "auto" : "none", animation: t.exiting ? undefined : "fadeIn .3s ease", opacity: t.exiting ? 0 : (i < toasts.length - 1 ? 0.7 : 1), transform: `scale(${t.exiting ? 0.9 : (i < toasts.length - 1 ? 0.95 : 1)})${t.exiting ? " translateY(8px)" : ""}`, transition: "opacity .3s, transform .3s" }}>
               <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 18px", background: P.card, backdropFilter: "blur(16px)", borderRadius: 24, boxShadow: "0 4px 20px rgba(0,0,0,.1)", border: `1px solid ${P.rose}15`, fontSize: 12, color: P.text, letterSpacing: ".05em", whiteSpace: "nowrap" }}>
                 <span>{t.icon}</span>
                 <span>{t.message}</span>

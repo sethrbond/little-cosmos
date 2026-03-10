@@ -976,9 +976,9 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       {/* Center label */}
       <div ref={makeLabelRef("my")} data-hov="false" style={{ position: "absolute", left: 0, top: 0, transform: "translate(-50%, -50%)", textAlign: "center", pointerEvents: "none", transition: "opacity .15s", opacity: 0 }}>
         <div style={{ fontSize: hovered === "my" ? 24 : 20, fontWeight: 500, color: "#e8dcc8", letterSpacing: "2px", textShadow: "0 0 24px rgba(208,176,128,0.5), 0 2px 10px rgba(0,0,0,0.6)", transition: "font-size .2s" }}>My World</div>
-        <div style={{ fontSize: 11, color: "#d4c8b0", marginTop: 4, letterSpacing: "1.5px", fontWeight: 400, textTransform: "uppercase", textShadow: "0 0 12px rgba(208,176,128,0.4), 0 1px 6px rgba(0,0,0,0.6)" }}>{myWorldSubtitle ?? "Travel Diary"}</div>
+        <div style={{ fontSize: 12, color: "#e0d4be", marginTop: 4, letterSpacing: "1.5px", fontWeight: 400, textTransform: "uppercase", textShadow: "0 0 12px rgba(208,176,128,0.5), 0 1px 6px rgba(0,0,0,0.7)" }}>{myWorldSubtitle ?? "Travel Diary"}</div>
         {myEntryCount > 0 && (
-          <div style={{ fontSize: 9, color: "#c0b498", marginTop: 3, letterSpacing: "0.5px", textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}>{myEntryCount} {myEntryCount === 1 ? "entry" : "entries"}</div>
+          <div style={{ fontSize: 10, color: "#d0c4a8", marginTop: 3, letterSpacing: "0.5px", textShadow: "0 1px 6px rgba(0,0,0,0.7)" }}>{myEntryCount} {myEntryCount === 1 ? "entry" : "entries"}</div>
         )}
       </div>
 
@@ -995,7 +995,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
             )}
           </div>
           {entryCounts[w.id] > 0 && (
-            <div style={{ fontSize: 9, color: `${w.glowColor || w.color}`, marginTop: 2, letterSpacing: "0.5px", opacity: 0.7, textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}>{entryCounts[w.id]} {entryCounts[w.id] === 1 ? "entry" : "entries"}</div>
+            <div style={{ fontSize: 10, color: `${w.glowColor || w.color}`, marginTop: 2, letterSpacing: "0.5px", opacity: 0.9, textShadow: "0 1px 6px rgba(0,0,0,0.7)" }}>{entryCounts[w.id]} {entryCounts[w.id] === 1 ? "entry" : "entries"}</div>
           )}
           {hovered === w.id && !w.id.startsWith("friend-") && (
             <div style={{ display: "flex", gap: 6, marginTop: 6, justifyContent: "center" }}>
@@ -1076,7 +1076,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
             Invite to Cosmos
           </button>
         </div>
-        <div style={{ fontSize: 9, color: "#605868", marginTop: 8, letterSpacing: "1.5px", textAlign: "center", textTransform: "uppercase" }}>drag to orbit · scroll or pinch to zoom</div>
+        <div style={{ fontSize: 10, color: "#807090", marginTop: 8, letterSpacing: "1.5px", textAlign: "center", textTransform: "uppercase" }}>drag to orbit · scroll or pinch to zoom</div>
       </div>
 
       {/* Top right controls — glassmorphic */}

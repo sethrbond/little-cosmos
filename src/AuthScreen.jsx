@@ -19,7 +19,7 @@ const card = {
 }
 
 const inp = {
-  width: '100%', padding: '10px 14px',
+  width: '100%', padding: '12px 14px', minHeight: 44,
   background: 'rgba(255,255,255,0.06)',
   border: '1px solid rgba(255,255,255,0.12)',
   borderRadius: 8, color: '#e8e0d0',
