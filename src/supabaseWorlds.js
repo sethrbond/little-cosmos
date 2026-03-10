@@ -61,6 +61,9 @@ export async function ensurePersonalWorld(userId) {
 // ---- WORLDS ----
 
 export async function createWorld(userId, name, type = 'shared', { youName = '', partnerName = '', members = [] } = {}) {
+  // Validate world type
+  const allowedTypes = ['personal', 'shared', 'partner', 'friends', 'family']
+  if (!allowedTypes.includes(type)) type = 'shared'
   const isGroupWorld = type === 'friends' || type === 'family'
   const memberNames = isGroupWorld ? members.map(m => ({ name: m.name || m })) : []
 
@@ -227,8 +230,20 @@ export async function leaveWorld(worldId, userId) {
   } catch (err) { console.error('[leaveWorld] exception:', err); return false }
 }
 
-export async function removeWorldMember(worldId, memberId) {
+export async function removeWorldMember(worldId, memberId, callerUserId) {
   try {
+    // Verify caller is the world owner before removing a member
+    if (callerUserId) {
+      const { data: callerMembership } = await supabase
+        .from('world_members')
+        .select('role')
+        .eq('world_id', worldId)
+        .eq('user_id', callerUserId)
+        .maybeSingle()
+      if (!callerMembership || callerMembership.role !== 'owner') {
+        console.error('[removeWorldMember] caller is not owner'); return false
+      }
+    }
     const { error } = await supabase
       .from('world_members')
       .delete()
@@ -276,6 +291,9 @@ export async function updateMemberRole(memberId, newRole) {
 // ---- INVITES ----
 
 export async function createInvite(worldId, userId, role = 'member', maxUses = 1, targetEmail = null) {
+  // Validate role to prevent privilege escalation
+  const allowedRoles = ['member', 'viewer']
+  if (!allowedRoles.includes(role)) role = 'member'
   const token = crypto.randomUUID().replace(/-/g, '').slice(0, 16)
   const row = { world_id: worldId, token, created_by: userId, role, max_uses: maxUses }
   if (targetEmail) row.target_email = targetEmail.toLowerCase()
@@ -461,13 +479,16 @@ export async function getPendingWorldInvites(userEmail) {
       .eq('to_email', email)
       .eq('read', false)
 
-    for (const letter of (letters || [])) {
-      if (letter.invite_token) {
-        const { data: inv } = await supabase
-          .from('world_invites')
-          .select('token, world_id, max_uses, use_count, worlds(name, type)')
-          .eq('token', letter.invite_token)
-          .maybeSingle()
+    const letterTokens = (letters || []).filter(l => l.invite_token).map(l => l.invite_token)
+    if (letterTokens.length > 0) {
+      const { data: invites } = await supabase
+        .from('world_invites')
+        .select('token, world_id, max_uses, use_count, worlds(name, type)')
+        .in('token', letterTokens)
+      const invByToken = {}
+      for (const inv of (invites || [])) invByToken[inv.token] = inv
+      for (const letter of (letters || [])) {
+        const inv = letter.invite_token ? invByToken[letter.invite_token] : null
         if (inv && !seenTokens.has(inv.token) && !memberWorldIds.has(inv.world_id) &&
             (inv.max_uses === null || inv.use_count < inv.max_uses)) {
           seenTokens.add(inv.token)

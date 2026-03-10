@@ -193,6 +193,7 @@ export default function LandingPage({ onSignIn, onSignUp }) {
           animation: 'landingBounce 2s ease-in-out infinite',
         }}>
           ↓
+        </div>
       </section>
 
       {/* Features */}

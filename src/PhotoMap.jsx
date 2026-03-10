@@ -122,6 +122,7 @@ export default function PhotoMap({ entries = [], palette, onClose, worldMode }) 
   // Dragging handlers
   const onPointerDown = useCallback((e) => {
     if (e.target.closest("[data-pin]") || e.target.closest("[data-control]")) return;
+    e.target.setPointerCapture?.(e.pointerId);
     setDragging(true);
     draggingRef.current = true;
     dragStart.current = { x: e.clientX, y: e.clientY };

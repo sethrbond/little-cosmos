@@ -30,7 +30,7 @@ export default function SyncIndicator({ isConnected, lastSync, palette = {}, sty
   const pulseColor = isConnected ? 'rgba(74,222,128,0.4)' : 'rgba(248,113,113,0.4)'
   const label = isConnected ? 'Connected' : 'Disconnected'
   const syncText = lastSync
-    ? `Last sync: ${lastSync.toLocaleTimeString()}`
+    ? `Last sync: ${(lastSync instanceof Date ? lastSync : new Date(lastSync)).toLocaleTimeString()}`
     : 'No sync events yet'
 
   return (

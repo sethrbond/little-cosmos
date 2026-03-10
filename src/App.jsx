@@ -154,10 +154,19 @@ function AppInner() {
   const [confirmModal, setConfirmModal] = useState(null)
   const [errorToast, setErrorToast] = useState(null)
   const errorToastTimer = useRef(null)
+  const transitionTimers = useRef([])
   const showErrorToast = useCallback((msg) => {
     if (errorToastTimer.current) clearTimeout(errorToastTimer.current)
     setErrorToast(msg)
     errorToastTimer.current = setTimeout(() => { setErrorToast(null); errorToastTimer.current = null }, 4000)
+  }, [])
+
+  // Cleanup all tracked timers on unmount
+  useEffect(() => {
+    return () => {
+      clearTimeout(errorToastTimer.current)
+      transitionTimers.current.forEach(clearTimeout)
+    }
   }, [])
 
   // User's display name from auth metadata
@@ -243,14 +252,9 @@ function AppInner() {
     if (!userId || !worldsLoaded) return
     const hasVisited = safeGet(obKey(`cosmos_hasVisited_${userId}`))
     if (!hasVisited) {
-      // Clear any worldMode that invite processing might have set
-      if (worldMode) {
-        safeRemove('worldMode')
-        setWorldMode(null)
-      }
       setShowCinematic(true)
     }
-  }, [userId, worldsLoaded, worldMode])
+  }, [userId, worldsLoaded])
 
   // Dynamic document title
   useEffect(() => {
@@ -276,7 +280,7 @@ function AppInner() {
     setTransitioning(true)
 
     // Delay the actual world mount until zoom animation completes
-    setTimeout(() => {
+    const t1 = setTimeout(() => {
       safeSet('worldMode', mode)
       setWorldMode(mode)
       if (worldId) {
@@ -299,8 +303,10 @@ function AppInner() {
         setActiveWorldType(null)
       }
       // Keep overlay briefly while OurWorld initializes
-      setTimeout(() => setTransitioning(false), 400)
+      const t2 = setTimeout(() => setTransitioning(false), 400)
+      transitionTimers.current.push(t2)
     }, 600)
+    transitionTimers.current.push(t1)
   }, [])
 
   const switchWorld = useCallback(() => {
@@ -308,7 +314,7 @@ function AppInner() {
     setTransitionColor('#0c0a12')
     setTransitioning(true)
 
-    setTimeout(() => {
+    const t1 = setTimeout(() => {
       safeRemove('worldMode')
       safeRemove('activeWorldId')
       safeRemove('activeWorldName')
@@ -321,7 +327,8 @@ function AppInner() {
       setActiveWorldType(null)
 
       // Clear overlay after WorldSelector has time to mount its scene
-      setTimeout(() => setTransitioning(false), 500)
+      const t2 = setTimeout(() => setTransitioning(false), 500)
+      transitionTimers.current.push(t2)
 
       // Refresh data in background (WorldSelector already has previous data to render with)
       if (userId) {
@@ -341,6 +348,7 @@ function AppInner() {
         }).catch(err => console.error('[switchWorld] refresh error:', err))
       }
     }, 400)
+    transitionTimers.current.push(t1)
   }, [userId, user?.email])
 
   // Show auth screen as soon as we know there's no user (don't wait for letter/worlds)
@@ -496,7 +504,7 @@ function AppInner() {
             <div style={{ fontSize: 13, color: '#e8e0d0', lineHeight: 1.6, marginBottom: 20, fontFamily: 'inherit', whiteSpace: 'pre-line' }}>{confirmModal.message}</div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
               <button onClick={() => setConfirmModal(null)} style={{ padding: '8px 20px', background: 'transparent', border: '1px solid rgba(184,174,200,0.2)', borderRadius: 10, color: '#a098a8', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
-              <button onClick={() => { setConfirmModal(null); confirmModal.onConfirm(); }} style={{ padding: '8px 20px', background: 'rgba(196,138,168,0.12)', border: '1px solid rgba(196,138,168,0.2)', borderRadius: 10, color: '#c48aa8', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>{confirmModal.confirmLabel || 'Confirm'}</button>
+              <button onClick={() => { const fn = confirmModal.onConfirm; setConfirmModal(null); fn(); }} style={{ padding: '8px 20px', background: 'rgba(196,138,168,0.12)', border: '1px solid rgba(196,138,168,0.2)', borderRadius: 10, color: '#c48aa8', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>{confirmModal.confirmLabel || 'Confirm'}</button>
             </div>
           </div>
         </div>

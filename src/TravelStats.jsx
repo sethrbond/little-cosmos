@@ -223,7 +223,9 @@ export default function TravelStats({ entries = [], stats = {}, palette: P, onCl
       const m = new Date(e.dateStart + "T12:00:00").getMonth();
       monthCounts[m]++;
     });
-    const busiestMonth = MONTHS[monthCounts.indexOf(Math.max(...monthCounts))];
+    const maxMonthCount = Math.max(...monthCounts);
+    const busiestMonthIdx = monthCounts.indexOf(maxMonthCount);
+    const busiestMonth = busiestMonthIdx >= 0 ? MONTHS[busiestMonthIdx] : "—";
 
     // Longest gap
     let longestGap = 0, longestGapBetween = null;
@@ -315,23 +317,21 @@ export default function TravelStats({ entries = [], stats = {}, palette: P, onCl
     const byYear = {};
     sorted.forEach(e => {
       const y = new Date(e.dateStart + "T12:00:00").getFullYear();
-      if (!byYear[y]) byYear[y] = { trips: 0, days: 0, countries: new Set(), cities: new Set(), miles: 0, photos: 0, entries: [] };
+      if (!byYear[y]) byYear[y] = { trips: 0, days: 0, countries: new Set(), cities: new Set(), miles: 0, photos: 0 };
       byYear[y].trips++;
       byYear[y].days += daysBetween(e.dateStart, e.dateEnd || e.dateStart);
       if (e.country) byYear[y].countries.add(e.country);
       if (e.city) byYear[y].cities.add(e.city);
       byYear[y].photos += (e.photos || []).length;
-      byYear[y].entries.push(e);
     });
-    // Add miles
+    // Add miles — attribute to the year of the trip's start date
     sorted.forEach((e, i) => {
       if (i === 0) return;
-      const y = new Date(e.dateStart + "T12:00:00").getFullYear();
-      {
-        const prev = sorted[i - 1];
-        if (prev.lat != null && prev.lng != null && e.lat != null && e.lng != null) {
-          byYear[y].miles += haversine(prev.lat, prev.lng, e.lat, e.lng);
-        }
+      const prev = sorted[i - 1];
+      if (prev.lat != null && prev.lng != null && e.lat != null && e.lng != null) {
+        // Attribute travel distance to the year where the trip started
+        const y = new Date(e.dateStart + "T12:00:00").getFullYear();
+        if (byYear[y]) byYear[y].miles += haversine(prev.lat, prev.lng, e.lat, e.lng);
       }
     });
     const years = Object.keys(byYear).map(Number).sort();
@@ -567,7 +567,7 @@ export default function TravelStats({ entries = [], stats = {}, palette: P, onCl
                   <div style={{ fontSize: 12, color: "#9088a8", fontWeight: 600, marginBottom: 4 }}>Furthest from Home</div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: accent }}>{distRecords.furthest.city}</div>
                   <div style={{ fontSize: 13, color: "#b0acc0" }}>
-                    {distRecords.furthestDist.toLocaleString()} miles away
+                    {Math.round(distRecords.furthestDist).toLocaleString()} miles away
                   </div>
                 </div>
               )}
@@ -580,7 +580,7 @@ export default function TravelStats({ entries = [], stats = {}, palette: P, onCl
                   <div style={{ fontSize: 12, color: "#9088a8", fontWeight: 600, marginBottom: 4 }}>Longest Trip Distance</div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: accent2 }}>{distRecords.longestTrip.city}</div>
                   <div style={{ fontSize: 13, color: "#b0acc0" }}>
-                    {distRecords.longestTripDist.toLocaleString()} miles
+                    {Math.round(distRecords.longestTripDist).toLocaleString()} miles
                   </div>
                 </div>
               )}

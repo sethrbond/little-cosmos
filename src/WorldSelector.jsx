@@ -9,6 +9,8 @@ import { sendWelcomeLetter } from "./supabaseWelcomeLetters.js";
    Friend worlds orbit at a further distance.
    Camera can be dragged/orbited to view from any angle. */
 
+const isTouchDevice = typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
+
 const CENTER = {
   id: "my",
   label: "My World",
@@ -199,6 +201,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
   })), [friendWorlds]);
 
   const ALL_ORBS = useMemo(() => [...WORLDS, ...FRIEND_ORBS], [WORLDS, FRIEND_ORBS]);
+  const orbIdsKey = useMemo(() => ALL_ORBS.map(o => o.id).join(','), [ALL_ORBS]);
 
   // Stable key so activity doesn't reload on worlds reference change
   const worldIdsKey = useMemo(() => worlds.map(w => w.id).join(','), [worlds]);
@@ -221,7 +224,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     if (personalWorldId) m[personalWorldId] = "My World";
     worlds.forEach(w => { m[w.id] = w.name; });
     return m;
-  }, [worlds]);
+  }, [worlds, personalWorldId]);
 
   // ---- THREE.JS SCENE ----
   useEffect(() => {
@@ -681,11 +684,9 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       rend.dispose();
       if (mount.contains(rend.domElement)) mount.removeChild(rend.domElement);
     };
-  }, [ALL_ORBS.map(o => o.id).join(','), colorKey]);
+  }, [orbIdsKey, colorKey]);
 
   // ---- CLICK / HOVER HANDLERS ----
-  const isTouchDevice = typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
-
   const handleClick = useCallback((e) => {
     if (dragRef.current.moved) return;
     const rect = mountRef.current?.getBoundingClientRect();
@@ -714,7 +715,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     }
     // Tapped empty space — clear hovered
     if (isTouchDevice && hoveredRef.current) { hoveredRef.current = null; setHovered(null); }
-  }, [onSelect, worlds, friendWorlds]);
+  }, [onSelect, worlds, friendWorlds, personalWorldId]);
 
   const handleMove = useCallback((e) => {
     if (dragRef.current.dragging) {
@@ -1368,7 +1369,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
                 {generatedLink}
               </div>
               <div style={{ display: "flex", gap: 10, justifyContent: "center", marginBottom: 8 }}>
-                <button onClick={() => { navigator.clipboard.writeText(generatedLink); setLinkCopied(true); showToast("Invite link copied!", "📋", 2000); if (linkCopiedTimerRef.current) clearTimeout(linkCopiedTimerRef.current); linkCopiedTimerRef.current = setTimeout(() => { setLinkCopied(false); linkCopiedTimerRef.current = null; }, 2000); }}
+                <button onClick={() => { navigator.clipboard.writeText(generatedLink); setLinkCopied(true); showToast("Invite link copied!"); if (linkCopiedTimerRef.current) clearTimeout(linkCopiedTimerRef.current); linkCopiedTimerRef.current = setTimeout(() => { setLinkCopied(false); linkCopiedTimerRef.current = null; }, 2000); }}
                   style={{ ...btnP, background: linkCopied ? "linear-gradient(135deg, #7ab87a, #5a9a5a)" : btnP.background, transition: "all .3s" }}>
                   {linkCopied ? "Copied!" : "Copy Link"}
                 </button>

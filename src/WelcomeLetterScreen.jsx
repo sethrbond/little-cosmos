@@ -37,6 +37,8 @@ export default function WelcomeLetterScreen({ letter, onEnter }) {
   const [fading, setFading] = useState(false);
   const [entering, setEntering] = useState(false);
 
+  if (!letter) return null;
+
   const handleEnter = () => {
     if (entering) return;
     setEntering(true);

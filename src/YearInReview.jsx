@@ -95,7 +95,8 @@ export default function YearInReview({ entries = [], stats = {}, palette, onClos
     // Use the most common year
     const counts = {};
     years.forEach(y => { counts[y] = (counts[y] || 0) + 1; });
-    return parseInt(Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0]);
+    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    return sorted.length > 0 ? parseInt(sorted[0][0]) : new Date().getFullYear();
   }, [entries]);
 
   // ---- Filter entries to the review year ----

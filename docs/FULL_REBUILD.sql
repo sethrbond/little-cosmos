@@ -163,6 +163,9 @@ CREATE TABLE IF NOT EXISTS world_invites (
 --  9. ENTRY COMMENTS TABLE
 -- ============================================================
 
+-- Note: entry_id is TEXT (matches entries.id format "e" + timestamp).
+-- FK constraint not possible across TEXT/UUID boundary; orphan cleanup
+-- is handled at application level when entries are deleted.
 CREATE TABLE IF NOT EXISTS entry_comments (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   entry_id TEXT NOT NULL,
@@ -178,6 +181,7 @@ CREATE TABLE IF NOT EXISTS entry_comments (
 --  10. ENTRY REACTIONS TABLE
 -- ============================================================
 
+-- Same TEXT entry_id pattern as comments; orphan cleanup at app level.
 CREATE TABLE IF NOT EXISTS entry_reactions (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   entry_id TEXT NOT NULL,

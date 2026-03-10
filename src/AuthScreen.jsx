@@ -71,9 +71,9 @@ export default function AuthScreen({ initialMode = 'login', onBack }) {
   const handleLogin = async (e) => {
     e.preventDefault()
     setError(''); setLoading(true)
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
     setLoading(false)
-    if (error) setError(error.message === 'Invalid login credentials' ? 'Email or password not recognized. Try again or reset your password.' : error.message)
+    if (authError) setError(authError.message === 'Invalid login credentials' ? 'Email or password not recognized. Try again or reset your password.' : authError.message)
   }
 
   const handleSignup = async (e) => {
@@ -83,7 +83,7 @@ export default function AuthScreen({ initialMode = 'login', onBack }) {
     if (password !== confirmPassword) { setError('Passwords do not match'); return }
     if (password.length < 6) { setError('Password must be at least 6 characters'); return }
     setLoading(true)
-    const { error } = await supabase.auth.signUp({
+    const { error: authError } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -91,7 +91,7 @@ export default function AuthScreen({ initialMode = 'login', onBack }) {
       },
     })
     setLoading(false)
-    if (error) { setError(error.message); return }
+    if (authError) { setError(authError.message); return }
     setMode('verify')
     setMessage(`We sent a verification link to ${email}. Click it to activate your account, then come back to sign in.`)
   }
@@ -99,9 +99,9 @@ export default function AuthScreen({ initialMode = 'login', onBack }) {
   const handleForgot = async (e) => {
     e.preventDefault()
     setError(''); setLoading(true)
-    const { error } = await supabase.auth.resetPasswordForEmail(email)
+    const { error: authError } = await supabase.auth.resetPasswordForEmail(email)
     setLoading(false)
-    if (error) { setError(error.message); return }
+    if (authError) { setError(authError.message); return }
     setMessage('Check your email for a password reset link.')
   }
 

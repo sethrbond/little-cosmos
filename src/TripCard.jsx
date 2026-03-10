@@ -99,10 +99,13 @@ function drawTripCard(canvas, entry, palette, worldMode, bgImage) {
     ctx.beginPath(); ctx.arc(W * 0.8, H * 0.15, 280, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath(); ctx.arc(W * 0.15, H * 0.75, 340, 0, Math.PI * 2); ctx.fill();
     ctx.globalAlpha = 1;
-    // star-like dots
+    // star-like dots (seeded positions to prevent flicker on redraw)
     ctx.fillStyle = "rgba(255,255,255,0.12)";
     for (let i = 0; i < 60; i++) {
-      const sx = Math.random() * W, sy = Math.random() * H, sr = Math.random() * 2 + 0.5;
+      const seed = (i * 2654435761 >>> 0) / 4294967296;
+      const seed2 = ((i + 37) * 2654435761 >>> 0) / 4294967296;
+      const seed3 = ((i + 73) * 2654435761 >>> 0) / 4294967296;
+      const sx = seed * W, sy = seed2 * H, sr = seed3 * 2 + 0.5;
       ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); ctx.fill();
     }
   }

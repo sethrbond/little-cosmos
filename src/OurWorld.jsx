@@ -271,6 +271,10 @@ function makeSymbolTexture(type, color) {
   return tex;
 }
 
+// Pre-allocated vectors for animation loop (avoid per-frame GC)
+const _cometTarget = new THREE.Vector3();
+const _burstTmp = new THREE.Vector3();
+
 const ll2v = (lat, lng, r) => {
   const phi = (90 - lat) * Math.PI / 180, theta = (lng + 180) * Math.PI / 180;
   return new THREE.Vector3(-(r * Math.sin(phi) * Math.cos(theta)), r * Math.cos(phi), r * Math.sin(phi) * Math.sin(theta));
@@ -997,9 +1001,11 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       // Store latest config in ref so debounced save always gets the newest version
       pendingConfigRef.current = next;
       clearTimeout(configSaveTimer.current);
+      const currentDb = db;
       configSaveTimer.current = setTimeout(() => {
         if (pendingConfigRef.current) {
-          db.saveConfig(pendingConfigRef.current).catch(err => console.error('[setConfig] save failed:', err));
+          currentDb.saveConfig(pendingConfigRef.current).catch(err => console.error('[setConfig] save failed:', err));
+          pendingConfigRef.current = null;
         }
       }, 400);
       return next;
@@ -1153,6 +1159,13 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const selectedRef = useRef(null);
   useEffect(() => { selectedRef.current = selected; setShareMenu(null); }, [selected]);
 
+  // Keep selected entry in sync with latest data (e.g. after reducer UPDATE from realtime sync)
+  useEffect(() => {
+    if (!selected) return;
+    const fresh = data.entries.find(e => e.id === selected.id);
+    if (fresh && fresh !== selected) setSelected(fresh);
+  }, [data.entries]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Auto-play music when selecting an entry with musicUrl
   useEffect(() => {
     if (!selected?.musicUrl) {
@@ -1193,7 +1206,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       g.add(ring);
       pulseRingsRef.current.push({ mesh: ring, age: 0 });
       // Second ring with slight delay for layered effect
-      setTimeout(() => {
+      const ring2Timer = setTimeout(() => {
         if (!globeRef.current) return;
         const ring2Geo = new THREE.RingGeometry(0.015, 0.025, 32);
         const ring2Mat = new THREE.MeshBasicMaterial({
@@ -1207,6 +1220,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         globeRef.current.add(ring2);
         pulseRingsRef.current.push({ mesh: ring2, age: 0 });
       }, 150);
+      return () => clearTimeout(ring2Timer);
     }
   }, [selected?.id]);
 
@@ -1218,6 +1232,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       if (newest && newest.lat != null && newest.lng != null && !cometRef.current) {
         // Store lat/lng so we can compute world-space target each frame (accounts for globe rotation)
         const targetLocal = ll2v(newest.lat, newest.lng, RAD * 1.015);
+        if (!globeRef.current) { prevEntryCountRef.current = count; return; }
         const targetWorld = targetLocal.clone().applyEuler(globeRef.current.rotation);
         // Origin: further out, always visible (camera-forward bias)
         const camZ = camRef.current ? camRef.current.position.z : 4;
@@ -1242,6 +1257,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         const halo = new THREE.Mesh(haloGeo, haloMat);
         head.add(halo);
 
+        // Store halo reference for cleanup
+        head._halo = halo;
         // Multi-segment trail (16 points for smooth fade)
         const TRAIL_LEN = 16;
         const trailPositions = new Float32Array(TRAIL_LEN * 3);
@@ -1418,6 +1435,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const lastTapRef = useRef(0); // for double-tap to zoom
   const playRef = useRef(null);
   const animRef = useRef(null);
+  const surpriseTimers = useRef([]);
 
   const RAD = 1; const MIN_Z = 1.15; const MAX_Z = 6;
 
@@ -1579,9 +1597,11 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     const t = { message, icon, duration, key: Date.now(), undoAction };
     setToasts(prev => [...prev.slice(-4), t]); // keep max 5
   }, []);
+  const dismissTimers = useRef([]);
   const dismissToast = useCallback((key) => {
     setToasts(prev => prev.map(t => t.key === key ? { ...t, exiting: true } : t));
-    setTimeout(() => setToasts(prev => prev.filter(t => t.key !== key)), 300);
+    const t = setTimeout(() => setToasts(prev => prev.filter(t => t.key !== key)), 300);
+    dismissTimers.current.push(t);
   }, []);
   const handleUndo = useCallback((toast) => {
     if (toast?.undoAction) toast.undoAction();
@@ -1635,10 +1655,13 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     }));
   }, [data.entries]);
 
-  // Show "On This Day" toast on load
+  // Show "On This Day" toast on load (once per session)
   // Note: TYPES/DEFAULT_TYPE are stable per world session (derived from worldType prop)
+  const onThisDayShownRef = useRef(false);
   useEffect(() => {
+    if (onThisDayShownRef.current) return;
     if (onThisDay.length > 0 && introComplete) {
+      onThisDayShownRef.current = true;
       const mem = onThisDay[0];
       const label = mem.yearsAgo === 1 ? "1 year ago today" : `${mem.yearsAgo} years ago today`;
       const icon = (TYPES[mem.type] || DEFAULT_TYPE).icon;
@@ -1705,10 +1728,24 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     }, { days: 0, entry: null });
 
     const farthestApart = { dist: 0, seth: null, rosie: null };
-    const sethEntries = sorted.filter(e => e.who === "seth" || e.who === "both");
-    const rosieEntries = sorted.filter(e => e.who === "rosie" || e.who === "both");
-    for (const s of sethEntries) {
-      for (const r of rosieEntries) {
+    const sethEntries = sorted.filter(e => (e.who === "seth" || e.who === "both") && e.lat != null);
+    const rosieEntries = sorted.filter(e => (e.who === "rosie" || e.who === "both") && e.lat != null);
+    // For large datasets, sample to avoid O(n²) — pick extremes by lat/lng + random sample
+    const sampleSet = (arr, maxSize) => {
+      if (arr.length <= maxSize) return arr;
+      const picked = new Set();
+      // Always include extremes (most likely to be farthest)
+      const byLat = [...arr].sort((a, b) => a.lat - b.lat);
+      const byLng = [...arr].sort((a, b) => a.lng - b.lng);
+      [byLat[0], byLat[byLat.length - 1], byLng[0], byLng[byLng.length - 1]].forEach(e => picked.add(e));
+      // Fill remainder with random samples
+      while (picked.size < maxSize) picked.add(arr[Math.floor(Math.random() * arr.length)]);
+      return [...picked];
+    };
+    const sS = sampleSet(sethEntries, 50);
+    const rS = sampleSet(rosieEntries, 50);
+    for (const s of sS) {
+      for (const r of rS) {
         if (s.who === "both" && r.who === "both" && s.id === r.id) continue;
         const d = haversine(s.lat, s.lng, r.lat, r.lng);
         if (d > farthestApart.dist) { farthestApart.dist = d; farthestApart.seth = s; farthestApart.rosie = r; }
@@ -1869,13 +1906,15 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   }, [introComplete, sorted, monthlyPromptShown, data.entries.length, showToast]);
 
   // ---- TIMELINE NAV ----
+  const stepDayTimer = useRef(null);
   const stepDay = useCallback(dir => {
     if (isAnimating) return;
     const next = addDays(sliderDate, dir);
     if (next < config.startDate || next > todayStr()) return;
     setSliderDate(next);
     tSpinSpd.current = 0.018;
-    setTimeout(() => { tSpinSpd.current = 0.001; }, 350);
+    clearTimeout(stepDayTimer.current);
+    stepDayTimer.current = setTimeout(() => { tSpinSpd.current = 0.001; }, 350);
   }, [sliderDate, config.startDate, isAnimating]);
 
   const jumpNext = useCallback(dir => {
@@ -2029,7 +2068,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         if (pool.length > 1) {
           const pick = pool[Math.floor(Math.random() * pool.length)];
           tZm.current = 4.5;
-          setTimeout(() => { flyTo(pick.lat, pick.lng, 2.2); setTimeout(() => { setSelected(pick); setPhotoIdx(0); setCardTab("overview"); }, 600); }, 400);
+          const t1 = setTimeout(() => { flyTo(pick.lat, pick.lng, 2.2); const t2 = setTimeout(() => { setSelected(pick); setPhotoIdx(0); setCardTab("overview"); }, 600); surpriseTimers.current.push(t2); }, 400);
+          surpriseTimers.current.push(t1);
         }
       }
       if (e.key === " " && !showAdd && !editing && !showSettings && !showSearch) { e.preventDefault(); if (isPlaying) stopPlay(); else if ((isPartnerWorld ? togetherList : sorted).length > 0) playStory(); }
@@ -2275,48 +2315,63 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     });
     glowLayersRef.current = glows;
 
-    // Land dots — soft pink/lavender touches for a sweet feel
-    LAND.forEach(([lat, lng]) => {
-      const p = ll2v(lat, lng, RAD * 1.002);
-      const sz = 0.002 + Math.random() * 0.003;
-      const op = 0.30 + Math.random() * 0.30;
+    // Land dots — InstancedMesh for performance (~1500 dots → few draw calls)
+    {
+      const landGeo = new THREE.CircleGeometry(1, 5); // unit size, scaled per instance
       const colors = SC.landColors;
-      const c = colors[Math.floor(Math.random() * colors.length)];
-      const d = new THREE.Mesh(new THREE.CircleGeometry(sz, 5), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: op, side: THREE.DoubleSide }));
-      d.position.copy(p); d.lookAt(p.clone().multiplyScalar(2)); globe.add(d);
-    });
+      const colorGroups = {};
+      LAND.forEach(([lat, lng]) => {
+        const c = colors[Math.floor(Math.random() * colors.length)];
+        const key = typeof c === 'string' ? c : `#${new THREE.Color(c).getHexString()}`;
+        if (!colorGroups[key]) colorGroups[key] = { color: c, items: [] };
+        colorGroups[key].items.push({ lat, lng, sz: 0.002 + Math.random() * 0.003 });
+      });
+      const _dummy = new THREE.Object3D();
+      Object.values(colorGroups).forEach(({ color, items }) => {
+        const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.40, side: THREE.DoubleSide });
+        const inst = new THREE.InstancedMesh(landGeo, mat, items.length);
+        items.forEach((item, i) => {
+          const p = ll2v(item.lat, item.lng, RAD * 1.002);
+          _dummy.position.copy(p);
+          _dummy.lookAt(p.clone().multiplyScalar(2));
+          _dummy.scale.setScalar(item.sz);
+          _dummy.updateMatrix();
+          inst.setMatrixAt(i, _dummy.matrix);
+        });
+        inst.instanceMatrix.needsUpdate = true;
+        globe.add(inst);
+      });
+    }
 
-    // Geography lines — Natural Earth 50m coastlines, always visible in glowing green
+    // Geography lines — Natural Earth 50m coastlines (merged for fewer draw calls)
     const geoGroup = [];
+    // Merge all rings into two LineSegments objects (primary + glow)
+    const allPrimary = [];
+    const allGlow = [];
     COAST_DATA.forEach(ring => {
-      // Primary coastline — bright and full opacity
-      const pts = ring.map(c => ll2v(c[0], c[1], RAD * 1.003));
-      const geom = new THREE.BufferGeometry().setFromPoints(pts);
-      const mat = new THREE.LineBasicMaterial({
-        color: SC.coastColor,
-        transparent: true,
-        opacity: 1.0,
-        linewidth: 1,
-      });
-      const line = new THREE.Line(geom, mat);
-      line.renderOrder = -1;
-      globe.add(line);
-      geoGroup.push({ line, mat });
-      // Secondary glow line — slightly larger radius, softer, for thickness illusion
-      const pts2 = ring.map(c => ll2v(c[0], c[1], RAD * 1.005));
-      const geom2 = new THREE.BufferGeometry().setFromPoints(pts2);
-      const mat2 = new THREE.LineBasicMaterial({
-        color: SC.coastColor,
-        transparent: true,
-        opacity: 0.45,
-        linewidth: 1,
-      });
-      const line2 = new THREE.Line(geom2, mat2);
-      line2.renderOrder = -2;
-      globe.add(line2);
-      geoGroup.push({ line: line2, mat: mat2 });
+      for (let i = 0; i < ring.length - 1; i++) {
+        allPrimary.push(ll2v(ring[i][0], ring[i][1], RAD * 1.003));
+        allPrimary.push(ll2v(ring[i + 1][0], ring[i + 1][1], RAD * 1.003));
+        allGlow.push(ll2v(ring[i][0], ring[i][1], RAD * 1.005));
+        allGlow.push(ll2v(ring[i + 1][0], ring[i + 1][1], RAD * 1.005));
+      }
     });
-    // geoGroup managed via closure in animation loop
+    {
+      const geom = new THREE.BufferGeometry().setFromPoints(allPrimary);
+      const mat = new THREE.LineBasicMaterial({ color: SC.coastColor, transparent: true, opacity: 1.0 });
+      const lines = new THREE.LineSegments(geom, mat);
+      lines.renderOrder = -1;
+      globe.add(lines);
+      geoGroup.push({ line: lines, mat });
+    }
+    {
+      const geom = new THREE.BufferGeometry().setFromPoints(allGlow);
+      const mat = new THREE.LineBasicMaterial({ color: SC.coastColor, transparent: true, opacity: 0.45 });
+      const lines = new THREE.LineSegments(geom, mat);
+      lines.renderOrder = -2;
+      globe.add(lines);
+      geoGroup.push({ line: lines, mat });
+    }
 
     // Particles — rose-pink fairy dust floating in space
     const pN = 450;
@@ -2689,7 +2744,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       if (cometRef.current && cometRef.current.active) {
         const c = cometRef.current;
         // Recompute target in world space from globe's current rotation
-        const target = c.targetLocal.clone().applyEuler(globe.rotation);
+        const target = _cometTarget.copy(c.targetLocal).applyEuler(globe.rotation);
         c.progress += 0.008 + c.progress * 0.025;
         if (c.progress >= 1) {
           // IMPACT!
@@ -2779,6 +2834,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           c.burst.particles.forEach(p => { p.mesh.geometry.dispose(); p.mesh.material.dispose(); });
           c.burst = null;
           scene.remove(c.head); scene.remove(c.trail);
+          if (c.head._halo) { c.head._halo.geometry.dispose(); c.head._halo.material.dispose(); }
           c.head.geometry.dispose(); c.head.material.dispose();
           c.trailGeo.dispose(); c.trail.material.dispose();
           if (c.flash) { scene.remove(c.flash); c.flash.geometry.dispose(); c.flash.material.dispose(); }
@@ -2792,7 +2848,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               p.mesh.scale.setScalar(ringScale);
               p.mesh.material.opacity = Math.max(0, 0.6 * (1 - p.age));
             } else {
-              p.mesh.position.add(p.vel.clone().multiplyScalar(0.018));
+              p.mesh.position.add(_burstTmp.copy(p.vel).multiplyScalar(0.018));
               p.vel.multiplyScalar(0.94); // drag
               p.mesh.material.opacity = Math.max(0, 0.9 * (1 - p.age * 0.8));
               p.mesh.scale.setScalar(Math.max(0.1, 1 - p.age * 0.6));
@@ -2828,6 +2884,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       if (animRef.current) cancelAnimationFrame(animRef.current);
       if (playRef.current) clearTimeout(playRef.current);
       if (photoTimerRef.current) clearInterval(photoTimerRef.current);
+      clearTimeout(stepDayTimer.current);
+      surpriseTimers.current.forEach(clearTimeout);
+      dismissTimers.current.forEach(clearTimeout);
       window.removeEventListener("resize", onR);
       // Dispose all Three.js objects to prevent GPU memory leaks
       scene.traverse(obj => {
@@ -4481,7 +4540,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                             </select>
                             <button onClick={() => {
                               setConfirmModal({ message: "Remove this member from the world?", onConfirm: async () => {
-                                const ok = await removeWorldMember(worldId, m.id);
+                                const ok = await removeWorldMember(worldId, m.id, userId);
                                 if (ok) { const members = await getWorldMembers(worldId); setWorldMembers(members); }
                               }});
                             }} style={{ background: "none", border: "none", color: "#c9777a", cursor: "pointer", fontSize: 11, padding: "0 4px" }}>×</button>

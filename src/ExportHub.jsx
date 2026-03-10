@@ -467,7 +467,7 @@ function generateKML(entries, config, worldMode) {
 
     return `  <Placemark>
     <name>${escapeXML(loc || "Untitled")}</name>
-    <description><![CDATA[${desc}]]></description>
+    <description><![CDATA[${desc.replace(/]]>/g, ']]]]><![CDATA[>')}]]></description>
     ${styleRef ? `<styleUrl>${styleRef}</styleUrl>` : ""}
     <Point><coordinates>${e.lng},${e.lat},0</coordinates></Point>
   </Placemark>`;

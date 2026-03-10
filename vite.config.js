@@ -9,4 +9,14 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          three: ['three'],
+          supabase: ['@supabase/supabase-js'],
+        },
+      },
+    },
+  },
 })

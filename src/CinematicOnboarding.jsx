@@ -153,7 +153,9 @@ export default function CinematicOnboarding({ userId, personalWorldId, onComplet
   // Geocode search
   useEffect(() => {
     if (!query || query.length < 2) { setResults([]); return }
-    geocodeSearch(query, setResults)
+    let cancelled = false
+    geocodeSearch(query, (r) => { if (!cancelled) setResults(r) })
+    return () => { cancelled = true }
   }, [query])
 
   // Phase 3 → 4: city confirmation shows briefly, then orbs appear
