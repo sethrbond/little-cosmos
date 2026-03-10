@@ -58,7 +58,7 @@ export default function WelcomeLetterScreen({ letter, onEnter }) {
       <div style={{
         position: "relative", zIndex: 2,
         maxWidth: 480, width: "90vw",
-        padding: "48px 40px",
+        padding: "clamp(28px, 6vw, 48px) clamp(24px, 5vw, 40px)",
         background: "linear-gradient(170deg, rgba(250,248,244,0.97) 0%, rgba(245,241,234,0.95) 100%)",
         borderRadius: 3,
         boxShadow: "0 20px 80px rgba(0,0,0,0.5), 0 2px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.5)",
@@ -75,7 +75,7 @@ export default function WelcomeLetterScreen({ letter, onEnter }) {
         <div style={{ position: "relative", zIndex: 1 }}>
           {/* Wax seal */}
           <div style={{
-            position: "absolute", top: -28, right: -12,
+            position: "absolute", top: -28, right: Math.max(-12, -window.innerWidth * 0.02),
             width: 48, height: 48, borderRadius: "50%",
             background: "radial-gradient(circle at 35% 35%, #d4645a, #a03830 60%, #7a2822)",
             boxShadow: "0 3px 10px rgba(120,30,20,0.4), inset 0 1px 2px rgba(255,200,180,0.3)",
@@ -89,7 +89,7 @@ export default function WelcomeLetterScreen({ letter, onEnter }) {
           <div style={{
             fontSize: 15, color: "#3d3552", lineHeight: 2.0,
             whiteSpace: "pre-wrap", fontStyle: "italic",
-            letterSpacing: "0.02em",
+            letterSpacing: "0.02em", maxHeight: "40vh", overflowY: "auto",
           }}>
             {letter.letter_text}
           </div>
@@ -115,7 +115,7 @@ export default function WelcomeLetterScreen({ letter, onEnter }) {
           }}
           onMouseEnter={e => { e.target.style.transform = "scale(1.04)"; e.target.style.boxShadow = "0 6px 24px rgba(180,140,60,0.4)"; }}
           onMouseLeave={e => { e.target.style.transform = "scale(1)"; e.target.style.boxShadow = "0 4px 16px rgba(180,140,60,0.3)"; }}>
-            Enter My Cosmos
+            {entering ? "Opening..." : "Enter My Cosmos"}
           </button>
         </div>
       </div>

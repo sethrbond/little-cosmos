@@ -417,7 +417,7 @@ export default function CinematicOnboarding({ userId, personalWorldId, onComplet
                 cursor: 'pointer', letterSpacing: '0.05em',
               }}
             >
-              Skip for now
+              I'll explore first
             </button>
           </div>
         )}

@@ -3612,7 +3612,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             style={{ width: "100%", padding: "9px 12px", border: `1px solid ${P.rose}25`, borderRadius: 10, fontSize: 11, fontFamily: "inherit", color: P.text, background: P.card, backdropFilter: "blur(16px)", boxShadow: "0 4px 16px rgba(0,0,0,.08)", outline: "none", boxSizing: "border-box" }}
           />
           {searchQuery.length >= 2 && (
-            <div style={{ marginTop: 4, background: P.card, backdropFilter: "blur(16px)", borderRadius: 10, maxHeight: 300, overflowY: "auto", boxShadow: "0 8px 28px rgba(61,53,82,.12)", border: `1px solid ${P.rose}10` }}>
+            <div style={{ marginTop: 4, background: P.card, backdropFilter: "blur(16px)", borderRadius: 10, maxHeight: 300, overflowY: "auto", boxShadow: "0 8px 28px rgba(61,53,82,.12)", border: `1px solid ${P.rose}10`, animation: "fadeIn .2s ease" }}>
               {searchResults.length === 0 && (
                 <div style={{ padding: "14px 16px", fontSize: 10, color: P.textFaint, textAlign: "center" }}>No entries found</div>
               )}
@@ -3754,7 +3754,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             <div style={{ position: "relative", width: "100%", background: P.parchment, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", minHeight: 120, maxHeight: 220 }}>
               <img loading="lazy" src={cur.photos[photoIdx % cur.photos.length]} alt={`Photo from ${cur.city || "trip"}`} onClick={() => { setLightboxIdx(photoIdx % cur.photos.length); setLightboxOpen(true); }} style={{ maxWidth: "100%", maxHeight: 220, objectFit: "contain", display: "block", transition: "all .3s", cursor: "zoom-in", ...(polaroidMode ? { border: "6px solid #fff", borderBottom: "28px solid #fff", boxShadow: "0 4px 16px rgba(0,0,0,.15)", borderRadius: 1, transform: `rotate(${(photoIdx % 3 - 1) * 1.5}deg)` } : {}) }} />
               {cur.photos.length > 1 && (<><button aria-label="Previous photo" onClick={() => setPhotoIdx(i => (i - 1 + cur.photos.length) % cur.photos.length)} style={imgN("left")}>‹</button><button aria-label="Next photo" onClick={() => setPhotoIdx(i => (i + 1) % cur.photos.length)} style={imgN("right")}>›</button>
-                <div style={{ position: "absolute", bottom: 6, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 3 }}>{cur.photos.map((_, i) => <div key={i} style={{ width: 4, height: 4, borderRadius: "50%", background: i === photoIdx % cur.photos.length ? "#fff" : "rgba(255,255,255,.3)" }} />)}</div></>)}
+                <div style={{ position: "absolute", bottom: 6, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 4 }}>{cur.photos.map((_, i) => <div key={i} style={{ width: 6, height: 6, borderRadius: "50%", background: i === photoIdx % cur.photos.length ? "#fff" : "rgba(255,255,255,.35)", transition: "background .2s" }} />)}</div></>)}
               <button onClick={() => setCardGallery(true)} style={{ position: "absolute", top: 6, right: 6, background: "rgba(255,255,255,.85)", border: "none", borderRadius: 5, padding: "2px 8px", fontSize: 9, cursor: "pointer", fontFamily: "inherit", color: P.textMid }}>📷 {cur.photos.length}</button>
               <button onClick={() => setPolaroidMode(v => !v)} style={{ position: "absolute", bottom: 6, right: 6, background: polaroidMode ? P.goldWarm : "rgba(255,255,255,.7)", border: "none", borderRadius: 5, padding: "2px 7px", fontSize: 8, cursor: "pointer", fontFamily: "inherit", color: polaroidMode ? "#fff" : P.textFaint }} title="Polaroid mode">📸</button>
               {<button onClick={() => handlePhotos(cur.id)} style={{ position: "absolute", top: 6, left: 6, background: "rgba(255,255,255,.85)", border: "none", borderRadius: 5, padding: "2px 8px", fontSize: 9, cursor: "pointer", fontFamily: "inherit" }}>+ Photos</button>}
@@ -3892,14 +3892,14 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 ...(cur.photos?.length > 0 ? [{ key: "photos", label: `📷 ${cur.photos.length}` }] : []),
               ].map(tab => (
                 <button key={tab.key} onClick={() => setCardTab(tab.key)}
-                  style={{ flex: 1, padding: "6px 4px", border: "none", borderBottom: cardTab === tab.key ? `2px solid ${P.rose}` : "2px solid transparent", background: "none", cursor: "pointer", fontSize: 8, fontFamily: "inherit", color: cardTab === tab.key ? P.text : P.textFaint, letterSpacing: ".06em", transition: "all .2s" }}>
+                  style={{ flex: 1, padding: "10px 4px", border: "none", borderBottom: cardTab === tab.key ? `2px solid ${P.rose}` : "2px solid transparent", background: "none", cursor: "pointer", fontSize: 10, fontFamily: "inherit", color: cardTab === tab.key ? P.text : P.textFaint, letterSpacing: ".06em", transition: "all .2s" }}>
                   {tab.label}
                 </button>
               ))}
             </div>
 
             {/* TAB CONTENT */}
-            <div style={{ marginTop: 10 }}>
+            <div key={cardTab} style={{ marginTop: 10, animation: "fadeIn .2s ease" }}>
               {cardTab === "overview" && (<>
                 {cur.notes && <p style={{ fontSize: 12, lineHeight: 1.6, margin: "0 0 8px", opacity: .85 }}>{cur.notes}</p>}
                 {(cur.stops || []).length > 0 && (<div style={{ marginTop: 8 }}><div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".16em", textTransform: "uppercase", marginBottom: 4 }}>Trip Route</div>{cur.stops.map(s => <div key={s.sid} style={{ padding: "5px 8px", background: `${P.rose}08`, borderRadius: 6, marginBottom: 4, borderLeft: `2px solid ${P.rose}30` }}><div style={{ fontSize: 11, fontWeight: 500 }}>{s.city}</div>{s.dateStart && <div style={{ fontSize: 9, color: P.textFaint }}>{fmtDate(s.dateStart)}{s.dateEnd ? ` → ${fmtDate(s.dateEnd)}` : ""}</div>}{s.notes && <p style={{ fontSize: 10, color: P.textMid, margin: "2px 0 0" }}>{s.notes}</p>}</div>)}</div>)}

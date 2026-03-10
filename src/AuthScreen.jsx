@@ -73,7 +73,7 @@ export default function AuthScreen({ initialMode = 'login', onBack }) {
     setError(''); setLoading(true)
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     setLoading(false)
-    if (error) setError(error.message)
+    if (error) setError(error.message === 'Invalid login credentials' ? 'Email or password not recognized. Try again or reset your password.' : error.message)
   }
 
   const handleSignup = async (e) => {
@@ -93,7 +93,7 @@ export default function AuthScreen({ initialMode = 'login', onBack }) {
     setLoading(false)
     if (error) { setError(error.message); return }
     setMode('verify')
-    setMessage('Check your email to verify your account, then sign in.')
+    setMessage(`We sent a verification link to ${email}. Click it to activate your account, then come back to sign in.`)
   }
 
   const handleForgot = async (e) => {
@@ -102,13 +102,14 @@ export default function AuthScreen({ initialMode = 'login', onBack }) {
     const { error } = await supabase.auth.resetPasswordForEmail(email)
     setLoading(false)
     if (error) { setError(error.message); return }
-    setMessage('Password reset link sent. Check your email.')
+    setMessage('Check your email for a password reset link.')
   }
 
   const switchMode = (m) => { clearState(); setMode(m) }
 
   return (
     <div style={wrap}>
+      <style>{`@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}`}</style>
       {onBack && (
         <button onClick={onBack} style={{
           position: 'absolute', top: 20, left: 24,
@@ -123,7 +124,7 @@ export default function AuthScreen({ initialMode = 'login', onBack }) {
         <div style={{ fontSize: 13, opacity: 0.4, marginTop: 4 }}>your worlds, your stories</div>
       </div>
 
-      <div style={card}>
+      <div key={mode} style={{ ...card, animation: 'fadeIn .3s ease' }}>
         {mode === 'login' && (
           <form onSubmit={handleLogin}>
             <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 20, textAlign: 'center' }}>Sign In</div>

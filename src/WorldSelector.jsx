@@ -684,6 +684,8 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
   }, [ALL_ORBS.map(o => o.id).join(','), colorKey]);
 
   // ---- CLICK / HOVER HANDLERS ----
+  const isTouchDevice = typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
+
   const handleClick = useCallback((e) => {
     if (dragRef.current.moved) return;
     const rect = mountRef.current?.getBoundingClientRect();
@@ -694,6 +696,10 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       const lx = parseFloat(el.style.left), ly = parseFloat(el.style.top);
       if (isNaN(lx)) continue;
       if (Math.sqrt((cx - lx) ** 2 + (cy - ly) ** 2) < 75 && parseFloat(el.style.opacity) > 0.1) {
+        // On touch devices: first tap shows actions, second tap enters world
+        if (isTouchDevice && hoveredRef.current !== id && !id.startsWith("friend-") && id !== "my") {
+          hoveredRef.current = id; setHovered(id); return;
+        }
         if (id === "my") { onSelect("my", personalWorldId); }
         else if (id.startsWith("friend-")) {
           const friendUserId = id.replace("friend-", "");
@@ -706,6 +712,8 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
         return;
       }
     }
+    // Tapped empty space — clear hovered
+    if (isTouchDevice && hoveredRef.current) { hoveredRef.current = null; setHovered(null); }
   }, [onSelect, worlds, friendWorlds]);
 
   const handleMove = useCallback((e) => {
@@ -1016,6 +1024,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
                 style={{ background: "rgba(200,100,100,0.08)", border: "1px solid rgba(200,100,100,0.20)", borderRadius: 12, padding: "3px 10px", color: "#c09090", fontSize: 9, fontFamily: F, cursor: "pointer", pointerEvents: "auto", letterSpacing: "0.5px" }}>
                 {w.role === "owner" ? "Delete" : "Leave"}
               </button>
+              {isTouchDevice && <div style={{ width: "100%", textAlign: "center", fontSize: 8, color: "rgba(200,192,210,0.5)", marginTop: 4, letterSpacing: "0.3px" }}>tap again to enter</div>}
             </div>
           )}
         </div>
@@ -1105,7 +1114,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
           <div style={{ fontSize: 9, letterSpacing: "2px", textTransform: "uppercase", color: "#807888", marginBottom: 12, fontFamily: F }}>Recent Activity</div>
           {activityData.length === 0 && (
             <div style={{ fontSize: 12, color: "#605868", padding: "20px 0", textAlign: "center", fontFamily: F }}>
-              No activity yet. Add entries to your worlds to see them here.
+              Your worlds are waiting for their first stories.
             </div>
           )}
           {activityData.map((a, i) => {
@@ -1204,7 +1213,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
           <div style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Add a World</div>
             <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 24 }}>
-              What kind of world would you like to create?
+              Every world tells a different story. Which one are you starting?
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <div style={optionCard}
@@ -1212,14 +1221,14 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
                 onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(160,192,232,0.3)"; e.currentTarget.style.background = "rgba(160,192,232,0.06)"; }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; e.currentTarget.style.background = "rgba(255,255,255,0.03)"; }}>
                 <div style={{ fontSize: 14, fontWeight: 600, color: "#c0d8f0", marginBottom: 4 }}>Personal World</div>
-                <div style={{ fontSize: 11, color: "#807888", lineHeight: 1.5 }}>Another private travel diary, just for you. Great for separating trips by category or time period.</div>
+                <div style={{ fontSize: 11, color: "#807888", lineHeight: 1.5 }}>A private space just for you — organize trips by theme, year, or however you like.</div>
               </div>
               <div style={optionCard}
                 onClick={() => { setShowAddMenu(false); setShowCreateShared(true); }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(232,184,208,0.3)"; e.currentTarget.style.background = "rgba(232,184,208,0.06)"; }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; e.currentTarget.style.background = "rgba(255,255,255,0.03)"; }}>
                 <div style={{ fontSize: 14, fontWeight: 600, color: "#e8b8d0", marginBottom: 4 }}>Shared World</div>
-                <div style={{ fontSize: 11, color: "#807888", lineHeight: 1.5 }}>A travel diary with someone special — a partner, friend, or family. Invite them by email.</div>
+                <div style={{ fontSize: 11, color: "#807888", lineHeight: 1.5 }}>Build a travel diary together — with a partner, friends, or family. You'll invite them by email.</div>
               </div>
             </div>
             <button onClick={closeAllModals} style={{ ...btnS, marginTop: 20 }}>Cancel</button>
@@ -1233,7 +1242,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
           <div style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Create a Personal World</div>
             <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 20 }}>
-              This world will be private to you, orbiting your My World in your cosmos.
+              A private world, just for your eyes. It'll orbit alongside your other worlds.
             </div>
             <input value={personalName} onChange={e => setPersonalName(e.target.value)}
               placeholder="World name (e.g. Road Trips, Europe 2024)"
@@ -1257,7 +1266,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
             {sharedStep === 0 && (<>
               <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Create a Shared World</div>
               <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 16 }}>
-                What kind of shared world is this?
+                Who are you sharing this world with?
               </div>
               <div style={{ display: "flex", gap: 8, marginBottom: 16, justifyContent: "center", flexWrap: "wrap" }}>
                 {[
@@ -1325,7 +1334,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
             {sharedStep === 1 && (<>
               <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Invite Someone</div>
               <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 20 }}>
-                Enter their email to invite them. You can also write a personal letter they'll see when they first open the app.
+                Share this world with someone special. You can write a welcome letter — it'll be the first thing they see.
               </div>
               <input value={inviteEmail} onChange={e => setInviteEmail(e.target.value)}
                 placeholder="Their email address"
@@ -1669,12 +1678,12 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
 
       {/* Empty cosmos guidance — show when user has 0 shared worlds */}
       {worlds.length === 0 && connections.length === 0 && ready && (
-        <div style={{ position: "absolute", bottom: "16%", left: "50%", transform: "translateX(-50%)", textAlign: "center", opacity: 0, animation: "fadeIn 1.5s 2s forwards", maxWidth: 340 }}>
+        <div style={{ position: "absolute", bottom: "16%", left: "50%", transform: "translateX(-50%)", textAlign: "center", opacity: 0, animation: "fadeIn 1.5s 0.8s forwards", maxWidth: 340 }}>
           <div style={{ fontSize: 14, color: "#c0b8c8", fontFamily: F, letterSpacing: "0.4px", lineHeight: 1.8, marginBottom: 16 }}>
             Your cosmos is just beginning.
           </div>
           <div style={{ fontSize: 11, color: "#807888", fontFamily: F, letterSpacing: "0.3px", lineHeight: 1.7, marginBottom: 20 }}>
-            Create a shared world with someone special, or invite a friend to connect your cosmos together.
+            Create a world to start mapping your adventures, or invite someone to build one together.
           </div>
           <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
             <button onClick={() => setShowAddMenu(true)} style={{ padding: "10px 22px", background: "rgba(200,170,110,0.12)", border: "1px solid rgba(200,170,110,0.25)", borderRadius: 20, color: "#c9a96e", fontSize: 11, fontFamily: F, cursor: "pointer", letterSpacing: "0.5px", transition: "all .3s" }}

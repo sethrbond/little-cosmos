@@ -102,7 +102,7 @@ function PasswordResetModal({ onDone }) {
     <div style={{ position: 'fixed', inset: 0, background: '#0c0a12', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: '"Palatino Linotype", serif', color: '#e8e0d0', zIndex: 10000 }}>
       <div style={{ marginBottom: 28, textAlign: 'center' }}>
         <div style={{ fontSize: 28, fontWeight: 300, letterSpacing: 2, opacity: 0.9 }}>Little Cosmos</div>
-        <div style={{ fontSize: 13, opacity: 0.4, marginTop: 4 }}>set your new password</div>
+        <div style={{ fontSize: 13, opacity: 0.4, marginTop: 4 }}>Create a new password</div>
       </div>
       <div style={modalCard}>
         {success ? (
@@ -209,7 +209,7 @@ function AppInner() {
     setInvitePending(null)
 
     getInviteInfo(token).then(info => {
-      if (!info) { showErrorToast('This invite link is invalid or expired.'); return }
+      if (!info) { showErrorToast('This invite link has expired or isn't valid. Ask your friend to send a new one.'); return }
       const worldName = info.worlds?.name || 'a shared world'
       setConfirmModal({
         message: `You've been invited to join "${worldName}"!\n\nWould you like to accept this invitation?`,
