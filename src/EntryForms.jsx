@@ -259,7 +259,7 @@ export function QuickAddForm({ types, onAdd, onClose, draftKey }) {
     <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", zIndex: 40, background: P.card, backdropFilter: "blur(28px)", borderRadius: 20, padding: 24, width: 340, boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 20px 56px rgba(61,53,82,.1)", border: `1px solid ${P.gold}15`, fontFamily: "'Palatino Linotype',Palatino,Georgia,serif", color: P.text, animation: "fadeIn .3s ease" }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
         <h3 style={{ margin: 0, fontSize: 15, fontWeight: 400, letterSpacing: ".04em" }}>⚡ Quick Add</h3>
-        <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 16, color: P.textFaint, cursor: "pointer" }}>×</button>
+        <button aria-label="Close quick add" onClick={onClose} style={{ background: "none", border: "none", fontSize: 16, color: P.textFaint, cursor: "pointer" }}>×</button>
       </div>
       {draftRestored && (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "5px 9px", marginBottom: 6, background: `${P.gold}12`, border: `1px solid ${P.gold}20`, borderRadius: 7, fontSize: 9, color: P.textMid }}>
@@ -376,7 +376,7 @@ export function AddForm({ types, defaultType = "together", defaultWho = "both", 
 
   return (
     <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", zIndex: 40, background: P.card, backdropFilter: "blur(28px)", borderRadius: 22, padding: 28, width: 380, maxHeight: "88vh", overflowY: "auto", boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 20px 56px rgba(61,53,82,.1)", border: `1px solid ${P.rose}10`, fontFamily: "'Palatino Linotype',Palatino,Georgia,serif", color: P.text, animation: "fadeIn .3s ease" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}><h3 style={{ margin: 0, fontSize: 17, fontWeight: 400, letterSpacing: ".04em" }}>Add a New Chapter</h3><button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, color: P.textFaint, cursor: "pointer" }}>×</button></div>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}><h3 style={{ margin: 0, fontSize: 17, fontWeight: 400, letterSpacing: ".04em" }}>Add a New Chapter</h3><button aria-label="Close add form" onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, color: P.textFaint, cursor: "pointer" }}>×</button></div>
       <p style={{ fontSize: 9, color: P.textMuted, marginBottom: 12, fontStyle: "italic" }}>{isMyWorld ? "Add a new adventure 🧭" : "Another page in your story ✨"}</p>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
@@ -515,7 +515,7 @@ export function EditForm({ entry, types, fieldLabels, onChange, onSave, onClose,
 
   return (
     <div style={{ position: "absolute", top: "42%", right: 18, transform: "translateY(-50%)", zIndex: 30, background: P.card, backdropFilter: "blur(28px)", borderRadius: 20, padding: 22, maxWidth: 340, minWidth: 270, maxHeight: "65vh", overflowY: "auto", boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 20px 56px rgba(61,53,82,.1)", border: `1px solid ${P.together}12`, fontFamily: "'Palatino Linotype',Palatino,Georgia,serif", animation: "fadeIn .3s ease" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}><h3 style={{ margin: 0, fontSize: 15, fontWeight: 400, letterSpacing: ".04em" }}>Edit</h3><button onClick={onClose} style={{ background: "none", border: "none", fontSize: 16, color: P.textFaint, cursor: "pointer" }}>×</button></div>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}><h3 style={{ margin: 0, fontSize: 15, fontWeight: 400, letterSpacing: ".04em" }}>Edit</h3><button aria-label="Close edit form" onClick={onClose} style={{ background: "none", border: "none", fontSize: 16, color: P.textFaint, cursor: "pointer" }}>×</button></div>
       <div style={{ marginBottom: 9, position: "relative" }}>
         <Lbl>City</Lbl>
         <input value={entry.city || ""} onChange={e => onEditCity(e.target.value)} onFocus={() => { if (citySugg.length > 0) setShowCitySugg(true); }} style={inpSt()} />
