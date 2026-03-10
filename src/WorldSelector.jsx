@@ -235,6 +235,21 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     const loseCtx = gl.getExtension('WEBGL_lose_context'); if (loseCtx) loseCtx.loseContext();
     testCanvas = null;
 
+    // Performance tier detection
+    const cores = navigator.hardwareConcurrency || 2;
+    const screenW = window.screen?.width || window.innerWidth;
+    const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches || false;
+    const isLowEnd = cores <= 2 || screenW < 400;
+    const isMidRange = !isLowEnd && (cores <= 4 || screenW < 768);
+    // Particle counts scaled by tier
+    const tierStarCount = isLowEnd ? 360 : isMidRange ? 630 : 900;
+    const tierAccentStars = isLowEnd ? 24 : isMidRange ? 42 : 60;
+    const tierDenseStarCount = isLowEnd ? 400 : isMidRange ? 700 : 1000;
+    const tierDustCount = isLowEnd ? 100 : isMidRange ? 180 : 250;
+    const tierEnableNebula = !isLowEnd;
+    const tierEnableShootingStars = !isLowEnd;
+    const tierShootingStarInterval = isMidRange ? 14 : 8; // base seconds between shooting stars
+
     const scene = new THREE.Scene();
     scene.background = new THREE.Color("#08060e");
     scene.fog = new THREE.FogExp2("#08060e", 0.008);
@@ -263,7 +278,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     });
 
     // Stars — more, varied sizes, with twinkling
-    const starCount = 900;
+    const starCount = tierStarCount;
     const sP = new Float32Array(starCount * 3);
     const sSizes = new Float32Array(starCount);
     for (let i = 0; i < starCount; i++) {
@@ -277,8 +292,9 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     const stars = new THREE.Points(sG, starMat);
     scene.add(stars);
     // Brighter accent stars (fewer, larger)
-    const bsP = new Float32Array(60 * 3);
-    for (let i = 0; i < 60; i++) {
+    const accentCount = tierAccentStars;
+    const bsP = new Float32Array(accentCount * 3);
+    for (let i = 0; i < accentCount; i++) {
       const r = 14 + Math.random() * 20, th = Math.random() * Math.PI * 2, ph = Math.acos(2 * Math.random() - 1);
       bsP[i*3] = r*Math.sin(ph)*Math.cos(th); bsP[i*3+1] = r*Math.sin(ph)*Math.sin(th); bsP[i*3+2] = r*Math.cos(ph);
     }
@@ -286,7 +302,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     scene.add(new THREE.Points(bsG, new THREE.PointsMaterial({ color: "#f8f0e0", size: 0.09, transparent: true, opacity: 0.8 })));
 
     // === VISUAL ENHANCEMENT A: Dense twinkling starfield ===
-    const denseStarCount = 1000;
+    const denseStarCount = tierDenseStarCount;
     const dsPos = new Float32Array(denseStarCount * 3);
     const dsSizes = new Float32Array(denseStarCount);
     const dsPhases = new Float32Array(denseStarCount);
@@ -311,40 +327,43 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     const denseStars = new THREE.Points(dsGeo, dsMat);
     scene.add(denseStars);
 
-    // === VISUAL ENHANCEMENT B: Nebula cloud sprites ===
+    // === VISUAL ENHANCEMENT B: Nebula cloud sprites (skipped on low-end) ===
     const nebulaSprites = [];
-    const makeNebulaTexture = (color) => {
-      const c = document.createElement("canvas"); c.width = 256; c.height = 256;
-      const ctx = c.getContext("2d");
-      const grad = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
-      grad.addColorStop(0, color + "40");
-      grad.addColorStop(0.3, color + "20");
-      grad.addColorStop(0.7, color + "08");
-      grad.addColorStop(1, color + "00");
-      ctx.fillStyle = grad; ctx.fillRect(0, 0, 256, 256);
-      const tex = new THREE.CanvasTexture(c);
-      return tex;
-    };
-    const nebulaConfigs = [
-      { pos: [-8, 3, -14], color: "#2a1045", scale: 12, baseOp: 0.15, driftSpeed: 0.0003 },
-      { pos: [7, -4, -11], color: "#0a1628", scale: 10, baseOp: 0.12, driftSpeed: 0.0005 },
-      { pos: [3, 6, -16], color: "#1a0a1a", scale: 14, baseOp: 0.10, driftSpeed: 0.0004 },
-      { pos: [-5, -5, -9], color: "#180c28", scale: 8, baseOp: 0.13, driftSpeed: 0.0006 },
-    ];
-    nebulaConfigs.forEach(nc => {
-      const tex = makeNebulaTexture(nc.color);
-      const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: nc.baseOp, depthWrite: false, blending: THREE.AdditiveBlending });
-      const sprite = new THREE.Sprite(mat);
-      sprite.position.set(...nc.pos);
-      sprite.scale.set(nc.scale, nc.scale, 1);
-      scene.add(sprite);
-      nebulaSprites.push({ sprite, mat, tex, config: nc, angle: Math.random() * Math.PI * 2 });
-    });
+    if (tierEnableNebula) {
+      const makeNebulaTexture = (color) => {
+        const c = document.createElement("canvas"); c.width = 256; c.height = 256;
+        const ctx = c.getContext("2d");
+        const grad = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+        grad.addColorStop(0, color + "40");
+        grad.addColorStop(0.3, color + "20");
+        grad.addColorStop(0.7, color + "08");
+        grad.addColorStop(1, color + "00");
+        ctx.fillStyle = grad; ctx.fillRect(0, 0, 256, 256);
+        const tex = new THREE.CanvasTexture(c);
+        return tex;
+      };
+      const nebulaConfigs = [
+        { pos: [-8, 3, -14], color: "#2a1045", scale: 12, baseOp: 0.15, driftSpeed: 0.0003 },
+        { pos: [7, -4, -11], color: "#0a1628", scale: 10, baseOp: 0.12, driftSpeed: 0.0005 },
+        { pos: [3, 6, -16], color: "#1a0a1a", scale: 14, baseOp: 0.10, driftSpeed: 0.0004 },
+        { pos: [-5, -5, -9], color: "#180c28", scale: 8, baseOp: 0.13, driftSpeed: 0.0006 },
+      ];
+      nebulaConfigs.forEach(nc => {
+        const tex = makeNebulaTexture(nc.color);
+        const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: nc.baseOp, depthWrite: false, blending: THREE.AdditiveBlending });
+        const sprite = new THREE.Sprite(mat);
+        sprite.position.set(...nc.pos);
+        sprite.scale.set(nc.scale, nc.scale, 1);
+        scene.add(sprite);
+        nebulaSprites.push({ sprite, mat, tex, config: nc, angle: Math.random() * Math.PI * 2 });
+      });
+    }
 
-    // === VISUAL ENHANCEMENT C: Shooting stars ===
+    // === VISUAL ENHANCEMENT C: Shooting stars (skipped on low-end and reduced-motion) ===
     const shootingStars = [];
-    let nextShootTime = 8 + Math.random() * 7; // seconds until first shooting star
+    let nextShootTime = tierShootingStarInterval + Math.random() * 7;
     const spawnShootingStar = () => {
+      if (!tierEnableShootingStars || prefersReducedMotion) return;
       // Random start position on a sphere shell
       const th = Math.random() * Math.PI * 2, ph = Math.acos(2 * Math.random() - 1);
       const r = 10 + Math.random() * 8;
@@ -367,7 +386,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     };
 
     // === VISUAL ENHANCEMENT D: Cosmic dust particle field ===
-    const dustCount = 250;
+    const dustCount = tierDustCount;
     const dustPos = new Float32Array(dustCount * 3);
     const dustVel = new Float32Array(dustCount * 3);
     const dustPhase = new Float32Array(dustCount);
@@ -514,59 +533,61 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       });
       // Pulse orbit rings gently
       orbitRings.forEach((r, i) => { r.mat.opacity = r.baseOp + Math.sin(t * 0.8 + i * 2) * 0.02; });
-      // Slow star field rotation for parallax
-      stars.rotation.y = t * 0.003;
-      denseStars.rotation.y = t * 0.001;
-      denseStars.rotation.x = Math.sin(t * 0.2) * 0.002;
+      // Slow star field rotation for parallax (skip if reduced motion)
+      if (!prefersReducedMotion) {
+        stars.rotation.y = t * 0.003;
+        denseStars.rotation.y = t * 0.001;
+        denseStars.rotation.x = Math.sin(t * 0.2) * 0.002;
 
-      // Dense star twinkle — fluctuate opacity for twinkling subset
-      dsMat.opacity = 0.6 + Math.sin(t * 0.7) * 0.1;
+        // Dense star twinkle — fluctuate opacity for twinkling subset
+        dsMat.opacity = 0.6 + Math.sin(t * 0.7) * 0.1;
 
-      // Nebula drift
-      nebulaSprites.forEach(ns => {
-        ns.angle += ns.config.driftSpeed;
-        ns.sprite.position.x = ns.config.pos[0] + Math.sin(ns.angle) * 0.5;
-        ns.sprite.position.y = ns.config.pos[1] + Math.cos(ns.angle * 0.7) * 0.3;
-        ns.mat.opacity = ns.config.baseOp + Math.sin(t * 0.3 + ns.angle) * 0.03;
-        ns.sprite.material.rotation += ns.config.driftSpeed * 0.5;
-      });
+        // Nebula drift
+        nebulaSprites.forEach(ns => {
+          ns.angle += ns.config.driftSpeed;
+          ns.sprite.position.x = ns.config.pos[0] + Math.sin(ns.angle) * 0.5;
+          ns.sprite.position.y = ns.config.pos[1] + Math.cos(ns.angle * 0.7) * 0.3;
+          ns.mat.opacity = ns.config.baseOp + Math.sin(t * 0.3 + ns.angle) * 0.03;
+          ns.sprite.material.rotation += ns.config.driftSpeed * 0.5;
+        });
 
-      // Shooting stars update
-      const dt = 0.006; // matches t += 0.006
-      nextShootTime -= dt;
-      if (nextShootTime <= 0) {
-        spawnShootingStar();
-        nextShootTime = 8 + Math.random() * 7;
-      }
-      for (let si = shootingStars.length - 1; si >= 0; si--) {
-        const s = shootingStars[si];
-        s.life += dt;
-        const progress = s.life / s.maxLife;
-        s.x += s.dx * dt; s.y += s.dy * dt; s.z += s.dz * dt;
-        const tailX = s.x - s.dx * s.tailLen * 0.05;
-        const tailY = s.y - s.dy * s.tailLen * 0.05;
-        const tailZ = s.z - s.dz * s.tailLen * 0.05;
-        const posArr = s.geo.attributes.position.array;
-        posArr[0] = s.x; posArr[1] = s.y; posArr[2] = s.z;
-        posArr[3] = tailX; posArr[4] = tailY; posArr[5] = tailZ;
-        s.geo.attributes.position.needsUpdate = true;
-        // Fade in then out
-        s.mat.opacity = progress < 0.2 ? progress / 0.2 : (1 - (progress - 0.2) / 0.8);
-        if (s.life >= s.maxLife) {
-          scene.remove(s.line); s.geo.dispose(); s.mat.dispose();
-          shootingStars.splice(si, 1);
+        // Shooting stars update
+        const dt = 0.006; // matches t += 0.006
+        nextShootTime -= dt;
+        if (nextShootTime <= 0) {
+          spawnShootingStar();
+          nextShootTime = tierShootingStarInterval + Math.random() * 7;
         }
-      }
+        for (let si = shootingStars.length - 1; si >= 0; si--) {
+          const s = shootingStars[si];
+          s.life += dt;
+          const progress = s.life / s.maxLife;
+          s.x += s.dx * dt; s.y += s.dy * dt; s.z += s.dz * dt;
+          const tailX = s.x - s.dx * s.tailLen * 0.05;
+          const tailY = s.y - s.dy * s.tailLen * 0.05;
+          const tailZ = s.z - s.dz * s.tailLen * 0.05;
+          const posArr = s.geo.attributes.position.array;
+          posArr[0] = s.x; posArr[1] = s.y; posArr[2] = s.z;
+          posArr[3] = tailX; posArr[4] = tailY; posArr[5] = tailZ;
+          s.geo.attributes.position.needsUpdate = true;
+          // Fade in then out
+          s.mat.opacity = progress < 0.2 ? progress / 0.2 : (1 - (progress - 0.2) / 0.8);
+          if (s.life >= s.maxLife) {
+            scene.remove(s.line); s.geo.dispose(); s.mat.dispose();
+            shootingStars.splice(si, 1);
+          }
+        }
 
-      // Cosmic dust drift
-      const dpa = dustGeo.attributes.position.array;
-      for (let i = 0; i < dustCount; i++) {
-        dpa[i*3] += dustVel[i*3]; dpa[i*3+1] += dustVel[i*3+1]; dpa[i*3+2] += dustVel[i*3+2];
-        // Gentle wobble
-        dpa[i*3+1] += Math.sin(t * 0.5 + dustPhase[i]) * 0.0005;
+        // Cosmic dust drift
+        const dpa = dustGeo.attributes.position.array;
+        for (let i = 0; i < dustCount; i++) {
+          dpa[i*3] += dustVel[i*3]; dpa[i*3+1] += dustVel[i*3+1]; dpa[i*3+2] += dustVel[i*3+2];
+          // Gentle wobble
+          dpa[i*3+1] += Math.sin(t * 0.5 + dustPhase[i]) * 0.0005;
+        }
+        dustGeo.attributes.position.needsUpdate = true;
+        dustMat.opacity = 0.25 + Math.sin(t * 0.4) * 0.05;
       }
-      dustGeo.attributes.position.needsUpdate = true;
-      dustMat.opacity = 0.25 + Math.sin(t * 0.4) * 0.05;
 
       const allItems = [{ id: "my", mesh: centerOrb }, ...orbs.map(o => ({ id: o.world.id, mesh: o.mesh }))];
       allItems.forEach(({ id, mesh }) => {

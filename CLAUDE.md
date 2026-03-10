@@ -1,5 +1,5 @@
 # MY COSMOS — Complete Project Handoff for Claude Code
-### v12.0 | March 2026
+### v13.0 | March 2026
 
 ---
 
@@ -28,7 +28,6 @@ my-cosmos/
     PhotoMap.jsx               ← 737 lines. 2D SVG world map with photo pins, clustering, lightbox
     supabaseWorlds.js          ← 674 lines. World CRUD, members, invites, comments, reactions
     Milestones.jsx             ← ~420 lines. Sentimental milestones & reflections (firsts, distances, memories)
-    Achievements.jsx           ← 642 lines. DEPRECATED — replaced by Milestones.jsx
     CinematicOnboarding.jsx    ← 603 lines. First-time user experience with star field + city picker
     EntryForms.jsx             ← 582 lines. Shared UI primitives (TBtn, TBtnGroup, Lbl, Fld) + entry forms + OverlayBoundary
     App.jsx                    ← 494 lines. Auth gate, routing, invite handling, cinematic onboarding
@@ -223,6 +222,12 @@ Run `docs/FULL_REBUILD.sql` in Supabase SQL Editor — idempotent, creates all t
 - Cosmos connections (send/accept/decline friend requests, view friend's personal world)
 - Landing page (pre-login marketing with feature showcase)
 - Escape key closes ALL overlays (22+ modals/panels handled)
+- Touch tooltips on globe (long-press shows city/date/photo peek, auto-dismisses)
+- Pinch-to-zoom on WorldSelector cosmos view
+- Save error toasts (withRetry throws, reducer catches, toast displays)
+- Resend verification email button on auth screen
+- Styled toast notifications (replaced all native alert() calls)
+- Auth loading timeout (8s safety net prevents infinite spinner)
 - Easter egg ("you are my world" visible when zoomed all the way out on partner worlds)
 
 ---
@@ -231,9 +236,11 @@ Run `docs/FULL_REBUILD.sql` in Supabase SQL Editor — idempotent, creates all t
 
 1. **Accessibility is basic** — aria labels on toolbar/buttons/modals, but no keyboard nav for globe or focus trapping in modals.
 2. **No automated tests** — manual QA only. No Jest/RTL/E2E tests.
-3. **OurWorld.jsx is 5,371 lines** — works but hard to maintain. Future refactor target.
+3. **OurWorld.jsx is ~5,350 lines** — works but hard to maintain. Future refactor target.
 4. **No log aggregation** — 100+ console.error calls with no external monitoring (Sentry/LogRocket).
 5. **No entry pagination** — fetches all entries at once. OK at current scale (<200), needs work at 1000+.
+6. **Legacy entries have world_id = NULL** — pre-multi-world entries invisible to cross-world search/activity. See `docs/backfill_world_id.sql`.
+7. **Run `docs/security_patch.sql`** — RLS fixes for config_friend_select, world_invites_select, photos_delete.
 
 ### Previously Fixed
 - ~~ambientMusicUrl incomplete~~ — FIXED: settings has URL input + Test button, audio syncs via onPlay/onPause/onError

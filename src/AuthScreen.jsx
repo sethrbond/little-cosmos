@@ -54,9 +54,19 @@ export default function AuthScreen({ initialMode = 'login', onBack }) {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const [resendStatus, setResendStatus] = useState('') // '' | 'sending' | 'sent' | error message
 
-  const clearState = () => { setError(''); setMessage(''); setPassword(''); setConfirmPassword(''); setResendStatus('') }
+  const clearState = () => { setError(''); setMessage(''); setPassword(''); setConfirmPassword(''); setResendStatus(''); setShowPassword(false) }
+
+  const pwWrap = { position: 'relative', width: '100%' }
+  const eyeBtn = {
+    position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
+    background: 'none', border: 'none', color: '#e8e0d0', opacity: 0.5,
+    cursor: 'pointer', fontSize: 16, padding: '2px 4px', lineHeight: 1,
+    marginBottom: 12,
+  }
+  const pwInp = { ...inp, paddingRight: 38 }
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -118,7 +128,10 @@ export default function AuthScreen({ initialMode = 'login', onBack }) {
           <form onSubmit={handleLogin}>
             <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 20, textAlign: 'center' }}>Sign In</div>
             <input style={inp} type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required autoFocus />
-            <input style={inp} type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required />
+            <div style={pwWrap}>
+              <input style={pwInp} type={showPassword ? 'text' : 'password'} placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required />
+              <button type="button" style={eyeBtn} onClick={() => setShowPassword(v => !v)} tabIndex={-1}>{showPassword ? '\u{1F441}\u200D\u{1F5E8}' : '\u{1F441}'}</button>
+            </div>
             {error && <div style={{ color: '#e57373', fontSize: 13, marginBottom: 8 }}>{error}</div>}
             <button style={{ ...btn, opacity: loading ? 0.6 : 1 }} disabled={loading} type="submit">
               {loading ? 'Signing in...' : 'Sign In'}
@@ -135,8 +148,14 @@ export default function AuthScreen({ initialMode = 'login', onBack }) {
             <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 20, textAlign: 'center' }}>Create Account</div>
             <input style={inp} type="text" placeholder="Your name" value={displayName} onChange={e => setDisplayName(e.target.value)} required autoFocus />
             <input style={inp} type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required />
-            <input style={inp} type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required />
-            <input style={inp} type="password" placeholder="Confirm password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required />
+            <div style={pwWrap}>
+              <input style={pwInp} type={showPassword ? 'text' : 'password'} placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required />
+              <button type="button" style={eyeBtn} onClick={() => setShowPassword(v => !v)} tabIndex={-1}>{showPassword ? '\u{1F441}\u200D\u{1F5E8}' : '\u{1F441}'}</button>
+            </div>
+            <div style={pwWrap}>
+              <input style={pwInp} type={showPassword ? 'text' : 'password'} placeholder="Confirm password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required />
+              <button type="button" style={eyeBtn} onClick={() => setShowPassword(v => !v)} tabIndex={-1}>{showPassword ? '\u{1F441}\u200D\u{1F5E8}' : '\u{1F441}'}</button>
+            </div>
             {error && <div style={{ color: '#e57373', fontSize: 13, marginBottom: 8 }}>{error}</div>}
             <button style={{ ...btn, opacity: loading ? 0.6 : 1 }} disabled={loading} type="submit">
               {loading ? 'Creating account...' : 'Create Account'}

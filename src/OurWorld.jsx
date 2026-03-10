@@ -1329,7 +1329,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [showPhotoJourney, setShowPhotoJourney] = useState(false);
   const [pjIndex, setPjIndex] = useState(0);
   const [pjAutoPlay, setPjAutoPlay] = useState(false);
-  // editMode removed — all features always active
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState(null);
   const [photoIdx, setPhotoIdx] = useState(0);
@@ -2271,8 +2270,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       return mesh;
     });
     glowLayersRef.current = glows;
-
-    // (Graticule removed — cleaner, more ethereal look)
 
     // Land dots — soft pink/lavender touches for a sweet feel
     LAND.forEach(([lat, lng]) => {
@@ -5401,8 +5398,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     </div>
   );
 }
-
-// ---- FORMS imported from EntryForms.jsx ----
 
 // ---- WRAPPED EXPORT WITH ERROR BOUNDARY ----
 export default function OurWorld({ worldMode, worldId, worldName, worldRole, worldType, onSwitchWorld }) {
