@@ -975,19 +975,22 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
 
       {/* Center label */}
       <div ref={makeLabelRef("my")} data-hov="false" style={{ position: "absolute", left: 0, top: 0, transform: "translate(-50%, -50%)", textAlign: "center", pointerEvents: "none", transition: "opacity .15s", opacity: 0 }}>
-        <div style={{ fontSize: hovered === "my" ? 24 : 20, fontWeight: 500, color: "#e8dcc8", letterSpacing: "2px", textShadow: "0 0 24px rgba(208,176,128,0.5), 0 2px 10px rgba(0,0,0,0.6)", transition: "font-size .2s" }}>My World</div>
-        <div style={{ fontSize: 12, color: "#e0d4be", marginTop: 4, letterSpacing: "1.5px", fontWeight: 400, textTransform: "uppercase", textShadow: "0 0 12px rgba(208,176,128,0.5), 0 1px 6px rgba(0,0,0,0.7)" }}>{myWorldSubtitle ?? "Travel Diary"}</div>
-        {myEntryCount > 0 && (
-          <div style={{ fontSize: 10, color: "#d0c4a8", marginTop: 3, letterSpacing: "0.5px", textShadow: "0 1px 6px rgba(0,0,0,0.7)" }}>{myEntryCount} {myEntryCount === 1 ? "entry" : "entries"}</div>
-        )}
+        <div style={{ background: "radial-gradient(ellipse at center, rgba(10,8,18,0.55) 0%, transparent 70%)", padding: "12px 24px", borderRadius: 20 }}>
+          <div style={{ fontSize: hovered === "my" ? 24 : 20, fontWeight: 500, color: "#f0e8d4", letterSpacing: "2px", textShadow: "0 0 24px rgba(208,176,128,0.5), 0 2px 10px rgba(0,0,0,0.8)", transition: "font-size .2s" }}>My World</div>
+          <div style={{ fontSize: 12, color: "#e8dcc4", marginTop: 4, letterSpacing: "1.5px", fontWeight: 400, textTransform: "uppercase", textShadow: "0 0 12px rgba(208,176,128,0.5), 0 1px 6px rgba(0,0,0,0.8)" }}>{myWorldSubtitle ?? "Travel Diary"}</div>
+          {myEntryCount > 0 && (
+            <div style={{ fontSize: 10, color: "#dcd0b4", marginTop: 3, letterSpacing: "0.5px", textShadow: "0 1px 6px rgba(0,0,0,0.8)" }}>{myEntryCount} {myEntryCount === 1 ? "entry" : "entries"}</div>
+          )}
+        </div>
       </div>
 
       {/* Orbiting world labels (shared + friend) */}
       {ALL_ORBS.map(w => (
         <div key={w.id} ref={makeLabelRef(w.id)} data-hov="false" style={{ position: "absolute", left: 0, top: 0, transform: "translate(-50%, -50%)", textAlign: "center", pointerEvents: "none", transition: "opacity .15s", opacity: 0 }}>
-          <div style={{ fontSize: hovered === w.id ? 19 : 15, fontWeight: 500, color: w.id.startsWith("friend-") ? "#c8d8e8" : w.glowColor || "#f0d8e8", letterSpacing: "1.2px", textShadow: `0 0 20px ${w.color}80, 0 2px 8px rgba(0,0,0,0.6)`, transition: "font-size .2s" }}>{w.label}</div>
+          <div style={{ background: "radial-gradient(ellipse at center, rgba(10,8,18,0.5) 0%, transparent 70%)", padding: "8px 18px", borderRadius: 16 }}>
+          <div style={{ fontSize: hovered === w.id ? 19 : 15, fontWeight: 500, color: w.id.startsWith("friend-") ? "#d4e0f0" : w.glowColor || "#f0d8e8", letterSpacing: "1.2px", textShadow: `0 0 20px ${w.color}80, 0 2px 8px rgba(0,0,0,0.8)`, transition: "font-size .2s" }}>{w.label}</div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 2 }}>
-            <div style={{ fontSize: 12, color: w.id.startsWith("friend-") ? "#c8d4e0" : (w.glowColor || "#e8d8e0"), letterSpacing: "0.8px", fontWeight: 400, textShadow: `0 0 10px ${w.color}60, 0 1px 6px rgba(0,0,0,0.6)` }}>{w.sub}</div>
+            <div style={{ fontSize: 12, color: w.id.startsWith("friend-") ? "#d0dce8" : (w.glowColor || "#e8d8e0"), letterSpacing: "0.8px", fontWeight: 400, textShadow: `0 0 10px ${w.color}60, 0 1px 6px rgba(0,0,0,0.8)` }}>{w.sub}</div>
             {!w.id.startsWith("friend-") && w.worldType && w.worldType !== "shared" && (
               <div style={{ fontSize: 8, letterSpacing: "0.8px", textTransform: "uppercase", color: `${w.color}aa`, background: `${w.color}18`, border: `1px solid ${w.color}30`, borderRadius: 6, padding: "1px 6px", fontWeight: 600 }}>
                 {{ partner: "Partner", friends: "Friends", family: "Family" }[w.worldType] || w.worldType}
@@ -995,8 +998,9 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
             )}
           </div>
           {entryCounts[w.id] > 0 && (
-            <div style={{ fontSize: 10, color: `${w.glowColor || w.color}`, marginTop: 2, letterSpacing: "0.5px", opacity: 0.9, textShadow: "0 1px 6px rgba(0,0,0,0.7)" }}>{entryCounts[w.id]} {entryCounts[w.id] === 1 ? "entry" : "entries"}</div>
+            <div style={{ fontSize: 10, color: `${w.glowColor || w.color}`, marginTop: 2, letterSpacing: "0.5px", opacity: 0.9, textShadow: "0 1px 6px rgba(0,0,0,0.8)" }}>{entryCounts[w.id]} {entryCounts[w.id] === 1 ? "entry" : "entries"}</div>
           )}
+          </div>
           {hovered === w.id && !w.id.startsWith("friend-") && (
             <div style={{ display: "flex", gap: 6, marginTop: 6, justifyContent: "center" }}>
               {!w.isViewer && <button onClick={(e) => { e.stopPropagation(); const ww = worlds.find(x => x.id === w.id); if (!ww) return; setShowInviteModal(ww); setInviteLink(""); setExistingInviteEmail(""); setExistingInviteLetter(""); getSentInvites(ww.id, userId).then(setSentInvites).catch(() => setSentInvites([])); }}
@@ -1364,7 +1368,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
                 {generatedLink}
               </div>
               <div style={{ display: "flex", gap: 10, justifyContent: "center", marginBottom: 8 }}>
-                <button onClick={() => { navigator.clipboard.writeText(generatedLink); setLinkCopied(true); if (linkCopiedTimerRef.current) clearTimeout(linkCopiedTimerRef.current); linkCopiedTimerRef.current = setTimeout(() => { setLinkCopied(false); linkCopiedTimerRef.current = null; }, 2000); }}
+                <button onClick={() => { navigator.clipboard.writeText(generatedLink); setLinkCopied(true); showToast("Invite link copied!", "📋", 2000); if (linkCopiedTimerRef.current) clearTimeout(linkCopiedTimerRef.current); linkCopiedTimerRef.current = setTimeout(() => { setLinkCopied(false); linkCopiedTimerRef.current = null; }, 2000); }}
                   style={{ ...btnP, background: linkCopied ? "linear-gradient(135deg, #7ab87a, #5a9a5a)" : btnP.background, transition: "all .3s" }}>
                   {linkCopied ? "Copied!" : "Copy Link"}
                 </button>
@@ -1509,7 +1513,8 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
                       await declineWorldInvite(inv.token);
                       if (onPendingWorldInvitesChange) onPendingWorldInvitesChange(prev => prev.filter((_, i) => i !== idx));
                     }} style={{ ...btnS, padding: "5px 14px", fontSize: 11 }}>Decline</button>
-                    <button onClick={async () => {
+                    <button onClick={async (e) => {
+                      const btn = e.currentTarget; btn.disabled = true; btn.textContent = "Joining...";
                       const result = await acceptInvite(inv.token);
                       if (result?.ok) {
                         const updated = await loadMyWorlds(userId);
@@ -1518,7 +1523,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
                         closeAllModals();
                         const joined = updated.find(w => w.id === result.world_id);
                         onSelect("our", result.world_id, inv.worldName, joined?.role || "member", inv.worldType || joined?.type || "shared");
-                      } else { showToast(result?.error || "Failed to accept invite."); }
+                      } else { btn.disabled = false; btn.textContent = "Accept & Enter"; showToast(result?.error || "Failed to accept invite."); }
                     }} style={{ ...btnP, padding: "5px 14px", fontSize: 11 }}>Accept & Enter</button>
                   </div>
                 </div>

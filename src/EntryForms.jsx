@@ -151,11 +151,11 @@ export function inpSt() {
 
 export function navSt() {
   const P = getP();
-  return { background: "none", border: `1px solid ${P.textFaint}25`, borderRadius: 8, padding: "5px 12px", cursor: "pointer", fontSize: 10, color: P.textMid, fontFamily: "inherit", transition: "all .25s ease" };
+  return { background: "none", border: `1px solid ${P.textFaint}25`, borderRadius: 8, padding: "8px 14px", cursor: "pointer", fontSize: 11, color: P.textMid, fontFamily: "inherit", transition: "all .25s ease", minHeight: 36 };
 }
 
 export function imgN(s) {
-  return { position: "absolute", [s]: 5, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,.65)", border: "none", borderRadius: "50%", width: 24, height: 24, cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center" };
+  return { position: "absolute", [s]: 5, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,.7)", border: "none", borderRadius: "50%", width: 28, height: 28, cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" };
 }
 
 export function renderList(t, items, icon, color) {

@@ -3615,7 +3615,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           {searchQuery.length >= 2 && (
             <div style={{ marginTop: 4, background: P.card, backdropFilter: "blur(16px)", borderRadius: 10, maxHeight: 300, overflowY: "auto", boxShadow: "0 8px 28px rgba(61,53,82,.12)", border: `1px solid ${P.rose}10`, animation: "fadeIn .2s ease" }}>
               {searchResults.length === 0 && (
-                <div style={{ padding: "14px 16px", fontSize: 10, color: P.textFaint, textAlign: "center" }}>No entries found</div>
+                <div style={{ padding: "14px 16px", fontSize: 10, color: P.textFaint, textAlign: "center" }}>No matches found. Try a different city, country, or keyword.</div>
               )}
               {searchResults.map(e => {
                 const t = TYPES[e.type] || DEFAULT_TYPE;
@@ -3840,7 +3840,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 }
               }} style={{ background: "none", border: "none", fontSize: 12, cursor: "pointer", color: shareMenu === cur.id ? P.sky : P.textFaint, transition: "color .2s" }} title="Share to another world">↗</button>
               {shareMenu === cur.id && shareWorlds && (
-                <div style={{ position: "absolute", top: 24, right: 0, background: P.parchment, border: `1px solid ${P.rose}20`, borderRadius: 8, padding: 6, zIndex: 20, minWidth: 160, boxShadow: "0 4px 16px rgba(0,0,0,.15)" }}>
+                <div style={{ position: "absolute", top: 24, right: isMobile ? "auto" : 0, left: isMobile ? 0 : "auto", background: P.parchment, border: `1px solid ${P.rose}20`, borderRadius: 8, padding: 6, zIndex: 20, minWidth: 160, maxWidth: "70vw", boxShadow: "0 4px 16px rgba(0,0,0,.15)", animation: "fadeIn .15s ease" }}>
                   <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase", padding: "2px 6px 4px", borderBottom: `1px solid ${P.rose}10`, marginBottom: 4 }}>Share to world</div>
                   {shareWorlds.filter(w => w.id !== worldId && w.id !== cur.worldId).length === 0
                     ? <div style={{ fontSize: 9, color: P.textMuted, padding: "6px" }}>No other worlds</div>
