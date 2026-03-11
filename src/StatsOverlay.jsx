@@ -14,7 +14,7 @@ export default function StatsOverlay({ P, stats, expandedStats, reunionStats, mi
             isPartnerWorld ? { label: "Days Together", value: stats.daysTog, icon: "💕" } : { label: "Days Exploring", value: stats.daysTog, icon: "🧭" },
             { label: "Trips", value: stats.trips, icon: "🗺" },
             { label: "Countries", value: stats.countries, icon: "🌍" },
-            { label: "Photos", value: stats.photos, icon: "📷" },
+            { label: "Photos", value: stats.photos, icon: "📸" },
             { label: "Miles Traveled", value: stats.totalMiles.toLocaleString(), icon: "✈️" },
             ...(isPartnerWorld ? [{ label: "Reunions", value: reunionStats.reunions, icon: "🫂" }] : [{ label: "Cities", value: expandedStats.cityCount, icon: "🏙" }]),
           ].map((s, i) => (

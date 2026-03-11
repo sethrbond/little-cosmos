@@ -276,7 +276,7 @@ function detectMilestones(entries, config, worldMode) {
     milestones.push({
       id: "most-photographed",
       category: "richness",
-      icon: "📷",
+      icon: "📸",
       title: "Most photographed place",
       detail: `${topPhotoCity[0]} — ${topPhotoCity[1]} photos`,
       warmth: 0.55,

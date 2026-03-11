@@ -14,7 +14,7 @@ export default function RecapOverlay({
     { val: rS.cities, lbl: rS.cities === 1 ? "City" : "Cities", icon: "🏙" },
     { val: rS.totalDays, lbl: "Days Exploring", icon: "🧭" },
     { val: Math.round(rS.totalMiles).toLocaleString(), lbl: "Miles Traveled", icon: "✈️" },
-    { val: rS.photos, lbl: "Photos Captured", icon: "📷" },
+    { val: rS.photos, lbl: "Photos Captured", icon: "📸" },
   ];
 
   const closeRecap = () => onClose();

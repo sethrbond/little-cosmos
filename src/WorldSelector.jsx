@@ -1164,7 +1164,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
                   <span style={{ color: "#a098b0" }}>{worldNameMap[a.world_id] || "Shared World"}</span>
                   <span style={{ opacity: 0.4 }}>·</span>
                   <span>{ago}</span>
-                  {a.photos && a.photos.length > 1 && <><span style={{ opacity: 0.4 }}>·</span><span>📷 {a.photos.length}</span></>}
+                  {a.photos && a.photos.length > 1 && <><span style={{ opacity: 0.4 }}>·</span><span>📸 {a.photos.length}</span></>}
                 </div>
               </div>
             </div>
