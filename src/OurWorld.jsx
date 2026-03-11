@@ -1566,6 +1566,36 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     return () => clearTimeout(t);
   }, [introComplete, data.entries.length, stats.countries, stats.totalMiles, worldId, userId]);
 
+  // "On This Day" — surface memories from the same date in previous years
+  const [onThisDayEntry, setOnThisDayEntry] = useState(null);
+  useEffect(() => {
+    if (!introComplete || data.entries.length < 2) return;
+    const today = todayStr();
+    const md = today.slice(5); // "MM-DD"
+    const thisYear = today.slice(0, 4);
+    const matches = data.entries.filter(e => {
+      if (!e.dateStart) return false;
+      const eYear = e.dateStart.slice(0, 4);
+      if (eYear === thisYear) return false; // only past years
+      // Check if today falls within the entry's date range
+      const eMd = e.dateStart.slice(5);
+      if (eMd === md) return true;
+      if (e.dateEnd) {
+        const endMd = e.dateEnd.slice(5);
+        if (eMd <= md && endMd >= md) return true;
+      }
+      return false;
+    });
+    if (matches.length === 0) return;
+    const otdKey = `otd_${worldId || userId}_${today}`;
+    if (localStorage.getItem(otdKey)) return;
+    localStorage.setItem(otdKey, '1');
+    const pick = matches[Math.floor(Math.random() * matches.length)];
+    setOnThisDayEntry(pick);
+    const t = setTimeout(() => setOnThisDayEntry(null), 12000);
+    return () => clearTimeout(t);
+  }, [introComplete, data.entries, worldId, userId]);
+
   // Positions on slider date
   const getPositions = useCallback(date => {
     let seth = null, rosie = null, tog = null;
@@ -4441,6 +4471,27 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           </div>
         </div>
       )}
+
+      {/* ON THIS DAY — memory from a previous year */}
+      {onThisDayEntry && (() => {
+        const e = onThisDayEntry;
+        const yearsAgo = new Date().getFullYear() - parseInt(e.dateStart.slice(0, 4));
+        return (
+          <div style={{ position: "absolute", top: 70, left: "50%", transform: "translateX(-50%)", zIndex: 45, animation: "fadeIn .8s ease" }}>
+            <button onClick={() => {
+              setSelected(e); setPhotoIdx(0); setCardTab("overview"); setSliderDate(e.dateStart);
+              flyTo(e.lat, e.lng, 2.5); setOnThisDayEntry(null);
+            }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 16px", background: P.card, backdropFilter: "blur(16px)", borderRadius: 16, border: `1px solid ${P.goldWarm}20`, boxShadow: `0 4px 20px rgba(0,0,0,.1), 0 0 30px ${P.goldWarm}08`, cursor: "pointer", fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", maxWidth: "90vw" }}>
+              {e.photos?.length > 0 && <img src={e.photos[0]} alt="" style={{ width: 36, height: 36, borderRadius: 8, objectFit: "cover", border: "2px solid #fff", boxShadow: "0 2px 6px rgba(0,0,0,.15)" }} />}
+              <div style={{ textAlign: "left" }}>
+                <div style={{ fontSize: 8, color: P.goldWarm, letterSpacing: ".12em", textTransform: "uppercase" }}>On this day · {yearsAgo} year{yearsAgo > 1 ? "s" : ""} ago</div>
+                <div style={{ fontSize: 12, color: P.text, fontStyle: "italic", marginTop: 1 }}>You were in {e.city}</div>
+              </div>
+              <button onClick={ev => { ev.stopPropagation(); setOnThisDayEntry(null); }} style={{ background: "none", border: "none", color: P.textFaint, fontSize: 14, cursor: "pointer", padding: "0 0 0 4px", lineHeight: 1 }}>×</button>
+            </button>
+          </div>
+        );
+      })()}
 
       {/* UPLOAD INDICATOR */}
       {uploading && (
