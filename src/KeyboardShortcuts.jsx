@@ -46,13 +46,13 @@ function KeyboardShortcuts({ onClose, palette: P, worldMode }) {
         { keys: ["\u2190"], desc: "Step back one day" },
         { keys: ["\u2192"], desc: "Step forward one day" },
         { keys: ["Scroll"], desc: "Zoom in / out" },
-        { keys: ["+", "\u2212"], desc: "Zoom in / out (keyboard)" },
       ],
     },
     {
       title: "Playback",
       shortcuts: [
         { keys: ["Space"], desc: isPartnerWorld ? "Play Our Story" : "Play Story" },
+        { keys: ["R"], desc: "Surprise Me (random entry)" },
       ],
     },
     {
@@ -63,6 +63,13 @@ function KeyboardShortcuts({ onClose, palette: P, worldMode }) {
         { keys: ["G"], desc: "Toggle gallery" },
         { keys: ["I"], desc: "Toggle stats" },
         { keys: ["T"], desc: "Jump to today" },
+      ],
+    },
+    {
+      title: "Search",
+      shortcuts: [
+        { keys: ["\u2191", "\u2193"], desc: "Navigate results" },
+        { keys: ["Enter"], desc: "Go to selected result" },
       ],
     },
     {
