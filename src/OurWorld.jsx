@@ -3836,7 +3836,11 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             if (pct < 0 || pct > 100) return null;
             const typeColor = (TYPES[e.type] || DEFAULT_TYPE).color;
             const isBig = isMyWorld ? true : e.who === "both";
-            return <div key={e.id} style={{ position: "absolute", left: `${pct}%`, top: 5, width: isBig ? 5 : 3, height: isBig ? 5 : 3, borderRadius: "50%", background: typeColor, transform: "translateX(-50%)", pointerEvents: "none", boxShadow: `0 0 4px ${typeColor}40`, opacity: isBig ? 1 : 0.6 }} />;
+            const isActive = selected?.id === e.id;
+            return <div key={e.id} onClick={() => {
+              setSelected(e); setPhotoIdx(0); setCardTab("overview"); setSliderDate(e.dateStart);
+              flyTo(e.lat, e.lng, 2.5);
+            }} title={`${e.city} · ${fmtDate(e.dateStart)}`} style={{ position: "absolute", left: `${pct}%`, top: isActive ? 2 : isBig ? 5 : 6, width: isActive ? 8 : isBig ? 5 : 3, height: isActive ? 8 : isBig ? 5 : 3, borderRadius: "50%", background: typeColor, transform: "translateX(-50%)", cursor: "pointer", boxShadow: isActive ? `0 0 8px ${typeColor}, 0 0 16px ${typeColor}60` : `0 0 4px ${typeColor}40`, opacity: isActive ? 1 : isBig ? 0.85 : 0.5, transition: "all .2s ease", zIndex: isActive ? 3 : 1, border: isActive ? "1.5px solid #fff" : "none" }} />;
           })}
           {milestones.map(m => (
             <div key={m.days} style={{ position: "absolute", left: `${m.pct}%`, top: 2, transform: "translateX(-50%)", pointerEvents: "none", display: "flex", flexDirection: "column", alignItems: "center" }}>
