@@ -4138,7 +4138,10 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               </>)}
 
               {cardTab === "highlights" && (<>
-                {renderList(FIELD_LABELS.highlights.label, cur.highlights, FIELD_LABELS.highlights.icon, P.gold)}
+                {renderList(FIELD_LABELS.highlights.label, cur.highlights, FIELD_LABELS.highlights.icon, P.gold, !isViewer ? (i) => {
+                  const updated = [...(cur.highlights || [])]; updated.splice(i, 1);
+                  dispatch({ type: "UPDATE", id: cur.id, data: { highlights: updated } });
+                } : null)}
                 {!isViewer && (
                   <div style={{ marginTop: (cur.highlights?.length) ? 8 : 0 }}>
                     {!(cur.highlights?.length) && <div style={{ textAlign: "center", padding: "20px 12px 12px" }}>
@@ -4168,13 +4171,34 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               </>)}
 
               {cardTab === "places" && (<>
-                {renderList(FIELD_LABELS.museums.label, cur.museums, FIELD_LABELS.museums.icon, P.sky)}
-                {renderList(FIELD_LABELS.restaurants.label, cur.restaurants, FIELD_LABELS.restaurants.icon, P.roseSoft)}
-                {!(cur.museums?.length) && !(cur.restaurants?.length) && <div style={{ textAlign: "center", padding: "28px 16px" }}>
-                  <div style={{ fontSize: 28, marginBottom: 8, opacity: 0.3 }}>{isMyWorld ? "📝" : "📍"}</div>
-                  <div style={{ fontSize: 11, color: P.textFaint, lineHeight: 1.7, fontStyle: "italic", fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif" }}>{isMyWorld ? "The restaurants, the sights, the hidden gems." : "The places you explored together."}<br/>Add them so you don't forget.</div>
-                  {!isViewer && <button onClick={() => setEditing({ ...cur })} style={{ marginTop: 12, padding: "6px 20px", background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: `1px solid ${P.rose}18`, borderRadius: 10, fontSize: 10, color: P.textMid, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", cursor: "pointer", letterSpacing: ".03em" }}>+ Add {isMyWorld ? "details" : "places"}</button>}
-                </div>}
+                {renderList(FIELD_LABELS.museums.label, cur.museums, FIELD_LABELS.museums.icon, P.sky, !isViewer ? (i) => {
+                  const updated = [...(cur.museums || [])]; updated.splice(i, 1);
+                  dispatch({ type: "UPDATE", id: cur.id, data: { museums: updated } });
+                } : null)}
+                {renderList(FIELD_LABELS.restaurants.label, cur.restaurants, FIELD_LABELS.restaurants.icon, P.roseSoft, !isViewer ? (i) => {
+                  const updated = [...(cur.restaurants || [])]; updated.splice(i, 1);
+                  dispatch({ type: "UPDATE", id: cur.id, data: { restaurants: updated } });
+                } : null)}
+                {!isViewer ? (<>
+                  {!(cur.museums?.length) && !(cur.restaurants?.length) && <div style={{ textAlign: "center", padding: "20px 12px 12px" }}>
+                    <div style={{ fontSize: 28, marginBottom: 8, opacity: 0.3 }}>{isMyWorld ? "📝" : "📍"}</div>
+                    <div style={{ fontSize: 11, color: P.textFaint, lineHeight: 1.7, fontStyle: "italic", fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif" }}>{isMyWorld ? "The restaurants, the sights, the hidden gems." : "The places you explored together."}</div>
+                  </div>}
+                  <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                    <input type="text" placeholder={`+ ${FIELD_LABELS.museums?.label || "Sights"}...`}
+                      onKeyDown={e => { if (e.key === "Enter" && e.target.value.trim()) { dispatch({ type: "UPDATE", id: cur.id, data: { museums: [...(cur.museums || []), e.target.value.trim()] } }); e.target.value = ""; }}}
+                      style={{ flex: 1, padding: "7px 10px", fontSize: 10, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", color: P.textMid, background: `${P.sky}06`, border: `1px solid ${P.sky}15`, borderRadius: 8, outline: "none", boxSizing: "border-box" }}
+                      onFocus={e => e.currentTarget.style.borderColor = `${P.sky}35`}
+                      onBlur={e => e.currentTarget.style.borderColor = `${P.sky}15`} />
+                    <input type="text" placeholder={`+ ${FIELD_LABELS.restaurants?.label || "Food"}...`}
+                      onKeyDown={e => { if (e.key === "Enter" && e.target.value.trim()) { dispatch({ type: "UPDATE", id: cur.id, data: { restaurants: [...(cur.restaurants || []), e.target.value.trim()] } }); e.target.value = ""; }}}
+                      style={{ flex: 1, padding: "7px 10px", fontSize: 10, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", color: P.textMid, background: `${P.roseSoft}06`, border: `1px solid ${P.roseSoft}15`, borderRadius: 8, outline: "none", boxSizing: "border-box" }}
+                      onFocus={e => e.currentTarget.style.borderColor = `${P.roseSoft}35`}
+                      onBlur={e => e.currentTarget.style.borderColor = `${P.roseSoft}15`} />
+                  </div>
+                </>) : (!(cur.museums?.length) && !(cur.restaurants?.length) && <div style={{ textAlign: "center", padding: "28px 16px" }}>
+                  <div style={{ fontSize: 11, color: P.textFaint, fontStyle: "italic", fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif" }}>No places added yet.</div>
+                </div>)}
               </>)}
 
               {cardTab === "photos" && (<>

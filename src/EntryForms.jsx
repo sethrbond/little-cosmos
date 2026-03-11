@@ -158,10 +158,10 @@ export function imgN(s) {
   return { position: "absolute", [s]: 5, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,.7)", border: "none", borderRadius: "50%", width: 28, height: 28, cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" };
 }
 
-export function renderList(t, items, icon, color) {
+export function renderList(t, items, icon, color, onRemove) {
   const P = getP();
   if (!items?.length) return null;
-  return <div style={{ marginTop: 10 }}><div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 6 }}>{t}</div>{items.map((it, i) => <div key={i} style={{ display: "flex", gap: 7, marginBottom: 5, padding: "4px 8px", background: `${color}08`, borderRadius: 6, borderLeft: `2px solid ${color}25` }}><span style={{ color, fontSize: 9, marginTop: 2, flexShrink: 0 }}>{icon}</span><span style={{ fontSize: 11, color: P.textMid, lineHeight: 1.6, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif" }}>{it}</span></div>)}</div>;
+  return <div style={{ marginTop: 10 }}><div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 6 }}>{t}</div>{items.map((it, i) => <div key={i} style={{ display: "flex", gap: 7, marginBottom: 5, padding: "4px 8px", background: `${color}08`, borderRadius: 6, borderLeft: `2px solid ${color}25`, alignItems: "center" }}><span style={{ color, fontSize: 9, flexShrink: 0 }}>{icon}</span><span style={{ flex: 1, fontSize: 11, color: P.textMid, lineHeight: 1.6, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif" }}>{it}</span>{onRemove && <button onClick={() => onRemove(i)} style={{ background: "none", border: "none", color: P.textFaint, fontSize: 12, cursor: "pointer", padding: "0 2px", lineHeight: 1, opacity: 0.4, transition: "opacity .15s" }} onMouseEnter={e => e.currentTarget.style.opacity = "1"} onMouseLeave={e => e.currentTarget.style.opacity = "0.4"}>×</button>}</div>)}</div>;
 }
 
 // ---- UI COMPONENTS ----
