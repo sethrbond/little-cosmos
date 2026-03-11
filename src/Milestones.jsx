@@ -627,7 +627,7 @@ export default function Milestones({ entries, palette, onClose, worldMode, confi
                       marginTop: 12, borderRadius: 10, overflow: "hidden",
                       maxHeight: 180, animation: "mlFadeIn .3s ease",
                     }}>
-                      <img src={m.photo} alt="" style={{
+                      <img loading="lazy" src={m.photo} alt="" style={{
                         width: "100%", height: 180, objectFit: "cover",
                         borderRadius: 10, opacity: 0.85,
                       }} />
@@ -641,7 +641,7 @@ export default function Milestones({ entries, palette, onClose, worldMode, confi
                       animation: "mlFadeIn .3s ease",
                     }}>
                       {m.entry.photos.slice(0, 4).map((p, pi) => (
-                        <img key={pi} src={p} alt="" style={{
+                        <img key={pi} loading="lazy" src={p} alt="" style={{
                           width: 80, height: 60, objectFit: "cover",
                           borderRadius: 8, opacity: 0.8, flexShrink: 0,
                         }} />

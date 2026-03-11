@@ -796,7 +796,7 @@ const COAST_DATA = [
 [[77.6,-18],[77.7,-18.2],[77.9,-17.7],[77.6,-18]],
 ];
 // Location search powered by OpenStreetMap Nominatim — see geocode.js
-// ---- REDUCER (with Supabase persistence) ----
+// ---- REDUCER (with Supabase persistence + undo history) ----
 function reducer(st, a) {
   let next = st;
   // DB functions passed via a.db from dispatch wrapper
@@ -804,25 +804,74 @@ function reducer(st, a) {
   const _deleteEntry = a.db?.deleteEntry;
   const _deletePhoto = a.db?.deletePhoto;
   const _savePhotos = a.db?.savePhotos;
+  const pushUndo = (inverse) => {
+    if (!a._skipSave && !a._skipUndo) {
+      next = { ...next, undoStack: [...(next.undoStack || []).slice(-29), inverse], redoStack: [] };
+    }
+  };
   switch (a.type) {
-    case "LOAD": return { ...st, entries: a.entries };
+    case "LOAD": return { ...st, entries: a.entries, undoStack: st.undoStack || [], redoStack: st.redoStack || [] };
+    case "UNDO": {
+      const stack = [...(st.undoStack || [])];
+      if (stack.length === 0) return st;
+      const action = stack.pop();
+      // Apply the inverse action
+      if (action.type === "ADD") {
+        next = { ...st, entries: [...st.entries, action.entry], undoStack: stack, redoStack: [...(st.redoStack || []), { type: "DELETE", id: action.entry.id }] };
+        if (_saveEntry) _saveEntry(action.entry).catch(() => {});
+      } else if (action.type === "DELETE") {
+        const doomed = st.entries.find(e => e.id === action.id);
+        next = { ...st, entries: st.entries.filter(e => e.id !== action.id), undoStack: stack, redoStack: [...(st.redoStack || []), { type: "ADD", entry: doomed }] };
+        if (_deleteEntry) _deleteEntry(action.id);
+      } else if (action.type === "UPDATE") {
+        const prev = st.entries.find(e => e.id === action.id);
+        next = { ...st, entries: st.entries.map(e => e.id === action.id ? { ...e, ...action.data } : e), undoStack: stack, redoStack: [...(st.redoStack || []), { type: "UPDATE", id: action.id, data: prev ? { ...prev } : {} }] };
+        const updated = next.entries.find(e => e.id === action.id);
+        if (_saveEntry && updated) _saveEntry(updated).catch(() => {});
+      }
+      return next;
+    }
+    case "REDO": {
+      const stack = [...(st.redoStack || [])];
+      if (stack.length === 0) return st;
+      const action = stack.pop();
+      if (action.type === "ADD") {
+        next = { ...st, entries: [...st.entries, action.entry], redoStack: stack, undoStack: [...(st.undoStack || []), { type: "DELETE", id: action.entry.id }] };
+        if (_saveEntry) _saveEntry(action.entry).catch(() => {});
+      } else if (action.type === "DELETE") {
+        const doomed = st.entries.find(e => e.id === action.id);
+        next = { ...st, entries: st.entries.filter(e => e.id !== action.id), redoStack: stack, undoStack: [...(st.undoStack || []), { type: "ADD", entry: doomed }] };
+        if (_deleteEntry) _deleteEntry(action.id);
+      } else if (action.type === "UPDATE") {
+        const prev = st.entries.find(e => e.id === action.id);
+        next = { ...st, entries: st.entries.map(e => e.id === action.id ? { ...e, ...action.data } : e), redoStack: stack, undoStack: [...(st.undoStack || []), { type: "UPDATE", id: action.id, data: prev ? { ...prev } : {} }] };
+        const updated = next.entries.find(e => e.id === action.id);
+        if (_saveEntry && updated) _saveEntry(updated).catch(() => {});
+      }
+      return next;
+    }
     case "ADD":
       next = { ...st, entries: [...st.entries, a.entry] };
+      pushUndo({ type: "DELETE", id: a.entry.id });
       if (_saveEntry && !a._skipSave) _saveEntry(a.entry).catch(() => {
         window.dispatchEvent(new CustomEvent('cosmos-save-error', { detail: { city: a.entry?.city } }))
       });
       break;
     case "UPDATE":
-      next = { ...st, entries: st.entries.map(e => e.id === a.id ? { ...e, ...a.data } : e) };
+      { const prev = st.entries.find(e => e.id === a.id);
+        if (prev) pushUndo({ type: "UPDATE", id: a.id, data: { ...prev } });
+      }
+      next = { ...next, entries: (next.entries || st.entries).map(e => e.id === a.id ? { ...e, ...a.data } : e) };
       if (_saveEntry && !a._skipSave) { const updated = next.entries.find(e => e.id === a.id); if (updated) _saveEntry(updated).catch(() => {
         window.dispatchEvent(new CustomEvent('cosmos-save-error', { detail: { city: updated?.city } }))
       }); }
       break;
     case "DELETE":
-      if (_deletePhoto && !a._skipSave) { const doomed = st.entries.find(e => e.id === a.id);
-        if (doomed?.photos?.length) doomed.photos.forEach(url => _deletePhoto(url));
+      { const doomed = st.entries.find(e => e.id === a.id);
+        if (doomed) pushUndo({ type: "ADD", entry: { ...doomed } });
+        if (_deletePhoto && !a._skipSave && doomed?.photos?.length) doomed.photos.forEach(url => _deletePhoto(url));
       }
-      next = { ...st, entries: st.entries.filter(e => e.id !== a.id) };
+      next = { ...next, entries: (next.entries || st.entries).filter(e => e.id !== a.id) };
       if (_deleteEntry && !a._skipSave) _deleteEntry(a.id);
       break;
     case "ADD_PHOTOS":
@@ -1410,6 +1459,10 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [searchHl, setSearchHl] = useState(-1); // keyboard highlight index in search results
+  const [searchDateFrom, setSearchDateFrom] = useState("");
+  const [searchDateTo, setSearchDateTo] = useState("");
+  const [searchTypeFilter, setSearchTypeFilter] = useState("all");
+  const [searchSort, setSearchSort] = useState("date-desc"); // date-desc, date-asc, alpha, country
   const [showLoveThread, setShowLoveThread] = useState(false);
   const [showConstellation, setShowConstellation] = useState(false);
   const [showRoutes, setShowRoutes] = useState(false);
@@ -1470,10 +1523,14 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     if (sorted.length > 0 && sorted[0].dateStart) return sorted[0].dateStart;
     return todayStr();
   }, [config.startDate, sorted]);
+  const [listSortMode, setListSortMode] = useState("newest"); // newest, oldest, alpha, country
   const filteredList = useMemo(() => {
     const list = markerFilter === "all" ? data.entries : markerFilter === "favorites" ? data.entries.filter(e => e.favorite) : data.entries.filter(e => e.type === markerFilter);
-    return [...list].sort((a, b) => (b.dateStart || "").localeCompare(a.dateStart || "")); // newest first
-  }, [data.entries, markerFilter]);
+    if (listSortMode === "oldest") return [...list].sort((a, b) => (a.dateStart || "").localeCompare(b.dateStart || ""));
+    if (listSortMode === "alpha") return [...list].sort((a, b) => (a.city || "").localeCompare(b.city || ""));
+    if (listSortMode === "country") return [...list].sort((a, b) => (a.country || "").localeCompare(b.country || "") || (a.city || "").localeCompare(b.city || ""));
+    return [...list].sort((a, b) => (b.dateStart || "").localeCompare(a.dateStart || ""));
+  }, [data.entries, markerFilter, listSortMode]);
   // Trip grouping — cluster entries within 3 days of each other
   // Entries listed individually; stops shown inside each entry's detail card
 
@@ -1746,7 +1803,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     const timers = msgs.map((m, i) => setTimeout(() => showToast(m[0], m[1], 3000), 2000 + i * 3500));
     localStorage.setItem(guidedKey, "1");
     return () => timers.forEach(clearTimeout);
-  }, [introComplete, showOnboarding, data.entries.length, isMyWorld, showToast]);
+  }, [introComplete, showOnboarding, data.entries.length, isMyWorld, isPartnerWorld, isSharedWorld, worldType, worldId, userId, showToast]);
 
   // ---- MILESTONES on timeline ----
   const milestones = useMemo(() => {
@@ -1824,21 +1881,36 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     return { longestTrip, farthestApart, topCity, countryList: [...countryList], cityCount: citySet.size, longestApart, avgTripLength, years };
   }, [data.entries, togetherList, sorted, isPartnerWorld]);
 
-  // ---- SEARCH ----
+  // ---- SEARCH (with date range, type filter, sort) ----
+  const hasSearchFilters = searchQuery.length >= 2 || searchDateFrom || searchDateTo || searchTypeFilter !== "all";
   const searchResults = useMemo(() => {
-    if (!searchQuery || searchQuery.length < 2) return [];
-    const q = searchQuery.toLowerCase();
-    return data.entries.filter(e =>
-      (e.city || "").toLowerCase().includes(q) ||
-      (e.country || "").toLowerCase().includes(q) ||
-      (e.notes || "").toLowerCase().includes(q) ||
-      (e.highlights || []).some(m => m.toLowerCase().includes(q)) ||
-      (e.highlights || []).some(h => h.toLowerCase().includes(q)) ||
-      (e.restaurants || []).some(r => r.toLowerCase().includes(q)) ||
-      (e.museums || []).some(m => m.toLowerCase().includes(q)) ||
-      (e.stops || []).some(s => (s.city || "").toLowerCase().includes(q))
-    );
-  }, [searchQuery, data.entries]);
+    if (!hasSearchFilters) return [];
+    let results = data.entries;
+    // Text filter
+    if (searchQuery.length >= 2) {
+      const q = searchQuery.toLowerCase();
+      results = results.filter(e =>
+        (e.city || "").toLowerCase().includes(q) ||
+        (e.country || "").toLowerCase().includes(q) ||
+        (e.notes || "").toLowerCase().includes(q) ||
+        (e.highlights || []).some(h => h.toLowerCase().includes(q)) ||
+        (e.restaurants || []).some(r => r.toLowerCase().includes(q)) ||
+        (e.museums || []).some(m => m.toLowerCase().includes(q)) ||
+        (e.stops || []).some(s => (s.city || "").toLowerCase().includes(q))
+      );
+    }
+    // Date range filter
+    if (searchDateFrom) results = results.filter(e => (e.dateEnd || e.dateStart) >= searchDateFrom);
+    if (searchDateTo) results = results.filter(e => e.dateStart <= searchDateTo);
+    // Type filter
+    if (searchTypeFilter !== "all") results = results.filter(e => e.type === searchTypeFilter);
+    // Sort
+    if (searchSort === "date-asc") results = [...results].sort((a, b) => (a.dateStart || "").localeCompare(b.dateStart || ""));
+    else if (searchSort === "alpha") results = [...results].sort((a, b) => (a.city || "").localeCompare(b.city || ""));
+    else if (searchSort === "country") results = [...results].sort((a, b) => (a.country || "").localeCompare(b.country || "") || (a.city || "").localeCompare(b.city || ""));
+    else results = [...results].sort((a, b) => (b.dateStart || "").localeCompare(a.dateStart || ""));
+    return results;
+  }, [searchQuery, searchDateFrom, searchDateTo, searchTypeFilter, searchSort, data.entries, hasSearchFilters]);
 
   // Sync search matches to ref for animation loop access
   useEffect(() => {
@@ -2104,7 +2176,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       if (inInput && e.key !== "Escape") return;
       if (e.key === "ArrowLeft") { e.preventDefault(); stepDay(-1); }
       if (e.key === "ArrowRight") { e.preventDefault(); stepDay(1); }
-      if (e.key === "Escape") { flushConfigSave(); setSelected(null); setEditing(null); setShowAdd(false); setQuickAddMode(false); setShowLetter(null); setShowSettings(false); setShowGallery(false); setCardGallery(false); setShowFilter(false); setMarkerFilter("all"); setLocationList(null); setShowStats(false); setShowRecap(false); setShowSearch(false); setSearchQuery(""); setSearchHl(-1); setShowDreams(false); setConfirmDelete(null); setLightboxOpen(false); setShowShortcuts(false); setShowPhotoJourney(false); setShowCelebration(false); setShowOnboarding(false); setConfirmModal(null); setShowConstellation(false); setShowRoutes(false); setShowMilestones(false); setShowTravelStats(false); setShowLoveThread(false); setShowExportHub(false); setShowYearReview(false); setShowPhotoMap(false); setEditLetter(false); setTripCardEntry(null); localStorage.setItem(onboardKey, "1"); tSpinSpd.current = 0.002; if (isPlaying) stopPlay(); }
+      if (e.key === "Escape") { flushConfigSave(); setSelected(null); setEditing(null); setShowAdd(false); setQuickAddMode(false); setShowLetter(null); setShowSettings(false); setShowGallery(false); setCardGallery(false); setShowFilter(false); setMarkerFilter("all"); setLocationList(null); setShowStats(false); setShowRecap(false); setShowSearch(false); setSearchQuery(""); setSearchHl(-1); setSearchDateFrom(""); setSearchDateTo(""); setSearchTypeFilter("all"); setSearchSort("date-desc"); setShowDreams(false); setConfirmDelete(null); setLightboxOpen(false); setShowShortcuts(false); setShowPhotoJourney(false); setShowCelebration(false); setShowOnboarding(false); setConfirmModal(null); setShowConstellation(false); setShowRoutes(false); setShowMilestones(false); setShowTravelStats(false); setShowLoveThread(false); setShowExportHub(false); setShowYearReview(false); setShowPhotoMap(false); setEditLetter(false); setTripCardEntry(null); localStorage.setItem(onboardKey, "1"); tSpinSpd.current = 0.002; if (isPlaying) stopPlay(); }
+      if (e.key === "z" && (e.metaKey || e.ctrlKey) && !e.shiftKey && !showAdd && !editing) { e.preventDefault(); dispatch({ type: "UNDO" }); showToast("Undone", "↩", 1500); }
+      if (e.key === "z" && (e.metaKey || e.ctrlKey) && e.shiftKey && !showAdd && !editing) { e.preventDefault(); dispatch({ type: "REDO" }); showToast("Redone", "↪", 1500); }
       if (e.key === "?" && !showAdd && !editing && !showSettings) setShowShortcuts(v => !v);
       if (e.key === "f" && !showAdd && !editing && !showSettings) { setShowFilter(v => { if (v) { setMarkerFilter("all"); setLocationList(null); } return !v; }); }
       if (e.key === "i" && !showAdd && !editing && !showSettings) setShowStats(v => !v);
@@ -2125,7 +2199,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [stepDay, isPlaying, showAdd, editing, showSettings, showSearch, stopPlay, playStory, togetherList, sorted, isPartnerWorld]);
+  }, [stepDay, isPlaying, showAdd, editing, showSettings, showSearch, stopPlay, playStory, togetherList, sorted, isPartnerWorld, showToast]);
 
   // ---- YEAR-IN-REVIEW RECAP ----
   const [recapAutoPlay, setRecapAutoPlay] = useState(false);
@@ -3612,7 +3686,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                   onMouseLeave={ev => { if (selected?.id !== e.id) ev.currentTarget.style.background = "transparent"; }}
                 >
                   {(e.photos || []).length > 0 ? (
-                    <img loading="lazy" src={e.photos[0]} alt="" style={{ width: 32, height: 32, borderRadius: 6, objectFit: "cover", flexShrink: 0, border: `1px solid ${P.rose}15` }} />
+                    <img loading="lazy" src={thumbnail(e.photos[0], 64)} alt="" style={{ width: 32, height: 32, borderRadius: 6, objectFit: "cover", flexShrink: 0, border: `1px solid ${P.rose}15` }} />
                   ) : (
                     <span style={{ fontSize: 14, flexShrink: 0, width: 32, textAlign: "center" }}>{(TYPES[e.type] || {}).icon || "📍"}</span>
                   )}
@@ -3631,8 +3705,15 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               );
               return (
               <div style={{ marginTop: 6, background: P.card, backdropFilter: "blur(12px)", borderRadius: 10, border: `1px solid ${P.rose}10`, maxHeight: "calc(100vh - 340px)", overflowY: "auto", boxShadow: "0 4px 16px rgba(61,53,82,.06)" }}>
-                <div style={{ padding: "6px 10px 4px", fontSize: 7, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", borderBottom: `1px solid ${P.parchment}`, position: "sticky", top: 0, background: P.card, zIndex: 1 }}>
-                  {filteredList.length} {markerFilter === "all" ? "entries" : markerFilter === "favorites" ? "favorites" : (TYPES[markerFilter]?.label || "entries").toLowerCase()} · newest first
+                <div style={{ padding: "6px 10px 4px", fontSize: 7, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", borderBottom: `1px solid ${P.parchment}`, position: "sticky", top: 0, background: P.card, zIndex: 1, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span>{filteredList.length} {markerFilter === "all" ? "entries" : markerFilter === "favorites" ? "favorites" : (TYPES[markerFilter]?.label || "entries").toLowerCase()}</span>
+                  <select value={listSortMode} onChange={e => setListSortMode(e.target.value)}
+                    style={{ background: "none", border: "none", color: P.textFaint, fontSize: 7, fontFamily: "inherit", cursor: "pointer", letterSpacing: ".08em", textTransform: "uppercase", outline: "none", padding: 0 }}>
+                    <option value="newest">newest</option>
+                    <option value="oldest">oldest</option>
+                    <option value="alpha">A→Z</option>
+                    <option value="country">country</option>
+                  </select>
                 </div>
                 {filteredList.slice(0, listRenderLimit).map(e => entryRow(e))}
                 {filteredList.length > listRenderLimit && (
@@ -3725,6 +3806,12 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         {/* — divider — */}
         <div style={{ width: 20, height: 1, background: `${P.textFaint}18`, margin: "1px auto" }} />
 
+        {/* — Undo/Redo — */}
+        {!isViewer && (data.undoStack?.length > 0 || data.redoStack?.length > 0) && <>
+          {data.undoStack?.length > 0 && <TBtn onClick={() => dispatch({ type: "UNDO" })} tip={`Undo (${data.undoStack.length})`}>↩</TBtn>}
+          {data.redoStack?.length > 0 && <TBtn onClick={() => dispatch({ type: "REDO" })} tip={`Redo (${data.redoStack.length})`}>↪</TBtn>}
+        </>}
+
         {/* — System — */}
         <TBtn onClick={saveGlobeScreenshot} tip="Save Globe Screenshot">📷</TBtn>
         {data.entries.length > 0 && <TBtn onClick={() => setShowExportHub(true)} tip="Export">📤</TBtn>}
@@ -3741,7 +3828,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
       {/* SEARCH PANEL */}
       {showSearch && (
-        <div style={{ position: "absolute", top: 22, left: 66, zIndex: 22, width: isMobile ? "calc(100% - 80px)" : 280, animation: "fadeIn .2s ease" }}>
+        <div style={{ position: "absolute", top: 22, left: 66, zIndex: 22, width: isMobile ? "calc(100% - 80px)" : 300, animation: "fadeIn .2s ease" }}>
           <div style={{ position: "relative" }}>
             <input autoFocus value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setSearchHl(-1); }}
               onKeyDown={e => {
@@ -3753,7 +3840,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                   setSelected(se); setPhotoIdx(0); setCardTab("overview"); setShowSearch(false); setSearchQuery(""); setSearchHl(-1);
                   setSliderDate(se.dateStart); flyTo(se.lat, se.lng, 2.5);
                 }
-                else if (e.key === "Escape") { setShowSearch(false); setSearchQuery(""); setSearchHl(-1); }
+                else if (e.key === "Escape") { setShowSearch(false); setSearchQuery(""); setSearchHl(-1); setSearchDateFrom(""); setSearchDateTo(""); setSearchTypeFilter("all"); setSearchSort("date-desc"); }
               }}
               placeholder="Search cities, notes, highlights..."
               style={{ width: "100%", padding: "9px 28px 9px 12px", border: `1px solid ${P.rose}25`, borderRadius: 10, fontSize: 11, fontFamily: "inherit", color: P.text, background: P.card, backdropFilter: "blur(16px)", boxShadow: "0 4px 16px rgba(0,0,0,.08)", outline: "none", boxSizing: "border-box" }}
@@ -3762,15 +3849,39 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               <button onClick={() => { setSearchQuery(""); setSearchHl(-1); }} style={{ position: "absolute", right: 2, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: P.textFaint, fontSize: 15, cursor: "pointer", padding: "6px 10px", lineHeight: 1 }}>×</button>
             )}
           </div>
-          {searchQuery.length >= 2 && (
+          {/* Filter row: date range, type, sort */}
+          <div style={{ marginTop: 4, display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
+            <input type="date" value={searchDateFrom} onChange={e => setSearchDateFrom(e.target.value)} title="From date"
+              style={{ flex: 1, minWidth: 90, padding: "5px 6px", border: `1px solid ${P.rose}20`, borderRadius: 7, fontSize: 9, fontFamily: "inherit", color: P.text, background: P.card, backdropFilter: "blur(12px)", outline: "none" }} />
+            <span style={{ fontSize: 9, color: P.textFaint }}>→</span>
+            <input type="date" value={searchDateTo} onChange={e => setSearchDateTo(e.target.value)} title="To date"
+              style={{ flex: 1, minWidth: 90, padding: "5px 6px", border: `1px solid ${P.rose}20`, borderRadius: 7, fontSize: 9, fontFamily: "inherit", color: P.text, background: P.card, backdropFilter: "blur(12px)", outline: "none" }} />
+            <select value={searchTypeFilter} onChange={e => setSearchTypeFilter(e.target.value)} title="Filter by type"
+              style={{ padding: "5px 4px", border: `1px solid ${P.rose}20`, borderRadius: 7, fontSize: 9, fontFamily: "inherit", color: P.text, background: P.card, outline: "none", maxWidth: 90 }}>
+              <option value="all">All types</option>
+              {Object.entries(TYPES).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
+            </select>
+            <select value={searchSort} onChange={e => setSearchSort(e.target.value)} title="Sort results"
+              style={{ padding: "5px 4px", border: `1px solid ${P.rose}20`, borderRadius: 7, fontSize: 9, fontFamily: "inherit", color: P.text, background: P.card, outline: "none", maxWidth: 80 }}>
+              <option value="date-desc">Newest</option>
+              <option value="date-asc">Oldest</option>
+              <option value="alpha">A→Z</option>
+              <option value="country">Country</option>
+            </select>
+            {(searchDateFrom || searchDateTo || searchTypeFilter !== "all") && (
+              <button onClick={() => { setSearchDateFrom(""); setSearchDateTo(""); setSearchTypeFilter("all"); setSearchSort("date-desc"); }}
+                style={{ background: "none", border: "none", color: P.rose, fontSize: 9, cursor: "pointer", padding: "2px 4px", fontFamily: "inherit" }}>Clear filters</button>
+            )}
+          </div>
+          {hasSearchFilters && (
             <div style={{ marginTop: 4, background: P.card, backdropFilter: "blur(16px)", borderRadius: 10, maxHeight: 300, overflowY: "auto", boxShadow: "0 8px 28px rgba(61,53,82,.12)", border: `1px solid ${P.rose}10`, animation: "fadeIn .2s ease" }}>
               {searchResults.length === 0 && (
-                <div style={{ padding: "14px 16px", fontSize: 10, color: P.textFaint, textAlign: "center" }}>No matches for &ldquo;{searchQuery}&rdquo;</div>
+                <div style={{ padding: "14px 16px", fontSize: 10, color: P.textFaint, textAlign: "center" }}>{searchQuery.length >= 2 ? <>No matches for &ldquo;{searchQuery}&rdquo;</> : "No entries match these filters"}</div>
               )}
               {searchResults.length > 0 && (
                 <div style={{ padding: "6px 14px 2px", fontSize: 8, color: P.textFaint, letterSpacing: "0.5px" }}>{searchResults.length} {searchResults.length === 1 ? "result" : "results"}</div>
               )}
-              {searchResults.map((e, ri) => {
+              {searchResults.slice(0, 50).map((e, ri) => {
                 const t = TYPES[e.type] || DEFAULT_TYPE;
                 const isHl = ri === searchHl;
                 return (
@@ -3782,9 +3893,11 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                     onMouseEnter={ev => { ev.currentTarget.style.background = P.blush; setSearchHl(ri); }}
                     onMouseLeave={ev => { if (ri !== searchHl) ev.currentTarget.style.background = "transparent"; }}
                   >
-                    <span style={{ fontSize: 14 }}>{t.icon}</span>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 11, color: P.text }}>{e.city}{e.favorite ? " ♥" : ""}</div>
+                    {(e.photos || []).length > 0
+                      ? <img loading="lazy" src={thumbnail(e.photos[0], 64)} alt="" style={{ width: 28, height: 28, borderRadius: 5, objectFit: "cover", flexShrink: 0 }} />
+                      : <span style={{ fontSize: 14, width: 28, textAlign: "center", flexShrink: 0 }}>{t.icon}</span>}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 11, color: P.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.city}{e.favorite ? " ♥" : ""}</div>
                       <div style={{ fontSize: 8, color: P.textFaint }}>{fmtDate(e.dateStart)} · {e.country}{isSharedWorld && e.addedBy && memberNameMap[e.addedBy] ? ` · ${memberNameMap[e.addedBy]}` : ""}</div>
                     </div>
                   </button>
@@ -3920,8 +4033,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 const cid = cur.id;
                 uploadLockRef.current = uploadLockRef.current.then(async () => {
                   setUploading(true);
+                  setUploadProgress({ done: 0, total: files.length });
                   const urls = [];
-                  for (const file of files) { try { const compressed = await compressImage(file); const url = await db.uploadPhoto(compressed, cid); if (url && typeof url === 'string') urls.push(url); } catch (err) { /* skip */ } }
+                  for (let fi = 0; fi < files.length; fi++) { try { const compressed = await compressImage(files[fi]); const url = await db.uploadPhoto(compressed, cid); if (url && typeof url === 'string') urls.push(url); } catch (err) { /* skip */ } setUploadProgress({ done: fi + 1, total: files.length }); }
                   if (urls.length > 0) {
                     const current = await db.readPhotos(cid);
                     const merged = [...(current.ok ? current.photos : []), ...urls];
@@ -3995,8 +4109,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               const cid = cur.id;
               uploadLockRef.current = uploadLockRef.current.then(async () => {
                 setUploading(true);
+                setUploadProgress({ done: 0, total: files.length });
                 const urls = [];
-                for (const file of files) { try { const url = await db.uploadPhoto(file, cid); if (url && typeof url === 'string') urls.push(url); } catch (err) { /* skip failed */ } }
+                for (let fi = 0; fi < files.length; fi++) { try { const compressed = await compressImage(files[fi]); const url = await db.uploadPhoto(compressed, cid); if (url && typeof url === 'string') urls.push(url); } catch (err) { /* skip failed */ } setUploadProgress({ done: fi + 1, total: files.length }); }
                 if (urls.length > 0) {
                   const current = await db.readPhotos(cid);
                   const merged = [...(current.ok ? current.photos : []), ...urls];
@@ -4297,7 +4412,15 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               </>)}
             </div>
 
-            {!isViewer && <button onClick={() => setEditing({ ...cur })} style={{ marginTop: 10, width: "100%", padding: "7px 0", background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: `1px solid ${P.rose}15`, borderRadius: 7, cursor: "pointer", fontSize: 9, color: P.textMuted, fontFamily: "inherit" }}>✏️ Edit</button>}
+            {!isViewer && <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+              <button onClick={() => setEditing({ ...cur })} style={{ flex: 1, padding: "7px 0", background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: `1px solid ${P.rose}15`, borderRadius: 7, cursor: "pointer", fontSize: 9, color: P.textMuted, fontFamily: "inherit" }}>✏️ Edit</button>
+              <button onClick={() => {
+                const dup = { ...cur, id: `e-${Date.now()}`, dateStart: todayStr(), dateEnd: "", photos: [], notes: cur.notes ? `(Copy) ${cur.notes}` : "" };
+                dispatch({ type: "ADD", entry: dup });
+                setSelected(dup); showToast("Entry duplicated", "📋", 2000);
+              }} style={{ padding: "7px 10px", background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: `1px solid ${P.rose}15`, borderRadius: 7, cursor: "pointer", fontSize: 9, color: P.textMuted, fontFamily: "inherit" }} title="Duplicate entry">📋</button>
+              <button onClick={() => setTripCardEntry(cur)} style={{ padding: "7px 10px", background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: `1px solid ${P.rose}15`, borderRadius: 7, cursor: "pointer", fontSize: 9, color: P.textMuted, fontFamily: "inherit" }} title="Share card">🃏</button>
+            </div>}
 
             {/* Reactions — shared worlds only */}
             {isSharedWorld && (() => {
@@ -4416,7 +4539,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       {confirmDelete && (
         <div role="dialog" aria-modal="true" aria-label="Confirm delete" onClick={() => setConfirmDelete(null)} style={{ position: "fixed", inset: 0, zIndex: 60, background: `linear-gradient(135deg, rgba(22,16,40,.82), rgba(30,24,48,.88))`, backdropFilter: "blur(20px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .2s ease" }}>
           <div onClick={e => e.stopPropagation()} style={{ background: P.card, borderRadius: 20, padding: 32, maxWidth: 340, textAlign: "center", boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 20px 56px rgba(61,53,82,.1)" }}>
-            <p style={{ fontSize: 14, margin: "0 0 16px" }}>Delete this memory forever?</p>
+            <p style={{ fontSize: 14, margin: "0 0 6px" }}>Delete this memory forever?</p>
+            {(() => { const d = data.entries.find(e => e.id === confirmDelete); return d ? <p style={{ fontSize: 11, color: P.textFaint, margin: "0 0 16px", fontStyle: "italic" }}>{d.city}{d.country ? `, ${d.country}` : ""}{d.dateStart ? ` · ${fmtDate(d.dateStart)}` : ""}</p> : null; })()}
             <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
               <button onClick={() => {
                 const deletedEntry = data.entries.find(e => e.id === confirmDelete);
@@ -4548,7 +4672,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               setSelected(e); setPhotoIdx(0); setCardTab("overview"); setSliderDate(e.dateStart);
               flyTo(e.lat, e.lng, 2.5); setOnThisDayEntry(null);
             }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 16px", background: P.card, backdropFilter: "blur(16px)", borderRadius: 16, border: `1px solid ${P.goldWarm}20`, boxShadow: `0 4px 20px rgba(0,0,0,.1), 0 0 30px ${P.goldWarm}08`, cursor: "pointer", fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", maxWidth: "90vw" }}>
-              {e.photos?.length > 0 && <img src={e.photos[0]} alt="" style={{ width: 36, height: 36, borderRadius: 8, objectFit: "cover", border: "2px solid #fff", boxShadow: "0 2px 6px rgba(0,0,0,.15)" }} />}
+              {e.photos?.length > 0 && <img loading="lazy" src={thumbnail(e.photos[0], 72)} alt="" style={{ width: 36, height: 36, borderRadius: 8, objectFit: "cover", border: "2px solid #fff", boxShadow: "0 2px 6px rgba(0,0,0,.15)" }} />}
               <div style={{ textAlign: "left" }}>
                 <div style={{ fontSize: 8, color: P.goldWarm, letterSpacing: ".12em", textTransform: "uppercase" }}>On this day · {yearsAgo} year{yearsAgo > 1 ? "s" : ""} ago</div>
                 <div style={{ fontSize: 12, color: P.text, fontStyle: "italic", marginTop: 1 }}>You were in {e.city}</div>
@@ -5179,7 +5303,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             onClick={() => setLightboxOpen(false)}
             onKeyDown={e => { if (e.key === "Escape") setLightboxOpen(false); else if (e.key === "ArrowLeft") prev(); else if (e.key === "ArrowRight") next(); }}
             onTouchStart={e => { if (e.touches.length === 1) { lbSwipeRef.startX = e.touches[0].clientX; lbSwipeRef.startY = e.touches[0].clientY; lbSwipeRef.swiping = true; } }}
-            onTouchEnd={e => { if (!lbSwipeRef.swiping) return; lbSwipeRef.swiping = false; const dx = e.changedTouches[0].clientX - lbSwipeRef.startX; const dy = Math.abs(e.changedTouches[0].clientY - lbSwipeRef.startY); if (Math.abs(dx) > 50 && dy < 100) { if (dx > 0) prev(); else next(); e.preventDefault(); } }}
+            onTouchEnd={e => { if (!lbSwipeRef.swiping || !e.changedTouches[0]) return; lbSwipeRef.swiping = false; const dx = e.changedTouches[0].clientX - lbSwipeRef.startX; const dy = Math.abs(e.changedTouches[0].clientY - lbSwipeRef.startY); if (Math.abs(dx) > 50 && dy < 100) { if (dx > 0) prev(); else next(); e.preventDefault(); } }}
             tabIndex={0} ref={el => el?.focus()}>
             {/* Close button */}
             <button aria-label="Close lightbox" onClick={() => setLightboxOpen(false)} style={{ position: "absolute", top: 20, right: 20, background: "none", border: "none", color: "#fff", fontSize: 28, cursor: "pointer", zIndex: 210, opacity: 0.7, lineHeight: 1 }}>×</button>
@@ -5237,7 +5361,16 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       {showPhotoMap && <OverlayBoundary onClose={() => setShowPhotoMap(false)}><Suspense fallback={<div style={{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(8,6,18,0.7)",backdropFilter:"blur(8px)"}}><div style={{color:"rgba(255,255,255,0.4)",fontSize:14,fontFamily:"'Palatino Linotype',Georgia,serif",letterSpacing:".05em"}}>Loading…</div></div>}><PhotoMap entries={data.entries} palette={P} onClose={() => setShowPhotoMap(false)} worldMode={worldMode} /></Suspense></OverlayBoundary>}
       {showMilestones && <OverlayBoundary onClose={() => setShowMilestones(false)}><Suspense fallback={<div style={{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(8,6,18,0.7)",backdropFilter:"blur(8px)"}}><div style={{color:"rgba(255,255,255,0.4)",fontSize:14,fontFamily:"'Palatino Linotype',Georgia,serif",letterSpacing:".05em"}}>Loading…</div></div>}><Milestones entries={data.entries} palette={P} onClose={() => setShowMilestones(false)} worldMode={worldMode} config={config} /></Suspense></OverlayBoundary>}
       {showTravelStats && <OverlayBoundary onClose={() => setShowTravelStats(false)}><Suspense fallback={<div style={{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(8,6,18,0.7)",backdropFilter:"blur(8px)"}}><div style={{color:"rgba(255,255,255,0.4)",fontSize:14,fontFamily:"'Palatino Linotype',Georgia,serif",letterSpacing:".05em"}}>Loading…</div></div>}><TravelStats entries={data.entries} stats={stats} palette={P} onClose={() => setShowTravelStats(false)} worldMode={worldMode} config={config} /></Suspense></OverlayBoundary>}
-      {showExportHub && <OverlayBoundary onClose={() => setShowExportHub(false)}><Suspense fallback={<div style={{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(8,6,18,0.7)",backdropFilter:"blur(8px)"}}><div style={{color:"rgba(255,255,255,0.4)",fontSize:14,fontFamily:"'Palatino Linotype',Georgia,serif",letterSpacing:".05em"}}>Loading…</div></div>}><ExportHub entries={data.entries} config={config} stats={stats} palette={P} onClose={() => setShowExportHub(false)} worldMode={worldMode} travelerName={isPartnerWorld ? (config.youName || '') : (config.travelerName || '')} /></Suspense></OverlayBoundary>}
+      {showExportHub && <OverlayBoundary onClose={() => setShowExportHub(false)}><Suspense fallback={<div style={{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(8,6,18,0.7)",backdropFilter:"blur(8px)"}}><div style={{color:"rgba(255,255,255,0.4)",fontSize:14,fontFamily:"'Palatino Linotype',Georgia,serif",letterSpacing:".05em"}}>Loading…</div></div>}><ExportHub entries={data.entries} config={config} stats={stats} palette={P} onClose={() => setShowExportHub(false)} worldMode={worldMode} travelerName={isPartnerWorld ? (config.youName || '') : (config.travelerName || '')} onImport={!isViewer ? (entries) => {
+                let count = 0;
+                entries.forEach(entry => {
+                  const id = entry.id || `e-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+                  dispatch({ type: "ADD", entry: { ...entry, id } });
+                  count++;
+                });
+                showToast(`Imported ${count} entries`, "📥", 4000);
+                setShowExportHub(false);
+              } : undefined} /></Suspense></OverlayBoundary>}
       {tripCardEntry && <OverlayBoundary onClose={() => setTripCardEntry(null)}><Suspense fallback={<div style={{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(8,6,18,0.7)",backdropFilter:"blur(8px)"}}><div style={{color:"rgba(255,255,255,0.4)",fontSize:14,fontFamily:"'Palatino Linotype',Georgia,serif",letterSpacing:".05em"}}>Loading…</div></div>}><TripCard entry={tripCardEntry} palette={P} onClose={() => setTripCardEntry(null)} worldMode={worldMode} /></Suspense></OverlayBoundary>}
       {showYearReview && <OverlayBoundary onClose={() => setShowYearReview(false)}><Suspense fallback={<div style={{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(8,6,18,0.7)",backdropFilter:"blur(8px)"}}><div style={{color:"rgba(255,255,255,0.4)",fontSize:14,fontFamily:"'Palatino Linotype',Georgia,serif",letterSpacing:".05em"}}>Loading…</div></div>}><YearInReview entries={data.entries} stats={stats} palette={P} onClose={() => setShowYearReview(false)} worldMode={worldMode} config={config} /></Suspense></OverlayBoundary>}
 

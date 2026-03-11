@@ -64,6 +64,8 @@ function KeyboardShortcuts({ onClose, palette: P, worldMode }) {
         { keys: ["I"], desc: "Toggle stats" },
         { keys: ["T"], desc: "Jump to today" },
         { keys: ["P"], desc: "Save globe screenshot" },
+        { keys: ["⌘Z"], desc: "Undo last action" },
+        { keys: ["⌘⇧Z"], desc: "Redo" },
       ],
     },
     {

@@ -57,7 +57,7 @@ function Starfield({ color }) {
     frame = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(frame);
   }, [color]);
-  return <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, pointerEvents: "none" }} />;
+  return <canvas ref={canvasRef} aria-hidden="true" style={{ position: "absolute", inset: 0, pointerEvents: "none" }} />;
 }
 
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -739,7 +739,7 @@ export default function YearInReview({ entries = [], stats = {}, palette, onClos
       <div role="dialog" aria-modal="true" aria-label="Year in review" style={overlayStyle}>
         <Starfield color={accent} />
         <div style={progressBarContainerStyle}><div style={progressBarStyle} /></div>
-        <button style={closeBtnStyle} onClick={onClose}
+        <button style={closeBtnStyle} onClick={onClose} aria-label="Close year in review"
           onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.14)"; }}
           onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.08)"; }}
         >&times;</button>
@@ -782,20 +782,20 @@ export default function YearInReview({ entries = [], stats = {}, palette, onClos
       </div>
 
       {/* Close button */}
-      <button style={closeBtnStyle} onClick={onClose}
+      <button style={closeBtnStyle} onClick={onClose} aria-label="Close year in review"
         onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.14)"; }}
         onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.08)"; }}
       >&times;</button>
 
       {/* Navigation arrows */}
       {currentSlide > 0 && (
-        <button style={navBtnStyle("left")} onClick={prev}
+        <button style={navBtnStyle("left")} onClick={prev} aria-label="Previous slide"
           onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.12)"; }}
           onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
         >&#8249;</button>
       )}
       {currentSlide < totalSlides - 1 && (
-        <button style={navBtnStyle("right")} onClick={next}
+        <button style={navBtnStyle("right")} onClick={next} aria-label="Next slide"
           onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.12)"; }}
           onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
         >&#8250;</button>
@@ -811,7 +811,7 @@ export default function YearInReview({ entries = [], stats = {}, palette, onClos
         {/* Dot indicators */}
         <div style={{ display: "flex", gap: 6 }}>
           {slides.map((_, i) => (
-            <button key={i} onClick={() => goTo(i, i > currentSlide ? 1 : -1)} style={{
+            <button key={i} onClick={() => goTo(i, i > currentSlide ? 1 : -1)} aria-label={`Go to slide ${i + 1}`} style={{
               width: i === currentSlide ? 18 : 6, height: 6,
               borderRadius: 3, border: "none", cursor: "pointer",
               background: i === currentSlide

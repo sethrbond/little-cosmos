@@ -290,7 +290,7 @@ export default function PhotoMap({ entries = [], palette, onClose, worldMode }) 
           {photoUrl && (
             <img
               src={photoUrl}
-              alt={entry.city || ""}
+              alt={`Photo from ${entry.city || "trip"}`}
               style={{
                 width: "100%",
                 height: "100%",
@@ -373,6 +373,7 @@ export default function PhotoMap({ entries = [], palette, onClose, worldMode }) 
 
     return (
       <div
+        role="dialog" aria-modal="true" aria-label={`Photo from ${entry.city || 'trip'}`}
         style={{
           position: "fixed",
           inset: 0,
@@ -407,6 +408,7 @@ export default function PhotoMap({ entries = [], palette, onClose, worldMode }) 
 
         {/* Close */}
         <button
+          aria-label="Close lightbox"
           onClick={() => setLightbox(null)}
           style={{
             position: "absolute",
@@ -446,6 +448,7 @@ export default function PhotoMap({ entries = [], palette, onClose, worldMode }) 
         {photos.length > 1 && (
           <>
             <button
+              aria-label="Previous photo"
               onClick={(e) => { e.stopPropagation(); setLightbox(lb => ({ ...lb, photoIdx: idx - 1 })); }}
               style={{
                 position: "absolute",
@@ -472,6 +475,7 @@ export default function PhotoMap({ entries = [], palette, onClose, worldMode }) 
               &#8249;
             </button>
             <button
+              aria-label="Next photo"
               onClick={(e) => { e.stopPropagation(); setLightbox(lb => ({ ...lb, photoIdx: idx + 1 })); }}
               style={{
                 position: "absolute",
@@ -510,7 +514,9 @@ export default function PhotoMap({ entries = [], palette, onClose, worldMode }) 
             {photos.map((_, i) => (
               <div
                 key={i}
+                role="button" tabIndex={0} aria-label={`Go to photo ${i + 1}`}
                 onClick={(e) => { e.stopPropagation(); setLightbox(lb => ({ ...lb, photoIdx: i })); }}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); setLightbox(lb => ({ ...lb, photoIdx: i })); } }}
                 style={{
                   width: i === idx ? 10 : 7,
                   height: i === idx ? 10 : 7,
@@ -545,7 +551,7 @@ export default function PhotoMap({ entries = [], palette, onClose, worldMode }) 
   });
 
   return (
-    <div style={{
+    <div role="dialog" aria-modal="true" aria-label="Photo map" style={{
       position: "fixed",
       inset: 0,
       zIndex: 900,
@@ -590,7 +596,7 @@ export default function PhotoMap({ entries = [], palette, onClose, worldMode }) 
           <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 12, marginRight: 4 }}>
             {zoom > 1 ? `${zoom.toFixed(1)}x` : ""}
           </span>
-          <button onClick={onClose} style={{
+          <button aria-label="Close photo map" onClick={onClose} style={{
             background: "none",
             border: "none",
             color: "rgba(255,255,255,0.6)",
@@ -627,6 +633,7 @@ export default function PhotoMap({ entries = [], palette, onClose, worldMode }) 
         {mapSize.w === 0 ? null : <>
         {/* SVG map */}
         <svg
+          aria-hidden="true"
           width={mapSize.w}
           height={mapSize.h}
           style={{
@@ -689,7 +696,7 @@ export default function PhotoMap({ entries = [], palette, onClose, worldMode }) 
             style={btnStyle()}
             onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.2)"}
             onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
-            title="Zoom in"
+            title="Zoom in" aria-label="Zoom in"
           >+</button>
           <button
             data-control="true"
@@ -697,7 +704,7 @@ export default function PhotoMap({ entries = [], palette, onClose, worldMode }) 
             style={btnStyle()}
             onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.2)"}
             onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
-            title="Zoom out"
+            title="Zoom out" aria-label="Zoom out"
           >&minus;</button>
           <button
             data-control="true"
@@ -705,7 +712,7 @@ export default function PhotoMap({ entries = [], palette, onClose, worldMode }) 
             style={btnStyle({ fontSize: 13, fontWeight: 600 })}
             onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.2)"}
             onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
-            title="Reset view"
+            title="Reset view" aria-label="Reset view"
           >&#8634;</button>
         </div>
 

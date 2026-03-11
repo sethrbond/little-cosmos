@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 
 /* =================================================================
-   ExportHub — Multi-format export & sharing modal for My Cosmos
-   Formats: JSON, CSV, HTML Report, KML, Timeline Text, Share Link
+   ExportHub — Multi-format export & import for My Cosmos
+   Export: JSON, CSV, HTML Report, KML, Timeline Text, Share Link
+   Import: JSON backup, CSV spreadsheet
    ================================================================= */
 
 // ---- helpers ----
@@ -499,6 +500,161 @@ function generateTimeline(entries) {
   return lines.join("\n");
 }
 
+// ---- CSV Parser (handles quoted fields, commas within quotes, newlines in quotes) ----
+
+function parseCSV(text) {
+  const rows = [];
+  let row = [];
+  let field = "";
+  let inQuotes = false;
+  let i = 0;
+  while (i < text.length) {
+    const ch = text[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (i + 1 < text.length && text[i + 1] === '"') {
+          field += '"';
+          i += 2;
+        } else {
+          inQuotes = false;
+          i++;
+        }
+      } else {
+        field += ch;
+        i++;
+      }
+    } else {
+      if (ch === '"') {
+        inQuotes = true;
+        i++;
+      } else if (ch === ',') {
+        row.push(field);
+        field = "";
+        i++;
+      } else if (ch === '\r') {
+        // skip \r, handle \n next
+        i++;
+      } else if (ch === '\n') {
+        row.push(field);
+        field = "";
+        if (row.some(f => f.trim() !== "")) rows.push(row);
+        row = [];
+        i++;
+      } else {
+        field += ch;
+        i++;
+      }
+    }
+  }
+  // last field/row
+  row.push(field);
+  if (row.some(f => f.trim() !== "")) rows.push(row);
+  return rows;
+}
+
+// Column name mapping: CSV header -> entry field
+const CSV_COLUMN_MAP = {
+  "city": "city",
+  "country": "country",
+  "start date": "dateStart",
+  "end date": "dateEnd",
+  "type": "type",
+  "notes": "notes",
+  "latitude": "lat",
+  "longitude": "lng",
+  "favorite": "favorite",
+  "highlights": "highlights",
+  "museums/culture": "museums",
+  "restaurants/food": "restaurants",
+  "who": "who",
+  "love note": "loveNote",
+  "photo urls": "photos",
+  "photo count": "_photoCount",
+  "stops count": "_stopsCount",
+  "stop cities": "_stopCities",
+};
+
+function normalizeCSVHeader(header) {
+  return header.trim().toLowerCase();
+}
+
+function parseCSVEntries(text) {
+  const rows = parseCSV(text);
+  if (rows.length < 2) throw new Error("CSV file must have a header row and at least one data row.");
+  const headers = rows[0].map(normalizeCSVHeader);
+  const fieldMap = headers.map(h => CSV_COLUMN_MAP[h] || null);
+
+  const entries = [];
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r];
+    const entry = {};
+    for (let c = 0; c < fieldMap.length; c++) {
+      const key = fieldMap[c];
+      if (!key || key.startsWith("_")) continue;
+      const val = (row[c] || "").trim();
+      if (!val) continue;
+      if (key === "lat" || key === "lng") {
+        const n = parseFloat(val);
+        if (!isNaN(n)) entry[key] = n;
+      } else if (key === "favorite") {
+        entry[key] = val.toLowerCase() === "yes" || val.toLowerCase() === "true";
+      } else if (key === "highlights" || key === "museums" || key === "restaurants") {
+        entry[key] = val.split(";").map(s => s.trim()).filter(Boolean);
+      } else if (key === "photos") {
+        entry[key] = val.split(";").map(s => s.trim()).filter(Boolean);
+      } else {
+        entry[key] = val;
+      }
+    }
+    // Generate an ID if missing
+    if (!entry.id) entry.id = `e-${Date.now()}-${r}`;
+    entries.push(entry);
+  }
+  return entries;
+}
+
+function parseJSONEntries(text) {
+  const parsed = JSON.parse(text);
+  // Handle the app's export format: { _exportMeta, data: { entries }, config }
+  if (parsed._exportMeta && parsed.data?.entries) {
+    return parsed.data.entries;
+  }
+  // Handle plain array of entries
+  if (Array.isArray(parsed)) {
+    return parsed;
+  }
+  // Handle { entries: [...] }
+  if (parsed.entries && Array.isArray(parsed.entries)) {
+    return parsed.entries;
+  }
+  throw new Error("Unrecognized JSON format. Expected an array of entries or a My Cosmos backup file.");
+}
+
+const REQUIRED_FIELDS = ["city", "country", "lat", "lng", "dateStart"];
+
+function validateEntries(entries) {
+  const errors = [];
+  const valid = [];
+  for (let i = 0; i < entries.length; i++) {
+    const e = entries[i];
+    const missing = REQUIRED_FIELDS.filter(f => {
+      if (f === "lat" || f === "lng") return e[f] == null || isNaN(e[f]);
+      return !e[f];
+    });
+    if (missing.length > 0) {
+      errors.push(`Row ${i + 1} (${e.city || "unknown"}): missing ${missing.join(", ")}`);
+    } else {
+      // Ensure lat/lng are numbers
+      e.lat = Number(e.lat);
+      e.lng = Number(e.lng);
+      // Ensure ID exists
+      if (!e.id) e.id = `e-${Date.now()}-${i}`;
+      valid.push(e);
+    }
+  }
+  return { valid, errors };
+}
+
 // ---- Export option card data ----
 const EXPORT_OPTIONS = [
   {
@@ -550,10 +706,20 @@ const EXPORT_OPTIONS = [
 
 // ---- Component ----
 
-export default function ExportHub({ entries = [], config = {}, stats = {}, palette, onClose, worldMode, travelerName }) {
+export default function ExportHub({ entries = [], config = {}, stats = {}, palette, onClose, onImport, worldMode, travelerName }) {
   const P = palette || {};
   const [status, setStatus] = useState({}); // { [id]: "loading" | "done" | "error" }
+  const [activeTab, setActiveTab] = useState("export"); // "export" | "import"
   const overlayRef = useRef(null);
+
+  // ---- Import state ----
+  const [importFile, setImportFile] = useState(null);
+  const [importParsed, setImportParsed] = useState(null); // { valid: [], errors: [] }
+  const [importError, setImportError] = useState(null);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importDone, setImportDone] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef(null);
 
   // Close on escape
   useEffect(() => {
@@ -631,6 +797,82 @@ export default function ExportHub({ entries = [], config = {}, stats = {}, palet
       setTimeout(() => setCardStatus(id, null), 3000);
     }
   }, [entries, config, stats, travelerName, P, worldMode, setCardStatus]);
+
+  // ---- Import handlers ----
+  const resetImport = useCallback(() => {
+    setImportFile(null);
+    setImportParsed(null);
+    setImportError(null);
+    setImportDone(false);
+  }, []);
+
+  const processFile = useCallback((file) => {
+    resetImport();
+    if (!file) return;
+    const ext = file.name.split(".").pop().toLowerCase();
+    if (ext !== "json" && ext !== "csv") {
+      setImportError("Unsupported file type. Please upload a .json or .csv file.");
+      return;
+    }
+    setImportFile(file);
+    setImportLoading(true);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const text = ev.target.result;
+        let rawEntries;
+        if (ext === "json") {
+          rawEntries = parseJSONEntries(text);
+        } else {
+          rawEntries = parseCSVEntries(text);
+        }
+        if (!rawEntries || rawEntries.length === 0) {
+          setImportError("No entries found in the file.");
+          setImportLoading(false);
+          return;
+        }
+        const result = validateEntries(rawEntries);
+        setImportParsed(result);
+        setImportLoading(false);
+      } catch (err) {
+        console.error("Import parse error:", err);
+        setImportError(err.message || "Failed to parse file. Please check the format.");
+        setImportLoading(false);
+      }
+    };
+    reader.onerror = () => {
+      setImportError("Failed to read file.");
+      setImportLoading(false);
+    };
+    reader.readAsText(file);
+  }, [resetImport]);
+
+  const handleFileDrop = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(false);
+    const file = e.dataTransfer?.files?.[0];
+    if (file) processFile(file);
+  }, [processFile]);
+
+  const handleFileSelect = useCallback((e) => {
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
+  }, [processFile]);
+
+  const handleImportAll = useCallback(async () => {
+    if (!importParsed?.valid?.length || !onImport) return;
+    setImportLoading(true);
+    try {
+      await onImport(importParsed.valid);
+      setImportDone(true);
+      setImportLoading(false);
+    } catch (err) {
+      console.error("Import failed:", err);
+      setImportError(err.message || "Import failed. Please try again.");
+      setImportLoading(false);
+    }
+  }, [importParsed, onImport]);
 
   // ---- Styles ----
   const accent = P.rose || "#c48aa8";
@@ -713,7 +955,7 @@ export default function ExportHub({ entries = [], config = {}, stats = {}, palet
               fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase",
               color: accent, marginBottom: 6, fontWeight: 500,
             }}>
-              Export & Share
+              Export & Import
             </div>
             <h2 style={{
               fontFamily: "'Cormorant Garamond', Georgia, serif",
@@ -722,180 +964,592 @@ export default function ExportHub({ entries = [], config = {}, stats = {}, palet
             }}>
               Take Your World With You
             </h2>
-            <p style={{
-              fontSize: 12, color: textMuted, marginTop: 6,
-              maxWidth: 420, marginLeft: "auto", marginRight: "auto",
-            }}>
-              {entries.length === 0
-                ? "No entries to export yet. Add some travels first!"
-                : `${entries.length} ${entries.length === 1 ? "entry" : "entries"} ready to export`}
-            </p>
+          </div>
+
+          {/* Tab switcher */}
+          <div style={{
+            display: "flex", justifyContent: "center", gap: 4,
+            margin: "16px 0 0",
+            background: `${parchment}`,
+            borderRadius: 10, padding: 3,
+            border: `1px solid ${accent}12`,
+          }}>
+            {[
+              { id: "export", label: "Export" },
+              { id: "import", label: "Import" },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => { setActiveTab(tab.id); if (tab.id === "export") resetImport(); }}
+                style={{
+                  flex: 1,
+                  padding: "8px 16px",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  fontFamily: "inherit",
+                  letterSpacing: "0.04em",
+                  border: "none",
+                  borderRadius: 8,
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                  background: activeTab === tab.id
+                    ? `linear-gradient(135deg, ${accent}20, ${accent}10)`
+                    : "transparent",
+                  color: activeTab === tab.id ? accent : textMuted,
+                  boxShadow: activeTab === tab.id ? `0 1px 4px ${accent}10` : "none",
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
 
           {/* Divider */}
           <div style={{
-            height: 1, margin: "16px 0",
+            height: 1, margin: "14px 0",
             background: `linear-gradient(90deg, transparent, ${accent}20, transparent)`,
           }} />
 
-          {/* Export grid */}
-          <div style={gridStyle}>
-            {EXPORT_OPTIONS.map((opt, i) => {
-              const st = status[opt.id];
-              const isDisabled = opt.disabled || entries.length === 0;
-              return (
-                <div
-                  key={opt.id}
-                  style={{
-                    background: cardBg,
-                    border: `1px solid ${accent}${isDisabled ? "08" : "15"}`,
-                    borderRadius: 14,
-                    padding: "20px 16px 16px",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 8,
-                    opacity: isDisabled ? 0.5 : 1,
-                    animation: `exportCardPop 0.3s ease-out ${i * 0.05}s both`,
-                    transition: "all 0.2s",
-                    cursor: isDisabled ? "default" : "pointer",
-                    position: "relative",
-                    overflow: "hidden",
-                  }}
-                  onMouseEnter={e => {
-                    if (!isDisabled) {
-                      e.currentTarget.style.transform = "translateY(-2px)";
-                      e.currentTarget.style.boxShadow = `0 6px 20px ${accent}12`;
-                      e.currentTarget.style.borderColor = `${accent}30`;
-                    }
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.transform = "none";
-                    e.currentTarget.style.boxShadow = "none";
-                    e.currentTarget.style.borderColor = `${accent}${isDisabled ? "08" : "15"}`;
-                  }}
-                >
-                  {/* Icon */}
+          {/* ===== EXPORT TAB ===== */}
+          {activeTab === "export" && (
+            <>
+              <p style={{
+                fontSize: 12, color: textMuted, textAlign: "center", marginBottom: 4,
+              }}>
+                {entries.length === 0
+                  ? "No entries to export yet. Add some travels first!"
+                  : `${entries.length} ${entries.length === 1 ? "entry" : "entries"} ready to export`}
+              </p>
+              <div style={gridStyle}>
+                {EXPORT_OPTIONS.map((opt, i) => {
+                  const st = status[opt.id];
+                  const isDisabled = opt.disabled || entries.length === 0;
+                  return (
+                    <div
+                      key={opt.id}
+                      style={{
+                        background: cardBg,
+                        border: `1px solid ${accent}${isDisabled ? "08" : "15"}`,
+                        borderRadius: 14,
+                        padding: "20px 16px 16px",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 8,
+                        opacity: isDisabled ? 0.5 : 1,
+                        animation: `exportCardPop 0.3s ease-out ${i * 0.05}s both`,
+                        transition: "all 0.2s",
+                        cursor: isDisabled ? "default" : "pointer",
+                        position: "relative",
+                        overflow: "hidden",
+                      }}
+                      onMouseEnter={e => {
+                        if (!isDisabled) {
+                          e.currentTarget.style.transform = "translateY(-2px)";
+                          e.currentTarget.style.boxShadow = `0 6px 20px ${accent}12`;
+                          e.currentTarget.style.borderColor = `${accent}30`;
+                        }
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.transform = "none";
+                        e.currentTarget.style.boxShadow = "none";
+                        e.currentTarget.style.borderColor = `${accent}${isDisabled ? "08" : "15"}`;
+                      }}
+                    >
+                      {/* Icon */}
+                      <div style={{
+                        fontSize: 22, width: 42, height: 42,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        background: `linear-gradient(135deg, ${accent}10, ${accent}05)`,
+                        borderRadius: 10, color: accent,
+                        fontWeight: 700, fontFamily: "monospace",
+                        border: `1px solid ${accent}10`,
+                      }}>
+                        {opt.icon}
+                      </div>
+
+                      {/* Title & desc */}
+                      <div>
+                        <div style={{
+                          fontSize: 13, fontWeight: 600, color: text,
+                          marginBottom: 3, letterSpacing: "0.01em",
+                        }}>
+                          {opt.title}
+                        </div>
+                        <div style={{
+                          fontSize: 10.5, color: textMuted, lineHeight: 1.45,
+                        }}>
+                          {opt.desc}
+                        </div>
+                      </div>
+
+                      {/* Action buttons */}
+                      <div style={{ marginTop: "auto", paddingTop: 6, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                        <button
+                          disabled={isDisabled}
+                          onClick={(e) => { e.stopPropagation(); handleExport(opt.id); }}
+                          style={{
+                            flex: 1,
+                            padding: "7px 10px",
+                            background: isDisabled
+                              ? `${parchment}`
+                              : st === "done"
+                                ? `linear-gradient(135deg, #90b08030, #90b08015)`
+                                : st === "error"
+                                  ? `linear-gradient(135deg, #d0686830, #d0686815)`
+                                  : `linear-gradient(135deg, ${accent}18, ${accent}08)`,
+                            border: `1px solid ${isDisabled ? textFaint + "20" : st === "done" ? "#90b08040" : st === "error" ? "#d0686840" : accent + "25"}`,
+                            borderRadius: 8,
+                            cursor: isDisabled ? "not-allowed" : "pointer",
+                            fontSize: 10,
+                            fontFamily: "inherit",
+                            fontWeight: 500,
+                            color: isDisabled ? textFaint : st === "done" ? "#688c5c" : st === "error" ? "#d06868" : accent,
+                            transition: "all 0.2s",
+                            letterSpacing: "0.02em",
+                            whiteSpace: "nowrap",
+                          }}
+                          onMouseEnter={e => { if (!isDisabled) e.currentTarget.style.background = `linear-gradient(135deg, ${accent}28, ${accent}14)`; }}
+                          onMouseLeave={e => { if (!isDisabled) e.currentTarget.style.background = `linear-gradient(135deg, ${accent}18, ${accent}08)`; }}
+                        >
+                          {st === "loading" ? "..." : st === "done" ? "Done!" : st === "error" ? "Failed" : opt.action}
+                        </button>
+
+                        {/* Extra button: preview or download */}
+                        {opt.extra === "preview" && !isDisabled && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleExport(opt.id, { preview: true }); }}
+                            style={{
+                              padding: "7px 10px",
+                              background: `linear-gradient(135deg, ${P.sky || "#8ca8c8"}18, ${P.sky || "#8ca8c8"}08)`,
+                              border: `1px solid ${P.sky || "#8ca8c8"}25`,
+                              borderRadius: 8, cursor: "pointer",
+                              fontSize: 10, fontFamily: "inherit", fontWeight: 500,
+                              color: P.sky || "#8ca8c8",
+                              transition: "all 0.2s", letterSpacing: "0.02em",
+                              whiteSpace: "nowrap",
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = `linear-gradient(135deg, ${P.sky || "#8ca8c8"}28, ${P.sky || "#8ca8c8"}14)`}
+                            onMouseLeave={e => e.currentTarget.style.background = `linear-gradient(135deg, ${P.sky || "#8ca8c8"}18, ${P.sky || "#8ca8c8"}08)`}
+                          >
+                            Preview
+                          </button>
+                        )}
+                        {opt.extra === "download" && !isDisabled && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleExport(opt.id, { download: true }); }}
+                            style={{
+                              padding: "7px 10px",
+                              background: `linear-gradient(135deg, ${P.sky || "#8ca8c8"}18, ${P.sky || "#8ca8c8"}08)`,
+                              border: `1px solid ${P.sky || "#8ca8c8"}25`,
+                              borderRadius: 8, cursor: "pointer",
+                              fontSize: 10, fontFamily: "inherit", fontWeight: 500,
+                              color: P.sky || "#8ca8c8",
+                              transition: "all 0.2s", letterSpacing: "0.02em",
+                              whiteSpace: "nowrap",
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = `linear-gradient(135deg, ${P.sky || "#8ca8c8"}28, ${P.sky || "#8ca8c8"}14)`}
+                            onMouseLeave={e => e.currentTarget.style.background = `linear-gradient(135deg, ${P.sky || "#8ca8c8"}18, ${P.sky || "#8ca8c8"}08)`}
+                          >
+                            Save .txt
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Coming soon badge */}
+                      {opt.disabled && (
+                        <div style={{
+                          position: "absolute", top: 10, right: 10,
+                          fontSize: 8, textTransform: "uppercase", letterSpacing: "0.1em",
+                          color: textFaint, background: `${parchment}`, padding: "2px 7px",
+                          borderRadius: 6, border: `1px solid ${textFaint}25`,
+                        }}>
+                          Soon
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {/* ===== IMPORT TAB ===== */}
+          {activeTab === "import" && (
+            <div style={{ animation: "exportCardPop 0.25s ease-out" }}>
+              {/* Import success state */}
+              {importDone ? (
+                <div style={{
+                  textAlign: "center", padding: "40px 20px",
+                }}>
                   <div style={{
-                    fontSize: 22, width: 42, height: 42,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    background: `linear-gradient(135deg, ${accent}10, ${accent}05)`,
-                    borderRadius: 10, color: accent,
-                    fontWeight: 700, fontFamily: "monospace",
+                    fontSize: 48, marginBottom: 16,
+                    filter: "grayscale(0.2)",
+                  }}>
+                    &#x2714;
+                  </div>
+                  <div style={{
+                    fontFamily: "'Cormorant Garamond', Georgia, serif",
+                    fontSize: 22, fontWeight: 600, color: "#688c5c",
+                    marginBottom: 8,
+                  }}>
+                    Import Complete
+                  </div>
+                  <div style={{ fontSize: 12, color: textMuted, marginBottom: 20 }}>
+                    {importParsed?.valid?.length || 0} {(importParsed?.valid?.length || 0) === 1 ? "entry" : "entries"} imported successfully.
+                  </div>
+                  <button
+                    onClick={resetImport}
+                    style={{
+                      padding: "9px 24px",
+                      background: `linear-gradient(135deg, ${accent}18, ${accent}08)`,
+                      border: `1px solid ${accent}25`,
+                      borderRadius: 10, cursor: "pointer",
+                      fontSize: 12, fontFamily: "inherit", fontWeight: 500,
+                      color: accent, transition: "all 0.2s",
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = `linear-gradient(135deg, ${accent}28, ${accent}14)`}
+                    onMouseLeave={e => e.currentTarget.style.background = `linear-gradient(135deg, ${accent}18, ${accent}08)`}
+                  >
+                    Import More
+                  </button>
+                </div>
+              ) : !importParsed ? (
+                /* Drop zone / file picker */
+                <>
+                  <div
+                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(true); }}
+                    onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(false); }}
+                    onDrop={handleFileDrop}
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{
+                      border: `2px dashed ${dragOver ? accent : accent + "35"}`,
+                      borderRadius: 16,
+                      padding: "48px 24px",
+                      textAlign: "center",
+                      cursor: "pointer",
+                      transition: "all 0.25s",
+                      background: dragOver
+                        ? `linear-gradient(135deg, ${accent}12, ${accent}06)`
+                        : `linear-gradient(135deg, ${accent}05, transparent)`,
+                      position: "relative",
+                    }}
+                  >
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".json,.csv"
+                      onChange={handleFileSelect}
+                      style={{ display: "none" }}
+                    />
+                    <div style={{
+                      fontSize: 36, marginBottom: 12, color: accent,
+                      opacity: dragOver ? 1 : 0.6, transition: "opacity 0.2s",
+                    }}>
+                      &#x2912;
+                    </div>
+                    <div style={{
+                      fontFamily: "'Cormorant Garamond', Georgia, serif",
+                      fontSize: 18, fontWeight: 600, color: text,
+                      marginBottom: 6,
+                    }}>
+                      {dragOver ? "Drop file here" : "Drag & drop a file here"}
+                    </div>
+                    <div style={{ fontSize: 11, color: textMuted, marginBottom: 14 }}>
+                      or click to browse
+                    </div>
+                    <div style={{
+                      display: "inline-flex", gap: 8,
+                    }}>
+                      <span style={{
+                        fontSize: 9, padding: "3px 10px", borderRadius: 6,
+                        background: `${accent}10`, color: accent,
+                        border: `1px solid ${accent}15`, fontWeight: 500,
+                        letterSpacing: "0.04em", textTransform: "uppercase",
+                      }}>
+                        .json
+                      </span>
+                      <span style={{
+                        fontSize: 9, padding: "3px 10px", borderRadius: 6,
+                        background: `${accent}10`, color: accent,
+                        border: `1px solid ${accent}15`, fontWeight: 500,
+                        letterSpacing: "0.04em", textTransform: "uppercase",
+                      }}>
+                        .csv
+                      </span>
+                    </div>
+                    {importLoading && (
+                      <div style={{
+                        position: "absolute", inset: 0, borderRadius: 16,
+                        background: `${cream}dd`, display: "flex",
+                        alignItems: "center", justifyContent: "center",
+                        fontSize: 13, color: textMid, fontWeight: 500,
+                      }}>
+                        Parsing file...
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Error display */}
+                  {importError && (
+                    <div style={{
+                      marginTop: 14, padding: "12px 16px",
+                      background: "linear-gradient(135deg, #d0686810, #d0686806)",
+                      border: "1px solid #d0686825",
+                      borderRadius: 10, fontSize: 12, color: "#c05555",
+                      lineHeight: 1.5,
+                    }}>
+                      <strong style={{ fontWeight: 600 }}>Error:</strong> {importError}
+                    </div>
+                  )}
+
+                  {/* Help text */}
+                  <div style={{
+                    marginTop: 16, padding: "14px 16px",
+                    background: cardBg, borderRadius: 12,
                     border: `1px solid ${accent}10`,
                   }}>
-                    {opt.icon}
+                    <div style={{
+                      fontSize: 11, fontWeight: 600, color: text, marginBottom: 6,
+                    }}>
+                      Supported formats
+                    </div>
+                    <div style={{ fontSize: 10.5, color: textMuted, lineHeight: 1.6 }}>
+                      <strong style={{ color: textMid }}>JSON:</strong> My Cosmos backup files (exported from this app), or a plain array of entry objects.
+                      <br />
+                      <strong style={{ color: textMid }}>CSV:</strong> Spreadsheet with columns for City, Country, Latitude, Longitude, Start Date, and more.
+                      <br />
+                      <span style={{ color: textFaint, fontSize: 10 }}>Required fields: city, country, lat, lng, dateStart</span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                /* Preview parsed entries */
+                <div>
+                  {/* File info bar */}
+                  <div style={{
+                    display: "flex", alignItems: "center", gap: 10,
+                    padding: "10px 14px", borderRadius: 10,
+                    background: cardBg, border: `1px solid ${accent}12`,
+                    marginBottom: 14,
+                  }}>
+                    <div style={{
+                      width: 32, height: 32, borderRadius: 8,
+                      background: `linear-gradient(135deg, ${accent}15, ${accent}08)`,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 14, color: accent, fontWeight: 700, fontFamily: "monospace",
+                    }}>
+                      {importFile?.name?.endsWith(".json") ? "{ }" : "|||"}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{
+                        fontSize: 12, fontWeight: 600, color: text,
+                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                      }}>
+                        {importFile?.name || "Uploaded file"}
+                      </div>
+                      <div style={{ fontSize: 10, color: textMuted }}>
+                        {importFile ? `${(importFile.size / 1024).toFixed(1)} KB` : ""}
+                      </div>
+                    </div>
+                    <button
+                      onClick={resetImport}
+                      style={{
+                        background: "none", border: "none", cursor: "pointer",
+                        fontSize: 14, color: textMuted, padding: "4px 8px",
+                        borderRadius: 6, transition: "all 0.15s",
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = `${accent}10`; e.currentTarget.style.color = text; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = textMuted; }}
+                      title="Remove file"
+                    >
+                      &#x2715;
+                    </button>
                   </div>
 
-                  {/* Title & desc */}
-                  <div>
+                  {/* Validation summary */}
+                  <div style={{
+                    display: "flex", gap: 12, marginBottom: 14,
+                  }}>
                     <div style={{
-                      fontSize: 13, fontWeight: 600, color: text,
-                      marginBottom: 3, letterSpacing: "0.01em",
+                      flex: 1, padding: "14px 16px", borderRadius: 12,
+                      background: importParsed.valid.length > 0
+                        ? "linear-gradient(135deg, #90b08012, #90b08006)"
+                        : `linear-gradient(135deg, ${accent}08, transparent)`,
+                      border: `1px solid ${importParsed.valid.length > 0 ? "#90b08020" : accent + "12"}`,
+                      textAlign: "center",
                     }}>
-                      {opt.title}
+                      <div style={{
+                        fontFamily: "'Cormorant Garamond', Georgia, serif",
+                        fontSize: 28, fontWeight: 600,
+                        color: importParsed.valid.length > 0 ? "#688c5c" : textFaint,
+                      }}>
+                        {importParsed.valid.length}
+                      </div>
+                      <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.1em", color: textMuted }}>
+                        Valid entries
+                      </div>
                     </div>
-                    <div style={{
-                      fontSize: 10.5, color: textMuted, lineHeight: 1.45,
-                    }}>
-                      {opt.desc}
-                    </div>
+                    {importParsed.errors.length > 0 && (
+                      <div style={{
+                        flex: 1, padding: "14px 16px", borderRadius: 12,
+                        background: "linear-gradient(135deg, #d0686808, transparent)",
+                        border: "1px solid #d0686815",
+                        textAlign: "center",
+                      }}>
+                        <div style={{
+                          fontFamily: "'Cormorant Garamond', Georgia, serif",
+                          fontSize: 28, fontWeight: 600, color: "#c05555",
+                        }}>
+                          {importParsed.errors.length}
+                        </div>
+                        <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.1em", color: textMuted }}>
+                          Skipped (invalid)
+                        </div>
+                      </div>
+                    )}
                   </div>
+
+                  {/* City preview list */}
+                  {importParsed.valid.length > 0 && (
+                    <div style={{
+                      padding: "12px 14px", borderRadius: 12,
+                      background: cardBg, border: `1px solid ${accent}10`,
+                      marginBottom: 14, maxHeight: 160, overflow: "auto",
+                    }}>
+                      <div style={{
+                        fontSize: 10, fontWeight: 600, color: textMid,
+                        textTransform: "uppercase", letterSpacing: "0.08em",
+                        marginBottom: 8,
+                      }}>
+                        Preview
+                      </div>
+                      {importParsed.valid.slice(0, 50).map((e, i) => (
+                        <div key={i} style={{
+                          display: "flex", justifyContent: "space-between",
+                          alignItems: "center",
+                          padding: "4px 0",
+                          borderBottom: i < Math.min(importParsed.valid.length, 50) - 1 ? `1px solid ${accent}08` : "none",
+                        }}>
+                          <span style={{ fontSize: 11, color: text }}>
+                            {e.city}{e.country ? `, ${e.country}` : ""}
+                          </span>
+                          <span style={{ fontSize: 10, color: textFaint }}>
+                            {e.dateStart || "no date"}
+                          </span>
+                        </div>
+                      ))}
+                      {importParsed.valid.length > 50 && (
+                        <div style={{ fontSize: 10, color: textFaint, marginTop: 6, textAlign: "center" }}>
+                          ...and {importParsed.valid.length - 50} more
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Validation errors */}
+                  {importParsed.errors.length > 0 && (
+                    <div style={{
+                      padding: "10px 14px", borderRadius: 10,
+                      background: "linear-gradient(135deg, #d0686808, transparent)",
+                      border: "1px solid #d0686812",
+                      marginBottom: 14, maxHeight: 100, overflow: "auto",
+                    }}>
+                      <div style={{
+                        fontSize: 10, fontWeight: 600, color: "#c05555",
+                        marginBottom: 4,
+                      }}>
+                        Skipped entries
+                      </div>
+                      {importParsed.errors.slice(0, 10).map((err, i) => (
+                        <div key={i} style={{ fontSize: 10, color: "#c05555", lineHeight: 1.5, opacity: 0.85 }}>
+                          {err}
+                        </div>
+                      ))}
+                      {importParsed.errors.length > 10 && (
+                        <div style={{ fontSize: 10, color: "#c05555", opacity: 0.6, marginTop: 2 }}>
+                          ...and {importParsed.errors.length - 10} more
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Import error */}
+                  {importError && (
+                    <div style={{
+                      marginBottom: 14, padding: "10px 14px",
+                      background: "linear-gradient(135deg, #d0686810, #d0686806)",
+                      border: "1px solid #d0686825",
+                      borderRadius: 10, fontSize: 12, color: "#c05555",
+                    }}>
+                      <strong>Error:</strong> {importError}
+                    </div>
+                  )}
 
                   {/* Action buttons */}
-                  <div style={{ marginTop: "auto", paddingTop: 6, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", gap: 10 }}>
                     <button
-                      disabled={isDisabled}
-                      onClick={(e) => { e.stopPropagation(); handleExport(opt.id); }}
+                      onClick={resetImport}
                       style={{
-                        flex: 1,
-                        padding: "7px 10px",
-                        background: isDisabled
-                          ? `${parchment}`
-                          : st === "done"
-                            ? `linear-gradient(135deg, #90b08030, #90b08015)`
-                            : st === "error"
-                              ? `linear-gradient(135deg, #d0686830, #d0686815)`
-                              : `linear-gradient(135deg, ${accent}18, ${accent}08)`,
-                        border: `1px solid ${isDisabled ? textFaint + "20" : st === "done" ? "#90b08040" : st === "error" ? "#d0686840" : accent + "25"}`,
-                        borderRadius: 8,
-                        cursor: isDisabled ? "not-allowed" : "pointer",
-                        fontSize: 10,
-                        fontFamily: "inherit",
-                        fontWeight: 500,
-                        color: isDisabled ? textFaint : st === "done" ? "#688c5c" : st === "error" ? "#d06868" : accent,
+                        flex: 1, padding: "10px 16px",
+                        background: "transparent",
+                        border: `1px solid ${accent}20`,
+                        borderRadius: 10, cursor: "pointer",
+                        fontSize: 12, fontFamily: "inherit", fontWeight: 500,
+                        color: textMuted, transition: "all 0.2s",
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = `${accent}40`; e.currentTarget.style.color = text; }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = `${accent}20`; e.currentTarget.style.color = textMuted; }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      disabled={!importParsed.valid.length || importLoading || !onImport}
+                      onClick={handleImportAll}
+                      style={{
+                        flex: 2, padding: "10px 16px",
+                        background: importParsed.valid.length && onImport
+                          ? `linear-gradient(135deg, ${accent}25, ${accent}12)`
+                          : parchment,
+                        border: `1px solid ${importParsed.valid.length && onImport ? accent + "35" : textFaint + "20"}`,
+                        borderRadius: 10,
+                        cursor: importParsed.valid.length && onImport ? "pointer" : "not-allowed",
+                        fontSize: 12, fontFamily: "inherit", fontWeight: 600,
+                        color: importParsed.valid.length && onImport ? accent : textFaint,
                         transition: "all 0.2s",
                         letterSpacing: "0.02em",
-                        whiteSpace: "nowrap",
+                        position: "relative",
+                        overflow: "hidden",
                       }}
-                      onMouseEnter={e => { if (!isDisabled) e.currentTarget.style.background = `linear-gradient(135deg, ${accent}28, ${accent}14)`; }}
-                      onMouseLeave={e => { if (!isDisabled) e.currentTarget.style.background = `linear-gradient(135deg, ${accent}18, ${accent}08)`; }}
+                      onMouseEnter={e => { if (importParsed.valid.length && onImport) e.currentTarget.style.background = `linear-gradient(135deg, ${accent}35, ${accent}18)`; }}
+                      onMouseLeave={e => { if (importParsed.valid.length && onImport) e.currentTarget.style.background = `linear-gradient(135deg, ${accent}25, ${accent}12)`; }}
                     >
-                      {st === "loading" ? "..." : st === "done" ? "Done!" : st === "error" ? "Failed" : opt.action}
+                      {importLoading
+                        ? "Importing..."
+                        : `Import ${importParsed.valid.length} ${importParsed.valid.length === 1 ? "Entry" : "Entries"}`}
                     </button>
-
-                    {/* Extra button: preview or download */}
-                    {opt.extra === "preview" && !isDisabled && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleExport(opt.id, { preview: true }); }}
-                        style={{
-                          padding: "7px 10px",
-                          background: `linear-gradient(135deg, ${P.sky || "#8ca8c8"}18, ${P.sky || "#8ca8c8"}08)`,
-                          border: `1px solid ${P.sky || "#8ca8c8"}25`,
-                          borderRadius: 8, cursor: "pointer",
-                          fontSize: 10, fontFamily: "inherit", fontWeight: 500,
-                          color: P.sky || "#8ca8c8",
-                          transition: "all 0.2s", letterSpacing: "0.02em",
-                          whiteSpace: "nowrap",
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.background = `linear-gradient(135deg, ${P.sky || "#8ca8c8"}28, ${P.sky || "#8ca8c8"}14)`}
-                        onMouseLeave={e => e.currentTarget.style.background = `linear-gradient(135deg, ${P.sky || "#8ca8c8"}18, ${P.sky || "#8ca8c8"}08)`}
-                      >
-                        Preview
-                      </button>
-                    )}
-                    {opt.extra === "download" && !isDisabled && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleExport(opt.id, { download: true }); }}
-                        style={{
-                          padding: "7px 10px",
-                          background: `linear-gradient(135deg, ${P.sky || "#8ca8c8"}18, ${P.sky || "#8ca8c8"}08)`,
-                          border: `1px solid ${P.sky || "#8ca8c8"}25`,
-                          borderRadius: 8, cursor: "pointer",
-                          fontSize: 10, fontFamily: "inherit", fontWeight: 500,
-                          color: P.sky || "#8ca8c8",
-                          transition: "all 0.2s", letterSpacing: "0.02em",
-                          whiteSpace: "nowrap",
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.background = `linear-gradient(135deg, ${P.sky || "#8ca8c8"}28, ${P.sky || "#8ca8c8"}14)`}
-                        onMouseLeave={e => e.currentTarget.style.background = `linear-gradient(135deg, ${P.sky || "#8ca8c8"}18, ${P.sky || "#8ca8c8"}08)`}
-                      >
-                        Save .txt
-                      </button>
-                    )}
                   </div>
 
-                  {/* Coming soon badge */}
-                  {opt.disabled && (
+                  {!onImport && (
                     <div style={{
-                      position: "absolute", top: 10, right: 10,
-                      fontSize: 8, textTransform: "uppercase", letterSpacing: "0.1em",
-                      color: textFaint, background: `${parchment}`, padding: "2px 7px",
-                      borderRadius: 6, border: `1px solid ${textFaint}25`,
+                      textAlign: "center", marginTop: 10,
+                      fontSize: 10, color: textFaint, fontStyle: "italic",
                     }}>
-                      Soon
+                      Import is not available in this context.
                     </div>
                   )}
                 </div>
-              );
-            })}
-          </div>
+              )}
+            </div>
+          )}
 
           {/* Footer */}
           <div style={{
             textAlign: "center", marginTop: 20,
             fontSize: 10, color: textFaint, fontStyle: "italic",
           }}>
-            All exports are generated locally in your browser. No data leaves your device.
+            {activeTab === "export"
+              ? "All exports are generated locally in your browser. No data leaves your device."
+              : "Files are parsed locally in your browser. Your data stays private."}
           </div>
         </div>
       </div>

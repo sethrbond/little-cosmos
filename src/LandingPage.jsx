@@ -241,7 +241,7 @@ function MiniGlobe() {
   }, [])
 
   return (
-    <div ref={ref} style={{
+    <div ref={ref} aria-label="Interactive 3D globe" role="img" style={{
       width: 320, height: 320, marginBottom: 24,
       filter: 'drop-shadow(0 0 40px rgba(200,170,110,0.15))',
       cursor: 'grab',
@@ -282,7 +282,7 @@ function StarField() {
     draw()
     return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', resize) }
   }, [])
-  return <canvas ref={ref} style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none' }} />
+  return <canvas ref={ref} aria-hidden="true" style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none' }} />
 }
 
 const features = [
@@ -353,7 +353,7 @@ export default function LandingPage({ onSignIn, onSignUp }) {
       <StarField />
 
       {/* Nav bar */}
-      <nav style={{
+      <nav aria-label="Main navigation" style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         padding: '16px 32px',
@@ -427,7 +427,7 @@ export default function LandingPage({ onSignIn, onSignUp }) {
           Start Your Cosmos
         </button>
         <div style={{ fontSize: 12, opacity: 0.25, marginTop: 16 }}>Free forever. No credit card.</div>
-        <div style={{
+        <div aria-hidden="true" style={{
           marginTop: 48, opacity: 0.2, fontSize: 13,
           animation: 'landingBounce 2s ease-in-out infinite',
         }}>

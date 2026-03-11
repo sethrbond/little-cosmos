@@ -375,7 +375,7 @@ export default function TravelStats({ entries = [], stats = {}, palette: P, onCl
             {overview.trips} trips across {overview.countries} countries
           </div>
         </div>
-        <button onClick={onClose} style={{
+        <button onClick={onClose} aria-label="Close travel statistics" style={{
           width: 40, height: 40, borderRadius: 20,
           background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)",
           color: "#c0b8d8", fontSize: 20, cursor: "pointer",

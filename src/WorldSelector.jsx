@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { createWorld, loadMyWorlds, createInvite, createInviteWithLetter, acceptInvite, declineWorldInvite, createViewerInvite, getSentInvites, loadCrossWorldActivity, loadWorldEntryCounts, loadMyWorldEntryCount, searchCrossWorld, deleteWorld, leaveWorld, getPersonalWorldId } from "./supabaseWorlds.js";
 import { sendConnectionRequest, acceptConnection, declineConnection, getMyConnections, getPendingRequests } from "./supabaseConnections.js";
 import { sendWelcomeLetter } from "./supabaseWelcomeLetters.js";
+import { thumbnail } from "./imageUtils.js";
 
 /* WorldSelector.jsx — "My Cosmos" world chooser
    My World is the central orb. Shared worlds orbit it.
@@ -1104,13 +1105,13 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
 
       {/* Top right controls — glassmorphic */}
       <div style={{ position: "absolute", top: 16, right: 16, display: "flex", gap: 8, opacity: ready ? 1 : 0, transition: "all .5s", zIndex: 10 }}>
-        <button onClick={(e) => { e.stopPropagation(); setShowSearch(!showSearch); setShowActivity(false); if (!showSearch) setTimeout(() => document.getElementById("cosmos-search-input")?.focus(), 100); }}
+        <button aria-expanded={showSearch} onClick={(e) => { e.stopPropagation(); setShowSearch(!showSearch); setShowActivity(false); if (!showSearch) setTimeout(() => document.getElementById("cosmos-search-input")?.focus(), 100); }}
           style={{ background: showSearch ? "rgba(160,192,232,0.12)" : "rgba(255,255,255,0.03)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", border: `1px solid ${showSearch ? "rgba(160,192,232,0.25)" : "rgba(255,255,255,0.06)"}`, borderRadius: 12, padding: "5px 14px", color: showSearch ? "#a0c0e8" : "#706878", fontSize: 9, fontFamily: F, letterSpacing: "0.8px", cursor: "pointer", transition: "all .3s", textTransform: "uppercase" }}
           onMouseEnter={e => { if (!showSearch) { e.target.style.color = "#b0a8b8"; e.target.style.borderColor = "rgba(255,255,255,0.15)"; }}}
           onMouseLeave={e => { if (!showSearch) { e.target.style.color = "#706878"; e.target.style.borderColor = "rgba(255,255,255,0.06)"; }}}>
           Search
         </button>
-        <button onClick={(e) => { e.stopPropagation(); setShowActivity(!showActivity); setShowSearch(false); }}
+        <button aria-expanded={showActivity} onClick={(e) => { e.stopPropagation(); setShowActivity(!showActivity); setShowSearch(false); }}
           style={{ background: showActivity ? "rgba(200,170,110,0.12)" : "rgba(255,255,255,0.03)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", border: `1px solid ${showActivity ? "rgba(200,170,110,0.25)" : "rgba(255,255,255,0.06)"}`, borderRadius: 12, padding: "5px 14px", color: showActivity ? "#c9a96e" : "#706878", fontSize: 9, fontFamily: F, letterSpacing: "0.8px", cursor: "pointer", transition: "all .3s", textTransform: "uppercase" }}
           onMouseEnter={e => { if (!showActivity) { e.target.style.color = "#b0a8b8"; e.target.style.borderColor = "rgba(255,255,255,0.15)"; }}}
           onMouseLeave={e => { if (!showActivity) { e.target.style.color = "#706878"; e.target.style.borderColor = "rgba(255,255,255,0.06)"; }}}>
@@ -1150,7 +1151,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
               onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"}
               onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
               {a.photos && a.photos.length > 0 ? (
-                <img src={a.photos[0]} alt="" style={{ width: 36, height: 36, borderRadius: 10, objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.06)" }} />
+                <img loading="lazy" src={thumbnail(a.photos[0], 72)} alt={`Photo from ${a.city || "trip"}`} style={{ width: 36, height: 36, borderRadius: 10, objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.06)" }} />
               ) : (
                 <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0 }}>
                   {icon}
@@ -1184,7 +1185,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
           onClick={e => e.stopPropagation()}>
           <div style={{ fontSize: 9, letterSpacing: "2px", textTransform: "uppercase", color: "#807888", marginBottom: 10, fontFamily: F }}>Search All Worlds</div>
           <input id="cosmos-search-input" value={searchQuery} onChange={e => handleSearch(e.target.value)}
-            placeholder="Search cities, countries, notes..."
+            placeholder="Search cities, countries, notes..." aria-label="Search all worlds"
             style={{ width: "100%", padding: "10px 14px", background: "rgba(255,245,230,0.04)", border: "1px solid rgba(200,170,140,0.12)", borderRadius: 12, color: "#e8e0d0", fontSize: 13, fontFamily: F, outline: "none", boxSizing: "border-box", marginBottom: 12, transition: "border-color .2s, box-shadow .2s" }}
             onFocus={e => { e.target.style.borderColor = "rgba(200,170,140,0.25)"; e.target.style.boxShadow = "0 0 0 2px rgba(200,170,140,0.06)"; }}
             onBlur={e => { e.target.style.borderColor = "rgba(200,170,140,0.12)"; e.target.style.boxShadow = "none"; }} />
@@ -1208,7 +1209,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
               onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}
               onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}>
               {r.photos && r.photos.length > 0 ? (
-                <img src={r.photos[0]} alt="" style={{ width: 32, height: 32, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
+                <img loading="lazy" src={thumbnail(r.photos[0], 64)} alt={`Photo from ${r.city || "trip"}`} style={{ width: 32, height: 32, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
               ) : (
                 <div style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>
                   📍
@@ -1236,7 +1237,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       {/* ====== ADD A WORLD MENU ====== */}
       {showAddMenu && (
         <div style={modalBg} onClick={(e) => { e.stopPropagation(); safeDismiss(); }}>
-          <div style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
+          <div role="dialog" aria-modal="true" aria-label="Add a world" style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Add a World</div>
             <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 24 }}>
               Every world tells a different story. Which one are you starting?
@@ -1265,7 +1266,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       {/* ====== CREATE PERSONAL WORLD ====== */}
       {showCreatePersonal && (
         <div style={modalBg} onClick={(e) => { e.stopPropagation(); safeDismiss(); }}>
-          <div style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
+          <div role="dialog" aria-modal="true" aria-label="Create a personal world" style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Create a Personal World</div>
             <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 20 }}>
               A private world, just for your eyes. It'll orbit alongside your other worlds.
@@ -1288,7 +1289,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       {/* ====== CREATE SHARED WORLD (multi-step) ====== */}
       {showCreateShared && (
         <div style={modalBg} onClick={(e) => { e.stopPropagation(); if (sharedStep < 2) safeDismiss(); }}>
-          <div style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
+          <div role="dialog" aria-modal="true" aria-label="Create a shared world" style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
             {sharedStep === 0 && (<>
               <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Create a Shared World</div>
               <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 16 }}>
@@ -1336,7 +1337,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
                         style={{ ...inputSt, flex: 1, marginBottom: 0 }}
                         onKeyDown={e => { if (e.key === "Enter") { if (i === sharedMembers.length - 1 && m.name.trim()) setSharedMembers([...sharedMembers, { name: "" }]); else handleCreateShared(); } }} />
                       {sharedMembers.length > 2 && (
-                        <button onClick={() => setSharedMembers(sharedMembers.filter((_, j) => j !== i))}
+                        <button onClick={() => setSharedMembers(sharedMembers.filter((_, j) => j !== i))} aria-label={`Remove member ${i + 1}`}
                           style={{ background: "none", border: "none", color: "#685868", fontSize: 16, cursor: "pointer", padding: "0 4px", lineHeight: 1 }}>×</button>
                       )}
                     </div>
@@ -1407,7 +1408,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       {/* ====== INVITE TO COSMOS (platform invite) ====== */}
       {showInviteCosmos && (
         <div style={modalBg} onClick={(e) => { e.stopPropagation(); safeDismiss(); }}>
-          <div style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
+          <div role="dialog" aria-modal="true" aria-label="Invite to Little Cosmos" style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
             {!cosmosInviteSent ? (<>
               <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Invite to Little Cosmos</div>
               <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 20 }}>
@@ -1445,7 +1446,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       {/* ====== ADD A FRIEND ====== */}
       {showAddFriend && (
         <div style={modalBg} onClick={(e) => { e.stopPropagation(); safeDismiss(); }}>
-          <div style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
+          <div role="dialog" aria-modal="true" aria-label="Add a friend" style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
             {!friendSent ? (<>
               <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Add a Friend</div>
               <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 20 }}>
@@ -1483,7 +1484,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       {/* ====== PENDING FRIEND REQUESTS ====== */}
       {showPendingRequests && (
         <div style={modalBg} onClick={(e) => { e.stopPropagation(); safeDismiss(); }}>
-          <div style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
+          <div role="dialog" aria-modal="true" aria-label="Pending friend requests" style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>World Sharing Invites</div>
             <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 20 }}>
               People who want to share worlds with you. Accept to see each other's worlds in your cosmos.
@@ -1518,7 +1519,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       {/* ====== PENDING WORLD INVITES ====== */}
       {showWorldInvites && (
         <div style={modalBg} onClick={(e) => { e.stopPropagation(); safeDismiss(); }}>
-          <div style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
+          <div role="dialog" aria-modal="true" aria-label="World invites" style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>World Invites</div>
             <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 20 }}>
               You've been invited to join shared worlds.
@@ -1562,7 +1563,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       {/* ====== INVITE FROM EXISTING WORLD ====== */}
       {showInviteModal && (
         <div style={modalBg} onClick={(e) => { e.stopPropagation(); safeDismiss(); }}>
-          <div style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
+          <div role="dialog" aria-modal="true" aria-label="Invite to world" style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Invite to "{showInviteModal.name}"</div>
             <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 16 }}>
               Enter their email to send a personal invite, or just generate a link.

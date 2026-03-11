@@ -40,7 +40,7 @@ export default function RecapOverlay({
                 <div key={i} style={{ width: 52, height: 52, borderRadius: 8, overflow: "hidden", opacity: 0.85, transform: `rotate(${(i - 2) * 3}deg)`, transition: "transform .3s, opacity .3s" }}
                   onMouseEnter={e => { e.currentTarget.style.transform = `rotate(0deg) scale(1.15)`; e.currentTarget.style.opacity = "1"; }}
                   onMouseLeave={e => { e.currentTarget.style.transform = `rotate(${(i - 2) * 3}deg)`; e.currentTarget.style.opacity = "0.85"; }}>
-                  <img src={p.url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <img loading="lazy" src={p.url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 </div>
               ))}
             </div>
@@ -222,7 +222,7 @@ export default function RecapOverlay({
               <div style={{ display: "flex", justifyContent: "center", gap: 4, marginBottom: 16 }}>
                 {rS.allPhotos.slice(0, 6).map((p, i) => (
                   <div key={i} style={{ width: 48, height: 48, borderRadius: 6, overflow: "hidden" }}>
-                    <img src={p.url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    <img loading="lazy" src={p.url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                   </div>
                 ))}
               </div>

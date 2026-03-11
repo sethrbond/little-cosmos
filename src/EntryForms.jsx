@@ -430,9 +430,9 @@ export function AddForm({ types, defaultType = "together", defaultWho = "both", 
         <RLbl req>City</RLbl>
         <input value={f.city} onChange={e => onCityInput(e.target.value)} onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }} placeholder="Start typing — e.g. Haw..." style={{ ...inpSt(), borderColor: f.city ? `${P.textFaint}60` : undefined }} />
         {showSuggestions && suggestions.length > 0 && (
-          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: P.card, border: `1px solid ${P.textFaint}40`, borderRadius: 6, maxHeight: 150, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
+          <div role="listbox" aria-label="City suggestions" style={{ position: "absolute", top: "100%", left: 0, right: 0, background: P.card, border: `1px solid ${P.textFaint}40`, borderRadius: 6, maxHeight: 150, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
             {suggestions.map((c, i) => (
-              <button key={i} onClick={() => selectCity(c)} style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", textAlign: "left", padding: "8px 10px", border: "none", borderBottom: `1px solid ${P.textFaint}15`, background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 11, color: P.textMid, transition: "background .15s" }}
+              <button key={i} role="option" onClick={() => selectCity(c)} style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", textAlign: "left", padding: "8px 10px", border: "none", borderBottom: `1px solid ${P.textFaint}15`, background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 11, color: P.textMid, transition: "background .15s" }}
                 onMouseEnter={e => e.currentTarget.style.background = P.blush} onMouseLeave={e => e.currentTarget.style.background = "none"}>
                 <span style={{ fontSize: 13 }}>📍</span>
                 <div><div style={{ fontWeight: 500, color: P.text }}>{c[0]}</div><div style={{ fontSize: 9, color: P.textFaint }}>{c[1]} · {c[2].toFixed(2)}, {c[3].toFixed(2)}</div></div>

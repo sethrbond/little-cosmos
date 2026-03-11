@@ -111,10 +111,10 @@ export default function AuthScreen({ initialMode = 'login', onBack }) {
   const switchMode = (m) => { clearState(); setMode(m) }
 
   return (
-    <div style={wrap}>
+    <div style={wrap} role="main">
       <style>{`@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}`}</style>
       {onBack && (
-        <button onClick={onBack} style={{
+        <button onClick={onBack} aria-label="Back to landing page" style={{
           position: 'absolute', top: 20, left: 24,
           background: 'none', border: 'none', color: '#c9a96e',
           fontSize: 14, fontFamily: 'inherit', cursor: 'pointer', opacity: 0.7,
@@ -136,7 +136,7 @@ export default function AuthScreen({ initialMode = 'login', onBack }) {
               <input style={pwInp} type={showPassword ? 'text' : 'password'} placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="current-password" />
               <button type="button" style={eyeBtn} onClick={() => setShowPassword(v => !v)} tabIndex={-1} aria-label="Toggle password visibility">{showPassword ? '\u{1F441}\u200D\u{1F5E8}' : '\u{1F441}'}</button>
             </div>
-            {error && <div style={{ color: '#e57373', fontSize: 13, marginBottom: 8 }}>{error}</div>}
+            {error && <div role="alert" style={{ color: '#e57373', fontSize: 13, marginBottom: 8 }}>{error}</div>}
             <button style={{ ...btn, opacity: loading ? 0.6 : 1 }} disabled={loading} type="submit">
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
@@ -160,7 +160,7 @@ export default function AuthScreen({ initialMode = 'login', onBack }) {
               <input style={pwInp} type={showPassword ? 'text' : 'password'} placeholder="Confirm password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required autoComplete="new-password" />
               <button type="button" style={eyeBtn} onClick={() => setShowPassword(v => !v)} tabIndex={-1} aria-label="Toggle password visibility">{showPassword ? '\u{1F441}\u200D\u{1F5E8}' : '\u{1F441}'}</button>
             </div>
-            {error && <div style={{ color: '#e57373', fontSize: 13, marginBottom: 8 }}>{error}</div>}
+            {error && <div role="alert" style={{ color: '#e57373', fontSize: 13, marginBottom: 8 }}>{error}</div>}
             <button style={{ ...btn, opacity: loading ? 0.6 : 1 }} disabled={loading} type="submit">
               {loading ? 'Creating account...' : 'Create Account'}
             </button>
@@ -174,8 +174,8 @@ export default function AuthScreen({ initialMode = 'login', onBack }) {
           <form onSubmit={handleForgot}>
             <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 20, textAlign: 'center' }}>Reset Password</div>
             <input style={inp} type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required autoFocus autoComplete="email" inputMode="email" />
-            {error && <div style={{ color: '#e57373', fontSize: 13, marginBottom: 8 }}>{error}</div>}
-            {message && <div style={{ color: '#a5d6a7', fontSize: 13, marginBottom: 8 }}>{message}</div>}
+            {error && <div role="alert" style={{ color: '#e57373', fontSize: 13, marginBottom: 8 }}>{error}</div>}
+            {message && <div role="status" style={{ color: '#a5d6a7', fontSize: 13, marginBottom: 8 }}>{message}</div>}
             <button style={{ ...btn, opacity: loading ? 0.6 : 1 }} disabled={loading} type="submit">
               {loading ? 'Sending...' : 'Send Reset Link'}
             </button>

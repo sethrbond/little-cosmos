@@ -232,7 +232,7 @@ export default function CinematicOnboarding({ userId, personalWorldId, onComplet
       fontFamily: F, color: '#e8e0d0',
     }}>
       {/* Starfield canvas */}
-      <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0 }} />
+      <canvas ref={canvasRef} aria-hidden="true" style={{ position: 'absolute', inset: 0 }} />
 
       {/* Phase 5: zoom overlay — cosmos transition */}
       {phase === 5 && (
@@ -357,6 +357,8 @@ export default function CinematicOnboarding({ userId, personalWorldId, onComplet
                 value={query}
                 onChange={e => setQuery(e.target.value)}
                 placeholder="Search for your city..."
+                aria-label="Search for your home city"
+                autoComplete="off"
                 style={{
                   width: '100%', padding: '14px 20px',
                   background: 'rgba(255,255,255,0.04)',
@@ -373,7 +375,7 @@ export default function CinematicOnboarding({ userId, personalWorldId, onComplet
               />
 
               {results.length > 0 && (
-                <div style={{
+                <div role="listbox" aria-label="City search results" style={{
                   position: 'absolute', top: '100%', left: 0, right: 0,
                   marginTop: 8,
                   background: 'rgba(16,12,24,0.95)',
@@ -387,6 +389,7 @@ export default function CinematicOnboarding({ userId, personalWorldId, onComplet
                   {results.map((r, i) => (
                     <button
                       key={i}
+                      role="option"
                       onClick={() => handleSelectCity(r)}
                       style={{
                         display: 'block', width: '100%',
@@ -456,7 +459,7 @@ export default function CinematicOnboarding({ userId, personalWorldId, onComplet
             }}>
               {selectedCity.country}
             </div>
-            <div style={{
+            <div aria-live="polite" style={{
               fontSize: 12, color: saveError ? '#f87171' : '#c9a96e',
               marginTop: 20, letterSpacing: '0.1em',
               opacity: 0.7,

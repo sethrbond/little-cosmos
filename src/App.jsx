@@ -46,7 +46,7 @@ class ScreenErrorBoundary extends Component {
       return (
         <div style={{ position: 'fixed', inset: 0, background: '#0c0a12', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: '"Palatino Linotype", serif', color: '#e8e0d0', gap: 16, padding: 32 }}>
           <div style={{ fontSize: 28, opacity: 0.7 }}>Something went wrong</div>
-          <div style={{ fontSize: 13, opacity: 0.4, maxWidth: 400, textAlign: 'center' }}>{this.state.error?.message || 'Unknown error'}</div>
+          <div role="alert" style={{ fontSize: 13, opacity: 0.4, maxWidth: 400, textAlign: 'center' }}>{this.state.error?.message || 'Unknown error'}</div>
           <button onClick={() => { this.setState({ error: null }); window.location.reload() }} style={{ marginTop: 16, padding: '10px 28px', background: 'rgba(200,170,110,0.15)', border: '1px solid rgba(200,170,110,0.3)', borderRadius: 8, color: '#e8e0d0', fontFamily: 'inherit', fontSize: 14, cursor: 'pointer' }}>Reload</button>
         </div>
       )
@@ -500,7 +500,7 @@ function AppInner() {
         {content}
       </Suspense>
       {transitioning && (
-        <div style={{
+        <div aria-hidden="true" style={{
           position: 'fixed', inset: 0, zIndex: 9999, pointerEvents: 'none',
           background: transitionColor,
           animation: 'cosmosFadeIn 0.4s ease forwards',
