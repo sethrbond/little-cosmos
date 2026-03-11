@@ -74,6 +74,7 @@ export function createMyWorldDB(worldId, userId) {
         photos: safeArray(row.photos), stops: safeArray(row.stops),
         musicUrl: row.music_url || null, favorite: row.favorite || false,
         loveNote: '',
+        photoCaptions: row.photo_captions || {},
       }))
     },
 
@@ -90,10 +91,20 @@ export function createMyWorldDB(worldId, userId) {
         photos: cleanArray(entry.photos), stops: cleanArray(entry.stops),
         music_url: entry.musicUrl || null, favorite: entry.favorite || false,
         love_note: '',
+        photo_captions: entry.photoCaptions || {},
       }
       return withRetry(async () => {
         const { error } = await supabase.from('entries').upsert(row, { onConflict: 'id' })
-        if (error) { console.error('[my:saveEntry] FAILED:', error.message); throw error }
+        if (error) {
+          console.error('[my:saveEntry] FAILED:', error.message)
+          if (error.message?.includes('photo_captions') || error.code === '42703') {
+            const { photo_captions, ...safeRow } = row
+            const { error: e2 } = await supabase.from('entries').upsert(safeRow, { onConflict: 'id' })
+            if (e2) throw e2
+            return true
+          }
+          throw error
+        }
         return true
       })
     },
@@ -171,6 +182,7 @@ export function createFriendWorldDB(friendWorldId) {
         photos: safeArray(row.photos), stops: safeArray(row.stops),
         musicUrl: row.music_url || null, favorite: row.favorite || false,
         loveNote: '',
+        photoCaptions: row.photo_captions || {},
       }))
     },
     loadConfig: async () => {

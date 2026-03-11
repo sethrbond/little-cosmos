@@ -2195,6 +2195,14 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     return out;
   }, [sorted]);
 
+  const allPhotoCaptions = useMemo(() => {
+    const map = {};
+    for (const e of data.entries) {
+      if (e.photoCaptions) Object.assign(map, e.photoCaptions);
+    }
+    return map;
+  }, [data.entries]);
+
   // ---- PHOTO JOURNEY AUTO-PLAY ----
   useEffect(() => {
     if (!pjAutoPlay || !showPhotoJourney) return;
@@ -3876,6 +3884,11 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               <button onClick={() => setCardGallery(true)} style={{ position: "absolute", top: 6, right: 6, background: "rgba(255,255,255,.85)", border: "none", borderRadius: 5, padding: "2px 8px", fontSize: 9, cursor: "pointer", fontFamily: "inherit", color: P.textMid }}>📸 {cur.photos.length}</button>
               <button onClick={() => setPolaroidMode(v => !v)} style={{ position: "absolute", bottom: 6, right: 6, background: polaroidMode ? P.goldWarm : "rgba(255,255,255,.7)", border: "none", borderRadius: 5, padding: "2px 7px", fontSize: 8, cursor: "pointer", fontFamily: "inherit", color: polaroidMode ? "#fff" : P.textFaint }} title="Polaroid mode">📸</button>
               {<button onClick={() => handlePhotos(cur.id)} style={{ position: "absolute", top: 6, left: 6, background: "rgba(255,255,255,.85)", border: "none", borderRadius: 5, padding: "2px 8px", fontSize: 9, cursor: "pointer", fontFamily: "inherit" }}>+ Photos</button>}
+              {polaroidMode && (cur.photoCaptions || {})[cur.photos[photoIdx % cur.photos.length]] && (
+                <div style={{ position: "absolute", bottom: 32, left: "50%", transform: "translateX(-50%)", fontSize: 9, color: "rgba(80,60,40,.6)", fontStyle: "italic", fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", whiteSpace: "nowrap", maxWidth: "70%", overflow: "hidden", textOverflow: "ellipsis", pointerEvents: "none", background: "rgba(255,255,255,.85)", padding: "1px 8px", borderRadius: 3 }}>
+                  {(cur.photoCaptions || {})[cur.photos[photoIdx % cur.photos.length]]}
+                </div>
+              )}
             </div>
           )}
           {(cur.photos || []).length > 0 && cardGallery && (
@@ -4068,9 +4081,34 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 {(cur.photos || []).length > 0 ? (<>
                   <div style={{ display: "grid", gridTemplateColumns: polaroidMode ? "repeat(auto-fill, minmax(100px, 1fr))" : "repeat(auto-fill, minmax(80px, 1fr))", gap: polaroidMode ? 12 : 4, padding: polaroidMode ? "4px 2px" : 0 }}>
                     {cur.photos.map((url, i) => (
-                      <button key={i} onClick={() => { setLightboxIdx(i); setLightboxOpen(true); }} style={polaroidMode ? { padding: "6px 6px 22px", background: "#fff", border: "none", cursor: "pointer", borderRadius: 2, boxShadow: "0 2px 8px rgba(0,0,0,.12), 0 1px 2px rgba(0,0,0,.06)", transform: `rotate(${(i % 5 - 2) * 1.8}deg)`, transition: "transform .2s", overflow: "hidden", width: "100%" } : { padding: 0, border: "2px solid transparent", background: P.blush, cursor: "pointer", borderRadius: 6, overflow: "hidden", aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
-                        <img loading="lazy" src={url} alt="Travel photo" style={polaroidMode ? { width: "100%", aspectRatio: "1", objectFit: "cover", display: "block" } : { maxWidth: "100%", maxHeight: "100%", objectFit: "cover", borderRadius: 4 }} />
-                      </button>
+                      polaroidMode ? (
+                        <div key={i} style={{ background: "#fff", borderRadius: 2, boxShadow: "0 2px 8px rgba(0,0,0,.12), 0 1px 2px rgba(0,0,0,.06)", transform: `rotate(${(i % 5 - 2) * 1.8}deg)`, transition: "transform .2s", overflow: "hidden", width: "100%", padding: "6px 6px 4px" }}>
+                          <img onClick={() => { setLightboxIdx(i); setLightboxOpen(true); }} loading="lazy" src={url} alt="Travel photo" style={{ width: "100%", aspectRatio: "1", objectFit: "cover", display: "block", cursor: "pointer" }} />
+                          {!isViewer ? (
+                            <input
+                              type="text"
+                              placeholder="write something..."
+                              value={(cur.photoCaptions || {})[url] || ""}
+                              onClick={e => e.stopPropagation()}
+                              onChange={e => {
+                                const captions = { ...(cur.photoCaptions || {}), [url]: e.target.value };
+                                dispatch({ type: "UPDATE", id: cur.id, data: { photoCaptions: captions } });
+                              }}
+                              onBlur={e => {
+                                const captions = { ...(cur.photoCaptions || {}), [url]: e.target.value };
+                                dispatch({ type: "UPDATE", id: cur.id, data: { photoCaptions: captions } });
+                              }}
+                              style={{ width: "100%", border: "none", background: "none", fontSize: 8, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", color: "#555", textAlign: "center", padding: "6px 2px 4px", outline: "none", fontStyle: "italic", boxSizing: "border-box" }}
+                            />
+                          ) : (
+                            (cur.photoCaptions || {})[url] && <div style={{ fontSize: 8, color: "#666", textAlign: "center", padding: "6px 2px 4px", fontStyle: "italic", fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif" }}>{(cur.photoCaptions || {})[url]}</div>
+                          )}
+                        </div>
+                      ) : (
+                        <button key={i} onClick={() => { setLightboxIdx(i); setLightboxOpen(true); }} style={{ padding: 0, border: "2px solid transparent", background: P.blush, cursor: "pointer", borderRadius: 6, overflow: "hidden", aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
+                          <img loading="lazy" src={url} alt="Travel photo" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "cover", borderRadius: 4 }} />
+                        </button>
+                      )
                     ))}
                   </div>
                   {!isViewer && <button onClick={() => handlePhotos(cur.id)} style={{ marginTop: 8, width: "100%", padding: "6px", background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: "none", borderRadius: 5, cursor: "pointer", fontSize: 9, color: P.textMuted, fontFamily: "inherit" }}>+ Add Photos</button>}
@@ -4313,7 +4351,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                   <img loading="lazy" src={thumbnail(ph.url, 160)} alt="Travel photo" style={polaroidMode ? { width: "100%", aspectRatio: "1", objectFit: "cover", display: "block" } : { width: "100%", height: "100%", objectFit: "cover", borderRadius: 4, transition: "transform .2s" }}
                     onMouseEnter={e => { if (!polaroidMode) e.currentTarget.style.transform = "scale(1.05)"; else e.currentTarget.parentElement.style.transform = `rotate(0deg) scale(1.05)`; }}
                     onMouseLeave={e => { if (!polaroidMode) e.currentTarget.style.transform = "scale(1)"; else e.currentTarget.parentElement.style.transform = `rotate(${(i % 5 - 2) * 2}deg)`; }} />
-                  <div style={polaroidMode ? { fontSize: 7, color: "#666", textAlign: "center", padding: "4px 2px 0", letterSpacing: ".04em", fontFamily: "inherit" } : { position: "absolute", bottom: 0, left: 0, right: 0, padding: "10px 3px 2px", background: "linear-gradient(transparent, rgba(0,0,0,.5))", fontSize: 6, color: "#fff", textAlign: "center", letterSpacing: ".05em" }}>{ph.city}</div>
+                  <div style={polaroidMode ? { fontSize: 7, color: "#666", textAlign: "center", padding: "4px 2px 0", letterSpacing: ".04em", fontFamily: "inherit" } : { position: "absolute", bottom: 0, left: 0, right: 0, padding: "10px 3px 2px", background: "linear-gradient(transparent, rgba(0,0,0,.5))", fontSize: 6, color: "#fff", textAlign: "center", letterSpacing: ".05em" }}>{polaroidMode && allPhotoCaptions[ph.url] ? allPhotoCaptions[ph.url] : ph.city}</div>
                 </button>
               ))}
             </div>

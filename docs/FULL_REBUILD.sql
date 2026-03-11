@@ -69,6 +69,7 @@ CREATE TABLE IF NOT EXISTS entries (
   music_url TEXT DEFAULT '',
   favorite BOOLEAN DEFAULT false,
   love_note TEXT DEFAULT '',
+  photo_captions JSONB DEFAULT '{}'::jsonb,
   user_id UUID,
   world_id UUID,
   created_at TIMESTAMPTZ DEFAULT NOW(),
