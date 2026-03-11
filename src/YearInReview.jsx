@@ -602,7 +602,7 @@ export default function YearInReview({ entries = [], stats = {}, palette, onClos
       case "photos":
         return (
           <div key={slideKey} style={slideStyle}>
-            <div style={labelStyle}>Photo Highlights</div>
+            <div style={labelStyle}>From the Scrapbook</div>
             <div style={{
               display: "grid",
               gridTemplateColumns: photoHighlights.length <= 2 ? "repeat(2, 1fr)" : "repeat(3, 1fr)",
