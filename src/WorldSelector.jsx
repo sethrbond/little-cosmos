@@ -1102,6 +1102,32 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
         <div style={{ fontSize: 10, color: "#9890a8", marginTop: 8, letterSpacing: "1.5px", textAlign: "center", textTransform: "uppercase", textShadow: "0 1px 6px rgba(0,0,0,0.5)" }}>drag to orbit · scroll or pinch to zoom</div>
       </div>
 
+      {/* Daily travel quote — subtle, bottom-left */}
+      {ready && (() => {
+        const quotes = [
+          ["\u201CThe world is a book, and those who do not travel read only one page.\u201D", "Augustine of Hippo"],
+          ["\u201CNot all those who wander are lost.\u201D", "J.R.R. Tolkien"],
+          ["\u201CTravel makes one modest. You see what a tiny place you occupy in the world.\u201D", "Gustave Flaubert"],
+          ["\u201CThe journey not the arrival matters.\u201D", "T.S. Eliot"],
+          ["\u201CTo travel is to live.\u201D", "Hans Christian Andersen"],
+          ["\u201CLife is either a daring adventure or nothing at all.\u201D", "Helen Keller"],
+          ["\u201CWe travel not to escape life, but for life not to escape us.\u201D", "Anonymous"],
+          ["\u201COnce a year, go somewhere you\u2019ve never been before.\u201D", "Dalai Lama"],
+          ["\u201CThe real voyage of discovery consists not in seeking new landscapes, but in having new eyes.\u201D", "Marcel Proust"],
+          ["\u201CAdventure is worthwhile in itself.\u201D", "Amelia Earhart"],
+          ["\u201CTravel far enough, you meet yourself.\u201D", "David Mitchell"],
+          ["\u201CCollect moments, not things.\u201D", ""],
+        ];
+        const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
+        const q = quotes[dayOfYear % quotes.length];
+        return (
+          <div style={{ position: "absolute", bottom: 80, left: 24, maxWidth: 280, opacity: 0.25, pointerEvents: "none", animation: "fadeIn 2s ease" }}>
+            <div style={{ fontSize: 11, color: "#c0b8d0", fontStyle: "italic", lineHeight: 1.6, textShadow: "0 1px 8px rgba(0,0,0,0.6)" }}>{q[0]}</div>
+            {q[1] && <div style={{ fontSize: 9, color: "#908898", marginTop: 4, letterSpacing: "0.5px", textShadow: "0 1px 4px rgba(0,0,0,0.4)" }}>\u2014 {q[1]}</div>}
+          </div>
+        );
+      })()}
+
       {/* Top right controls — glassmorphic */}
       <div style={{ position: "absolute", top: 16, right: 16, display: "flex", gap: 8, opacity: ready ? 1 : 0, transition: "all .5s", zIndex: 10 }}>
         <button onClick={(e) => { e.stopPropagation(); setShowSearch(!showSearch); setShowActivity(false); if (!showSearch) setTimeout(() => document.getElementById("cosmos-search-input")?.focus(), 100); }}
@@ -1702,23 +1728,24 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
 
       {/* Empty cosmos guidance — show when user has 0 shared worlds */}
       {worlds.length === 0 && connections.length === 0 && ready && (
-        <div style={{ position: "absolute", bottom: "16%", left: "50%", transform: "translateX(-50%)", textAlign: "center", opacity: 0, animation: "fadeIn 1.5s 0.8s forwards", maxWidth: 340 }}>
-          <div style={{ fontSize: 14, color: "#c0b8c8", fontFamily: F, letterSpacing: "0.4px", lineHeight: 1.8, marginBottom: 16 }}>
-            Your cosmos is just beginning.
+        <div style={{ position: "absolute", bottom: "14%", left: "50%", transform: "translateX(-50%)", textAlign: "center", opacity: 0, animation: "fadeIn 1.5s 0.8s forwards", maxWidth: 380 }}>
+          <div style={{ fontSize: 28, marginBottom: 12, animation: "emptyPulse 3s ease-in-out infinite" }}>🌌</div>
+          <div style={{ fontSize: 16, color: "#d0c8d8", fontFamily: F, letterSpacing: "0.5px", lineHeight: 1.6, marginBottom: 8, fontWeight: 300 }}>
+            Your cosmos is just beginning
           </div>
-          <div style={{ fontSize: 11, color: "#807888", fontFamily: F, letterSpacing: "0.3px", lineHeight: 1.7, marginBottom: 20 }}>
-            Create a world to start mapping your adventures, or invite someone to build one together.
+          <div style={{ fontSize: 12, color: "#807888", fontFamily: F, letterSpacing: "0.3px", lineHeight: 1.7, marginBottom: 22 }}>
+            Click <strong style={{ color: "#c9a96e" }}>My World</strong> to add your first adventure, or create a shared world to start mapping memories with someone special.
           </div>
-          <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+          <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
             <button onClick={() => setShowAddMenu(true)} style={{ padding: "10px 22px", background: "rgba(200,170,110,0.12)", border: "1px solid rgba(200,170,110,0.25)", borderRadius: 20, color: "#c9a96e", fontSize: 11, fontFamily: F, cursor: "pointer", letterSpacing: "0.5px", transition: "all .3s" }}
               onMouseEnter={e => { e.target.style.background = "rgba(200,170,110,0.2)"; e.target.style.borderColor = "rgba(200,170,110,0.4)"; }}
               onMouseLeave={e => { e.target.style.background = "rgba(200,170,110,0.12)"; e.target.style.borderColor = "rgba(200,170,110,0.25)"; }}>
-              + Add a World
+              + Create a Shared World
             </button>
             <button onClick={() => setShowAddFriend(true)} style={{ padding: "10px 22px", background: "rgba(160,192,232,0.08)", border: "1px solid rgba(160,192,232,0.15)", borderRadius: 20, color: "#8898b0", fontSize: 11, fontFamily: F, cursor: "pointer", letterSpacing: "0.5px", transition: "all .3s" }}
               onMouseEnter={e => { e.target.style.background = "rgba(160,192,232,0.15)"; e.target.style.borderColor = "rgba(160,192,232,0.3)"; }}
               onMouseLeave={e => { e.target.style.background = "rgba(160,192,232,0.08)"; e.target.style.borderColor = "rgba(160,192,232,0.15)"; }}>
-              Invite a Friend
+              Add a Friend
             </button>
           </div>
         </div>
@@ -1742,7 +1769,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
         </div>
       )}
 
-      <style>{`@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}@keyframes notifySlideIn{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}`}</style>
+      <style>{`@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}@keyframes notifySlideIn{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}@keyframes emptyPulse{0%,100%{transform:scale(1);opacity:.6}50%{transform:scale(1.1);opacity:1}}`}</style>
     </div>
   );
 }
