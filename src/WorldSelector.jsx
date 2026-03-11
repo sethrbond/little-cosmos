@@ -969,9 +969,27 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
 
       <div ref={mountRef} style={{ position: "absolute", inset: 0, touchAction: "none" }} />
 
-      {/* Title */}
+      {/* Title + greeting */}
       <div style={{ position: "absolute", top: "4%", left: 0, right: 0, textAlign: "center", opacity: ready ? 1 : 0, transition: "opacity 1.2s", pointerEvents: "none" }}>
         <div style={{ fontSize: 12, letterSpacing: "6px", color: "#dcd4ec", textTransform: "uppercase", fontWeight: 500, textShadow: "0 0 24px rgba(180,160,220,0.4), 0 2px 12px rgba(0,0,0,0.6)" }}>My Cosmos</div>
+        {userDisplayName && (() => {
+          const h = new Date().getHours();
+          const greeting = h < 5 ? "Night owl" : h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : h < 21 ? "Good evening" : "Night owl";
+          const totalEntries = myEntryCount + Object.values(entryCounts).reduce((s, n) => s + n, 0);
+          const worldCount = worlds.length + 1; // +1 for My World
+          return (
+            <div style={{ marginTop: 6, animation: "fadeIn 1.5s ease" }}>
+              <div style={{ fontSize: 11, color: "#a098b0", letterSpacing: "1px", fontWeight: 300, textShadow: "0 1px 8px rgba(0,0,0,0.5)" }}>
+                {greeting}, {userDisplayName.split(' ')[0]}
+              </div>
+              {totalEntries > 0 && (
+                <div style={{ fontSize: 9, color: "#706878", marginTop: 3, letterSpacing: "1.5px", textShadow: "0 1px 4px rgba(0,0,0,0.4)" }}>
+                  {totalEntries} {totalEntries === 1 ? "adventure" : "adventures"} across {worldCount} {worldCount === 1 ? "world" : "worlds"}
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* Center label */}
