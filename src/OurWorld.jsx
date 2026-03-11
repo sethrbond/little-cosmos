@@ -4088,7 +4088,21 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             {/* TAB CONTENT */}
             <div key={cardTab} style={{ marginTop: 10, animation: "fadeIn .2s ease" }}>
               {cardTab === "overview" && (<>
-                {cur.notes && <p style={{ fontSize: 12, lineHeight: 1.7, margin: "0 0 10px", color: P.textMid, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", fontStyle: "italic" }}>{cur.notes}</p>}
+                {!isViewer ? (
+                  <div style={{ marginBottom: 10, position: "relative" }}>
+                    <textarea
+                      placeholder="Write about this memory..."
+                      value={cur.notes || ""}
+                      onChange={e => dispatch({ type: "UPDATE", id: cur.id, data: { notes: e.target.value }, _skipSave: true })}
+                      onBlur={e => { dispatch({ type: "UPDATE", id: cur.id, data: { notes: e.target.value } }); e.currentTarget.style.borderColor = e.target.value ? "transparent" : `${P.textFaint}20`; }}
+                      rows={cur.notes ? Math.min(Math.ceil(cur.notes.length / 35), 6) : 2}
+                      style={{ width: "100%", fontSize: 12, lineHeight: 1.7, color: P.textMid, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", fontStyle: "italic", background: "none", border: `1px solid ${cur.notes ? "transparent" : P.textFaint + "20"}`, borderRadius: 8, padding: "6px 8px", outline: "none", resize: "vertical", boxSizing: "border-box", transition: "border-color .2s" }}
+                      onFocus={e => e.currentTarget.style.borderColor = `${P.rose}30`}
+                    />
+                  </div>
+                ) : cur.notes ? (
+                  <p style={{ fontSize: 12, lineHeight: 1.7, margin: "0 0 10px", color: P.textMid, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", fontStyle: "italic" }}>{cur.notes}</p>
+                ) : null}
                 {(cur.stops || []).length > 0 && (<div style={{ marginTop: 8 }}>
                   <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".16em", textTransform: "uppercase", marginBottom: 6 }}>Trip Route</div>
                   {cur.stops.map((s, si) => (
@@ -4115,24 +4129,41 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                   : <div style={{ fontSize: 9, color: P.textFaint, fontStyle: "italic" }}>No note yet</div>}
                   {cur.loveNote && !isViewer && <button onClick={() => dispatch({ type: "UPDATE", id: cur.id, data: { loveNote: "" } })} style={{ marginTop: 4, background: "none", border: "none", fontSize: 8, color: P.textFaint, cursor: "pointer", padding: 0 }}>Clear</button>}
                 </div>}
-                {/* Empty overview nudge */}
-                {!cur.notes && !(cur.stops || []).length && !cur.musicUrl && !(isPartnerWorld && cur.loveNote) && (
-                  <div style={{ textAlign: "center", padding: "28px 16px" }}>
-                    <div style={{ fontSize: 28, marginBottom: 8, opacity: 0.3 }}>✏️</div>
-                    <div style={{ fontSize: 11, color: P.textFaint, lineHeight: 1.7, fontStyle: "italic", fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif" }}>
-                      {isPartnerWorld ? "Write a note, trace your route, or leave a love note." : "Jot down what you remember."}
-                    </div>
-                    {!isViewer && <button onClick={() => setEditing({ ...cur })} style={{ marginTop: 12, padding: "6px 20px", background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: `1px solid ${P.rose}18`, borderRadius: 10, fontSize: 10, color: P.textMid, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", cursor: "pointer", letterSpacing: ".03em" }}>✏️ Add details</button>}
+                {/* Empty overview nudge — only for viewers or when truly empty */}
+                {isViewer && !cur.notes && !(cur.stops || []).length && !cur.musicUrl && !(isPartnerWorld && cur.loveNote) && (
+                  <div style={{ textAlign: "center", padding: "20px 12px" }}>
+                    <div style={{ fontSize: 11, color: P.textFaint, fontStyle: "italic", fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif" }}>No details added yet.</div>
                   </div>
                 )}
               </>)}
 
               {cardTab === "highlights" && (<>
                 {renderList(FIELD_LABELS.highlights.label, cur.highlights, FIELD_LABELS.highlights.icon, P.gold)}
-                {!(cur.highlights?.length) && <div style={{ textAlign: "center", padding: "28px 16px" }}>
+                {!isViewer && (
+                  <div style={{ marginTop: (cur.highlights?.length) ? 8 : 0 }}>
+                    {!(cur.highlights?.length) && <div style={{ textAlign: "center", padding: "20px 12px 12px" }}>
+                      <div style={{ fontSize: 28, marginBottom: 8, opacity: 0.3 }}>✨</div>
+                      <div style={{ fontSize: 11, color: P.textFaint, lineHeight: 1.7, fontStyle: "italic", fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif" }}>What made this trip special?<br/>The little moments worth holding onto.</div>
+                    </div>}
+                    <input
+                      type="text"
+                      placeholder="+ Add a highlight..."
+                      onKeyDown={e => {
+                        if (e.key === "Enter" && e.target.value.trim()) {
+                          const newHighlights = [...(cur.highlights || []), e.target.value.trim()];
+                          dispatch({ type: "UPDATE", id: cur.id, data: { highlights: newHighlights } });
+                          e.target.value = "";
+                        }
+                      }}
+                      style={{ width: "100%", padding: "8px 10px", fontSize: 11, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", fontStyle: "italic", color: P.textMid, background: `${P.gold}06`, border: `1px solid ${P.gold}15`, borderRadius: 8, outline: "none", boxSizing: "border-box", transition: "border-color .2s" }}
+                      onFocus={e => e.currentTarget.style.borderColor = `${P.gold}35`}
+                      onBlur={e => e.currentTarget.style.borderColor = `${P.gold}15`}
+                    />
+                  </div>
+                )}
+                {isViewer && !(cur.highlights?.length) && <div style={{ textAlign: "center", padding: "28px 16px" }}>
                   <div style={{ fontSize: 28, marginBottom: 8, opacity: 0.3 }}>✨</div>
-                  <div style={{ fontSize: 11, color: P.textFaint, lineHeight: 1.7, fontStyle: "italic", fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif" }}>What made this trip special?<br/>The little moments worth holding onto.</div>
-                  {!isViewer && <button onClick={() => setEditing({ ...cur })} style={{ marginTop: 12, padding: "6px 20px", background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: `1px solid ${P.rose}18`, borderRadius: 10, fontSize: 10, color: P.textMid, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", cursor: "pointer", letterSpacing: ".03em" }}>+ Add highlights</button>}
+                  <div style={{ fontSize: 11, color: P.textFaint, lineHeight: 1.7, fontStyle: "italic", fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif" }}>No highlights added yet.</div>
                 </div>}
               </>)}
 
