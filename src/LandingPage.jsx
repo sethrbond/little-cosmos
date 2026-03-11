@@ -288,33 +288,33 @@ function StarField() {
 const features = [
   {
     icon: '🌍',
-    title: 'Your Own Planet',
-    desc: 'Every trip glows on a 3D globe you can spin, zoom, and fly through. It feels like yours because it is.',
+    title: 'Your Little Planet',
+    desc: 'Add a trip and watch it glow. Spin the globe to find it again. Zoom in close. It\'s all yours.',
   },
   {
     icon: '💕',
-    title: 'Worlds to Share',
-    desc: 'A couples world. A friends world. A family world. Each with its own colors, vibe, and story.',
+    title: 'For You & Your Person',
+    desc: 'Hide love letters on the globe. Leave notes on each other\'s entries. Watch your story connect across the map like a thread.',
   },
   {
     icon: '📸',
-    title: 'Relive Everything',
-    desc: 'Press play and watch your story unfold across the globe — photos fading in, marker by marker.',
+    title: 'A Scrapbook That Spins',
+    desc: 'Photos show up like little polaroids. Press play and the whole thing comes alive — your memories, in order, right where they happened.',
   },
   {
     icon: '✨',
-    title: 'It Breathes',
-    desc: 'Shooting stars cross the sky. Aurora shifts with your entries. Night shadow follows the real sun. Your globe is alive.',
+    title: 'It Has a Heartbeat',
+    desc: 'Shooting stars drift by. The aurora shifts colors. Night falls on the globe when it\'s nighttime for real. Little things you\'ll notice over time.',
   },
   {
-    icon: '🏆',
-    title: 'Milestones That Matter',
-    desc: 'Your first trip abroad. Your farthest point from home. 10,000 miles traveled. It remembers what you might forget.',
+    icon: '🎂',
+    title: 'It Remembers',
+    desc: 'Your first trip together. The farthest you\'ve been from home. Your anniversary. It keeps track so you don\'t have to.',
   },
   {
     icon: '💌',
-    title: 'Invite with a Letter',
-    desc: 'Send a welcome letter sealed in wax. They open it, join your world, and start adding alongside you.',
+    title: 'Send a Letter',
+    desc: 'Invite someone with a handwritten welcome letter. They open it, join your world, and start adding their own memories.',
   },
 ]
 
@@ -404,14 +404,14 @@ export default function LandingPage({ onSignIn, onSignUp }) {
           marginTop: 16, fontWeight: 300, letterSpacing: 1.5,
           fontStyle: 'italic',
         }}>
-          your travels, pinned to a spinning globe
+          for the ones who never want to forget
         </p>
         <p style={{
           fontSize: 'clamp(14px, 1.8vw, 17px)', opacity: 0.35,
-          marginTop: 28, maxWidth: 480, lineHeight: 1.8,
+          marginTop: 28, maxWidth: 460, lineHeight: 1.8,
         }}>
-          Solo trips. Shared adventures. Family traditions.
-          One cosmos that grows with every journey.
+          A globe that fills up with everywhere you've been.
+          Add photos, scribble notes, share it with your favorite people.
         </p>
         <button onClick={onSignUp} style={{
           marginTop: 44, padding: '15px 48px',
@@ -444,15 +444,15 @@ export default function LandingPage({ onSignIn, onSignUp }) {
           textAlign: 'center', fontSize: 'clamp(20px, 3.5vw, 30px)',
           fontWeight: 300, letterSpacing: 2, marginBottom: 48, opacity: 0.6,
         }}>
-          Three steps. One cosmos.
+          The gist
         </h2>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 0, position: 'relative' }}>
           {/* Connecting line */}
           <div style={{ position: 'absolute', left: 28, top: 32, bottom: 32, width: 1, background: 'linear-gradient(to bottom, transparent, rgba(200,170,110,0.15), rgba(200,170,110,0.15), transparent)' }} />
           {[
-            { num: '1', title: 'Create your world', desc: 'Solo, with a partner, friends, or family. Each world gets its own colors and personality.', icon: '🌙' },
-            { num: '2', title: 'Pin your adventures', desc: 'Add a city, drop in photos, write what you remember. Watch the marker glow to life on the globe.', icon: '📍' },
-            { num: '3', title: 'Watch it grow', desc: 'Play your story back. Hit milestones. Share year-in-review recaps. Every trip makes it more yours.', icon: '✨' },
+            { num: '1', title: 'Pick your people', desc: 'Just you? You and your partner? The whole crew? Make a world for them. It gets its own colors and everything.', icon: '🌙' },
+            { num: '2', title: 'Add a memory', desc: 'Pick the city. Throw in some photos. Write what you remember before you forget it. A little light appears on the globe.', icon: '📍' },
+            { num: '3', title: 'Come back to it', desc: 'Press play to watch your whole story unfold. It gets better every time you add something new.', icon: '✨' },
           ].map((step, i) => (
             <div key={i} style={{
               display: 'flex', gap: 24, alignItems: 'flex-start', padding: '20px 0',
@@ -483,7 +483,7 @@ export default function LandingPage({ onSignIn, onSignUp }) {
           textAlign: 'center', fontSize: 'clamp(24px, 4vw, 36px)',
           fontWeight: 300, letterSpacing: 2, marginBottom: 64, opacity: 0.8,
         }}>
-          What makes it different
+          What's inside
         </h2>
         <div style={{
           display: 'grid',
@@ -522,17 +522,17 @@ export default function LandingPage({ onSignIn, onSignUp }) {
           textAlign: 'center', fontSize: 'clamp(20px, 3.5vw, 28px)',
           fontWeight: 300, letterSpacing: 2, marginBottom: 12, opacity: 0.7,
         }}>
-          Four worlds. One cosmos.
+          Make it yours
         </h2>
         <p style={{ textAlign: 'center', fontSize: 14, opacity: 0.3, marginBottom: 40, lineHeight: 1.6 }}>
-          Different colors. Different features. Same beautiful globe.
+          Every world has its own colors, its own features, its own feeling.
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16 }}>
           {[
-            { name: 'My World', desc: 'Your solo travel diary', color: '#c9a96e', accent: '#a08540', icon: '🌍' },
-            { name: 'Partner', desc: 'Love letters, milestones', color: '#d4a0b0', accent: '#c080a0', icon: '💕' },
-            { name: 'Friends', desc: 'Squad adventures', color: '#7090c0', accent: '#5070a0', icon: '👯' },
-            { name: 'Family', desc: 'Generations of memories', color: '#c4956a', accent: '#a07850', icon: '👨‍👩‍👧‍👦' },
+            { name: 'My World', desc: 'Just yours', color: '#c9a96e', accent: '#a08540', icon: '🌍' },
+            { name: 'Partner', desc: 'Love letters & all', color: '#d4a0b0', accent: '#c080a0', icon: '💕' },
+            { name: 'Friends', desc: 'For the group chat', color: '#7090c0', accent: '#5070a0', icon: '👯' },
+            { name: 'Family', desc: 'Every reunion, every trip', color: '#c4956a', accent: '#a07850', icon: '👨‍👩‍👧‍👦' },
           ].map((w, i) => (
             <div key={i} style={{
               padding: '24px 20px', borderRadius: 16, textAlign: 'center',
@@ -559,13 +559,13 @@ export default function LandingPage({ onSignIn, onSignUp }) {
           fontSize: 'clamp(20px, 3.5vw, 32px)', fontWeight: 300,
           letterSpacing: 1.5, opacity: 0.7, marginBottom: 16,
         }}>
-          Your cosmos is waiting
+          That's it. That's the whole thing.
         </div>
         <p style={{
           fontSize: 15, opacity: 0.35, maxWidth: 420, margin: '0 auto 36px',
           lineHeight: 1.7,
         }}>
-          Add a trip. Watch it glow. It takes less than a minute.
+          Add one trip. See it glow. You'll get it.
         </p>
         <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
           <button onClick={onSignUp} style={{

@@ -60,7 +60,7 @@ function KeyboardShortcuts({ onClose, palette: P, worldMode }) {
       shortcuts: [
         { keys: ["F"], desc: "Toggle filter panel" },
         { keys: ["S"], desc: "Open search" },
-        { keys: ["G"], desc: "Toggle gallery" },
+        { keys: ["G"], desc: "Toggle scrapbook" },
         { keys: ["I"], desc: "Toggle stats" },
         { keys: ["T"], desc: "Jump to today" },
       ],
