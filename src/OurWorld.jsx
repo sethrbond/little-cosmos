@@ -3575,22 +3575,26 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                   setSelected(e); setPhotoIdx(0); setCardTab("overview"); setLocationList(null); setSliderDate(e.dateStart);
                   flyTo(e.lat, e.lng, 2.5);
                 }}
-                  style={{ display: "flex", width: "100%", alignItems: "center", gap: 8, padding: "6px 10px", border: "none", borderBottom: `1px solid ${P.parchment}60`, background: selected?.id === e.id ? P.blush : "transparent", cursor: "pointer", fontFamily: "inherit", textAlign: "left", transition: "background .15s" }}
+                  style={{ display: "flex", width: "100%", alignItems: "center", gap: 8, padding: "7px 10px", border: "none", borderBottom: `1px solid ${P.parchment}60`, background: selected?.id === e.id ? P.blush : "transparent", cursor: "pointer", fontFamily: "inherit", textAlign: "left", transition: "background .15s" }}
                   onMouseEnter={ev => { if (selected?.id !== e.id) ev.currentTarget.style.background = P.lavMist; }}
                   onMouseLeave={ev => { if (selected?.id !== e.id) ev.currentTarget.style.background = "transparent"; }}
                 >
-                  <span style={{ fontSize: 12, flexShrink: 0 }}>{(TYPES[e.type] || {}).icon || "📍"}</span>
+                  {(e.photos || []).length > 0 ? (
+                    <img loading="lazy" src={e.photos[0]} alt="" style={{ width: 32, height: 32, borderRadius: 6, objectFit: "cover", flexShrink: 0, border: `1px solid ${P.rose}15` }} />
+                  ) : (
+                    <span style={{ fontSize: 14, flexShrink: 0, width: 32, textAlign: "center" }}>{(TYPES[e.type] || {}).icon || "📍"}</span>
+                  )}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 10, fontWeight: 400, color: P.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.city}{(e.stops || []).length > 0 ? ` + ${e.stops.length} stop${e.stops.length > 1 ? "s" : ""}` : ""}</div>
                     <div style={{ fontSize: 8, color: P.textFaint }}>{fmtDate(e.dateStart)}{e.dateEnd && e.dateEnd !== e.dateStart ? ` → ${fmtDate(e.dateEnd)}` : ""}{(e.stops || []).length > 0 ? ` · ${[...new Set(e.stops.map(s => s.country).filter(Boolean))].join(", ")}` : ""}</div>
                   </div>
-                  {(e.photos || []).length > 0 && <span style={{ fontSize: 7, color: P.textFaint }}>📸{(e.photos || []).length}</span>}
+                  {(e.photos || []).length > 1 && <span style={{ fontSize: 7, color: P.textFaint }}>📸{(e.photos || []).length}</span>}
                   {isSharedWorld && e.addedBy && memberNameMap[e.addedBy] && (
                     <div style={{ width: 16, height: 16, borderRadius: "50%", background: `linear-gradient(135deg, ${P.rose}35, ${P.sky}35)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 7, fontWeight: 600, color: P.text, flexShrink: 0 }} title={`Added by ${memberNameMap[e.addedBy]}`}>
                       {memberNameMap[e.addedBy].charAt(0).toUpperCase()}
                     </div>
                   )}
-                  {e.favorite && <span style={{ fontSize: 8, color: P.heart }}>♥</span>}
+                  {e.favorite && <span style={{ fontSize: 9, color: P.heart }}>♥</span>}
                 </button>
               );
               return (
