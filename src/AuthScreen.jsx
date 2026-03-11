@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { supabase } from './supabaseClient.js'
 
+const SITE_URL = 'https://littlecosmos.app'
+
 const wrap = {
   position: 'fixed', inset: 0,
   background: '#0c0a12',
@@ -88,6 +90,7 @@ export default function AuthScreen({ initialMode = 'login', onBack }) {
       password,
       options: {
         data: { display_name: displayName.trim() },
+        emailRedirectTo: SITE_URL,
       },
     })
     setLoading(false)
@@ -99,7 +102,7 @@ export default function AuthScreen({ initialMode = 'login', onBack }) {
   const handleForgot = async (e) => {
     e.preventDefault()
     setError(''); setLoading(true)
-    const { error: authError } = await supabase.auth.resetPasswordForEmail(email)
+    const { error: authError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: SITE_URL })
     setLoading(false)
     if (authError) { setError(authError.message); return }
     setMessage('Check your email for a password reset link.')
@@ -194,7 +197,7 @@ export default function AuthScreen({ initialMode = 'login', onBack }) {
               onClick={async () => {
                 setResendStatus('sending')
                 try {
-                  const { error } = await supabase.auth.resend({ type: 'signup', email })
+                  const { error } = await supabase.auth.resend({ type: 'signup', email, options: { emailRedirectTo: SITE_URL } })
                   if (error) { setResendStatus(error.message); setTimeout(() => setResendStatus(''), 4000) }
                   else { setResendStatus('sent'); setTimeout(() => setResendStatus(''), 4000) }
                 } catch { setResendStatus('Something went wrong'); setTimeout(() => setResendStatus(''), 4000) }
