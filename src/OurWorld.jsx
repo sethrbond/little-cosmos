@@ -1846,8 +1846,10 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   }, [searchResults]);
 
   // ---- FAVORITES ----
+  const [heartBurst, setHeartBurst] = useState(false);
   const toggleFavorite = useCallback((id, currentFavorite) => {
     dispatch({ type: "UPDATE", id, data: { favorite: !currentFavorite } });
+    if (!currentFavorite) { setHeartBurst(true); setTimeout(() => setHeartBurst(false), 700); }
   }, [dispatch]);
 
   const favorites = useMemo(() => data.entries.filter(e => e.favorite), [data.entries]);
@@ -4043,9 +4045,14 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 </div>
               )}
               <button onClick={() => setTripCardEntry(cur)} style={{ background: "none", border: "none", fontSize: 12, cursor: "pointer", color: P.textFaint, transition: "color .2s" }} title="Save Trip Card">🎴</button>
-              <button onClick={() => toggleFavorite(cur.id, cur.favorite)} style={{ background: "none", border: "none", fontSize: 14, cursor: "pointer", color: cur.favorite ? P.heart : P.textFaint, transition: "color .2s" }} title={cur.favorite ? "Unfavorite" : "Favorite"}>
-                {cur.favorite ? "♥" : "♡"}
-              </button>
+              <div style={{ position: "relative", display: "inline-block" }}>
+                <button onClick={() => toggleFavorite(cur.id, cur.favorite)} style={{ background: "none", border: "none", fontSize: 14, cursor: "pointer", color: cur.favorite ? P.heart : P.textFaint, transition: "all .2s", transform: heartBurst ? "scale(1.3)" : "scale(1)" }} title={cur.favorite ? "Unfavorite" : "Favorite"}>
+                  {cur.favorite ? "♥" : "♡"}
+                </button>
+                {heartBurst && [0,1,2,3,4].map(i => (
+                  <span key={i} style={{ position: "absolute", left: "50%", top: "50%", fontSize: 8, pointerEvents: "none", color: P.heart, animation: `heartFloat${i} .7s ease-out forwards`, opacity: 0 }}>♥</span>
+                ))}
+              </div>
               <button aria-label="Close detail card" onClick={() => { setSelected(null); setLightboxOpen(false); tSpinSpd.current = 0.002; }} style={{ background: "none", border: "none", fontSize: 16, color: P.textFaint, cursor: "pointer", marginLeft: 2 }}>×</button>
             </div>
 
@@ -5255,6 +5262,11 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         @keyframes lbFadeOpacity{from{opacity:0}to{opacity:1}}
         @keyframes kenBurns{0%{transform:scale(1) translate(0,0)}100%{transform:scale(1.04) translate(-0.5%,-0.3%)}}
         @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+        @keyframes heartFloat0{0%{opacity:1;transform:translate(-50%,-50%)}100%{opacity:0;transform:translate(-14px,-28px) scale(1.2)}}
+        @keyframes heartFloat1{0%{opacity:1;transform:translate(-50%,-50%)}100%{opacity:0;transform:translate(10px,-26px) scale(0.9)}}
+        @keyframes heartFloat2{0%{opacity:1;transform:translate(-50%,-50%)}100%{opacity:0;transform:translate(-6px,-32px) scale(1.1)}}
+        @keyframes heartFloat3{0%{opacity:1;transform:translate(-50%,-50%)}100%{opacity:0;transform:translate(16px,-20px) scale(0.8)}}
+        @keyframes heartFloat4{0%{opacity:1;transform:translate(-50%,-50%)}100%{opacity:0;transform:translate(-18px,-22px) scale(1.0)}}
         *{box-sizing:border-box}
         ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:${P.textFaint}22;border-radius:2px}
         input:focus,textarea:focus,select:focus{outline:none;border-color:${P.rose}!important}
