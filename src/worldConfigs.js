@@ -120,7 +120,7 @@ export const FRIENDS_PALETTE = {
   sky: "#c89640",        // burnished gold secondary
   skyLight: "#ddb460", skySoft: "#d4a850",
   sage: "#6c9478", gold: "#bfa040", goldWarm: "#d4b450", lavender: "#8888b0",
-  together: "#7480b8", togetherSoft: "#9098cc", togetherLight: "#b4b8e0",
+  together: "#4050a0", togetherSoft: "#5868b8", togetherLight: "#8090d0",
   heart: "#4854a8", heartSoft: "#6870c0",
   special: "#c89840", specialSoft: "#d8b058",
   card: "rgba(245,244,250,0.97)", glass: "rgba(238,236,248,0.93)",
@@ -231,7 +231,7 @@ export const FAMILY_SCENE = {
 // ============================================================
 
 export const FRIENDS_TYPES = {
-  "group-trip":  { label: "Group Trip",       icon: "\u{1F30D}", color: "together", who: "group", symbol: "together" },
+  "group-trip":  { label: "Group Trip",       icon: "\u{1F30D}", color: "together", who: "group", symbol: "people" },
   "weekend":     { label: "Weekend Away",     icon: "\u{1F3D5}\uFE0F", color: "sage",     who: "group", symbol: "tent" },
   "night-out":   { label: "Night Out",        icon: "\u{1F378}", color: "rose",     who: "group", symbol: "burst" },
   "hangout":     { label: "Hangout",          icon: "\u{1F3E0}", color: "sky",      who: "group", symbol: "home-seth" },

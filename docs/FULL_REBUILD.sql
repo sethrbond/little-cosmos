@@ -654,8 +654,9 @@ BEGIN
   VALUES (world_name, world_type, auth.uid())
   RETURNING id INTO new_world_id;
 
-  INSERT INTO world_members (world_id, user_id, role)
-  VALUES (new_world_id, auth.uid(), 'owner');
+  INSERT INTO world_members (world_id, user_id, role, display_name)
+  VALUES (new_world_id, auth.uid(), 'owner',
+    COALESCE((SELECT raw_user_meta_data->>'display_name' FROM auth.users WHERE id = auth.uid()), ''));
 
   INSERT INTO config (id, world_id, user_id, title, subtitle, you_name, partner_name, metadata)
   VALUES (
@@ -697,6 +698,7 @@ CREATE OR REPLACE FUNCTION accept_world_invite(invite_token TEXT)
 RETURNS JSONB AS $$
 DECLARE
   inv RECORD;
+  uname TEXT;
 BEGIN
   SELECT * INTO inv FROM world_invites
   WHERE token = invite_token
@@ -711,8 +713,12 @@ BEGIN
     RETURN jsonb_build_object('ok', true, 'world_id', inv.world_id, 'already_member', true);
   END IF;
 
-  INSERT INTO world_members (world_id, user_id, role)
-  VALUES (inv.world_id, auth.uid(), inv.role);
+  -- Get display name from auth metadata
+  SELECT COALESCE(raw_user_meta_data->>'display_name', '') INTO uname
+  FROM auth.users WHERE id = auth.uid();
+
+  INSERT INTO world_members (world_id, user_id, role, display_name)
+  VALUES (inv.world_id, auth.uid(), COALESCE(inv.role, 'member'), COALESCE(uname, ''));
 
   UPDATE world_invites SET use_count = use_count + 1 WHERE id = inv.id;
 
