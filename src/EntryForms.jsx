@@ -161,7 +161,7 @@ export function imgN(s) {
 export function renderList(t, items, icon, color) {
   const P = getP();
   if (!items?.length) return null;
-  return <div style={{ marginTop: 10 }}><div style={{ fontSize: 9, color: P.textFaint, letterSpacing: ".16em", textTransform: "uppercase", marginBottom: 5 }}>{t}</div>{items.map((it, i) => <div key={i} style={{ display: "flex", gap: 6, marginBottom: 4 }}><span style={{ color, fontSize: 7, marginTop: 5 }}>{icon}</span><span style={{ fontSize: 12, opacity: .8, lineHeight: 1.6 }}>{it}</span></div>)}</div>;
+  return <div style={{ marginTop: 10 }}><div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 6 }}>{t}</div>{items.map((it, i) => <div key={i} style={{ display: "flex", gap: 7, marginBottom: 5, padding: "4px 8px", background: `${color}08`, borderRadius: 6, borderLeft: `2px solid ${color}25` }}><span style={{ color, fontSize: 9, marginTop: 2, flexShrink: 0 }}>{icon}</span><span style={{ fontSize: 11, color: P.textMid, lineHeight: 1.6, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif" }}>{it}</span></div>)}</div>;
 }
 
 // ---- UI COMPONENTS ----

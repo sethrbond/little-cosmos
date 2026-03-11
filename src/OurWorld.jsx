@@ -4018,9 +4018,15 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               {(TYPES[cur.type] || DEFAULT_TYPE).icon} {(TYPES[cur.type] || DEFAULT_TYPE).label}
             </div>
 
-            <h2 style={{ margin: 0, fontSize: 19, fontWeight: 400, lineHeight: 1.2 }}>{cur.city}</h2>
-            <p style={{ margin: "1px 0 0", fontSize: 10, color: P.textMuted }}>{cur.country}</p>
-            <div style={{ fontSize: 11, color: P.textMid, marginTop: 5 }}>📅 {fmtDate(cur.dateStart)}{cur.dateEnd ? ` → ${fmtDate(cur.dateEnd)}` : ""}</div>
+            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 400, lineHeight: 1.2, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif" }}>{cur.city}</h2>
+            <p style={{ margin: "2px 0 0", fontSize: 10, color: P.textMuted, letterSpacing: ".04em" }}>{cur.country}</p>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 10, color: P.textMid }}>📅 {fmtDate(cur.dateStart)}{cur.dateEnd && cur.dateEnd !== cur.dateStart ? ` → ${fmtDate(cur.dateEnd)}` : ""}</span>
+              {cur.dateEnd && cur.dateEnd !== cur.dateStart && (() => {
+                const days = daysBetween(cur.dateStart, cur.dateEnd) + 1;
+                return <span style={{ fontSize: 8, padding: "1px 6px", background: `${P.rose}10`, borderRadius: 8, color: P.textFaint, letterSpacing: ".04em" }}>{days} day{days !== 1 ? "s" : ""}</span>;
+              })()}
+            </div>
             {isSharedWorld && cur.addedBy && memberNameMap[cur.addedBy] && (
               <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5 }}>
                 <div style={{ width: 18, height: 18, borderRadius: "50%", background: `linear-gradient(135deg, ${P.rose}40, ${P.sky}40)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 600, color: P.text, flexShrink: 0 }}>
@@ -4048,8 +4054,23 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             {/* TAB CONTENT */}
             <div key={cardTab} style={{ marginTop: 10, animation: "fadeIn .2s ease" }}>
               {cardTab === "overview" && (<>
-                {cur.notes && <p style={{ fontSize: 12, lineHeight: 1.6, margin: "0 0 8px", opacity: .85 }}>{cur.notes}</p>}
-                {(cur.stops || []).length > 0 && (<div style={{ marginTop: 8 }}><div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".16em", textTransform: "uppercase", marginBottom: 4 }}>Trip Route</div>{cur.stops.map(s => <div key={s.sid} style={{ padding: "5px 8px", background: `${P.rose}08`, borderRadius: 6, marginBottom: 4, borderLeft: `2px solid ${P.rose}30` }}><div style={{ fontSize: 11, fontWeight: 500 }}>{s.city}</div>{s.dateStart && <div style={{ fontSize: 9, color: P.textFaint }}>{fmtDate(s.dateStart)}{s.dateEnd ? ` → ${fmtDate(s.dateEnd)}` : ""}</div>}{s.notes && <p style={{ fontSize: 10, color: P.textMid, margin: "2px 0 0" }}>{s.notes}</p>}</div>)}</div>)}
+                {cur.notes && <p style={{ fontSize: 12, lineHeight: 1.7, margin: "0 0 10px", color: P.textMid, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", fontStyle: "italic" }}>{cur.notes}</p>}
+                {(cur.stops || []).length > 0 && (<div style={{ marginTop: 8 }}>
+                  <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".16em", textTransform: "uppercase", marginBottom: 6 }}>Trip Route</div>
+                  {cur.stops.map((s, si) => (
+                    <div key={s.sid} style={{ display: "flex", gap: 8, marginBottom: 2 }}>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 12, flexShrink: 0 }}>
+                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: si === 0 ? P.rose : `${P.rose}60`, border: `2px solid ${P.rose}40`, flexShrink: 0 }} />
+                        {si < cur.stops.length - 1 && <div style={{ width: 1, flex: 1, background: `${P.rose}25`, minHeight: 16 }} />}
+                      </div>
+                      <div style={{ flex: 1, paddingBottom: 8 }}>
+                        <div style={{ fontSize: 11, fontWeight: 500, color: P.text }}>{s.city}{s.country ? `, ${s.country}` : ""}</div>
+                        {s.dateStart && <div style={{ fontSize: 9, color: P.textFaint, marginTop: 1 }}>{fmtDate(s.dateStart)}{s.dateEnd ? ` → ${fmtDate(s.dateEnd)}` : ""}</div>}
+                        {s.notes && <p style={{ fontSize: 10, color: P.textMid, margin: "2px 0 0", fontStyle: "italic" }}>{s.notes}</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>)}
                 {cur.musicUrl && <div style={{ marginTop: 8, padding: "6px 8px", background: `${P.lavender}0a`, borderRadius: 6 }}><div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 3 }}>{isPartnerWorld ? "Our Song" : "Music"}</div><audio ref={musicRef} controls src={cur.musicUrl} style={{ width: "100%", height: 26 }} /></div>}
                 {/* Love Note — partner worlds only */}
                 {isPartnerWorld && <div style={{ marginTop: 10, padding: "10px 12px", background: `${P.heart}06`, borderRadius: 8, borderLeft: `2px solid ${P.heart}20` }}>
@@ -4062,31 +4083,32 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 </div>}
                 {/* Empty overview nudge */}
                 {!cur.notes && !(cur.stops || []).length && !cur.musicUrl && !(isPartnerWorld && cur.loveNote) && (
-                  <div style={{ textAlign: "center", padding: "16px 12px" }}>
-                    <div style={{ fontSize: 11, color: P.textFaint, lineHeight: 1.6 }}>
-                      {isPartnerWorld ? "Add notes, a trip route, or a love note to this memory" : "Add notes or a trip route to remember the details"}
+                  <div style={{ textAlign: "center", padding: "28px 16px" }}>
+                    <div style={{ fontSize: 28, marginBottom: 8, opacity: 0.3 }}>✏️</div>
+                    <div style={{ fontSize: 11, color: P.textFaint, lineHeight: 1.7, fontStyle: "italic", fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif" }}>
+                      {isPartnerWorld ? "Write a note, trace your route, or leave a love note." : "Jot down what you remember."}
                     </div>
-                    {!isViewer && <button onClick={() => setEditing({ ...cur })} style={{ marginTop: 8, padding: "5px 16px", background: `${P.rose}08`, border: `1px solid ${P.rose}15`, borderRadius: 8, fontSize: 9, color: P.textMid, fontFamily: "inherit", cursor: "pointer" }}>✏️ Add details</button>}
+                    {!isViewer && <button onClick={() => setEditing({ ...cur })} style={{ marginTop: 12, padding: "6px 20px", background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: `1px solid ${P.rose}18`, borderRadius: 10, fontSize: 10, color: P.textMid, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", cursor: "pointer", letterSpacing: ".03em" }}>✏️ Add details</button>}
                   </div>
                 )}
               </>)}
 
               {cardTab === "highlights" && (<>
                 {renderList(FIELD_LABELS.highlights.label, cur.highlights, FIELD_LABELS.highlights.icon, P.gold)}
-                {!(cur.highlights?.length) && <div style={{ textAlign: "center", padding: "20px 12px" }}>
-                  <div style={{ fontSize: 18, marginBottom: 6, opacity: 0.4 }}>✨</div>
-                  <div style={{ fontSize: 11, color: P.textFaint, lineHeight: 1.6 }}>What stood out from this trip?</div>
-                  {!isViewer && <button onClick={() => setEditing({ ...cur })} style={{ marginTop: 8, padding: "5px 16px", background: `${P.rose}08`, border: `1px solid ${P.rose}15`, borderRadius: 8, fontSize: 9, color: P.textMid, fontFamily: "inherit", cursor: "pointer" }}>+ Add highlights</button>}
+                {!(cur.highlights?.length) && <div style={{ textAlign: "center", padding: "28px 16px" }}>
+                  <div style={{ fontSize: 28, marginBottom: 8, opacity: 0.3 }}>✨</div>
+                  <div style={{ fontSize: 11, color: P.textFaint, lineHeight: 1.7, fontStyle: "italic", fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif" }}>What made this trip special?<br/>The little moments worth holding onto.</div>
+                  {!isViewer && <button onClick={() => setEditing({ ...cur })} style={{ marginTop: 12, padding: "6px 20px", background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: `1px solid ${P.rose}18`, borderRadius: 10, fontSize: 10, color: P.textMid, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", cursor: "pointer", letterSpacing: ".03em" }}>+ Add highlights</button>}
                 </div>}
               </>)}
 
               {cardTab === "places" && (<>
                 {renderList(FIELD_LABELS.museums.label, cur.museums, FIELD_LABELS.museums.icon, P.sky)}
                 {renderList(FIELD_LABELS.restaurants.label, cur.restaurants, FIELD_LABELS.restaurants.icon, P.roseSoft)}
-                {!(cur.museums?.length) && !(cur.restaurants?.length) && <div style={{ textAlign: "center", padding: "20px 12px" }}>
-                  <div style={{ fontSize: 18, marginBottom: 6, opacity: 0.4 }}>{isMyWorld ? "📝" : "📍"}</div>
-                  <div style={{ fontSize: 11, color: P.textFaint, lineHeight: 1.6 }}>{isMyWorld ? "Add sights, restaurants, or anything worth remembering" : "Add places you visited together"}</div>
-                  {!isViewer && <button onClick={() => setEditing({ ...cur })} style={{ marginTop: 8, padding: "5px 16px", background: `${P.rose}08`, border: `1px solid ${P.rose}15`, borderRadius: 8, fontSize: 9, color: P.textMid, fontFamily: "inherit", cursor: "pointer" }}>+ Add {isMyWorld ? "details" : "places"}</button>}
+                {!(cur.museums?.length) && !(cur.restaurants?.length) && <div style={{ textAlign: "center", padding: "28px 16px" }}>
+                  <div style={{ fontSize: 28, marginBottom: 8, opacity: 0.3 }}>{isMyWorld ? "📝" : "📍"}</div>
+                  <div style={{ fontSize: 11, color: P.textFaint, lineHeight: 1.7, fontStyle: "italic", fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif" }}>{isMyWorld ? "The restaurants, the sights, the hidden gems." : "The places you explored together."}<br/>Add them so you don't forget.</div>
+                  {!isViewer && <button onClick={() => setEditing({ ...cur })} style={{ marginTop: 12, padding: "6px 20px", background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: `1px solid ${P.rose}18`, borderRadius: 10, fontSize: 10, color: P.textMid, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", cursor: "pointer", letterSpacing: ".03em" }}>+ Add {isMyWorld ? "details" : "places"}</button>}
                 </div>}
               </>)}
 
