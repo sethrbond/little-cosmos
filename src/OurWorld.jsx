@@ -1409,6 +1409,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const photoDragRef = useRef({ from: -1, to: -1 });
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
+  const [searchHl, setSearchHl] = useState(-1); // keyboard highlight index in search results
   const [showLoveThread, setShowLoveThread] = useState(false);
   const [showConstellation, setShowConstellation] = useState(false);
   const [showRoutes, setShowRoutes] = useState(false);
@@ -3705,7 +3706,19 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       {showSearch && (
         <div style={{ position: "absolute", top: 22, left: 66, zIndex: 22, width: isMobile ? "calc(100% - 80px)" : 280, animation: "fadeIn .2s ease" }}>
           <div style={{ position: "relative" }}>
-            <input autoFocus value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search cities, notes, highlights..."
+            <input autoFocus value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setSearchHl(-1); }}
+              onKeyDown={e => {
+                if (e.key === "ArrowDown") { e.preventDefault(); setSearchHl(h => Math.min(h + 1, searchResults.length - 1)); }
+                else if (e.key === "ArrowUp") { e.preventDefault(); setSearchHl(h => Math.max(h - 1, -1)); }
+                else if (e.key === "Enter" && searchHl >= 0 && searchHl < searchResults.length) {
+                  e.preventDefault();
+                  const se = searchResults[searchHl];
+                  setSelected(se); setPhotoIdx(0); setCardTab("overview"); setShowSearch(false); setSearchQuery(""); setSearchHl(-1);
+                  setSliderDate(se.dateStart); flyTo(se.lat, se.lng, 2.5);
+                }
+                else if (e.key === "Escape") { setShowSearch(false); setSearchQuery(""); setSearchHl(-1); }
+              }}
+              placeholder="Search cities, notes, highlights..."
               style={{ width: "100%", padding: "9px 28px 9px 12px", border: `1px solid ${P.rose}25`, borderRadius: 10, fontSize: 11, fontFamily: "inherit", color: P.text, background: P.card, backdropFilter: "blur(16px)", boxShadow: "0 4px 16px rgba(0,0,0,.08)", outline: "none", boxSizing: "border-box" }}
             />
             {searchQuery.length > 0 && (
@@ -3720,16 +3733,17 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               {searchResults.length > 0 && (
                 <div style={{ padding: "6px 14px 2px", fontSize: 8, color: P.textFaint, letterSpacing: "0.5px" }}>{searchResults.length} {searchResults.length === 1 ? "result" : "results"}</div>
               )}
-              {searchResults.map(e => {
+              {searchResults.map((e, ri) => {
                 const t = TYPES[e.type] || DEFAULT_TYPE;
+                const isHl = ri === searchHl;
                 return (
                   <button key={e.id} onClick={() => {
-                    setSelected(e); setPhotoIdx(0); setCardTab("overview"); setShowSearch(false); setSearchQuery("");
+                    setSelected(e); setPhotoIdx(0); setCardTab("overview"); setShowSearch(false); setSearchQuery(""); setSearchHl(-1);
                     setSliderDate(e.dateStart);
                     flyTo(e.lat, e.lng, 2.5);
-                  }} style={{ display: "flex", width: "100%", alignItems: "center", gap: 8, padding: "9px 14px", border: "none", borderBottom: `1px solid ${P.parchment}`, background: "transparent", cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}
-                    onMouseEnter={ev => ev.currentTarget.style.background = P.blush}
-                    onMouseLeave={ev => ev.currentTarget.style.background = "transparent"}
+                  }} style={{ display: "flex", width: "100%", alignItems: "center", gap: 8, padding: "9px 14px", border: "none", borderBottom: `1px solid ${P.parchment}`, background: isHl ? P.blush : "transparent", cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}
+                    onMouseEnter={ev => { ev.currentTarget.style.background = P.blush; setSearchHl(ri); }}
+                    onMouseLeave={ev => { if (ri !== searchHl) ev.currentTarget.style.background = "transparent"; }}
                   >
                     <span style={{ fontSize: 14 }}>{t.icon}</span>
                     <div style={{ flex: 1 }}>
