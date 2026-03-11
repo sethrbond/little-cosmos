@@ -1,4 +1,4 @@
-import { supabase, safeArray } from './supabaseClient.js'
+import { supabase, safeArray, mergeMemoriesIntoHighlights } from './supabaseClient.js'
 import { useState, useEffect, useRef, useCallback } from 'react'
 
 /* useRealtimeSync.js — Supabase Realtime subscriptions for My Cosmos
@@ -25,7 +25,7 @@ function rowToEntry(row) {
     notes: row.notes || '',
     museums: safeArray(row.museums),
     restaurants: safeArray(row.restaurants),
-    highlights: (() => { const h = safeArray(row.highlights), m = safeArray(row.memories); if (!m.length) return h; const s = new Set(h), r = [...h]; for (const x of m) { if (x && !s.has(x)) { r.push(x); s.add(x) } } return r })(),
+    highlights: mergeMemoriesIntoHighlights(row),
     photos: safeArray(row.photos),
     stops: safeArray(row.stops),
     musicUrl: row.music_url || null,
@@ -139,7 +139,7 @@ export default function useRealtimeSync({
       .subscribe((status, err) => {
         if (status === 'SUBSCRIBED') {
           setIsConnected(true)
-          // connected
+          reconnectAttemptRef.current = 0
         } else if (status === 'CLOSED') {
           setIsConnected(false)
           // disconnected
@@ -182,7 +182,7 @@ export default function useRealtimeSync({
       if (isVisible) {
         // Tab came back — resubscribe if not connected
         reconnectAttemptRef.current = 0
-        if (!channelRef.current || channelRef.current.state !== 'joined') {
+        if (!channelRef.current || channelRef.current.state !== 'SUBSCRIBED') {
           subscribe()
         }
       }

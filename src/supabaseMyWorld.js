@@ -1,17 +1,6 @@
-import { supabase, withRetry, safeArray, cleanArray } from './supabaseClient.js'
+import { supabase, withRetry, safeArray, cleanArray, mergeMemoriesIntoHighlights } from './supabaseClient.js'
 
 /* supabaseMyWorld.js — Personal world + friend world DB factories */
-
-// Merge legacy "memories" into "highlights" on read (deduplicated)
-function mergeMemoriesIntoHighlights(row) {
-  const highlights = safeArray(row.highlights)
-  const memories = safeArray(row.memories)
-  if (memories.length === 0) return highlights
-  const set = new Set(highlights)
-  const merged = [...highlights]
-  for (const m of memories) { if (m && !set.has(m)) { merged.push(m); set.add(m) } }
-  return merged
-}
 
 // ---- PHOTO STORAGE (shared bucket, "my/" prefix) ----
 

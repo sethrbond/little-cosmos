@@ -90,7 +90,6 @@ export async function loadMyWorlds(userId) {
     .select('world_id, role')
     .eq('user_id', userId)
   if (memErr) { console.error('[loadMyWorlds] memberships:', memErr); return [] }
-  console.log(`[loadMyWorlds] userId=${userId}, memberships=${memberships?.length ?? 0}`, memberships?.map(m => `${m.world_id} (${m.role})`))
   if (!memberships || memberships.length === 0) return []
 
   const worldIds = memberships.map(m => m.world_id)
@@ -100,7 +99,6 @@ export async function loadMyWorlds(userId) {
     .in('id', worldIds)
     .order('created_at', { ascending: true })
   if (error) { console.error('[loadMyWorlds]', error); return [] }
-  console.log(`[loadMyWorlds] worlds found=${worlds?.length ?? 0}`, worlds?.map(w => `${w.name} (${w.type}, id=${w.id})`))
 
   // Also fetch config data (names, subtitle, metadata for members) for each world
   const { data: configs, error: cfgErr } = await supabase
@@ -314,10 +312,8 @@ export async function createInvite(worldId, userId, role = 'member', maxUses = 1
 }
 
 export async function acceptInvite(token) {
-  console.log(`[acceptInvite] calling RPC with token=${token?.slice(0, 6)}...`)
   const { data, error } = await supabase.rpc('accept_world_invite', { invite_token: token })
-  if (error) { console.error('[acceptInvite] RPC error:', error.message, error.details, error.hint, error.code); return { ok: false, error: error.message } }
-  console.log('[acceptInvite] RPC result:', JSON.stringify(data))
+  if (error) { console.error('[acceptInvite]', error.message, error.code); return { ok: false, error: error.message } }
   if (data && typeof data === 'object' && data.ok !== undefined) return data
   if (data && typeof data === 'object' && data.world_id) return { ok: true, ...data }
   return { ok: !!data, world_id: data?.world_id || null }
@@ -465,10 +461,10 @@ export async function getPendingWorldInvites(userEmail) {
     .from('world_invites')
     .select('token, world_id, max_uses, use_count, created_by, worlds(name, type)')
     .eq('target_email', email)
-  console.log(`[getPendingWorldInvites] email=${email}, directInvites=${directInvites?.length ?? 0}, memberWorlds=${[...memberWorldIds]}, error=${invErr?.message || 'none'}`)
+  if (invErr) console.error('[getPendingWorldInvites]', invErr.message)
   for (const inv of (directInvites || [])) {
-    if (memberWorldIds.has(inv.world_id)) { console.log(`[getPendingWorldInvites] skipping ${inv.worlds?.name} — already a member`); continue }
-    if (inv.max_uses !== null && inv.use_count >= inv.max_uses) { console.log(`[getPendingWorldInvites] skipping ${inv.worlds?.name} — invite used up (${inv.use_count}/${inv.max_uses})`); continue }
+    if (memberWorldIds.has(inv.world_id)) continue
+    if (inv.max_uses !== null && inv.use_count >= inv.max_uses) continue
     seenTokens.add(inv.token)
     results.push({
       token: inv.token, worldName: inv.worlds?.name || 'A Shared World',

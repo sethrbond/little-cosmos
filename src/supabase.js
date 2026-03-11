@@ -1,18 +1,7 @@
-import { supabase, withRetry, safeArray, cleanArray } from './supabaseClient.js'
+import { supabase, withRetry, safeArray, cleanArray, mergeMemoriesIntoHighlights } from './supabaseClient.js'
 export { supabase }
 
 /* supabase.js v8.4 — Our World + Shared World DB factories */
-
-// Merge legacy "memories" into "highlights" on read (deduplicated, memories appended)
-function mergeMemoriesIntoHighlights(row) {
-  const highlights = safeArray(row.highlights)
-  const memories = safeArray(row.memories)
-  if (memories.length === 0) return highlights
-  const set = new Set(highlights)
-  const merged = [...highlights]
-  for (const m of memories) { if (m && !set.has(m)) { merged.push(m); set.add(m) } }
-  return merged
-}
 
 // ---- PHOTO STORAGE ----
 
@@ -243,8 +232,8 @@ export function createSharedWorldDB(worldId, userId) {
     deleteEntry: async (id) => {
       await deleteEntryPhotos(id)
       // Clean up orphaned comments/reactions before deleting entry
-      await supabase.from('entry_comments').delete().eq('entry_id', id).eq('world_id', worldId).then(() => {})
-      await supabase.from('entry_reactions').delete().eq('entry_id', id).eq('world_id', worldId).then(() => {})
+      await supabase.from('entry_comments').delete().eq('entry_id', id).eq('world_id', worldId).catch(e => console.warn('[deleteEntry] comments cleanup:', e))
+      await supabase.from('entry_reactions').delete().eq('entry_id', id).eq('world_id', worldId).catch(e => console.warn('[deleteEntry] reactions cleanup:', e))
       const { error } = await supabase.from('entries').delete().eq('id', id)
       if (error) console.error('[shared:deleteEntry] error:', error)
       return !error
@@ -276,34 +265,36 @@ export function createSharedWorldDB(worldId, userId) {
     },
 
     saveConfig: async (config) => {
-      const row = {
-        id: worldId, user_id: userId, world_id: worldId,
-        start_date: config.startDate || null,
-        title: config.title ?? '', subtitle: config.subtitle ?? '',
-        love_letter: config.loveLetter ?? '',
-        you_name: config.youName ?? '', partner_name: config.partnerName ?? '',
-        metadata: {
-          loveLetters: config.loveLetters || [],
-          dreamDestinations: config.dreamDestinations || [],
-          chapters: config.chapters || [],
-          members: config.members || [],
-          darkMode: config.darkMode ?? false,
-          customPalette: config.customPalette || {},
-          customScene: config.customScene || {},
-          ambientMusicUrl: config.ambientMusicUrl || '',
-        },
-      }
-      const { error } = await supabase.from('config').upsert(row, { onConflict: 'id' })
-      if (error) {
-        console.error('[shared:saveConfig]', error.message, error.code)
-        if (error.message?.includes('metadata') || error.code === '42703') {
-          const { metadata, ...basic } = row
-          const { error: e2 } = await supabase.from('config').upsert(basic, { onConflict: 'id' })
-          if (e2) { console.error('[shared:saveConfig] fallback error:', e2); throw e2 }
-        } else {
-          throw error
+      return withRetry(async () => {
+        const row = {
+          id: worldId, user_id: userId, world_id: worldId,
+          start_date: config.startDate || null,
+          title: config.title ?? '', subtitle: config.subtitle ?? '',
+          love_letter: config.loveLetter ?? '',
+          you_name: config.youName ?? '', partner_name: config.partnerName ?? '',
+          metadata: {
+            loveLetters: config.loveLetters || [],
+            dreamDestinations: config.dreamDestinations || [],
+            chapters: config.chapters || [],
+            members: config.members || [],
+            darkMode: config.darkMode ?? false,
+            customPalette: config.customPalette || {},
+            customScene: config.customScene || {},
+            ambientMusicUrl: config.ambientMusicUrl || '',
+          },
         }
-      }
+        const { error } = await supabase.from('config').upsert(row, { onConflict: 'id' })
+        if (error) {
+          console.error('[shared:saveConfig]', error.message, error.code)
+          if (error.message?.includes('metadata') || error.code === '42703') {
+            const { metadata, ...basic } = row
+            const { error: e2 } = await supabase.from('config').upsert(basic, { onConflict: 'id' })
+            if (e2) { console.error('[shared:saveConfig] fallback error:', e2); throw e2 }
+          } else {
+            throw error
+          }
+        }
+      })
     },
 
     uploadPhoto, deletePhoto, savePhotos, readPhotos,

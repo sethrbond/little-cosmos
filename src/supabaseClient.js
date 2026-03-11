@@ -32,3 +32,14 @@ export function safeArray(v) {
 }
 
 export function cleanArray(v) { return Array.isArray(v) ? v : safeArray(v) }
+
+// Shared memories→highlights merge (used by supabase.js, supabaseMyWorld.js, useRealtimeSync.js)
+export function mergeMemoriesIntoHighlights(row) {
+  const highlights = safeArray(row.highlights)
+  const memories = safeArray(row.memories)
+  if (memories.length === 0) return highlights
+  const set = new Set(highlights)
+  const merged = [...highlights]
+  for (const m of memories) { if (m && !set.has(m)) { merged.push(m); set.add(m) } }
+  return merged
+}
