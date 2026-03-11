@@ -4102,6 +4102,43 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                   <button onClick={() => setPolaroidMode(v => !v)} style={{ background: polaroidMode ? `${P.goldWarm}18` : "none", border: `1px solid ${polaroidMode ? P.goldWarm + "30" : P.textFaint + "20"}`, borderRadius: 6, padding: "2px 8px", fontSize: 8, cursor: "pointer", fontFamily: "inherit", color: polaroidMode ? P.goldWarm : P.textFaint, letterSpacing: ".04em" }}>{polaroidMode ? "📸 Polaroid" : "▦ Grid"}</button>
                 </div>
                 {(cur.photos || []).length > 0 ? (<>
+                  {/* Scrapbook cover — layered photo collage */}
+                  {polaroidMode && cur.photos.length >= 3 && (
+                    <div style={{ position: "relative", height: 130, marginBottom: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      {cur.photos.slice(0, 3).map((url, i) => {
+                        const rotations = [-8, 3, -2];
+                        const offsets = [{ x: -24, y: 6 }, { x: 22, y: -4 }, { x: 0, y: 10 }];
+                        const zIndexes = [1, 2, 3];
+                        return (
+                          <div key={i} onClick={() => { setLightboxIdx(i); setLightboxOpen(true); }} style={{
+                            position: "absolute",
+                            transform: `translate(${offsets[i].x}px, ${offsets[i].y}px) rotate(${rotations[i]}deg)`,
+                            zIndex: zIndexes[i],
+                            background: "#fff", padding: "5px 5px 18px", borderRadius: 2,
+                            boxShadow: "0 3px 12px rgba(0,0,0,.15), 0 1px 3px rgba(0,0,0,.08)",
+                            cursor: "pointer", transition: "transform .3s ease",
+                          }}
+                            onMouseEnter={e => e.currentTarget.style.transform = `translate(${offsets[i].x}px, ${offsets[i].y - 4}px) rotate(0deg) scale(1.05)`}
+                            onMouseLeave={e => e.currentTarget.style.transform = `translate(${offsets[i].x}px, ${offsets[i].y}px) rotate(${rotations[i]}deg)`}>
+                            <img loading="lazy" src={url} alt="" style={{ width: 72, height: 72, objectFit: "cover", display: "block" }} />
+                          </div>
+                        );
+                      })}
+                      <div style={{ position: "absolute", bottom: 4, left: 0, right: 0, textAlign: "center", zIndex: 5 }}>
+                        <div style={{ display: "inline-block", padding: "3px 12px", background: `${P.card}e0`, backdropFilter: "blur(8px)", borderRadius: 10, border: `1px solid ${P.rose}12` }}>
+                          <span style={{ fontSize: 11, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", fontStyle: "italic", color: P.textMid, letterSpacing: ".03em" }}>{cur.city}</span>
+                          {cur.dateStart && <span style={{ fontSize: 9, color: P.textFaint, marginLeft: 6 }}>{fmtDate(cur.dateStart)}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {polaroidMode && cur.photos.length >= 3 && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "0 0 10px", opacity: 0.35 }}>
+                      <div style={{ flex: 1, height: 1, background: P.textFaint }} />
+                      <span style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", fontFamily: "inherit" }}>{cur.photos.length} photos</span>
+                      <div style={{ flex: 1, height: 1, background: P.textFaint }} />
+                    </div>
+                  )}
                   <div style={{ display: "grid", gridTemplateColumns: polaroidMode ? "repeat(auto-fill, minmax(100px, 1fr))" : "repeat(auto-fill, minmax(80px, 1fr))", gap: polaroidMode ? 12 : 4, padding: polaroidMode ? "4px 2px" : 0 }}>
                     {cur.photos.map((url, i) => (
                       polaroidMode ? (
