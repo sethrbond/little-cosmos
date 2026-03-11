@@ -1475,26 +1475,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     return [...list].sort((a, b) => (b.dateStart || "").localeCompare(a.dateStart || "")); // newest first
   }, [data.entries, markerFilter]);
   // Trip grouping — cluster entries within 3 days of each other
-  const tripGroups = useMemo(() => {
-    if (filteredList.length < 2) return null;
-    const groups = [];
-    let cur = [filteredList[0]];
-    for (let i = 1; i < filteredList.length; i++) {
-      const prev = cur[cur.length - 1];
-      const prevEnd = prev.dateEnd || prev.dateStart;
-      const gap = prevEnd && filteredList[i].dateStart ? Math.abs(daysBetween(prevEnd, filteredList[i].dateStart)) : 999;
-      if (gap <= 3) {
-        cur.push(filteredList[i]);
-      } else {
-        groups.push(cur);
-        cur = [filteredList[i]];
-      }
-    }
-    groups.push(cur);
-    // Only return if there are actual multi-entry trips
-    return groups.some(g => g.length > 1) ? groups : null;
-  }, [filteredList]);
-  const [collapsedTrips, setCollapsedTrips] = useState({});
+  // Entries listed individually; stops shown inside each entry's detail card
 
   const togetherList = useMemo(() => sorted.filter(e => e.who === "both"), [sorted]);
   const firstBadges = useMemo(() => isPartnerWorld ? getFirstBadges(data.entries) : {}, [data.entries, isPartnerWorld]);
@@ -3600,8 +3581,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 >
                   <span style={{ fontSize: 12, flexShrink: 0 }}>{(TYPES[e.type] || {}).icon || "📍"}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 10, fontWeight: 400, color: P.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.city}</div>
-                    <div style={{ fontSize: 8, color: P.textFaint }}>{fmtDate(e.dateStart)}{e.dateEnd && e.dateEnd !== e.dateStart ? ` → ${fmtDate(e.dateEnd)}` : ""}</div>
+                    <div style={{ fontSize: 10, fontWeight: 400, color: P.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.city}{(e.stops || []).length > 0 ? ` + ${e.stops.length} stop${e.stops.length > 1 ? "s" : ""}` : ""}</div>
+                    <div style={{ fontSize: 8, color: P.textFaint }}>{fmtDate(e.dateStart)}{e.dateEnd && e.dateEnd !== e.dateStart ? ` → ${fmtDate(e.dateEnd)}` : ""}{(e.stops || []).length > 0 ? ` · ${[...new Set(e.stops.map(s => s.country).filter(Boolean))].join(", ")}` : ""}</div>
                   </div>
                   {(e.photos || []).length > 0 && <span style={{ fontSize: 7, color: P.textFaint }}>📸{(e.photos || []).length}</span>}
                   {isSharedWorld && e.addedBy && memberNameMap[e.addedBy] && (
@@ -3617,32 +3598,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 <div style={{ padding: "6px 10px 4px", fontSize: 7, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", borderBottom: `1px solid ${P.parchment}`, position: "sticky", top: 0, background: P.card, zIndex: 1 }}>
                   {filteredList.length} {markerFilter === "all" ? "entries" : markerFilter === "favorites" ? "favorites" : (TYPES[markerFilter]?.label || "entries").toLowerCase()} · newest first
                 </div>
-                {tripGroups ? tripGroups.map((group, gi) => {
-                  if (group.length === 1) return entryRow(group[0]);
-                  const cities = [...new Set(group.map(e => e.city))];
-                  const countries = [...new Set(group.map(e => e.country).filter(Boolean))];
-                  const photos = group.reduce((s, e) => s + (e.photos || []).length, 0);
-                  const firstDate = group[group.length - 1].dateStart;
-                  const lastDate = group[0].dateEnd || group[0].dateStart;
-                  const collapsed = collapsedTrips[gi];
-                  const tripLabel = cities.length <= 3 ? cities.join(" → ") : `${cities[0]} + ${cities.length - 1} stops`;
-                  return (
-                    <div key={`trip-${gi}`}>
-                      <button onClick={() => setCollapsedTrips(p => ({ ...p, [gi]: !p[gi] }))}
-                        style={{ display: "flex", width: "100%", alignItems: "center", gap: 8, padding: "7px 10px", border: "none", borderBottom: `1px solid ${P.parchment}`, background: `linear-gradient(90deg, ${P.lavMist}, transparent)`, cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}>
-                        <span style={{ fontSize: 6, color: P.textMuted, flexShrink: 0 }}>{collapsed ? "▶" : "▼"}</span>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 10, fontWeight: 500, color: P.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{tripLabel}</div>
-                          <div style={{ fontSize: 7, color: P.textFaint }}>{fmtDate(firstDate)} → {fmtDate(lastDate)} · {countries.join(", ")}</div>
-                        </div>
-                        <span style={{ fontSize: 7, color: P.textFaint, background: `${P.parchment}`, borderRadius: 8, padding: "1px 5px" }}>{group.length}</span>
-                        {photos > 0 && <span style={{ fontSize: 7, color: P.textFaint }}>📸{photos}</span>}
-                      </button>
-                      {!collapsed && group.map(e => entryRow(e))}
-                    </div>
-                  );
-                }) : filteredList.slice(0, listRenderLimit).map(e => entryRow(e))}
-                {!tripGroups && filteredList.length > listRenderLimit && (
+                {filteredList.slice(0, listRenderLimit).map(e => entryRow(e))}
+                {filteredList.length > listRenderLimit && (
                   <button onClick={() => setListRenderLimit(v => v + 100)}
                     style={{ width: "100%", padding: "8px", border: "none", background: P.lavMist, cursor: "pointer", fontSize: 9, color: P.textMid, fontFamily: "inherit", letterSpacing: ".06em" }}>
                     Show more ({filteredList.length - listRenderLimit} remaining)
