@@ -4007,10 +4007,10 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 { key: "overview", label: "Overview" },
                 { key: "highlights", label: "Highlights" },
                 { key: "places", label: isMyWorld ? "Details" : "Places" },
-                ...(cur.photos?.length > 0 ? [{ key: "photos", label: `📷 ${cur.photos.length}` }] : []),
+                { key: "photos", label: cur.photos?.length > 0 ? `📷 ${cur.photos.length}` : "📷" },
               ].map(tab => (
                 <button key={tab.key} onClick={() => setCardTab(tab.key)}
-                  style={{ flex: 1, padding: "10px 4px", border: "none", borderBottom: cardTab === tab.key ? `2px solid ${P.rose}` : "2px solid transparent", background: "none", cursor: "pointer", fontSize: 10, fontFamily: "inherit", color: cardTab === tab.key ? P.text : P.textFaint, letterSpacing: ".06em", transition: "all .2s" }}>
+                  style={{ flex: 1, padding: "10px 4px", border: "none", borderBottom: cardTab === tab.key ? `2px solid ${P.rose}` : "2px solid transparent", background: cardTab === tab.key ? `${P.rose}06` : "none", borderRadius: cardTab === tab.key ? "6px 6px 0 0" : 0, cursor: "pointer", fontSize: 10, fontFamily: "inherit", color: cardTab === tab.key ? P.text : P.textFaint, letterSpacing: ".06em", transition: "all .2s" }}>
                   {tab.label}
                 </button>
               ))}
@@ -4031,28 +4031,53 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                   : <div style={{ fontSize: 9, color: P.textFaint, fontStyle: "italic" }}>No note yet</div>}
                   {cur.loveNote && !isViewer && <button onClick={() => dispatch({ type: "UPDATE", id: cur.id, data: { loveNote: "" } })} style={{ marginTop: 4, background: "none", border: "none", fontSize: 8, color: P.textFaint, cursor: "pointer", padding: 0 }}>Clear</button>}
                 </div>}
+                {/* Empty overview nudge */}
+                {!cur.notes && !(cur.stops || []).length && !cur.musicUrl && !(isPartnerWorld && cur.loveNote) && (
+                  <div style={{ textAlign: "center", padding: "16px 12px" }}>
+                    <div style={{ fontSize: 11, color: P.textFaint, lineHeight: 1.6 }}>
+                      {isPartnerWorld ? "Add notes, a trip route, or a love note to this memory" : "Add notes or a trip route to remember the details"}
+                    </div>
+                    {!isViewer && <button onClick={() => setEditing({ ...cur })} style={{ marginTop: 8, padding: "5px 16px", background: `${P.rose}08`, border: `1px solid ${P.rose}15`, borderRadius: 8, fontSize: 9, color: P.textMid, fontFamily: "inherit", cursor: "pointer" }}>✏️ Add details</button>}
+                  </div>
+                )}
               </>)}
 
               {cardTab === "highlights" && (<>
                 {renderList(FIELD_LABELS.highlights.label, cur.highlights, FIELD_LABELS.highlights.icon, P.gold)}
-                {!(cur.highlights?.length) && <div style={{ fontSize: 10, color: P.textFaint, textAlign: "center", padding: 20 }}>No highlights added yet</div>}
+                {!(cur.highlights?.length) && <div style={{ textAlign: "center", padding: "20px 12px" }}>
+                  <div style={{ fontSize: 18, marginBottom: 6, opacity: 0.4 }}>✨</div>
+                  <div style={{ fontSize: 11, color: P.textFaint, lineHeight: 1.6 }}>What stood out from this trip?</div>
+                  {!isViewer && <button onClick={() => setEditing({ ...cur })} style={{ marginTop: 8, padding: "5px 16px", background: `${P.rose}08`, border: `1px solid ${P.rose}15`, borderRadius: 8, fontSize: 9, color: P.textMid, fontFamily: "inherit", cursor: "pointer" }}>+ Add highlights</button>}
+                </div>}
               </>)}
 
               {cardTab === "places" && (<>
                 {renderList(FIELD_LABELS.museums.label, cur.museums, FIELD_LABELS.museums.icon, P.sky)}
                 {renderList(FIELD_LABELS.restaurants.label, cur.restaurants, FIELD_LABELS.restaurants.icon, P.roseSoft)}
-                {!(cur.museums?.length) && !(cur.restaurants?.length) && <div style={{ fontSize: 10, color: P.textFaint, textAlign: "center", padding: 20 }}>{isMyWorld ? "No details added yet" : "No places added yet"}</div>}
+                {!(cur.museums?.length) && !(cur.restaurants?.length) && <div style={{ textAlign: "center", padding: "20px 12px" }}>
+                  <div style={{ fontSize: 18, marginBottom: 6, opacity: 0.4 }}>{isMyWorld ? "📝" : "📍"}</div>
+                  <div style={{ fontSize: 11, color: P.textFaint, lineHeight: 1.6 }}>{isMyWorld ? "Add sights, restaurants, or anything worth remembering" : "Add places you visited together"}</div>
+                  {!isViewer && <button onClick={() => setEditing({ ...cur })} style={{ marginTop: 8, padding: "5px 16px", background: `${P.rose}08`, border: `1px solid ${P.rose}15`, borderRadius: 8, fontSize: 9, color: P.textMid, fontFamily: "inherit", cursor: "pointer" }}>+ Add {isMyWorld ? "details" : "places"}</button>}
+                </div>}
               </>)}
 
               {cardTab === "photos" && (<>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))", gap: 4 }}>
-                  {(cur.photos || []).map((url, i) => (
-                    <button key={i} onClick={() => { setLightboxIdx(i); setLightboxOpen(true); }} style={{ padding: 0, border: "2px solid transparent", background: P.blush, cursor: "pointer", borderRadius: 6, overflow: "hidden", aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
-                      <img loading="lazy" src={url} alt="Travel photo" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "cover", borderRadius: 4 }} />
-                    </button>
-                  ))}
-                </div>
-                {!isViewer && <button onClick={() => handlePhotos(cur.id)} style={{ marginTop: 8, width: "100%", padding: "6px", background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: "none", borderRadius: 5, cursor: "pointer", fontSize: 9, color: P.textMuted, fontFamily: "inherit" }}>+ Add Photos</button>}
+                {(cur.photos || []).length > 0 ? (<>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))", gap: 4 }}>
+                    {cur.photos.map((url, i) => (
+                      <button key={i} onClick={() => { setLightboxIdx(i); setLightboxOpen(true); }} style={{ padding: 0, border: "2px solid transparent", background: P.blush, cursor: "pointer", borderRadius: 6, overflow: "hidden", aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
+                        <img loading="lazy" src={url} alt="Travel photo" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "cover", borderRadius: 4 }} />
+                      </button>
+                    ))}
+                  </div>
+                  {!isViewer && <button onClick={() => handlePhotos(cur.id)} style={{ marginTop: 8, width: "100%", padding: "6px", background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: "none", borderRadius: 5, cursor: "pointer", fontSize: 9, color: P.textMuted, fontFamily: "inherit" }}>+ Add Photos</button>}
+                </>) : (
+                  <div style={{ textAlign: "center", padding: "20px 12px" }}>
+                    <div style={{ fontSize: 18, marginBottom: 6, opacity: 0.4 }}>📸</div>
+                    <div style={{ fontSize: 11, color: P.textFaint, lineHeight: 1.6 }}>No photos yet</div>
+                    {!isViewer && <button onClick={() => handlePhotos(cur.id)} style={{ marginTop: 8, padding: "5px 16px", background: `${P.rose}08`, border: `1px solid ${P.rose}15`, borderRadius: 8, fontSize: 9, color: P.textMid, fontFamily: "inherit", cursor: "pointer" }}>+ Add photos</button>}
+                  </div>
+                )}
               </>)}
             </div>
 

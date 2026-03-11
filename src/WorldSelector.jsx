@@ -1190,7 +1190,10 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
             onBlur={e => { e.target.style.borderColor = "rgba(200,170,140,0.12)"; e.target.style.boxShadow = "none"; }} />
           {searching && <div style={{ fontSize: 11, color: "#686070", textAlign: "center", padding: 10, fontFamily: F }}>Searching...</div>}
           {!searching && searchQuery && searchResults.length === 0 && (
-            <div style={{ fontSize: 11, color: "#605868", textAlign: "center", padding: "16px 0", fontFamily: F }}>No results found</div>
+            <div style={{ textAlign: "center", padding: "16px 0", fontFamily: F }}>
+              <div style={{ fontSize: 11, color: "#605868" }}>No matches for "{searchQuery}"</div>
+              <div style={{ fontSize: 9, color: "#504858", marginTop: 4 }}>Try a city name, country, or keyword from your notes</div>
+            </div>
           )}
           {searchResults.map((r, i) => (
             <div key={r.id || i}
@@ -1645,19 +1648,19 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
         const hasWorlds = worlds.length > 0;
         const steps = [
           { title: "Welcome to Your Cosmos",
-            body: "This is the center of your universe. Every world you create or join appears here as an orbiting orb. Your personal world sits at the center.",
-            icon: "✨", hint: "Your cosmos grows as you add worlds" },
+            body: "This is your universe. Every world you create or join orbits here \u2014 your personal cosmos of adventures.",
+            icon: "✨", hint: "It grows as you add worlds" },
           { title: "Your Central World",
-            body: "The glowing orb at the center is your My World — your personal travel diary. Click it anytime to jump in and start adding your adventures.",
+            body: "The glowing orb at the center is My World \u2014 your personal travel diary. Click it to jump in and start adding trips.",
             icon: "🌍", hint: "Click the center orb to enter" },
           ...(hasWorlds ? [{ title: "Shared Worlds",
-            body: "The orbs orbiting around your center are shared worlds — partner trips, friend adventures, family vacations. Each one is a separate globe you share with others.",
+            body: "The orbs orbiting around you are shared worlds \u2014 partner trips, friend adventures, family vacations. Each one is a separate globe you share with others.",
             icon: "💫", hint: "Click any orbiting world to enter it" }] : []),
           { title: "Add & Share",
-            body: "Use the controls at the bottom to create new worlds, share worlds with friends, or invite people to join Little Cosmos. Hover over any world to see invite options.",
-            icon: "🔗", hint: "Start with \"+ Add a World\"" },
+            body: "Use the bottom bar to create new worlds, invite people to join yours, or connect with friends to see their travels.",
+            icon: "🔗", hint: "Start with \u201C+ Add a World\u201D" },
           { title: "Navigate Your Cosmos",
-            body: "Drag to orbit around your worlds. Scroll to zoom in and out. Your cosmos is always here waiting — click the cosmos button from any world to return.",
+            body: "Drag to orbit around your worlds. Scroll to zoom in and out. From inside any world, the cosmos button brings you back here.",
             icon: "🖱", hint: "Drag to explore, scroll to zoom" },
         ];
         const step = steps[cosmosTourStep];

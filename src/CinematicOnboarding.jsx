@@ -296,9 +296,9 @@ export default function CinematicOnboarding({ userId, personalWorldId, onComplet
               maxWidth: 440,
               marginBottom: 40,
             }}>
-              Every journey, every highlight, every place that shaped you
+              Every journey. Every detour. Every place
               <span style={{ display: 'block', marginTop: 4, opacity: 0.7 }}>
-                — all mapped on your personal globe.
+                that became part of your story.
               </span>
             </div>
 

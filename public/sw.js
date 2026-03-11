@@ -6,7 +6,7 @@
    - Supabase/API: skip (let browser handle auth tokens, realtime WebSocket)
 */
 
-const CACHE_NAME = 'cosmos-v2';
+const CACHE_NAME = 'cosmos-v3';
 
 // Install — skip waiting to activate immediately
 self.addEventListener('install', () => self.skipWaiting());
