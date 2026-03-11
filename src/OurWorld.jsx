@@ -3877,7 +3877,30 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           : { position: "absolute", top: "42%", right: 18, transform: "translateY(-50%)", zIndex: 25, background: P.card, backdropFilter: "blur(24px)", borderRadius: 18, maxWidth: 350, minWidth: 270, maxHeight: "65vh", boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 20px 60px rgba(61,53,82,.08)", border: `1px solid ${P.rose}08`, animation: "cardIn .5s ease", overflow: "hidden", display: "flex", flexDirection: "column" }
         }>
           {(cur.photos || []).length > 0 && !cardGallery && (
-            <div style={{ position: "relative", width: "100%", background: P.parchment, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", minHeight: 120, maxHeight: 220 }}>
+            <div
+              onDragOver={!isViewer ? e => { e.preventDefault(); setDragOver(true); } : undefined}
+              onDragLeave={!isViewer ? () => setDragOver(false) : undefined}
+              onDrop={!isViewer ? e => {
+                e.preventDefault(); setDragOver(false);
+                const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/"));
+                if (files.length === 0) return;
+                const cid = cur.id;
+                uploadLockRef.current = uploadLockRef.current.then(async () => {
+                  setUploading(true);
+                  const urls = [];
+                  for (const file of files) { try { const compressed = await compressImage(file); const url = await db.uploadPhoto(compressed, cid); if (url && typeof url === 'string') urls.push(url); } catch (err) { /* skip */ } }
+                  if (urls.length > 0) {
+                    const current = await db.readPhotos(cid);
+                    const merged = [...(current.ok ? current.photos : []), ...urls];
+                    const result = await db.savePhotos(cid, merged);
+                    dispatch({ type: "ADD_PHOTOS", id: cid, urls });
+                    if (result.ok) showToast(`${urls.length} photo${urls.length > 1 ? "s" : ""} added (${merged.length} total)`, "✅", 3000);
+                    else showToast(`Photo save failed: ${result.error}`, "⚠️", 8000);
+                  }
+                  setUploading(false);
+                }).catch(err => { console.error('[dragDrop] queue error:', err); setUploading(false); });
+              } : undefined}
+              style={{ position: "relative", width: "100%", background: P.parchment, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", minHeight: 120, maxHeight: 220, ...(dragOver ? { outline: `2px dashed ${P.sky}`, outlineOffset: -2 } : {}) }}>
               <img loading="lazy" src={cur.photos[photoIdx % cur.photos.length]} alt={`Photo from ${cur.city || "trip"}`} onClick={() => { setLightboxIdx(photoIdx % cur.photos.length); setLightboxOpen(true); }} style={{ maxWidth: "100%", maxHeight: 220, objectFit: "contain", display: "block", transition: "all .3s", cursor: "zoom-in", ...(polaroidMode ? { border: "6px solid #fff", borderBottom: "28px solid #fff", boxShadow: "0 4px 16px rgba(0,0,0,.15)", borderRadius: 1, transform: `rotate(${(photoIdx % 3 - 1) * 1.5}deg)` } : {}) }} />
               {cur.photos.length > 1 && (<><button aria-label="Previous photo" onClick={() => setPhotoIdx(i => (i - 1 + cur.photos.length) % cur.photos.length)} style={imgN("left")}>‹</button><button aria-label="Next photo" onClick={() => setPhotoIdx(i => (i + 1) % cur.photos.length)} style={imgN("right")}>›</button>
                 <div style={{ position: "absolute", bottom: 6, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 4, alignItems: "center" }}>{cur.photos.slice(0, 12).map((_, i) => <div key={i} style={{ width: 6, height: 6, borderRadius: "50%", background: i === photoIdx % cur.photos.length ? "#fff" : "rgba(255,255,255,.35)", transition: "background .2s" }} />)}{cur.photos.length > 12 && <div style={{ fontSize: 8, color: "rgba(255,255,255,.5)", marginLeft: 2 }}>+{cur.photos.length - 12}</div>}</div></>)}
@@ -3954,7 +3977,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             }}
             onClick={() => handlePhotos(cur.id)}
             style={{ width: "100%", height: 70, background: dragOver ? `linear-gradient(135deg,${P.sky}18,${P.rose}18)` : `linear-gradient(135deg,${P.parchment},${P.blush})`, border: dragOver ? `2px dashed ${P.sky}` : "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4, color: P.textMuted, fontSize: 10, fontFamily: "inherit", flexShrink: 0, transition: "all .2s" }}>
-            {dragOver ? "🎯 Drop photos here" : "📸 Upload or Drag Photos Here"}
+            {dragOver ? "🎯 Drop photos here" : "📸 Drop photos or tap to browse"}
           </div>}
 
           <div style={{ padding: "14px 18px 18px", overflowY: "auto", flex: 1 }}>
@@ -4082,7 +4105,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                   <div style={{ display: "grid", gridTemplateColumns: polaroidMode ? "repeat(auto-fill, minmax(100px, 1fr))" : "repeat(auto-fill, minmax(80px, 1fr))", gap: polaroidMode ? 12 : 4, padding: polaroidMode ? "4px 2px" : 0 }}>
                     {cur.photos.map((url, i) => (
                       polaroidMode ? (
-                        <div key={i} style={{ background: "#fff", borderRadius: 2, boxShadow: "0 2px 8px rgba(0,0,0,.12), 0 1px 2px rgba(0,0,0,.06)", transform: `rotate(${(i % 5 - 2) * 1.8}deg)`, transition: "transform .2s", overflow: "hidden", width: "100%", padding: "6px 6px 4px" }}>
+                        <div key={i} onMouseEnter={e => e.currentTarget.style.transform = "rotate(0deg) scale(1.03)"} onMouseLeave={e => e.currentTarget.style.transform = `rotate(${(i % 5 - 2) * 1.8}deg)`} style={{ background: "#fff", borderRadius: 2, boxShadow: "0 2px 8px rgba(0,0,0,.12), 0 1px 2px rgba(0,0,0,.06)", transform: `rotate(${(i % 5 - 2) * 1.8}deg)`, transition: "transform .25s ease, box-shadow .25s ease", overflow: "hidden", width: "100%", padding: "6px 6px 4px", cursor: "pointer" }}>
                           <img onClick={() => { setLightboxIdx(i); setLightboxOpen(true); }} loading="lazy" src={url} alt="Travel photo" style={{ width: "100%", aspectRatio: "1", objectFit: "cover", display: "block", cursor: "pointer" }} />
                           {!isViewer ? (
                             <input
@@ -4098,10 +4121,10 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                                 const captions = { ...(cur.photoCaptions || {}), [url]: e.target.value };
                                 dispatch({ type: "UPDATE", id: cur.id, data: { photoCaptions: captions } });
                               }}
-                              style={{ width: "100%", border: "none", background: "none", fontSize: 8, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", color: "#555", textAlign: "center", padding: "6px 2px 4px", outline: "none", fontStyle: "italic", boxSizing: "border-box" }}
+                              style={{ width: "100%", border: "none", background: "none", fontSize: 10, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", color: "#555", textAlign: "center", padding: "6px 4px 4px", outline: "none", fontStyle: "italic", boxSizing: "border-box" }}
                             />
                           ) : (
-                            (cur.photoCaptions || {})[url] && <div style={{ fontSize: 8, color: "#666", textAlign: "center", padding: "6px 2px 4px", fontStyle: "italic", fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif" }}>{(cur.photoCaptions || {})[url]}</div>
+                            (cur.photoCaptions || {})[url] && <div style={{ fontSize: 10, color: "#666", textAlign: "center", padding: "6px 4px 4px", fontStyle: "italic", fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif" }}>{(cur.photoCaptions || {})[url]}</div>
                           )}
                         </div>
                       ) : (
@@ -4111,12 +4134,12 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                       )
                     ))}
                   </div>
-                  {!isViewer && <button onClick={() => handlePhotos(cur.id)} style={{ marginTop: 8, width: "100%", padding: "6px", background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: "none", borderRadius: 5, cursor: "pointer", fontSize: 9, color: P.textMuted, fontFamily: "inherit" }}>+ Add Photos</button>}
+                  {!isViewer && <button onClick={() => handlePhotos(cur.id)} style={{ marginTop: 10, width: "100%", padding: "7px", background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: `1px solid ${P.rose}12`, borderRadius: 8, cursor: "pointer", fontSize: 10, color: P.textMuted, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", letterSpacing: ".03em" }}>+ Add more memories</button>}
                 </>) : (
-                  <div style={{ textAlign: "center", padding: "20px 12px" }}>
-                    <div style={{ fontSize: 18, marginBottom: 6, opacity: 0.4 }}>📸</div>
-                    <div style={{ fontSize: 11, color: P.textFaint, lineHeight: 1.6 }}>No photos yet — add some to start your scrapbook</div>
-                    {!isViewer && <button onClick={() => handlePhotos(cur.id)} style={{ marginTop: 8, padding: "5px 16px", background: `${P.rose}08`, border: `1px solid ${P.rose}15`, borderRadius: 8, fontSize: 9, color: P.textMid, fontFamily: "inherit", cursor: "pointer" }}>+ Add photos</button>}
+                  <div style={{ textAlign: "center", padding: "28px 16px" }}>
+                    <div style={{ fontSize: 28, marginBottom: 8, opacity: 0.3 }}>📸</div>
+                    <div style={{ fontSize: 11, color: P.textFaint, lineHeight: 1.7, fontStyle: "italic", fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif" }}>Every trip deserves a scrapbook.<br/>Add your first photo to get started.</div>
+                    {!isViewer && <button onClick={() => handlePhotos(cur.id)} style={{ marginTop: 12, padding: "6px 20px", background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: `1px solid ${P.rose}18`, borderRadius: 10, fontSize: 10, color: P.textMid, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", cursor: "pointer", letterSpacing: ".03em" }}>+ Add photos</button>}
                   </div>
                 )}
               </>)}
