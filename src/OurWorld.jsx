@@ -2098,6 +2098,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       if (e.key === "s" && !showAdd && !editing && !showSettings && !showSearch) { e.preventDefault(); setShowSearch(true); }
       if (e.key === "g" && !showAdd && !editing && !showSettings) setShowGallery(v => !v);
       if (e.key === "t" && !showAdd && !editing && !showSettings) setSliderDate(todayStr());
+      if (e.key === "p" && !showAdd && !editing && !showSettings && !showSearch) saveGlobeScreenshot();
       if (e.key === "r" && !showAdd && !editing && !showSettings && !showSearch) {
         const pool = data.entries.filter(en => en.lat != null && en.lng != null);
         if (pool.length > 1) {
@@ -2279,7 +2280,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     cam.position.z = 8;
     camRef.current = cam;
 
-    const rend = new THREE.WebGLRenderer({ antialias: true });
+    const rend = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
     rend.setSize(w, h); rend.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     el.appendChild(rend.domElement);
     rendRef.current = rend;
@@ -3429,6 +3430,40 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     }
   }, [showToast]);
 
+  const saveGlobeScreenshot = useCallback(() => {
+    const rend = rendRef.current, scene = scnRef.current, cam = camRef.current;
+    if (!rend || !scene || !cam) return;
+    rend.render(scene, cam);
+    try {
+      const globeData = rend.domElement.toDataURL("image/png");
+      const img = new Image();
+      img.onload = () => {
+        const c = document.createElement("canvas");
+        c.width = img.width; c.height = img.height;
+        const ctx = c.getContext("2d");
+        ctx.drawImage(img, 0, 0);
+        ctx.fillStyle = "rgba(255,255,255,0.35)";
+        ctx.font = `${Math.round(c.height * 0.018)}px 'Palatino Linotype', Georgia, serif`;
+        ctx.textAlign = "right";
+        ctx.fillText("Little Cosmos", c.width - 16, c.height - 12);
+        const title = config.title || (isMyWorld ? "My World" : isPartnerWorld ? "Our World" : worldType === "friends" ? "Friends" : "Family");
+        ctx.fillStyle = "rgba(255,255,255,0.6)";
+        ctx.font = `${Math.round(c.height * 0.028)}px 'Palatino Linotype', Georgia, serif`;
+        ctx.textAlign = "left";
+        ctx.fillText(title, 16, c.height - 12);
+        const link = document.createElement("a");
+        link.download = `${title.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase()}_globe.png`;
+        link.href = c.toDataURL("image/png");
+        link.click();
+        showToast("Globe saved to downloads", "📷", 2500);
+      };
+      img.src = globeData;
+    } catch (err) {
+      console.error("[screenshot]", err);
+      showToast("Couldn't capture globe", "⚠️", 3000);
+    }
+  }, [config.title, isMyWorld, isPartnerWorld, worldType, showToast]);
+
   const cur = selected ? data.entries.find(e => e.id === selected.id) : null;
   const totalDays = Math.max(1, daysBetween(effectiveStartDate, todayStr()));
   const sliderVal = daysBetween(effectiveStartDate, sliderDate);
@@ -3698,6 +3733,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         <div style={{ width: 20, height: 1, background: `${P.textFaint}18`, margin: "1px auto" }} />
 
         {/* — System — */}
+        <TBtn onClick={saveGlobeScreenshot} tip="Save Globe Screenshot">📷</TBtn>
         {data.entries.length > 0 && <TBtn onClick={() => setShowExportHub(true)} tip="Export">📤</TBtn>}
         {data.entries.length > 0 && <TBtn onClick={() => setShowYearReview(true)} tip="Year in Review">🎬</TBtn>}
         {onSwitchWorld && <TBtn onClick={() => { flushConfigSave(); onSwitchWorld(); }} tip="Switch World">🔄</TBtn>}

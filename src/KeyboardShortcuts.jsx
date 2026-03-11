@@ -63,6 +63,7 @@ function KeyboardShortcuts({ onClose, palette: P, worldMode }) {
         { keys: ["G"], desc: "Toggle scrapbook" },
         { keys: ["I"], desc: "Toggle stats" },
         { keys: ["T"], desc: "Jump to today" },
+        { keys: ["P"], desc: "Save globe screenshot" },
       ],
     },
     {
