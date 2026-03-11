@@ -4971,20 +4971,30 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       {lightboxOpen && cur?.photos?.length > 0 && (() => {
         const photos = cur.photos;
         const idx = ((lightboxIdx % photos.length) + photos.length) % photos.length;
+        const caption = (cur.photoCaptions || {})[photos[idx]];
         const prev = () => setLightboxIdx(i => ((i - 1) + photos.length) % photos.length);
         const next = () => setLightboxIdx(i => (i + 1) % photos.length);
+        const lbSwipeRef = { startX: 0, startY: 0, swiping: false };
         return (
           <div role="dialog" aria-modal="true" aria-label="Photo lightbox" style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.92)", backdropFilter: "blur(24px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .25s ease" }}
             onClick={() => setLightboxOpen(false)}
             onKeyDown={e => { if (e.key === "Escape") setLightboxOpen(false); else if (e.key === "ArrowLeft") prev(); else if (e.key === "ArrowRight") next(); }}
+            onTouchStart={e => { if (e.touches.length === 1) { lbSwipeRef.startX = e.touches[0].clientX; lbSwipeRef.startY = e.touches[0].clientY; lbSwipeRef.swiping = true; } }}
+            onTouchEnd={e => { if (!lbSwipeRef.swiping) return; lbSwipeRef.swiping = false; const dx = e.changedTouches[0].clientX - lbSwipeRef.startX; const dy = Math.abs(e.changedTouches[0].clientY - lbSwipeRef.startY); if (Math.abs(dx) > 50 && dy < 100) { if (dx > 0) prev(); else next(); e.preventDefault(); } }}
             tabIndex={0} ref={el => el?.focus()}>
             {/* Close button */}
             <button aria-label="Close lightbox" onClick={() => setLightboxOpen(false)} style={{ position: "absolute", top: 20, right: 20, background: "none", border: "none", color: "#fff", fontSize: 28, cursor: "pointer", zIndex: 210, opacity: 0.7, lineHeight: 1 }}>×</button>
             {/* Counter */}
             <div style={{ position: "absolute", top: 20, left: 0, right: 0, textAlign: "center", color: "rgba(255,255,255,0.5)", fontSize: 12, letterSpacing: "1px", zIndex: 210 }}>{idx + 1} / {photos.length}</div>
-            {/* Photo with Ken Burns effect */}
+            {/* Photo */}
             <img key={photos[idx]} src={photos[idx]} alt={`Photo ${idx + 1}`} onClick={e => e.stopPropagation()}
-              style={{ maxWidth: "90vw", maxHeight: "85vh", objectFit: "contain", borderRadius: 4, boxShadow: "0 8px 40px rgba(0,0,0,0.5)", cursor: "default", animation: "lbFadeOpacity .35s ease, kenBurns 12s ease-in-out infinite alternate" }} />
+              style={{ maxWidth: "90vw", maxHeight: caption ? "78vh" : "85vh", objectFit: "contain", borderRadius: 4, boxShadow: "0 8px 40px rgba(0,0,0,0.5)", cursor: "default", animation: "lbFadeOpacity .35s ease" }} />
+            {/* Caption */}
+            {caption && (
+              <div style={{ position: "absolute", bottom: photos.length > 1 ? 72 : 46, left: 0, right: 0, textAlign: "center", zIndex: 210, animation: "lbFadeOpacity .5s ease" }}>
+                <span style={{ display: "inline-block", maxWidth: "70vw", padding: "6px 16px", background: "rgba(0,0,0,0.5)", borderRadius: 8, color: "rgba(255,255,255,0.8)", fontSize: 13, fontStyle: "italic", fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", letterSpacing: ".03em", lineHeight: 1.5 }}>{caption}</span>
+              </div>
+            )}
             {/* Navigation arrows */}
             {photos.length > 1 && (<>
               <button aria-label="Previous photo" onClick={e => { e.stopPropagation(); prev(); }} style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "50%", width: 44, height: 44, cursor: "pointer", fontSize: 20, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 210, transition: "all .2s" }}
