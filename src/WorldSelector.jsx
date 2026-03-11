@@ -1102,32 +1102,6 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
         <div style={{ fontSize: 10, color: "#9890a8", marginTop: 8, letterSpacing: "1.5px", textAlign: "center", textTransform: "uppercase", textShadow: "0 1px 6px rgba(0,0,0,0.5)" }}>drag to orbit · scroll or pinch to zoom</div>
       </div>
 
-      {/* Daily travel quote — subtle, bottom-left */}
-      {ready && (() => {
-        const quotes = [
-          ["\u201CThe world is a book, and those who do not travel read only one page.\u201D", "Augustine of Hippo"],
-          ["\u201CNot all those who wander are lost.\u201D", "J.R.R. Tolkien"],
-          ["\u201CTravel makes one modest. You see what a tiny place you occupy in the world.\u201D", "Gustave Flaubert"],
-          ["\u201CThe journey not the arrival matters.\u201D", "T.S. Eliot"],
-          ["\u201CTo travel is to live.\u201D", "Hans Christian Andersen"],
-          ["\u201CLife is either a daring adventure or nothing at all.\u201D", "Helen Keller"],
-          ["\u201CWe travel not to escape life, but for life not to escape us.\u201D", "Anonymous"],
-          ["\u201COnce a year, go somewhere you\u2019ve never been before.\u201D", "Dalai Lama"],
-          ["\u201CThe real voyage of discovery consists not in seeking new landscapes, but in having new eyes.\u201D", "Marcel Proust"],
-          ["\u201CAdventure is worthwhile in itself.\u201D", "Amelia Earhart"],
-          ["\u201CTravel far enough, you meet yourself.\u201D", "David Mitchell"],
-          ["\u201CCollect moments, not things.\u201D", ""],
-        ];
-        const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
-        const q = quotes[dayOfYear % quotes.length];
-        return (
-          <div style={{ position: "absolute", bottom: 80, left: 24, maxWidth: 280, opacity: 0.25, pointerEvents: "none", animation: "fadeIn 2s ease" }}>
-            <div style={{ fontSize: 11, color: "#c0b8d0", fontStyle: "italic", lineHeight: 1.6, textShadow: "0 1px 8px rgba(0,0,0,0.6)" }}>{q[0]}</div>
-            {q[1] && <div style={{ fontSize: 9, color: "#908898", marginTop: 4, letterSpacing: "0.5px", textShadow: "0 1px 4px rgba(0,0,0,0.4)" }}>\u2014 {q[1]}</div>}
-          </div>
-        );
-      })()}
-
       {/* Top right controls — glassmorphic */}
       <div style={{ position: "absolute", top: 16, right: 16, display: "flex", gap: 8, opacity: ready ? 1 : 0, transition: "all .5s", zIndex: 10 }}>
         <button onClick={(e) => { e.stopPropagation(); setShowSearch(!showSearch); setShowActivity(false); if (!showSearch) setTimeout(() => document.getElementById("cosmos-search-input")?.focus(), 100); }}
