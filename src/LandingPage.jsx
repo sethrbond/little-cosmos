@@ -1,6 +1,162 @@
 import { useState, useEffect, useRef } from 'react'
+import * as THREE from 'three'
 
 const FONT = '"Palatino Linotype", "Book Antiqua", Palatino, serif'
+
+// Sample cities for the mini globe markers
+const SAMPLE_CITIES = [
+  { lat: 48.86, lng: 2.35 },   // Paris
+  { lat: 35.68, lng: 139.69 },  // Tokyo
+  { lat: -33.87, lng: 151.21 }, // Sydney
+  { lat: 40.71, lng: -74.01 },  // New York
+  { lat: -22.91, lng: -43.17 }, // Rio
+  { lat: 51.51, lng: -0.13 },   // London
+  { lat: 41.90, lng: 12.50 },   // Rome
+  { lat: 37.57, lng: 126.98 },  // Seoul
+  { lat: 1.35, lng: 103.82 },   // Singapore
+  { lat: 28.61, lng: 77.21 },   // Delhi
+  { lat: -34.60, lng: -58.38 }, // Buenos Aires
+  { lat: 55.76, lng: 37.62 },   // Moscow
+]
+
+function ll2v(lat, lng, r) {
+  const phi = (90 - lat) * Math.PI / 180
+  const theta = (lng + 180) * Math.PI / 180
+  return new THREE.Vector3(
+    -r * Math.sin(phi) * Math.cos(theta),
+    r * Math.cos(phi),
+    r * Math.sin(phi) * Math.sin(theta),
+  )
+}
+
+// Mini 3D globe for the hero section
+function MiniGlobe() {
+  const ref = useRef(null)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+
+    const w = 320, h = 320
+    const scene = new THREE.Scene()
+    const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100)
+    camera.position.z = 3.2
+
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true })
+    renderer.setSize(w, h)
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    el.appendChild(renderer.domElement)
+
+    // Globe sphere — dark with subtle wireframe feel
+    const globeGeo = new THREE.SphereGeometry(1, 48, 48)
+    const globeMat = new THREE.MeshPhongMaterial({
+      color: 0x1a1830,
+      emissive: 0x0c0818,
+      specular: 0x333355,
+      shininess: 15,
+      transparent: true,
+      opacity: 0.9,
+    })
+    const globe = new THREE.Mesh(globeGeo, globeMat)
+    scene.add(globe)
+
+    // Wireframe overlay for that "techy globe" feel
+    const wireMat = new THREE.MeshBasicMaterial({
+      color: 0x3040a0,
+      wireframe: true,
+      transparent: true,
+      opacity: 0.06,
+    })
+    const wire = new THREE.Mesh(globeGeo, wireMat)
+    scene.add(wire)
+
+    // Atmospheric glow ring
+    const glowGeo = new THREE.SphereGeometry(1.08, 48, 48)
+    const glowMat = new THREE.MeshBasicMaterial({
+      color: 0xc9a96e,
+      transparent: true,
+      opacity: 0.04,
+      side: THREE.BackSide,
+    })
+    scene.add(new THREE.Mesh(glowGeo, glowMat))
+
+    // Markers — glowing dots at sample city locations
+    const markerGeo = new THREE.SphereGeometry(0.018, 8, 8)
+    const markers = SAMPLE_CITIES.map(({ lat, lng }) => {
+      const pos = ll2v(lat, lng, 1.01)
+      const mat = new THREE.MeshBasicMaterial({
+        color: 0xc9a96e,
+        transparent: true,
+        opacity: 0.9,
+      })
+      const mesh = new THREE.Mesh(markerGeo, mat)
+      mesh.position.copy(pos)
+      globe.add(mesh)
+      return { mesh, mat, phase: Math.random() * Math.PI * 2 }
+    })
+
+    // Pulse rings around markers
+    const ringGeo = new THREE.RingGeometry(0.02, 0.04, 16)
+    const rings = SAMPLE_CITIES.slice(0, 5).map(({ lat, lng }, i) => {
+      const pos = ll2v(lat, lng, 1.015)
+      const mat = new THREE.MeshBasicMaterial({
+        color: 0xc9a96e, transparent: true, opacity: 0, side: THREE.DoubleSide,
+      })
+      const mesh = new THREE.Mesh(ringGeo, mat)
+      mesh.position.copy(pos)
+      mesh.lookAt(0, 0, 0)
+      globe.add(mesh)
+      return { mesh, mat, phase: i * 1.2, scale: 1 }
+    })
+
+    // Lighting
+    scene.add(new THREE.AmbientLight(0x404060, 0.6))
+    const dirLight = new THREE.DirectionalLight(0xe8d0a0, 0.8)
+    dirLight.position.set(3, 2, 4)
+    scene.add(dirLight)
+    const rimLight = new THREE.DirectionalLight(0x6060c0, 0.3)
+    rimLight.position.set(-3, -1, -2)
+    scene.add(rimLight)
+
+    let raf
+    const animate = () => {
+      const t = Date.now() * 0.001
+      globe.rotation.y = t * 0.08
+      wire.rotation.y = t * 0.08
+
+      // Marker breathing
+      for (const m of markers) {
+        m.mat.opacity = 0.5 + Math.sin(t * 1.5 + m.phase) * 0.4
+      }
+
+      // Pulse rings
+      for (const r of rings) {
+        const cycle = ((t * 0.5 + r.phase) % 2) / 2 // 0..1 over 2s
+        r.mat.opacity = Math.max(0, 0.5 - cycle * 0.6)
+        const s = 1 + cycle * 3
+        r.mesh.scale.set(s, s, 1)
+      }
+
+      renderer.render(scene, camera)
+      raf = requestAnimationFrame(animate)
+    }
+    animate()
+
+    return () => {
+      cancelAnimationFrame(raf)
+      renderer.dispose()
+      if (el.contains(renderer.domElement)) el.removeChild(renderer.domElement)
+    }
+  }, [])
+
+  return (
+    <div ref={ref} style={{
+      width: 320, height: 320, marginBottom: 24,
+      filter: 'drop-shadow(0 0 40px rgba(200,170,110,0.15))',
+      cursor: 'default',
+    }} />
+  )
+}
 
 // Twinkling star field (canvas-based, lightweight)
 function StarField() {
@@ -143,15 +299,7 @@ export default function LandingPage({ onSignIn, onSignUp }) {
         textAlign: 'center', padding: '0 24px',
         opacity: heroOpacity, transform: `translateY(${heroTranslate}px)`,
       }}>
-        <div style={{
-          width: 100, height: 100, borderRadius: '50%', marginBottom: 36,
-          background: 'radial-gradient(circle, rgba(200,170,110,0.12) 0%, rgba(180,140,200,0.06) 50%, transparent 70%)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          animation: 'landingPulse 4s ease-in-out infinite',
-          boxShadow: '0 0 60px rgba(200,170,110,0.08)',
-        }}>
-          <div style={{ fontSize: 48, filter: 'drop-shadow(0 0 12px rgba(200,170,110,0.3))' }}>🌍</div>
-        </div>
+        <MiniGlobe />
         <h1 style={{
           fontSize: 'clamp(36px, 7vw, 64px)', fontWeight: 300,
           letterSpacing: 4, margin: 0, lineHeight: 1.2,
@@ -290,10 +438,6 @@ export default function LandingPage({ onSignIn, onSignUp }) {
       </footer>
 
       <style>{`
-        @keyframes landingPulse {
-          0%, 100% { transform: scale(1); opacity: 0.8; }
-          50% { transform: scale(1.08); opacity: 1; }
-        }
         @keyframes landingBounce {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(6px); }
