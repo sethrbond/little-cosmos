@@ -1510,6 +1510,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [showTrash, setShowTrash] = useState(false);
   const [confirmModal, setConfirmModal] = useState(null); // { message, onConfirm }
   const [dismissOnThisDay, setDismissOnThisDay] = useState(false);
+  // Reset On This Day dismissal when deselecting an entry
+  useEffect(() => { if (!selected) setDismissOnThisDay(false); }, [selected]);
   const [showTripJournal, setShowTripJournal] = useState(false);
   const [handwrittenMode, setHandwrittenMode] = useState(() => { try { return localStorage.getItem("cosmos_handwritten") === "1"; } catch { return false; } });
   const [linkedEntryId, setLinkedEntryId] = useState(null); // entry id being linked
@@ -2201,7 +2203,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       if (inInput && e.key !== "Escape") return;
       if (e.key === "ArrowLeft") { e.preventDefault(); stepDay(-1); }
       if (e.key === "ArrowRight") { e.preventDefault(); stepDay(1); }
-      if (e.key === "Escape") { flushConfigSave(); setSelected(null); setEditing(null); setShowAdd(false); setQuickAddMode(false); setShowLetter(null); setShowSettings(false); setShowGallery(false); setCardGallery(false); setShowFilter(false); setMarkerFilter("all"); setLocationList(null); setShowStats(false); setShowRecap(false); setShowSearch(false); setSearchQuery(""); setSearchHl(-1); setSearchDateFrom(""); setSearchDateTo(""); setSearchTypeFilter("all"); setSearchSort("date-desc"); setShowDreams(false); setConfirmDelete(null); setLightboxOpen(false); setShowShortcuts(false); setShowPhotoJourney(false); setShowCelebration(false); setShowOnboarding(false); setConfirmModal(null); setShowConstellation(false); setShowRoutes(false); setShowMilestones(false); setShowTravelStats(false); setShowLoveThread(false); setShowExportHub(false); setShowYearReview(false); setShowPhotoMap(false); setEditLetter(false); setTripCardEntry(null); setShowTemplates(false); setShowTrash(false); setShowTripJournal(false); setShowLinkPicker(false); localStorage.setItem(onboardKey, "1"); tSpinSpd.current = 0.002; if (isPlaying) stopPlay(); }
+      if (e.key === "Escape") { flushConfigSave(); setSelected(null); setEditing(null); setShowAdd(false); setQuickAddMode(false); setShowLetter(null); setShowSettings(false); setShowGallery(false); setCardGallery(false); setShowFilter(false); setMarkerFilter("all"); setLocationList(null); setShowStats(false); setShowRecap(false); setShowSearch(false); setSearchQuery(""); setSearchHl(-1); setSearchDateFrom(""); setSearchDateTo(""); setSearchTypeFilter("all"); setSearchSort("date-desc"); setShowDreams(false); setConfirmDelete(null); setLightboxOpen(false); setShowShortcuts(false); setShowPhotoJourney(false); setShowCelebration(false); setShowOnboarding(false); setConfirmModal(null); setShowConstellation(false); setShowRoutes(false); setShowMilestones(false); setShowTravelStats(false); setShowLoveThread(false); setShowExportHub(false); setShowYearReview(false); setShowPhotoMap(false); setEditLetter(false); setTripCardEntry(null); setShowTemplates(false); setShowTrash(false); setShowTripJournal(false); setShowLinkPicker(false); setPhotoDeleteMode(false); setShareMenu(null); localStorage.setItem(onboardKey, "1"); tSpinSpd.current = 0.002; if (isPlaying) stopPlay(); }
       if (e.key === "z" && (e.metaKey || e.ctrlKey) && !e.shiftKey && !showAdd && !editing) { e.preventDefault(); dispatch({ type: "UNDO" }); showToast("Undone", "↩", 1500); }
       if (e.key === "z" && (e.metaKey || e.ctrlKey) && e.shiftKey && !showAdd && !editing) { e.preventDefault(); dispatch({ type: "REDO" }); showToast("Redone", "↪", 1500); }
       if (e.key === "?" && !showAdd && !editing && !showSettings) setShowShortcuts(v => !v);
@@ -4381,7 +4383,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                       {showLinkPicker && linkedEntryId === cur.id && (
                         <div style={{ marginTop: 4, maxHeight: 120, overflowY: "auto", border: `1px solid ${P.textFaint}20`, borderRadius: 8, background: P.card }}>
                           {data.entries.filter(e => e.id !== cur.id && !links.includes(e.id)).slice(0, 20).map(e => (
-                            <button key={e.id} onClick={() => { dispatch({ type: "UPDATE", id: cur.id, data: { linkedEntries: [...links, e.id] } }); setShowLinkPicker(false); showToast(`Linked to ${e.city}`, "🔗", 2000); }}
+                            <button key={e.id} onClick={() => { dispatch({ type: "UPDATE", id: cur.id, data: { linkedEntries: [...links, e.id] } }); setShowLinkPicker(false); setLinkedEntryId(null); showToast(`Linked to ${e.city}`, "🔗", 2000); }}
                               style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", padding: "5px 8px", background: "none", border: "none", borderBottom: `1px solid ${P.textFaint}10`, cursor: "pointer", fontFamily: "inherit", textAlign: "left", fontSize: 10, color: P.text, transition: "background .15s" }}
                               onMouseEnter={e => e.currentTarget.style.background = `${P.rose}08`}
                               onMouseLeave={e => e.currentTarget.style.background = "none"}>
@@ -5606,7 +5608,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       }} onClose={() => setShowTemplates(false)} />}
 
       {/* TRIP JOURNAL */}
-      {showTripJournal && <Suspense fallback={null}><TripJournal entries={data.entries} palette={P} types={TYPES} fieldLabels={FIELD_LABELS} onClose={() => setShowTripJournal(false)} onSelectEntry={e => { setShowTripJournal(false); setSelected(e); setPhotoIdx(0); setCardTab("overview"); }} flyTo={flyTo} /></Suspense>}
+      {showTripJournal && <Suspense fallback={null}><TripJournal entries={data.entries} palette={P} types={TYPES} onClose={() => setShowTripJournal(false)} onSelectEntry={e => { setShowTripJournal(false); setSelected(e); setPhotoIdx(0); setCardTab("overview"); }} flyTo={flyTo} /></Suspense>}
 
       {/* RECENTLY DELETED TRASH */}
       {showTrash && (

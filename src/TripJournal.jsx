@@ -86,7 +86,6 @@ export default function TripJournal({
   entries,
   palette,
   types,
-  fieldLabels,
   onClose,
   onSelectEntry,
   flyTo,
