@@ -338,9 +338,18 @@ export function QuickAddForm({ types, onAdd, onClose, draftKey }) {
 
 // ---- DREAM ADD FORM ----
 
+const DREAM_CATEGORIES = [
+  { key: "adventure", icon: "🏔️", label: "Adventure" },
+  { key: "beach", icon: "🏖️", label: "Beach" },
+  { key: "culture", icon: "🏛️", label: "Culture" },
+  { key: "food", icon: "🍜", label: "Food" },
+  { key: "romance", icon: "💕", label: "Romance" },
+  { key: "nature", icon: "🌿", label: "Nature" },
+];
+
 export function DreamAddForm({ onAdd, isMyWorld }) {
   const P = getP();
-  const [f, sf] = useState({ city: "", country: "", lat: "", lng: "", notes: "" });
+  const [f, sf] = useState({ city: "", country: "", lat: "", lng: "", notes: "", category: "", targetDate: "" });
   const [sugg, setSugg] = useState([]);
   const [showSugg, setShowSugg] = useState(false);
   const onInput = v => {
@@ -369,14 +378,28 @@ export function DreamAddForm({ onAdd, isMyWorld }) {
           </div>
         )}
       </div>
-      <input placeholder="Why this place?" value={f.notes} onChange={e => sf(p => ({ ...p, notes: e.target.value }))} style={{ ...inpSt(), fontSize: 10, marginBottom: 6 }} />
-      <button disabled={!ok} onClick={() => { onAdd({ city: f.city, country: f.country, lat: parseFloat(f.lat), lng: parseFloat(f.lng), notes: f.notes }); sf({ city: "", country: "", lat: "", lng: "", notes: "" }); }}
+      {/* Category picker */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 6 }}>
+        {DREAM_CATEGORIES.map(cat => (
+          <button key={cat.key} onClick={() => sf(p => ({ ...p, category: p.category === cat.key ? "" : cat.key }))}
+            style={{ padding: "3px 8px", fontSize: 9, border: `1px solid ${f.category === cat.key ? P.goldWarm : P.textFaint}25`, borderRadius: 12, background: f.category === cat.key ? `${P.goldWarm}15` : "transparent", color: f.category === cat.key ? P.gold : P.textFaint, cursor: "pointer", fontFamily: "inherit", transition: "all .2s" }}>
+            {cat.icon} {cat.label}
+          </button>
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+        <input placeholder="Why this place?" value={f.notes} onChange={e => sf(p => ({ ...p, notes: e.target.value }))} style={{ ...inpSt(), fontSize: 10, flex: 1 }} />
+        <input type="date" placeholder="Target date" value={f.targetDate} onChange={e => sf(p => ({ ...p, targetDate: e.target.value }))} style={{ ...inpSt(), fontSize: 10, width: 110, flexShrink: 0 }} />
+      </div>
+      <button disabled={!ok} onClick={() => { onAdd({ city: f.city, country: f.country, lat: parseFloat(f.lat), lng: parseFloat(f.lng), notes: f.notes, category: f.category, targetDate: f.targetDate }); sf({ city: "", country: "", lat: "", lng: "", notes: "", category: "", targetDate: "" }); }}
         style={{ width: "100%", padding: "9px", background: ok ? `linear-gradient(135deg, ${P.goldWarm}, ${P.rose})` : `${P.textFaint}60`, color: "#fff", border: "none", borderRadius: 10, cursor: ok ? "pointer" : "default", fontSize: 10, fontFamily: "inherit", transition: "all .3s", letterSpacing: ".06em", boxShadow: ok ? `0 2px 8px ${P.goldWarm}25` : "none" }}>
         {isMyWorld ? "🗺 Add to List" : "✦ Add Dream"}
       </button>
     </div>
   );
 }
+
+export { DREAM_CATEGORIES };
 
 // ---- ADD FORM ----
 

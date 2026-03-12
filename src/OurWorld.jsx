@@ -17,10 +17,10 @@ const TripJournal = lazy(() => import("./TripJournal.jsx"));
 import SyncIndicator from "./SyncIndicator.jsx";
 import NotificationCenter from "./NotificationCenter.jsx";
 import { EntryTemplates, saveTemplate } from "./EntryTemplates.jsx";
-import useRealtimeSync from "./useRealtimeSync.js";
+import useRealtimeSync, { useRealtimePresence } from "./useRealtimeSync.js";
 import { supabase } from "./supabaseClient.js";
 import { geocodeSearch } from "./geocode.js";
-import { inpSt, navSt, imgN, renderList, TBtn, TBtnGroup, Lbl, Fld, QuickAddForm, DreamAddForm, AddForm, EditForm, hasDraft, getDraftSummary, OverlayBoundary, useFocusTrap } from "./EntryForms.jsx";
+import { inpSt, navSt, imgN, renderList, TBtn, TBtnGroup, Lbl, Fld, QuickAddForm, DreamAddForm, DREAM_CATEGORIES, AddForm, EditForm, hasDraft, getDraftSummary, OverlayBoundary, useFocusTrap } from "./EntryForms.jsx";
 import {
   OUR_WORLD_PALETTE, MY_WORLD_PALETTE,
   OUR_WORLD_TYPES, MY_WORLD_TYPES,
@@ -1398,6 +1398,15 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     onDelete: useCallback(({ id }) => { _dispatch({ type: 'DELETE', id, _skipSave: true }); }, []),
   });
 
+  // Real-time presence — show who's online in shared worlds
+  const { onlineUsers } = useRealtimePresence({
+    worldId: isSharedWorld ? worldId : undefined,
+    userId,
+    displayName: config.youName || config.travelerName || "Traveler",
+    enabled: isSharedWorld,
+  });
+  const otherOnlineUsers = useMemo(() => onlineUsers.filter(u => u.user_id !== userId), [onlineUsers, userId]);
+
   // Real-time subscription — comments & reactions for shared worlds
   useEffect(() => {
     if (!isSharedWorld || !worldId) return;
@@ -2674,12 +2683,21 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       // Easter egg: fade in "you are my world" when zoomed all the way out (shared worlds only)
       if (easterEggRef.current) easterEggRef.current.style.opacity = isPartnerWorld && isSharedWorld && zmR.current > 5.5 ? Math.min(1, (zmR.current - 5.5) * 2) : 0;
 
-      // Zoom-based marker scaling with gentle breathing + search glow
+      // Zoom-based marker scaling with type-specific breathing + search glow
       const mkScale = Math.min(1.2, Math.max(0.35, zmR.current / 3.5));
-      const breathe = 1 + Math.sin(Date.now() * 0.0008) * 0.07;
+      const now = Date.now();
       const searchActive = searchMatchIdsRef.current.size > 0;
-      const searchPulse = searchActive ? 1 + Math.sin(Date.now() * 0.004) * 0.3 : 1;
+      const searchPulse = searchActive ? 1 + Math.sin(now * 0.004) * 0.3 : 1;
       mkRef.current.forEach((m) => {
+        // Type-specific breathing: vary speed & amplitude per entry type
+        const t = m.entryType;
+        let breathe;
+        if (t === "beach" || t === "cruise") breathe = 1 + Math.sin(now * 0.0005) * 0.09; // slow wave
+        else if (t === "city" || t === "night-out") breathe = 1 + Math.sin(now * 0.0018) * 0.05; // quick sparkle
+        else if (t === "nature" || t === "outdoors") breathe = 1 + Math.sin(now * 0.0006) * 0.10; // gentle glow
+        else if (t === "special" || t === "celebration" || t === "milestone") breathe = 1 + Math.sin(now * 0.0012) * 0.12; // warm pulse
+        else if (t === "together" || t === "group-trip" || t === "family-trip") breathe = 1 + (Math.sin(now * 0.0009) * 0.5 + 0.5) * 0.08; // heartbeat (asymmetric)
+        else breathe = 1 + Math.sin(now * 0.0008) * 0.07; // default
         const isMatch = searchActive && (searchMatchIdsRef.current.has(m.entryId) || (m.entryIds && m.entryIds.some(id => searchMatchIdsRef.current.has(id))));
         const scale = isMatch ? mkScale * searchPulse * 1.4 : mkScale * breathe;
         const dimmed = searchActive && !isMatch;
@@ -3135,6 +3153,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
       const mk = makeDot(g, loc.lat, loc.lng, color, size, entryId, false, icon);
       mk.entryIds = loc.entries.map(e => e.id); // all entry IDs at this location (for search glow)
+      mk.entryType = primaryType; // for type-specific breathing animation
       mkRef.current.push(mk);
     });
 
@@ -3893,6 +3912,19 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         <TBtn onClick={() => setConfirmModal({ message: "Sign out of My Cosmos?", onConfirm: () => signOut() })} tip="Sign Out">🚪</TBtn>
       </div>
 
+      {/* PRESENCE INDICATOR — who's exploring this world right now */}
+      {isSharedWorld && otherOnlineUsers.length > 0 && (
+        <div style={{ position: "absolute", top: 14, right: 14, zIndex: 18, display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", background: `${P.card}cc`, backdropFilter: "blur(12px)", borderRadius: 14, boxShadow: "0 2px 8px rgba(0,0,0,.12)", animation: "fadeIn .4s ease" }}>
+          <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#4ade80", boxShadow: "0 0 6px #4ade8088", flexShrink: 0 }} />
+          <span style={{ fontSize: 10, color: P.textMid, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", whiteSpace: "nowrap" }}>
+            {otherOnlineUsers.length === 1
+              ? `${otherOnlineUsers[0].name} is here`
+              : `${otherOnlineUsers.map(u => u.name).join(", ")} are here`
+            }
+          </span>
+        </div>
+      )}
+
       {/* AMBIENT MUSIC — persistent audio element with state sync */}
       {config.ambientMusicUrl && <audio ref={ambientRef} src={config.ambientMusicUrl} loop preload="none" style={{ display: "none" }}
         onPause={() => setAmbientPlaying(false)} onPlay={() => setAmbientPlaying(true)}
@@ -4407,13 +4439,33 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               </>)}
 
               {cardTab === "highlights" && (<>
+                {/* Memories — thought bubbles, distinct from highlights */}
+                {(cur.memories?.length > 0) && (
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ fontSize: 9, fontWeight: 500, letterSpacing: ".06em", color: P.textFaint, textTransform: "uppercase", marginBottom: 6, display: "flex", alignItems: "center", gap: 5 }}>
+                      <span style={{ fontSize: 12, opacity: 0.6 }}>💭</span> Memories
+                    </div>
+                    {cur.memories.map((mem, i) => (
+                      <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "7px 10px", marginBottom: 4, background: `${P.rose || P.accent}06`, borderRadius: 10, borderLeft: `2px solid ${P.rose || P.accent}25` }}>
+                        <span style={{ fontSize: 10, opacity: 0.5, marginTop: 1 }}>✦</span>
+                        <span style={{ flex: 1, fontSize: 11, lineHeight: 1.6, color: P.textMid, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", fontStyle: "italic" }}>{mem}</span>
+                        {!isViewer && (
+                          <button onClick={() => {
+                            const updated = [...cur.memories]; updated.splice(i, 1);
+                            dispatch({ type: "UPDATE", id: cur.id, data: { memories: updated } });
+                          }} style={{ background: "none", border: "none", color: P.textFaint, cursor: "pointer", fontSize: 10, padding: "0 2px", opacity: 0.4 }}>×</button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {renderList(FIELD_LABELS.highlights.label, cur.highlights, FIELD_LABELS.highlights.icon, P.gold, !isViewer ? (i) => {
                   const updated = [...(cur.highlights || [])]; updated.splice(i, 1);
                   dispatch({ type: "UPDATE", id: cur.id, data: { highlights: updated } });
                 } : null)}
                 {!isViewer && (
                   <div style={{ marginTop: (cur.highlights?.length) ? 8 : 0 }}>
-                    {!(cur.highlights?.length) && <div style={{ textAlign: "center", padding: "20px 12px 12px" }}>
+                    {!(cur.highlights?.length) && !(cur.memories?.length) && <div style={{ textAlign: "center", padding: "20px 12px 12px" }}>
                       <div style={{ fontSize: 28, marginBottom: 8, opacity: 0.3 }}>✨</div>
                       <div style={{ fontSize: 11, color: P.textFaint, lineHeight: 1.7, fontStyle: "italic", fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif" }}>What made this trip special?<br/>The little moments worth holding onto.</div>
                     </div>}
@@ -4433,7 +4485,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                     />
                   </div>
                 )}
-                {isViewer && !(cur.highlights?.length) && <div style={{ textAlign: "center", padding: "28px 16px" }}>
+                {isViewer && !(cur.highlights?.length) && !(cur.memories?.length) && <div style={{ textAlign: "center", padding: "28px 16px" }}>
                   <div style={{ fontSize: 28, marginBottom: 8, opacity: 0.3 }}>✨</div>
                   <div style={{ fontSize: 11, color: P.textFaint, lineHeight: 1.7, fontStyle: "italic", fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif" }}>No highlights added yet.</div>
                 </div>}
@@ -4949,48 +5001,82 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       })()}
 
       {/* DREAM DESTINATIONS PANEL */}
-      {showDreams && (
+      {showDreams && (() => {
+        const dreams = config.dreamDestinations || [];
+        const visitedCount = config.dreamsVisited || 0;
+        const totalDreams = dreams.length + visitedCount;
+        const progressPct = totalDreams > 0 ? Math.round((visitedCount / totalDreams) * 100) : 0;
+        const catMap = {};
+        DREAM_CATEGORIES.forEach(c => { catMap[c.key] = c; });
+        return (
         <div role="dialog" aria-modal="true" aria-label="Dream destinations" onClick={() => setShowDreams(false)} style={{ position: "absolute", inset: 0, zIndex: 45, background: `linear-gradient(135deg, rgba(22,16,40,.82), rgba(30,24,48,.88))`, backdropFilter: "blur(24px)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", animation: "fadeIn .4s ease" }}>
           <div onClick={e => e.stopPropagation()} style={{ width: 440, maxWidth: "92vw", maxHeight: "85vh", overflowY: "auto", padding: 32, background: P.card, borderRadius: 22, boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 24px 64px rgba(61,53,82,.1)", cursor: "default" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
               <h2 style={{ margin: 0, fontSize: 18, fontWeight: 400, letterSpacing: ".08em" }}>{isMyWorld ? "🗺 Bucket List" : "✦ Dream Destinations"}</h2>
               <button aria-label="Close dreams" onClick={() => setShowDreams(false)} style={{ background: "none", border: "none", fontSize: 18, color: P.textFaint, cursor: "pointer", transition: "color .2s" }}>×</button>
             </div>
+
+            {/* Progress bar */}
+            {totalDreams > 0 && (
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
+                  <span style={{ fontSize: 9, color: P.textFaint, fontStyle: "italic" }}>{visitedCount} of {totalDreams} dreams realized</span>
+                  <span style={{ fontSize: 10, color: P.goldWarm, fontWeight: 500 }}>{progressPct}%</span>
+                </div>
+                <div style={{ height: 4, background: `${P.textFaint}15`, borderRadius: 2, overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${progressPct}%`, background: `linear-gradient(90deg, ${P.goldWarm}, ${P.rose})`, borderRadius: 2, transition: "width .6s ease" }} />
+                </div>
+              </div>
+            )}
+
             <p style={{ fontSize: 10, color: P.textFaint, marginBottom: 14, fontStyle: "italic" }}>{isMyWorld ? "Places on your bucket list. They appear as golden ghost markers on the globe." : "Places you dream of visiting together. They appear as golden ghost markers on the globe."}</p>
 
-            {(config.dreamDestinations || []).map((dream) => (
-              <div key={dream.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: `${P.gold}08`, borderRadius: 8, marginBottom: 6, borderLeft: `3px solid ${P.goldWarm}40` }}>
-                <span style={{ fontSize: 16 }}>✦</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, fontWeight: 400 }}>{dream.city}</div>
-                  <div style={{ fontSize: 9, color: P.textFaint }}>{dream.country}{dream.notes ? ` — ${dream.notes}` : ""}</div>
+            {dreams.map((dream) => {
+              const cat = dream.category ? catMap[dream.category] : null;
+              const hasTarget = !!dream.targetDate;
+              const daysUntil = hasTarget ? Math.ceil((new Date(dream.targetDate) - new Date()) / 86400000) : null;
+              return (
+              <div key={dream.id} style={{ padding: "10px 12px", background: `${P.gold}08`, borderRadius: 10, marginBottom: 6, borderLeft: `3px solid ${P.goldWarm}40` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 16 }}>{cat ? cat.icon : "✦"}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 400 }}>{dream.city}</div>
+                    <div style={{ fontSize: 9, color: P.textFaint, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      <span>{dream.country}</span>
+                      {cat && <span style={{ padding: "1px 5px", background: `${P.goldWarm}12`, borderRadius: 6, fontSize: 8 }}>{cat.label}</span>}
+                      {hasTarget && <span style={{ color: daysUntil > 0 ? P.textMuted : P.heart, fontSize: 8 }}>{daysUntil > 0 ? `${daysUntil}d away` : daysUntil === 0 ? "Today!" : "Past target"}</span>}
+                    </div>
+                    {dream.notes && <div style={{ fontSize: 9, color: P.textMuted, marginTop: 2, fontStyle: "italic" }}>{dream.notes}</div>}
+                  </div>
+                  {!isViewer && (<>
+                    <button onClick={() => {
+                      const defaultType = isMyWorld ? "adventure" : isPartnerWorld ? "together" : worldType === "friends" ? "group-trip" : worldType === "family" ? "family-trip" : "together";
+                      const defaultWho = isMyWorld ? "solo" : isPartnerWorld ? "both" : "group";
+                      const entry = { id: `e${Date.now()}`, city: dream.city, country: dream.country, lat: dream.lat, lng: dream.lng, dateStart: todayStr(), type: defaultType, who: defaultWho, notes: dream.notes || "", memories: [], museums: [], restaurants: [], highlights: [], photos: [], stops: [] };
+                      dispatch({ type: "ADD", entry });
+                      setConfig({ dreamDestinations: dreams.filter(d => d.id !== dream.id), dreamsVisited: visitedCount + 1 });
+                      showToast(`${dream.city} is now real! ✨`, "🎉", 3000);
+                      setShowDreams(false);
+                      flyTo(dream.lat, dream.lng, 2.5);
+                      setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400);
+                    }} style={{ background: P.rose, color: "#fff", border: "none", borderRadius: 5, padding: "3px 8px", fontSize: 8, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>✓ Visited!</button>
+                    <button onClick={() => setConfig({ dreamDestinations: dreams.filter(d => d.id !== dream.id) })} style={{ background: "none", border: "none", color: P.textFaint, cursor: "pointer", fontSize: 12 }}>×</button>
+                  </>)}
                 </div>
-                {!isViewer && (<>
-                  <button onClick={() => {
-                    const defaultType = isMyWorld ? "adventure" : isPartnerWorld ? "together" : worldType === "friends" ? "group-trip" : worldType === "family" ? "family-trip" : "together";
-                    const defaultWho = isMyWorld ? "solo" : isPartnerWorld ? "both" : "group";
-                    const entry = { id: `e${Date.now()}`, city: dream.city, country: dream.country, lat: dream.lat, lng: dream.lng, dateStart: todayStr(), type: defaultType, who: defaultWho, notes: dream.notes || "", memories: [], museums: [], restaurants: [], highlights: [], photos: [], stops: [] };
-                    dispatch({ type: "ADD", entry });
-                    setConfig({ dreamDestinations: (config.dreamDestinations || []).filter(d => d.id !== dream.id) });
-                    showToast(`${dream.city} is now real! ✨`, "🎉", 3000);
-                    setShowDreams(false);
-                    flyTo(dream.lat, dream.lng, 2.5);
-                    setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400);
-                  }} style={{ background: P.rose, color: "#fff", border: "none", borderRadius: 5, padding: "3px 8px", fontSize: 8, cursor: "pointer", fontFamily: "inherit" }}>✓ Visited!</button>
-                  <button onClick={() => setConfig({ dreamDestinations: (config.dreamDestinations || []).filter(d => d.id !== dream.id) })} style={{ background: "none", border: "none", color: P.textFaint, cursor: "pointer", fontSize: 12 }}>×</button>
-                </>)}
               </div>
-            ))}
+              );
+            })}
 
-            {(config.dreamDestinations || []).length === 0 && <div style={{ textAlign: "center", padding: "24px 0", color: P.textFaint, fontSize: 11 }}>{isMyWorld ? "No bucket list items yet" : "No dream destinations yet"}</div>}
+            {dreams.length === 0 && <div style={{ textAlign: "center", padding: "24px 0", color: P.textFaint, fontSize: 11 }}>{isMyWorld ? "No bucket list items yet" : "No dream destinations yet"}{visitedCount > 0 && <div style={{ marginTop: 6, fontSize: 10, color: P.goldWarm }}>🎉 All {visitedCount} dreams realized!</div>}</div>}
 
             {!isViewer && <DreamAddForm isMyWorld={isMyWorld} onAdd={dream => {
-              setConfig({ dreamDestinations: [...(config.dreamDestinations || []), { ...dream, id: `d${Date.now()}` }] });
+              setConfig({ dreamDestinations: [...dreams, { ...dream, id: `d${Date.now()}` }] });
               showToast(isMyWorld ? `${dream.city} added to bucket list 🗺` : `${dream.city} added to dreams ✦`, "✦", 2000);
             }} />}
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {showSettings && !isViewer && (
         <div role="dialog" aria-modal="true" aria-label="Settings" onClick={() => { flushConfigSave(); setShowSettings(false); }} style={{ position: "absolute", inset: 0, zIndex: 45, background: `linear-gradient(135deg, rgba(22,16,40,.82), rgba(30,24,48,.88))`, backdropFilter: "blur(24px)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", animation: "fadeIn .3s ease" }}>
