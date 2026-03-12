@@ -90,7 +90,6 @@ export default function AuthScreen({ initialMode = 'login', onBack }) {
       password,
       options: {
         data: { display_name: displayName.trim() },
-        emailRedirectTo: SITE_URL,
       },
     })
     setLoading(false)
