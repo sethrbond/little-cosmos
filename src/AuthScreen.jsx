@@ -95,8 +95,10 @@ export default function AuthScreen({ initialMode = 'login', onBack }) {
     })
     setLoading(false)
     if (authError) { setError(authError.message); return }
-    setMode('verify')
-    setMessage(`We sent a verification link to ${email}. Click it to activate your account, then come back to sign in.`)
+    // Auto-login: Supabase signs them in on signup when email confirmation is disabled
+    // If for some reason they're not auto-logged in, show a simple message
+    setMessage('Account created! Signing you in...')
+    setTimeout(() => window.location.reload(), 1500)
   }
 
   const handleForgot = async (e) => {
