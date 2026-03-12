@@ -417,7 +417,7 @@ export default function TravelStats({ entries = [], stats = {}, palette: P, onCl
                   {[0, 0.2, 0.4, 0.6, 0.8, 1].map((v, i) => (
                     <div key={i} style={{
                       width: 12, height: 12, borderRadius: 3,
-                      background: v === 0 ? "rgba(255,255,255,0.06)" : `${accent}${Math.round(v * 200 + 55).toString(16).padStart(2, "0")}`,
+                      background: v === 0 ? "rgba(255,255,255,0.06)" : `${accent.slice(0, 7)}${Math.round(v * 200 + 55).toString(16).padStart(2, "0")}`,
                     }} />
                   ))}
                 </div>
@@ -435,7 +435,7 @@ export default function TravelStats({ entries = [], stats = {}, palette: P, onCl
                           aspectRatio: "1", borderRadius: 4,
                           background: days === 0
                             ? "rgba(255,255,255,0.04)"
-                            : `${accent}${Math.round(intensity * 200 + 55).toString(16).padStart(2, "0")}`,
+                            : `${accent.slice(0, 7)}${Math.round(intensity * 200 + 55).toString(16).padStart(2, "0")}`,
                           display: "flex", alignItems: "center", justifyContent: "center",
                           fontSize: 9, color: days > 0 ? "#fff" : "#504868",
                           fontWeight: days > 0 ? 600 : 400,
@@ -720,7 +720,7 @@ export default function TravelStats({ entries = [], stats = {}, palette: P, onCl
                           </div>
                           <div style={{
                             height: 4, borderRadius: 2, marginTop: 4,
-                            background: `${barColors[ri % barColors.length]}${Math.round((y[row.key] / maxVal) * 200 + 55).toString(16).padStart(2, "0")}`,
+                            background: `${barColors[ri % barColors.length].slice(0, 7)}${Math.round((y[row.key] / maxVal) * 200 + 55).toString(16).padStart(2, "0")}`,
                           }} />
                         </div>
                       )),

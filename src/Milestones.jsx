@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { haversine, daysBetween } from "./utils.js";
 
 /* =================================================================
@@ -430,6 +430,20 @@ export default function Milestones({ entries, palette, onClose, worldMode, confi
     return milestones.filter(m => m.category === activeCategory);
   }, [milestones, activeCategory]);
 
+  // Inject keyframes once
+  const injectedRef = useRef(false);
+  useEffect(() => {
+    if (injectedRef.current) return;
+    const id = "cosmos-milestones-keyframes";
+    if (!document.getElementById(id)) {
+      const s = document.createElement("style");
+      s.id = id;
+      s.textContent = `@keyframes mlFadeIn { from { opacity: 0 } to { opacity: 1 } } @keyframes mlSlideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } } @keyframes mlFloat { 0%, 100% { opacity: inherit; transform: translateY(0); } 50% { opacity: 0.25; transform: translateY(-6px); } }`;
+      document.head.appendChild(s);
+    }
+    injectedRef.current = true;
+  }, []);
+
   // Close on Escape
   useEffect(() => {
     const handler = e => { if (e.key === "Escape") onClose?.(); };
@@ -473,7 +487,6 @@ export default function Milestones({ entries, palette, onClose, worldMode, confi
           Your milestones will appear here as you add entries.<br />
           <span style={{ fontSize: 13, opacity: 0.7 }}>Every journey begins with a single step.</span>
         </div>
-        <style>{`@keyframes mlFadeIn { from { opacity: 0 } to { opacity: 1 } }`}</style>
       </div>
     );
   }
@@ -692,21 +705,6 @@ export default function Milestones({ entries, palette, onClose, worldMode, confi
         </div>
       </div>
 
-      {/* Keyframe animations */}
-      <style>{`
-        @keyframes mlFadeIn {
-          from { opacity: 0 }
-          to { opacity: 1 }
-        }
-        @keyframes mlSlideUp {
-          from { opacity: 0; transform: translateY(12px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes mlFloat {
-          0%, 100% { opacity: inherit; transform: translateY(0); }
-          50% { opacity: 0.25; transform: translateY(-6px); }
-        }
-      `}</style>
     </div>
   );
 }

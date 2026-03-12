@@ -72,6 +72,9 @@ export default function useRealtimeSync({
   useEffect(() => { onUpdateRef.current = onUpdate }, [onUpdate])
   useEffect(() => { onDeleteRef.current = onDelete }, [onDelete])
 
+  // Exponential backoff reconnect
+  const reconnectAttemptRef = useRef(0)
+
   // Determine the filter column and value
   const filterCol = worldId ? 'world_id' : 'user_id'
   const filterVal = worldId || userId
@@ -158,9 +161,6 @@ export default function useRealtimeSync({
     channelRef.current = channel
     return channel
   }, [tableName, filterCol, filterVal])
-
-  // Exponential backoff reconnect
-  const reconnectAttemptRef = useRef(0)
 
   const scheduleReconnect = useCallback(() => {
     if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current)
@@ -267,6 +267,7 @@ export function useRealtimePresence({
     channel
       .on('presence', { event: 'sync' }, () => {
         const state = channel.presenceState()
+        if (!state) return
         const users = []
         for (const key of Object.keys(state)) {
           const presences = state[key]

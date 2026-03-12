@@ -67,6 +67,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
   const mountedRef = useRef(true);
   const toastTimerRef = useRef(null);
   const linkCopiedTimerRef = useRef(null);
+  const searchTimerRef = useRef(null);
 
   // Stable key for myWorldColors to avoid scene teardown on every parent render
   const colorKey = useMemo(() => JSON.stringify(myWorldColors || {}), [myWorldColors]);
@@ -145,7 +146,6 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
-  const searchTimerRef = useRef(null);
   const searchSeqRef = useRef(0);
 
   // Build friend worlds from connections

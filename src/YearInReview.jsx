@@ -49,7 +49,7 @@ function Starfield({ color }) {
         const alpha = s.a * (0.5 + 0.5 * Math.sin(t * s.speed + s.phase));
         ctx.beginPath();
         ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-        ctx.fillStyle = color + Math.round(alpha * 255).toString(16).padStart(2, "0");
+        ctx.fillStyle = color.slice(0, 7) + Math.round(alpha * 255).toString(16).padStart(2, "0");
         ctx.fill();
       });
       frame = requestAnimationFrame(draw);
