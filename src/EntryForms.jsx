@@ -511,7 +511,7 @@ export function AddForm({ types, defaultType = "together", defaultWho = "both", 
 
 // ---- EDIT FORM ----
 
-export function EditForm({ entry, types, fieldLabels, onChange, onSave, onClose, onDelete, onAddStop }) {
+export function EditForm({ entry, types, fieldLabels, onChange, onSave, onClose, onDelete, onAddStop, onSaveTemplate }) {
   const P = getP();
   const trapRef = useFocusTrap(true);
   const [ns, setNs] = useState({ city: "", lat: "", lng: "", notes: "", dateStart: "", dateEnd: "" });
@@ -603,9 +603,14 @@ export function EditForm({ entry, types, fieldLabels, onChange, onSave, onClose,
           onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = `0 2px 8px ${P.rose}30`; }}>Save</button>
         <button onClick={onClose} style={{ padding: "10px 14px", background: "transparent", border: `1px solid ${P.textFaint}30`, borderRadius: 12, cursor: "pointer", fontSize: 10, fontFamily: "inherit", color: P.textMuted, transition: "all .2s" }}>Cancel</button>
       </div>
-      <button onClick={onDelete} style={{ marginTop: 8, width: "100%", padding: "7px 0", background: "transparent", color: "#c9777a", border: `1px solid #c0707020`, borderRadius: 10, cursor: "pointer", fontSize: 9, fontFamily: "inherit", transition: "all .2s" }}
-        onMouseEnter={e => { e.currentTarget.style.borderColor = "#c0707050"; e.currentTarget.style.background = "#c9777a08"; }}
-        onMouseLeave={e => { e.currentTarget.style.borderColor = "#c0707020"; e.currentTarget.style.background = "transparent"; }}>Delete</button>
+      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+        {onSaveTemplate && <button onClick={() => onSaveTemplate(entry)} style={{ flex: 1, padding: "7px 0", background: "transparent", color: P.textMuted || "#888", border: `1px solid ${(P.textFaint || "#555")}30`, borderRadius: 10, cursor: "pointer", fontSize: 9, fontFamily: "inherit", transition: "all .2s" }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = (P.textFaint || "#555") + "60"; e.currentTarget.style.background = (P.rose || "#c9a96e") + "08"; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = (P.textFaint || "#555") + "30"; e.currentTarget.style.background = "transparent"; }}>📋 Save as Template</button>}
+        <button onClick={onDelete} style={{ flex: 1, padding: "7px 0", background: "transparent", color: "#c9777a", border: `1px solid #c0707020`, borderRadius: 10, cursor: "pointer", fontSize: 9, fontFamily: "inherit", transition: "all .2s" }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = "#c0707050"; e.currentTarget.style.background = "#c9777a08"; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = "#c0707020"; e.currentTarget.style.background = "transparent"; }}>Delete</button>
+      </div>
     </div>
   );
 }

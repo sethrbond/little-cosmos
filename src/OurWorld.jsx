@@ -14,6 +14,8 @@ const TripCard = lazy(() => import("./TripCard.jsx"));
 const YearInReview = lazy(() => import("./YearInReview.jsx"));
 const KeyboardShortcuts = lazy(() => import("./KeyboardShortcuts.jsx"));
 import SyncIndicator from "./SyncIndicator.jsx";
+import NotificationCenter from "./NotificationCenter.jsx";
+import { EntryTemplates, saveTemplate } from "./EntryTemplates.jsx";
 import useRealtimeSync from "./useRealtimeSync.js";
 import { supabase } from "./supabaseClient.js";
 import { geocodeSearch } from "./geocode.js";
@@ -1385,7 +1387,11 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     tableName: 'entries',
     userId,
     worldId: isSharedWorld ? worldId : undefined,
-    onInsert: useCallback((entry) => { _dispatch({ type: 'ADD', entry, _skipSave: true }); showToast(`New entry added: ${entry.city || 'somewhere new'}`, "✨", 4000); }, []),
+    onInsert: useCallback((entry) => {
+      _dispatch({ type: 'ADD', entry, _skipSave: true });
+      showToast(`New entry added: ${entry.city || 'somewhere new'}`, "✨", 4000);
+      setNotifications(prev => [{ id: `n-${Date.now()}`, type: 'entry_added', message: `New entry: ${entry.city || 'somewhere new'}`, timestamp: new Date().toISOString(), entryId: entry.id, read: false }, ...prev].slice(0, 100));
+    }, []),
     onUpdate: useCallback((entry) => { _dispatch({ type: 'UPDATE', id: entry.id, data: entry, _skipSave: true }); }, []),
     onDelete: useCallback(({ id }) => { _dispatch({ type: 'DELETE', id, _skipSave: true }); }, []),
   });
@@ -1395,12 +1401,18 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     if (!isSharedWorld || !worldId) return;
     const channel = supabase
       .channel(`world-${worldId}-social`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'entry_comments', filter: `world_id=eq.${worldId}` }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'entry_comments', filter: `world_id=eq.${worldId}` }, (payload) => {
         const sel = selectedRef.current;
         if (sel?.id) loadComments(worldId, sel.id).then(setEntryComments).catch(() => {});
+        if (payload.eventType === 'INSERT' && payload.new?.user_id !== userId) {
+          setNotifications(prev => [{ id: `n-${Date.now()}`, type: 'comment', message: `New comment on an entry`, timestamp: new Date().toISOString(), entryId: payload.new?.entry_id, read: false }, ...prev].slice(0, 100));
+        }
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'entry_reactions', filter: `world_id=eq.${worldId}` }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'entry_reactions', filter: `world_id=eq.${worldId}` }, (payload) => {
         loadAllWorldReactions(worldId).then(setWorldReactions).catch(() => {});
+        if (payload.eventType === 'INSERT' && payload.new?.user_id !== userId) {
+          setNotifications(prev => [{ id: `n-${Date.now()}`, type: 'reaction', message: `Someone reacted to an entry`, timestamp: new Date().toISOString(), entryId: payload.new?.entry_id, read: false }, ...prev].slice(0, 100));
+        }
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -1488,6 +1500,12 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [showExportHub, setShowExportHub] = useState(false);
   const [tripCardEntry, setTripCardEntry] = useState(null);
   const [showYearReview, setShowYearReview] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [recentlyDeleted, setRecentlyDeleted] = useState(() => {
+    try { const raw = localStorage.getItem(`cosmos_trash_${worldId || worldMode}`); return raw ? JSON.parse(raw).filter(t => Date.now() - t.deletedAt < 30 * 24 * 60 * 60 * 1000) : []; } catch { return []; }
+  });
+  const [showTrash, setShowTrash] = useState(false);
   const [confirmModal, setConfirmModal] = useState(null); // { message, onConfirm }
   const starsRef = useRef(null);
   const auroraRef = useRef(null);
@@ -2176,7 +2194,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       if (inInput && e.key !== "Escape") return;
       if (e.key === "ArrowLeft") { e.preventDefault(); stepDay(-1); }
       if (e.key === "ArrowRight") { e.preventDefault(); stepDay(1); }
-      if (e.key === "Escape") { flushConfigSave(); setSelected(null); setEditing(null); setShowAdd(false); setQuickAddMode(false); setShowLetter(null); setShowSettings(false); setShowGallery(false); setCardGallery(false); setShowFilter(false); setMarkerFilter("all"); setLocationList(null); setShowStats(false); setShowRecap(false); setShowSearch(false); setSearchQuery(""); setSearchHl(-1); setSearchDateFrom(""); setSearchDateTo(""); setSearchTypeFilter("all"); setSearchSort("date-desc"); setShowDreams(false); setConfirmDelete(null); setLightboxOpen(false); setShowShortcuts(false); setShowPhotoJourney(false); setShowCelebration(false); setShowOnboarding(false); setConfirmModal(null); setShowConstellation(false); setShowRoutes(false); setShowMilestones(false); setShowTravelStats(false); setShowLoveThread(false); setShowExportHub(false); setShowYearReview(false); setShowPhotoMap(false); setEditLetter(false); setTripCardEntry(null); localStorage.setItem(onboardKey, "1"); tSpinSpd.current = 0.002; if (isPlaying) stopPlay(); }
+      if (e.key === "Escape") { flushConfigSave(); setSelected(null); setEditing(null); setShowAdd(false); setQuickAddMode(false); setShowLetter(null); setShowSettings(false); setShowGallery(false); setCardGallery(false); setShowFilter(false); setMarkerFilter("all"); setLocationList(null); setShowStats(false); setShowRecap(false); setShowSearch(false); setSearchQuery(""); setSearchHl(-1); setSearchDateFrom(""); setSearchDateTo(""); setSearchTypeFilter("all"); setSearchSort("date-desc"); setShowDreams(false); setConfirmDelete(null); setLightboxOpen(false); setShowShortcuts(false); setShowPhotoJourney(false); setShowCelebration(false); setShowOnboarding(false); setConfirmModal(null); setShowConstellation(false); setShowRoutes(false); setShowMilestones(false); setShowTravelStats(false); setShowLoveThread(false); setShowExportHub(false); setShowYearReview(false); setShowPhotoMap(false); setEditLetter(false); setTripCardEntry(null); setShowTemplates(false); setShowTrash(false); localStorage.setItem(onboardKey, "1"); tSpinSpd.current = 0.002; if (isPlaying) stopPlay(); }
       if (e.key === "z" && (e.metaKey || e.ctrlKey) && !e.shiftKey && !showAdd && !editing) { e.preventDefault(); dispatch({ type: "UNDO" }); showToast("Undone", "↩", 1500); }
       if (e.key === "z" && (e.metaKey || e.ctrlKey) && e.shiftKey && !showAdd && !editing) { e.preventDefault(); dispatch({ type: "REDO" }); showToast("Redone", "↪", 1500); }
       if (e.key === "?" && !showAdd && !editing && !showSettings) setShowShortcuts(v => !v);
@@ -3814,8 +3832,23 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
         {/* — System — */}
         <TBtn onClick={saveGlobeScreenshot} tip="Save Globe Screenshot">📷</TBtn>
-        {data.entries.length > 0 && <TBtn onClick={() => setShowExportHub(true)} tip="Export">📤</TBtn>}
+        {!isViewer && <TBtn onClick={() => setShowTemplates(true)} tip="Entry Templates">📋</TBtn>}
+        {data.entries.length > 0 && <TBtn onClick={() => setShowExportHub(true)} tip="Export & Import">📤</TBtn>}
         {data.entries.length > 0 && <TBtn onClick={() => setShowYearReview(true)} tip="Year in Review">🎬</TBtn>}
+        {recentlyDeleted.length > 0 && <TBtn onClick={() => setShowTrash(true)} tip={`Recently Deleted (${recentlyDeleted.length})`}>🗑</TBtn>}
+        {isSharedWorld && <NotificationCenter
+          notifications={notifications}
+          palette={P}
+          onDismiss={id => setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))}
+          onDismissAll={() => setNotifications(prev => prev.map(n => ({ ...n, read: true })))}
+          onClickNotification={n => {
+            if (n.entryId) {
+              const entry = data.entries.find(e => e.id === n.entryId);
+              if (entry) { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); flyTo(entry.lat, entry.lng, 2.5); }
+            }
+            setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, read: true } : x));
+          }}
+        />}
         {onSwitchWorld && <TBtn onClick={() => { flushConfigSave(); onSwitchWorld(); }} tip="Switch World">🔄</TBtn>}
         <SyncIndicator isConnected={realtimeConnected} lastSync={lastSync} pendingOffline={pendingOffline} palette={{ bg: SC.bg, text: P.text }} style={{ margin: '4px auto' }} />
         <TBtn onClick={() => setConfirmModal({ message: "Sign out of My Cosmos?", onConfirm: () => signOut() })} tip="Sign Out">🚪</TBtn>
@@ -4534,6 +4567,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         onSave={() => { dispatch({ type: "UPDATE", id: editing.id, data: editing }); setSelected(editing); setCardTab("overview"); setEditing(null); showToast("Entry saved", "✓", 2000); }}
         onClose={() => setEditing(null)}
         onDelete={() => setConfirmDelete(editing.id)}
+        onSaveTemplate={() => { saveTemplate(isMyWorld ? "my" : (worldType || "partner"), { name: `${editing.city || "Entry"} template`, type: editing.type, country: editing.country || "", highlights: editing.highlights || [], museums: editing.museums || [], restaurants: editing.restaurants || [], notes: editing.notes || "" }); showToast("Saved as template", "📋", 2000); }}
         onAddStop={stop => { const updated = { ...editing, stops: [...(editing.stops || []), stop] }; setEditing(updated); dispatch({ type: "UPDATE", id: editing.id, data: { stops: updated.stops } }); }} /></div></div>}
 
       {confirmDelete && (
@@ -4547,8 +4581,17 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 dispatch({ type: "DELETE", id: confirmDelete });
                 setConfirmDelete(null); setEditing(null); setSelected(null); tSpinSpd.current = 0.002;
                 if (deletedEntry) {
-                  showToast("Entry deleted", "🗑", 5000, () => {
-                    dispatch({ type: "ADD", entry: deletedEntry });
+                  // Move to recently deleted trash (30-day recovery)
+                  const trashKey = `cosmos_trash_${worldId || worldMode}`;
+                  const trashItem = { ...deletedEntry, deletedAt: Date.now() };
+                  const newTrash = [trashItem, ...recentlyDeleted].slice(0, 50);
+                  setRecentlyDeleted(newTrash);
+                  localStorage.setItem(trashKey, JSON.stringify(newTrash));
+                  showToast("Moved to trash (30 days)", "🗑", 5000, () => {
+                    dispatch({ type: "ADD", entry: deletedEntry, _skipUndo: true });
+                    const restored = newTrash.filter(t => t.id !== deletedEntry.id);
+                    setRecentlyDeleted(restored);
+                    localStorage.setItem(trashKey, JSON.stringify(restored));
                     showToast("Entry restored!", "↩️", 2000);
                   });
                 }
@@ -5373,6 +5416,61 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               } : undefined} /></Suspense></OverlayBoundary>}
       {tripCardEntry && <OverlayBoundary onClose={() => setTripCardEntry(null)}><Suspense fallback={<div style={{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(8,6,18,0.7)",backdropFilter:"blur(8px)"}}><div style={{color:"rgba(255,255,255,0.4)",fontSize:14,fontFamily:"'Palatino Linotype',Georgia,serif",letterSpacing:".05em"}}>Loading…</div></div>}><TripCard entry={tripCardEntry} palette={P} onClose={() => setTripCardEntry(null)} worldMode={worldMode} /></Suspense></OverlayBoundary>}
       {showYearReview && <OverlayBoundary onClose={() => setShowYearReview(false)}><Suspense fallback={<div style={{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(8,6,18,0.7)",backdropFilter:"blur(8px)"}}><div style={{color:"rgba(255,255,255,0.4)",fontSize:14,fontFamily:"'Palatino Linotype',Georgia,serif",letterSpacing:".05em"}}>Loading…</div></div>}><YearInReview entries={data.entries} stats={stats} palette={P} onClose={() => setShowYearReview(false)} worldMode={worldMode} config={config} /></Suspense></OverlayBoundary>}
+
+      {/* ENTRY TEMPLATES */}
+      {showTemplates && <EntryTemplates palette={P} worldType={isMyWorld ? "my" : (worldType || "partner")} onApplyTemplate={tpl => {
+        setShowTemplates(false);
+        // Create a pre-filled entry from the template
+        const entry = { id: `e-${Date.now()}`, city: "", country: tpl.country || "", lat: 0, lng: 0, dateStart: todayStr(), dateEnd: "", type: tpl.type || "adventure", who: isMyWorld ? "solo" : "both", notes: tpl.notes || "", highlights: [...(tpl.highlights || [])], museums: [...(tpl.museums || [])], restaurants: [...(tpl.restaurants || [])], photos: [], favorite: false };
+        setEditing(entry);
+        showToast(`Template "${tpl.name || "entry"}" applied — fill in the details`, "📋", 3000);
+      }} onClose={() => setShowTemplates(false)} />}
+
+      {/* RECENTLY DELETED TRASH */}
+      {showTrash && (
+        <div role="dialog" aria-modal="true" aria-label="Recently deleted entries" onClick={() => setShowTrash(false)} style={{ position: "fixed", inset: 0, zIndex: 310, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .2s ease" }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: P.card, borderRadius: 16, padding: "24px 28px", maxWidth: 400, width: "90vw", maxHeight: "70vh", overflowY: "auto", border: `1px solid ${P.rose}20`, boxShadow: "0 8px 32px rgba(0,0,0,0.4)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <div style={{ fontSize: 15, fontWeight: 600, color: P.text }}>🗑 Recently Deleted</div>
+              <button onClick={() => setShowTrash(false)} style={{ background: "none", border: "none", color: P.textFaint, fontSize: 18, cursor: "pointer" }}>×</button>
+            </div>
+            <p style={{ fontSize: 10, color: P.textFaint, margin: "0 0 12px", letterSpacing: ".04em" }}>Entries are kept for 30 days. Click to restore.</p>
+            {recentlyDeleted.length === 0 && <p style={{ fontSize: 12, color: P.textMuted, textAlign: "center", padding: "20px 0", fontStyle: "italic" }}>Trash is empty</p>}
+            {recentlyDeleted.map(t => {
+              const daysLeft = Math.max(1, Math.ceil((30 * 24 * 60 * 60 * 1000 - (Date.now() - t.deletedAt)) / (24 * 60 * 60 * 1000)));
+              return (
+                <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 10, background: `${P.rose}08`, border: `1px solid ${P.rose}12`, marginBottom: 6, cursor: "pointer", transition: "background .15s" }}
+                  onClick={() => {
+                    dispatch({ type: "ADD", entry: { ...t, deletedAt: undefined }, _skipUndo: true });
+                    const updated = recentlyDeleted.filter(x => x.id !== t.id);
+                    setRecentlyDeleted(updated);
+                    localStorage.setItem(`cosmos_trash_${worldId || worldMode}`, JSON.stringify(updated));
+                    showToast(`${t.city} restored!`, "↩️", 2500);
+                    if (updated.length === 0) setShowTrash(false);
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = `${P.rose}18`}
+                  onMouseLeave={e => e.currentTarget.style.background = `${P.rose}08`}
+                >
+                  <span style={{ fontSize: 16, flexShrink: 0 }}>{(TYPES[t.type] || {}).icon || "📍"}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, color: P.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.city}{t.country ? `, ${t.country}` : ""}</div>
+                    <div style={{ fontSize: 9, color: P.textFaint }}>{fmtDate(t.dateStart)} · {daysLeft}d left</div>
+                  </div>
+                  <span style={{ fontSize: 9, color: P.rose, fontWeight: 500 }}>Restore</span>
+                </div>
+              );
+            })}
+            {recentlyDeleted.length > 0 && (
+              <button onClick={() => {
+                setRecentlyDeleted([]);
+                localStorage.removeItem(`cosmos_trash_${worldId || worldMode}`);
+                showToast("Trash emptied", "🗑", 2000);
+                setShowTrash(false);
+              }} style={{ marginTop: 10, width: "100%", padding: "8px", background: "transparent", border: `1px solid ${P.textFaint}30`, borderRadius: 8, cursor: "pointer", fontSize: 10, color: P.textFaint, fontFamily: "inherit" }}>Empty Trash Permanently</button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* CONFIRM MODAL — replaces browser confirm() */}
       {confirmModal && (
