@@ -344,3 +344,42 @@ export function resolveTypes(types, palette) {
   return resolved;
 }
 
+// ---- WORLD THEMES (presets) ----
+export const WORLD_THEMES = {
+  classic: {
+    name: "Classic",
+    description: "The original cosmos look",
+    preview: ["#1a1a2e", "#c9a96e", "#a78bba"],
+    palette: {},
+    scene: {},
+  },
+  polaroid: {
+    name: "Polaroid",
+    description: "Warm vintage film tones",
+    preview: ["#2a2218", "#e8c87a", "#d4a574"],
+    palette: { rose: "#d4a574", sky: "#8b9dc3", gold: "#e8c87a", heart: "#c97b7b", text: "#f0e6d3", cream: "#2a2218" },
+    scene: { bg: "#1a1710", globe: "#3d3428", glow: "#d4a57430", coast: "#e8c87a", particles: "#d4a57440", starTint: "#e8c87a20" },
+  },
+  northern: {
+    name: "Northern Lights",
+    description: "Aurora-inspired cool tones",
+    preview: ["#0a0e1a", "#64e8a6", "#7b8cde"],
+    palette: { rose: "#64e8a6", sky: "#7b8cde", gold: "#8ce8c8", heart: "#e87bab", text: "#d0e8e0", cream: "#0f1420" },
+    scene: { bg: "#060a14", globe: "#1a2838", glow: "#64e8a630", coast: "#64e8a6", particles: "#7b8cde40", starTint: "#64e8a620" },
+  },
+  cherry: {
+    name: "Cherry Blossom",
+    description: "Soft pink spring garden",
+    preview: ["#1a141c", "#f0a0b8", "#d898c0"],
+    palette: { rose: "#f0a0b8", sky: "#a8c8e8", gold: "#f0d0a0", heart: "#e87890", text: "#f0e0e8", cream: "#1c1418" },
+    scene: { bg: "#120e14", globe: "#2a2030", glow: "#f0a0b830", coast: "#d898c0", particles: "#f0a0b840", starTint: "#f0a0b820" },
+  },
+  midnight: {
+    name: "Midnight Ocean",
+    description: "Deep sea blues and silver",
+    preview: ["#080c18", "#4a8cc8", "#c0d0e8"],
+    palette: { rose: "#4a8cc8", sky: "#6aacdc", gold: "#c0d0e8", heart: "#7898c8", text: "#d0dce8", cream: "#0c1020" },
+    scene: { bg: "#040810", globe: "#141c2c", glow: "#4a8cc830", coast: "#6aacdc", particles: "#4a8cc840", starTint: "#c0d0e820" },
+  },
+};
+

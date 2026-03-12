@@ -13,6 +13,7 @@ const ExportHub = lazy(() => import("./ExportHub.jsx"));
 const TripCard = lazy(() => import("./TripCard.jsx"));
 const YearInReview = lazy(() => import("./YearInReview.jsx"));
 const KeyboardShortcuts = lazy(() => import("./KeyboardShortcuts.jsx"));
+const TripJournal = lazy(() => import("./TripJournal.jsx"));
 import SyncIndicator from "./SyncIndicator.jsx";
 import NotificationCenter from "./NotificationCenter.jsx";
 import { EntryTemplates, saveTemplate } from "./EntryTemplates.jsx";
@@ -29,6 +30,7 @@ import {
   FRIENDS_TYPES, FRIENDS_FIELDS, FRIENDS_DEFAULT_CONFIG,
   FAMILY_TYPES, FAMILY_FIELDS, FAMILY_DEFAULT_CONFIG,
   getSeasonalHue, resolveTypes, getSharedWorldConfig,
+  WORLD_THEMES,
 } from "./worldConfigs.js";
 import { sendWelcomeLetter, getMyLetters, deleteWelcomeLetter } from "./supabaseWelcomeLetters.js";
 import { loadComments, addComment, deleteComment, loadAllWorldReactions, toggleReaction, getWorldMembers, removeWorldMember, updateMemberRole, deleteWorld, leaveWorld, updateWorld, loadMyWorlds, shareEntryToWorld, getPersonalWorldId } from "./supabaseWorlds.js";
@@ -1508,6 +1510,10 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [showTrash, setShowTrash] = useState(false);
   const [confirmModal, setConfirmModal] = useState(null); // { message, onConfirm }
   const [dismissOnThisDay, setDismissOnThisDay] = useState(false);
+  const [showTripJournal, setShowTripJournal] = useState(false);
+  const [handwrittenMode, setHandwrittenMode] = useState(() => { try { return localStorage.getItem("cosmos_handwritten") === "1"; } catch { return false; } });
+  const [linkedEntryId, setLinkedEntryId] = useState(null); // entry id being linked
+  const [showLinkPicker, setShowLinkPicker] = useState(false);
   const starsRef = useRef(null);
   const auroraRef = useRef(null);
   const loveThreadRef = useRef([]);
@@ -2195,7 +2201,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       if (inInput && e.key !== "Escape") return;
       if (e.key === "ArrowLeft") { e.preventDefault(); stepDay(-1); }
       if (e.key === "ArrowRight") { e.preventDefault(); stepDay(1); }
-      if (e.key === "Escape") { flushConfigSave(); setSelected(null); setEditing(null); setShowAdd(false); setQuickAddMode(false); setShowLetter(null); setShowSettings(false); setShowGallery(false); setCardGallery(false); setShowFilter(false); setMarkerFilter("all"); setLocationList(null); setShowStats(false); setShowRecap(false); setShowSearch(false); setSearchQuery(""); setSearchHl(-1); setSearchDateFrom(""); setSearchDateTo(""); setSearchTypeFilter("all"); setSearchSort("date-desc"); setShowDreams(false); setConfirmDelete(null); setLightboxOpen(false); setShowShortcuts(false); setShowPhotoJourney(false); setShowCelebration(false); setShowOnboarding(false); setConfirmModal(null); setShowConstellation(false); setShowRoutes(false); setShowMilestones(false); setShowTravelStats(false); setShowLoveThread(false); setShowExportHub(false); setShowYearReview(false); setShowPhotoMap(false); setEditLetter(false); setTripCardEntry(null); setShowTemplates(false); setShowTrash(false); localStorage.setItem(onboardKey, "1"); tSpinSpd.current = 0.002; if (isPlaying) stopPlay(); }
+      if (e.key === "Escape") { flushConfigSave(); setSelected(null); setEditing(null); setShowAdd(false); setQuickAddMode(false); setShowLetter(null); setShowSettings(false); setShowGallery(false); setCardGallery(false); setShowFilter(false); setMarkerFilter("all"); setLocationList(null); setShowStats(false); setShowRecap(false); setShowSearch(false); setSearchQuery(""); setSearchHl(-1); setSearchDateFrom(""); setSearchDateTo(""); setSearchTypeFilter("all"); setSearchSort("date-desc"); setShowDreams(false); setConfirmDelete(null); setLightboxOpen(false); setShowShortcuts(false); setShowPhotoJourney(false); setShowCelebration(false); setShowOnboarding(false); setConfirmModal(null); setShowConstellation(false); setShowRoutes(false); setShowMilestones(false); setShowTravelStats(false); setShowLoveThread(false); setShowExportHub(false); setShowYearReview(false); setShowPhotoMap(false); setEditLetter(false); setTripCardEntry(null); setShowTemplates(false); setShowTrash(false); setShowTripJournal(false); setShowLinkPicker(false); localStorage.setItem(onboardKey, "1"); tSpinSpd.current = 0.002; if (isPlaying) stopPlay(); }
       if (e.key === "z" && (e.metaKey || e.ctrlKey) && !e.shiftKey && !showAdd && !editing) { e.preventDefault(); dispatch({ type: "UNDO" }); showToast("Undone", "↩", 1500); }
       if (e.key === "z" && (e.metaKey || e.ctrlKey) && e.shiftKey && !showAdd && !editing) { e.preventDefault(); dispatch({ type: "REDO" }); showToast("Redone", "↪", 1500); }
       if (e.key === "?" && !showAdd && !editing && !showSettings) setShowShortcuts(v => !v);
@@ -3863,6 +3869,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         {/* — System — */}
         <TBtn onClick={saveGlobeScreenshot} tip="Save Globe Screenshot">📷</TBtn>
         {!isViewer && <TBtn onClick={() => setShowTemplates(true)} tip="Entry Templates">📋</TBtn>}
+        {data.entries.length >= 2 && <TBtn onClick={() => setShowTripJournal(true)} tip="Trip Journal">📖</TBtn>}
         {data.entries.length > 0 && <TBtn onClick={() => setShowExportHub(true)} tip="Export & Import">📤</TBtn>}
         {data.entries.length > 0 && <TBtn onClick={() => setShowYearReview(true)} tip="Year in Review">🎬</TBtn>}
         {recentlyDeleted.length > 0 && <TBtn onClick={() => setShowTrash(true)} tip={`Recently Deleted (${recentlyDeleted.length})`}>🗑</TBtn>}
@@ -3981,9 +3988,12 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           ))}
         </div>
       )}
-      {isPartnerWorld && !isViewer && (
+      {isPartnerWorld && !isViewer && (<>
         <button onClick={() => { setEditLetter(true); setLetterDraft(""); setLetterEditId(null); setLetterCity(""); setLetterLat(""); setLetterLng(""); }} style={{ position: "absolute", bottom: 118, right: (config.loveLetters || []).length > 0 ? 50 : 22, zIndex: 12, background: P.glass, border: `1px dashed ${P.rose}40`, borderRadius: 7, cursor: "pointer", fontSize: 9, color: P.textMuted, padding: "3px 9px", fontFamily: "inherit", transition: "right .3s" }}>+ Love Letter</button>
-      )}
+        {(config.loveLetters || []).filter(l => l.draft && l.author === userId).length > 0 && (
+          <div style={{ position: "absolute", bottom: 138, right: (config.loveLetters || []).length > 0 ? 50 : 22, zIndex: 12, fontSize: 8, color: P.gold, letterSpacing: ".06em" }}>📝 {(config.loveLetters || []).filter(l => l.draft && l.author === userId).length} draft{(config.loveLetters || []).filter(l => l.draft && l.author === userId).length > 1 ? "s" : ""}</div>
+        )}
+      </>)}
 
       {/* SLIDER */}
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: P.glass, backdropFilter: "blur(16px)", borderTop: `1px solid ${P.rose}10`, zIndex: 15, display: "flex", flexDirection: "column", justifyContent: "center", padding: "12px 22px", paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}>
@@ -4116,6 +4126,16 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 <div style={{ position: "absolute", bottom: 6, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 4, alignItems: "center" }}>{cur.photos.slice(0, 12).map((_, i) => <div key={i} style={{ width: 6, height: 6, borderRadius: "50%", background: i === photoIdx % cur.photos.length ? "#fff" : "rgba(255,255,255,.35)", transition: "background .2s" }} />)}{cur.photos.length > 12 && <div style={{ fontSize: 8, color: "rgba(255,255,255,.5)", marginLeft: 2 }}>+{cur.photos.length - 12}</div>}</div></>)}
               <button onClick={() => setCardGallery(true)} style={{ position: "absolute", top: 6, right: 6, background: "rgba(255,255,255,.85)", border: "none", borderRadius: 5, padding: "2px 8px", fontSize: 9, cursor: "pointer", fontFamily: "inherit", color: P.textMid }}>📸 {cur.photos.length}</button>
               <button onClick={() => setPolaroidMode(v => !v)} style={{ position: "absolute", bottom: 6, right: 6, background: polaroidMode ? P.goldWarm : "rgba(255,255,255,.7)", border: "none", borderRadius: 5, padding: "2px 7px", fontSize: 8, cursor: "pointer", fontFamily: "inherit", color: polaroidMode ? "#fff" : P.textFaint }} title="Polaroid mode">📸</button>
+              {/* Photo collage strip — overlapping polaroids when 3+ photos */}
+              {polaroidMode && cur.photos.length >= 3 && (
+                <div style={{ position: "absolute", top: -28, left: 8, right: 8, height: 28, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
+                  {cur.photos.slice(0, 5).map((url, i) => {
+                    const rot = (i - 2) * 8 + (i % 2 ? 3 : -3);
+                    const off = (i - 2) * 24;
+                    return <img key={i} src={thumbnail(url, 64)} alt="" style={{ width: 32, height: 32, objectFit: "cover", border: "2px solid #fff", borderRadius: 1, boxShadow: "0 1px 4px rgba(0,0,0,.2)", position: "absolute", left: `calc(50% + ${off}px - 16px)`, transform: `rotate(${rot}deg)`, zIndex: i }} />;
+                  })}
+                </div>
+              )}
               {<button onClick={() => handlePhotos(cur.id)} style={{ position: "absolute", top: 6, left: 6, background: "rgba(255,255,255,.85)", border: "none", borderRadius: 5, padding: "2px 8px", fontSize: 9, cursor: "pointer", fontFamily: "inherit" }}>+ 📸</button>}
               {polaroidMode && (cur.photoCaptions || {})[cur.photos[photoIdx % cur.photos.length]] && (
                 <div style={{ position: "absolute", bottom: 32, left: "50%", transform: "translateX(-50%)", fontSize: 9, color: "rgba(80,60,40,.6)", fontStyle: "italic", fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", whiteSpace: "nowrap", maxWidth: "70%", overflow: "hidden", textOverflow: "ellipsis", pointerEvents: "none", background: "rgba(255,255,255,.85)", padding: "1px 8px", borderRadius: 3 }}>
@@ -4293,19 +4313,21 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             <div key={cardTab} style={{ marginTop: 10, animation: "fadeIn .2s ease" }}>
               {cardTab === "overview" && (<>
                 {!isViewer ? (
-                  <div style={{ marginBottom: 10, position: "relative" }}>
+                  <div style={{ marginBottom: 10, position: "relative", ...(handwrittenMode ? { background: `repeating-linear-gradient(transparent, transparent 23px, ${P.textFaint}15 23px, ${P.textFaint}15 24px)`, padding: "4px 8px", borderRadius: 8 } : {}) }}>
                     <textarea
                       placeholder="Write about this memory..."
                       value={cur.notes || ""}
                       onChange={e => dispatch({ type: "UPDATE", id: cur.id, data: { notes: e.target.value }, _skipSave: true })}
                       onBlur={e => { dispatch({ type: "UPDATE", id: cur.id, data: { notes: e.target.value } }); e.currentTarget.style.borderColor = e.target.value ? "transparent" : `${P.textFaint}20`; }}
                       rows={cur.notes ? Math.min(Math.ceil(cur.notes.length / 35), 6) : 2}
-                      style={{ width: "100%", fontSize: 12, lineHeight: 1.7, color: P.textMid, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", fontStyle: "italic", background: "none", border: `1px solid ${cur.notes ? "transparent" : P.textFaint + "20"}`, borderRadius: 8, padding: "6px 8px", outline: "none", resize: "vertical", boxSizing: "border-box", transition: "border-color .2s" }}
+                      style={{ width: "100%", fontSize: handwrittenMode ? 14 : 12, lineHeight: handwrittenMode ? "24px" : 1.7, color: P.textMid, fontFamily: handwrittenMode ? "'Segoe Script','Bradley Hand','Comic Sans MS',cursive" : "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", fontStyle: "italic", background: "none", border: `1px solid ${cur.notes ? "transparent" : P.textFaint + "20"}`, borderRadius: 8, padding: "6px 8px", outline: "none", resize: "vertical", boxSizing: "border-box", transition: "border-color .2s" }}
                       onFocus={e => e.currentTarget.style.borderColor = `${P.rose}30`}
                     />
                   </div>
                 ) : cur.notes ? (
-                  <p style={{ fontSize: 12, lineHeight: 1.7, margin: "0 0 10px", color: P.textMid, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", fontStyle: "italic" }}>{cur.notes}</p>
+                  <div style={{ marginBottom: 10, ...(handwrittenMode ? { background: `repeating-linear-gradient(transparent, transparent 23px, ${P.textFaint}15 23px, ${P.textFaint}15 24px)`, padding: "4px 8px", borderRadius: 8 } : {}) }}>
+                    <p style={{ fontSize: handwrittenMode ? 14 : 12, lineHeight: handwrittenMode ? "24px" : 1.7, margin: 0, color: P.textMid, fontFamily: handwrittenMode ? "'Segoe Script','Bradley Hand','Comic Sans MS',cursive" : "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", fontStyle: "italic" }}>{cur.notes}</p>
+                  </div>
                 ) : null}
                 {(cur.stops || []).length > 0 && (<div style={{ marginTop: 8 }}>
                   <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".16em", textTransform: "uppercase", marginBottom: 6 }}>Trip Route</div>
@@ -4333,6 +4355,47 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                   : <div style={{ fontSize: 9, color: P.textFaint, fontStyle: "italic" }}>No note yet</div>}
                   {cur.loveNote && !isViewer && <button onClick={() => dispatch({ type: "UPDATE", id: cur.id, data: { loveNote: "" } })} style={{ marginTop: 4, background: "none", border: "none", fontSize: 8, color: P.textFaint, cursor: "pointer", padding: 0 }}>Clear</button>}
                 </div>}
+                {/* Entry Connections — linked related entries */}
+                {(() => {
+                  const links = cur.linkedEntries || [];
+                  const linked = links.map(lid => data.entries.find(e => e.id === lid)).filter(Boolean);
+                  return (linked.length > 0 || !isViewer) ? (
+                    <div style={{ marginTop: 10 }}>
+                      <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 4 }}>🔗 Related Trips</div>
+                      {linked.map(le => (
+                        <button key={le.id} onClick={() => { setSelected(le); setPhotoIdx(0); setCardTab("overview"); flyTo(le.lat, le.lng, 2.5); }}
+                          style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", padding: "5px 8px", marginBottom: 3, background: `${P.rose}06`, border: `1px solid ${P.rose}12`, borderRadius: 8, cursor: "pointer", fontFamily: "inherit", textAlign: "left", transition: "background .15s" }}
+                          onMouseEnter={e => e.currentTarget.style.background = `${P.rose}14`}
+                          onMouseLeave={e => e.currentTarget.style.background = `${P.rose}06`}>
+                          <span style={{ fontSize: 12 }}>{(TYPES[le.type] || DEFAULT_TYPE).icon}</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 10, color: P.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{le.city}</div>
+                            <div style={{ fontSize: 8, color: P.textFaint }}>{fmtDate(le.dateStart)}</div>
+                          </div>
+                          {!isViewer && <button onClick={e => { e.stopPropagation(); dispatch({ type: "UPDATE", id: cur.id, data: { linkedEntries: links.filter(l => l !== le.id) } }); }} style={{ background: "none", border: "none", color: P.textFaint, fontSize: 12, cursor: "pointer", padding: 0 }}>×</button>}
+                        </button>
+                      ))}
+                      {!isViewer && !showLinkPicker && <button onClick={() => { setLinkedEntryId(cur.id); setShowLinkPicker(true); }} style={{ fontSize: 9, color: P.rose, background: "none", border: `1px dashed ${P.rose}30`, borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit", width: "100%", marginTop: 2, transition: "all .2s" }}
+                        onMouseEnter={e => e.currentTarget.style.borderColor = P.rose + "60"}
+                        onMouseLeave={e => e.currentTarget.style.borderColor = P.rose + "30"}>+ Link a trip</button>}
+                      {showLinkPicker && linkedEntryId === cur.id && (
+                        <div style={{ marginTop: 4, maxHeight: 120, overflowY: "auto", border: `1px solid ${P.textFaint}20`, borderRadius: 8, background: P.card }}>
+                          {data.entries.filter(e => e.id !== cur.id && !links.includes(e.id)).slice(0, 20).map(e => (
+                            <button key={e.id} onClick={() => { dispatch({ type: "UPDATE", id: cur.id, data: { linkedEntries: [...links, e.id] } }); setShowLinkPicker(false); showToast(`Linked to ${e.city}`, "🔗", 2000); }}
+                              style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", padding: "5px 8px", background: "none", border: "none", borderBottom: `1px solid ${P.textFaint}10`, cursor: "pointer", fontFamily: "inherit", textAlign: "left", fontSize: 10, color: P.text, transition: "background .15s" }}
+                              onMouseEnter={e => e.currentTarget.style.background = `${P.rose}08`}
+                              onMouseLeave={e => e.currentTarget.style.background = "none"}>
+                              <span style={{ fontSize: 11 }}>{(TYPES[e.type] || DEFAULT_TYPE).icon}</span>
+                              <span>{e.city}</span>
+                              <span style={{ fontSize: 8, color: P.textFaint, marginLeft: "auto" }}>{fmtDate(e.dateStart)}</span>
+                            </button>
+                          ))}
+                          <button onClick={() => setShowLinkPicker(false)} style={{ width: "100%", padding: "4px", background: "none", border: "none", fontSize: 9, color: P.textFaint, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+                        </div>
+                      )}
+                    </div>
+                  ) : null;
+                })()}
                 {/* Empty overview nudge — only for viewers or when truly empty */}
                 {isViewer && !cur.notes && !(cur.stops || []).length && !cur.musicUrl && !(isPartnerWorld && cur.loveNote) && (
                   <div style={{ textAlign: "center", padding: "20px 12px" }}>
@@ -4508,6 +4571,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 { type: "star", icon: "⭐" },
                 { type: "fire", icon: "🔥" },
                 { type: "wow", icon: "😮" },
+                { type: "miss", icon: "🥺" },
+                { type: "cozy", icon: "🫶" },
               ];
               return (
                 <div style={{ marginTop: 10, display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -4650,15 +4715,19 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       {isPartnerWorld && showLetter && (() => {
         const letter = (config.loveLetters || []).find(l => l.id === showLetter);
         if (!letter) return null;
+        const isMyLetter = !letter.author || letter.author === userId;
+        if (letter.draft && !isMyLetter) return null;
         return (
         <div role="dialog" aria-modal="true" aria-label="Love letter" onClick={() => setShowLetter(null)} style={{ position: "absolute", inset: 0, zIndex: 50, background: `linear-gradient(135deg, rgba(22,16,40,.84), rgba(30,24,48,.90))`, backdropFilter: "blur(30px)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", animation: "fadeIn .8s ease" }}>
           <div style={{ maxWidth: 460, padding: 36, textAlign: "center" }} onClick={e => e.stopPropagation()}>
+            {letter.draft && <div style={{ display: "inline-block", padding: "2px 10px", borderRadius: 10, background: `${P.gold}20`, color: P.gold, fontSize: 9, letterSpacing: ".08em", marginBottom: 10 }}>📝 Draft — only you can see this</div>}
             <div style={{ fontSize: 30, marginBottom: 14 }}>💌</div>
             {letter.city && <div style={{ fontSize: 9, color: "#a098b0", letterSpacing: ".12em", marginBottom: 8 }}>found near {letter.city}</div>}
             <p style={{ fontSize: 14, lineHeight: 2, color: "#e8dcd0", whiteSpace: "pre-wrap", fontStyle: "italic" }}>{letter.text}</p>
             <p style={{ fontSize: 10, color: "#a098b0", marginTop: 20, letterSpacing: ".15em" }}>— {config.youName || "You"}</p>
-            {<div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 14 }}>
+            {isMyLetter && <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 14 }}>
               <button onClick={() => { setLetterEditId(letter.id); setLetterDraft(letter.text); setLetterCity(letter.city || ""); setLetterLat(letter.lat?.toString() || ""); setLetterLng(letter.lng?.toString() || ""); setEditLetter(true); setShowLetter(null); }} style={{ background: "none", border: `1px solid ${P.rose}28`, borderRadius: 5, padding: "4px 12px", fontSize: 9, color: P.textMuted, cursor: "pointer", fontFamily: "inherit" }}>Edit</button>
+              {letter.draft && <button onClick={() => { setConfig({ loveLetters: (config.loveLetters || []).map(l => l.id === letter.id ? { ...l, draft: false } : l) }); setShowLetter(null); showToast("Letter sent! 💌", "💌", 2500); }} style={{ background: `${P.rose}20`, border: `1px solid ${P.rose}40`, borderRadius: 5, padding: "4px 12px", fontSize: 9, color: P.rose, cursor: "pointer", fontFamily: "inherit" }}>Send 💌</button>}
               <button onClick={() => { setConfig({ loveLetters: (config.loveLetters || []).filter(l => l.id !== letter.id) }); setShowLetter(null); }} style={{ background: "none", border: `1px solid #c97a7a28`, borderRadius: 5, padding: "4px 12px", fontSize: 9, color: "#c97a7a", cursor: "pointer", fontFamily: "inherit" }}>Remove</button>
             </div>}
           </div>
@@ -4693,17 +4762,30 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               <button onClick={() => {
                 const lat = parseFloat(letterLat) || (20 + Math.random() * 40);
                 const lng = parseFloat(letterLng) || (-120 + Math.random() * 240);
+                const letterObj = { text: letterDraft, city: letterCity, lat, lng, author: userId, draft: false };
                 if (letterEditId) {
-                  // Update existing
-                  setConfig({ loveLetters: (config.loveLetters || []).map(l => l.id === letterEditId ? { ...l, text: letterDraft, city: letterCity, lat, lng } : l) });
+                  setConfig({ loveLetters: (config.loveLetters || []).map(l => l.id === letterEditId ? { ...l, ...letterObj } : l) });
                 } else {
-                  // Add new
-                  setConfig({ loveLetters: [...(config.loveLetters || []), { id: `ll-${Date.now()}`, text: letterDraft, city: letterCity, lat, lng }] });
+                  setConfig({ loveLetters: [...(config.loveLetters || []), { id: `ll-${Date.now()}`, ...letterObj }] });
                 }
                 setEditLetter(false);
                 showToast(letterEditId ? "Letter updated 💌" : "Letter hidden on the globe ❀", "💌", 2500);
               }} disabled={!letterDraft.trim()} style={{ flex: 1, padding: "10px", background: letterDraft.trim() ? `linear-gradient(135deg, ${P.rose}, ${P.sky})` : `${P.textFaint}60`, color: "#fff", border: "none", borderRadius: 12, cursor: letterDraft.trim() ? "pointer" : "default", fontSize: 11, fontFamily: "inherit", letterSpacing: ".04em", boxShadow: letterDraft.trim() ? `0 2px 8px ${P.rose}30` : "none", transition: "all .25s" }}>
-                {letterEditId ? "Update" : "Hide on Globe"} 💌
+                {letterEditId ? "Update & Send" : "Hide on Globe"} 💌
+              </button>
+              <button onClick={() => {
+                const lat = parseFloat(letterLat) || (20 + Math.random() * 40);
+                const lng = parseFloat(letterLng) || (-120 + Math.random() * 240);
+                const letterObj = { text: letterDraft, city: letterCity, lat, lng, author: userId, draft: true };
+                if (letterEditId) {
+                  setConfig({ loveLetters: (config.loveLetters || []).map(l => l.id === letterEditId ? { ...l, ...letterObj } : l) });
+                } else {
+                  setConfig({ loveLetters: [...(config.loveLetters || []), { id: `ll-${Date.now()}`, ...letterObj }] });
+                }
+                setEditLetter(false);
+                showToast("Draft saved 📝", "📝", 2000);
+              }} disabled={!letterDraft.trim()} style={{ padding: "10px 14px", background: letterDraft.trim() ? `${P.textFaint}20` : `${P.textFaint}10`, color: letterDraft.trim() ? P.textMuted : P.textFaint, border: `1px solid ${P.textFaint}30`, borderRadius: 12, cursor: letterDraft.trim() ? "pointer" : "default", fontSize: 10, fontFamily: "inherit", transition: "all .2s" }}>
+                📝 Draft
               </button>
               <button onClick={() => setEditLetter(false)} style={{ padding: "10px 16px", background: "transparent", border: `1px solid ${P.textFaint}30`, borderRadius: 12, cursor: "pointer", fontSize: 11, fontFamily: "inherit", color: P.textMuted, transition: "all .2s" }}>Cancel</button>
             </div>
@@ -4960,6 +5042,20 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               const baseP = isMyWorld ? MY_WORLD_PALETTE : sharedCfg ? sharedCfg.palette : OUR_WORLD_PALETTE;
               const baseSC = isMyWorld ? MY_WORLD_SCENE : sharedCfg ? sharedCfg.scene : OUR_WORLD_SCENE;
               return <>
+                <div style={{ fontSize: 7, color: P.textMid, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 6, marginTop: 2 }}>Theme Presets</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+                  {Object.entries(WORLD_THEMES).map(([key, theme]) => (
+                    <button key={key} onClick={() => {
+                      setConfig({ customPalette: theme.palette, customScene: theme.scene });
+                      showToast(`${theme.name} theme applied — reload for scene colors`, "🎨", 3000);
+                    }} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", background: "transparent", border: `1px solid ${P.textFaint}30`, borderRadius: 10, cursor: "pointer", fontFamily: "inherit", transition: "all .2s" }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = P.rose + "60"; e.currentTarget.style.background = P.rose + "08"; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = P.textFaint + "30"; e.currentTarget.style.background = "transparent"; }}>
+                      <div style={{ display: "flex", gap: 2 }}>{theme.preview.map((c, i) => <div key={i} style={{ width: 10, height: 10, borderRadius: "50%", background: c }} />)}</div>
+                      <span style={{ fontSize: 9, color: P.text }}>{theme.name}</span>
+                    </button>
+                  ))}
+                </div>
                 <div style={{ fontSize: 7, color: P.textMid, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 4, marginTop: 2 }}>Interface Colors</div>
                 {cPick("Primary Accent", "Markers, buttons, borders, highlights", cp.rose || baseP.rose, v => setCP("rose", v))}
                 {cPick("Secondary Accent", "Cards, backgrounds, subtle accents", cp.sky || baseP.sky, v => setCP("sky", v))}
@@ -4993,6 +5089,18 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               {config.ambientMusicUrl && <button onClick={() => { const au = ambientRef.current; if (!au) return; if (ambientPlaying) { au.pause(); } else { au.play().catch(() => {}); } }} style={{ padding: "8px 10px", background: `${P.rose}15`, border: `1px solid ${P.rose}25`, borderRadius: 10, color: P.rose, fontSize: 11, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>{ambientPlaying ? "⏸ Stop" : "▶ Test"}</button>}
             </div>
             {config.ambientMusicUrl && !/^https?:\/\/.+\..+/.test(config.ambientMusicUrl) && <div style={{ fontSize: 8, color: "#d4846a", marginTop: 4 }}>Enter a valid URL starting with https://</div>}
+
+            <div style={{ margin: "14px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
+            <div style={{ fontSize: 8, color: P.textMid, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 4, fontWeight: 500 }}>✍️ Display</div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0" }}>
+              <div>
+                <div style={{ fontSize: 10, color: P.text }}>Handwritten Notes</div>
+                <div style={{ fontSize: 8, color: P.textFaint }}>Show notes in cursive on lined paper</div>
+              </div>
+              <button onClick={() => { const next = !handwrittenMode; setHandwrittenMode(next); localStorage.setItem("cosmos_handwritten", next ? "1" : "0"); }} style={{ width: 40, height: 22, borderRadius: 11, border: "none", cursor: "pointer", background: handwrittenMode ? P.rose : P.textFaint + "40", position: "relative", transition: "background .2s" }}>
+                <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#fff", position: "absolute", top: 2, left: handwrittenMode ? 20 : 2, transition: "left .2s", boxShadow: "0 1px 3px rgba(0,0,0,.2)" }} />
+              </button>
+            </div>
 
             <div style={{ margin: "14px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
             <div style={{ fontSize: 8, color: P.textMid, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 6, fontWeight: 500 }}>Timeline Chapters</div>
@@ -5496,6 +5604,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         setEditing(entry);
         showToast(`Template "${tpl.name || "entry"}" applied — fill in the details`, "📋", 3000);
       }} onClose={() => setShowTemplates(false)} />}
+
+      {/* TRIP JOURNAL */}
+      {showTripJournal && <Suspense fallback={null}><TripJournal entries={data.entries} palette={P} types={TYPES} fieldLabels={FIELD_LABELS} onClose={() => setShowTripJournal(false)} onSelectEntry={e => { setShowTripJournal(false); setSelected(e); setPhotoIdx(0); setCardTab("overview"); }} flyTo={flyTo} /></Suspense>}
 
       {/* RECENTLY DELETED TRASH */}
       {showTrash && (
