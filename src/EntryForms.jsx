@@ -40,6 +40,22 @@ export function useFocusTrap(active = true) {
 const P = (typeof window !== "undefined" && window.__cosmosP) || {};
 const getP = () => (typeof window !== "undefined" && window.__cosmosP) || P;
 
+// ---- MEMORY PROMPTS ----
+const MEMORY_PROMPTS = {
+  together: ["What made you both laugh?", "A moment you want to relive?", "Something that surprised you?", "What did you talk about?", "A little detail you never want to forget?"],
+  special: ["Why was this moment special?", "How did it make you feel?", "What would you tell your future selves?"],
+  adventure: ["What took your breath away?", "The best unexpected moment?", "What would you do differently?"],
+  beach: ["The sound you remember most?", "Best moment in the water?", "What did the sunset look like?"],
+  city: ["Your favorite street or corner?", "Best thing you stumbled upon?", "What did it smell like?"],
+  "road-trip": ["Best song on the drive?", "Funniest roadside stop?", "The view you'll never forget?"],
+  default: ["What's the first thing that comes to mind?", "A tiny detail you want to remember?", "What made this special?", "Something funny that happened?", "What would you tell someone about this place?"]
+};
+function useMemoryPrompt(type) {
+  const prompts = MEMORY_PROMPTS[type] || MEMORY_PROMPTS.default;
+  const [idx] = useState(() => Math.floor(Math.random() * prompts.length));
+  return prompts[idx % prompts.length];
+}
+
 // ---- OVERLAY ERROR BOUNDARY ----
 
 export class OverlayBoundary extends Component {
@@ -367,7 +383,7 @@ export function DreamAddForm({ onAdd, isMyWorld }) {
 export function AddForm({ types, defaultType = "together", defaultWho = "both", fieldLabels, isMyWorld, worldName, onAdd, onClose, draftKey }) {
   const P = getP();
   const trapRef = useFocusTrap(true);
-  const initialForm = { city: "", country: "", lat: "", lng: "", dateStart: "", dateEnd: "", type: defaultType, who: defaultWho, zoomLevel: 1, notes: "", museums: "", restaurants: "", highlights: "", musicUrl: "", stops: [] };
+  const initialForm = { city: "", country: "", lat: "", lng: "", dateStart: "", dateEnd: "", type: defaultType, who: defaultWho, zoomLevel: 1, notes: "", museums: "", restaurants: "", highlights: "", memories: "", musicUrl: "", stops: [] };
   const [f, sf, draftRestored, clearDraft, dismissRestored] = useDraft(draftKey, initialForm);
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -376,6 +392,7 @@ export function AddForm({ types, defaultType = "together", defaultWho = "both", 
   const [showStopSugg, setShowStopSugg] = useState(false);
   const dateEndRef = useRef(null);
   const notesRef = useRef(null);
+  const memoryPrompt = useMemoryPrompt(f.type);
 
   const lat = parseFloat(f.lat), lng = parseFloat(f.lng);
   const validCoords = !isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
@@ -456,6 +473,7 @@ export function AddForm({ types, defaultType = "together", defaultWho = "both", 
 
       <div style={{ marginBottom: 8 }}><Lbl>Notes</Lbl><textarea ref={notesRef} value={f.notes} onChange={e => sf(p => ({ ...p, notes: e.target.value }))} rows={2} placeholder="What made this place special?" style={{ ...inpSt(), resize: "vertical" }} /></div>
       <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.highlights?.label || "Highlights"} (one per line)</Lbl><textarea value={f.highlights} onChange={e => sf(p => ({ ...p, highlights: e.target.value }))} rows={2} placeholder={isMyWorld ? "Hiked the summit trail\nSunrise over the valley" : "The sunset was perfect\nDancing until midnight"} style={{ ...inpSt(), resize: "vertical" }} /></div>
+      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.memories?.label || "Memories"} (one per line)</Lbl><textarea value={f.memories || ""} onChange={e => sf(p => ({ ...p, memories: e.target.value }))} rows={2} placeholder={memoryPrompt} style={{ ...inpSt(), resize: "vertical" }} /></div>
       <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.museums?.label || "Museums & Culture"}</Lbl><textarea value={f.museums} onChange={e => sf(p => ({ ...p, museums: e.target.value }))} rows={1} style={{ ...inpSt(), resize: "vertical" }} /></div>
       <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.restaurants?.label || "Restaurants & Food"}</Lbl><textarea value={f.restaurants} onChange={e => sf(p => ({ ...p, restaurants: e.target.value }))} rows={1} style={{ ...inpSt(), resize: "vertical" }} /></div>
       <div style={{ marginBottom: 8 }}><Lbl>Music URL</Lbl><input value={f.musicUrl} onChange={e => sf(p => ({ ...p, musicUrl: e.target.value }))} placeholder="Paste audio URL (optional)" style={inpSt()} /></div>
@@ -496,7 +514,7 @@ export function AddForm({ types, defaultType = "together", defaultWho = "both", 
       <button disabled={!ok} onClick={() => { setShowSuggestions(false); clearDraft(); onAdd({
         id: `e-${Date.now()}`, city: f.city, country: f.country, lat: parseFloat(f.lat), lng: parseFloat(f.lng),
         dateStart: f.dateStart, dateEnd: f.dateEnd || null, type: f.type, who: f.who, zoomLevel: f.zoomLevel,
-        notes: f.notes, memories: [], museums: f.museums.split("\n").filter(Boolean),
+        notes: f.notes, memories: (f.memories || "").split("\n").filter(Boolean), museums: f.museums.split("\n").filter(Boolean),
         restaurants: f.restaurants.split("\n").filter(Boolean), highlights: f.highlights.split("\n").filter(Boolean),
         photos: [], stops: f.stops, musicUrl: f.musicUrl || null,
       }); }} style={{ width: "100%", padding: "12px 0", background: ok ? `linear-gradient(135deg, ${P.rose}, ${P.sky})` : `${P.textFaint}60`, color: "#fff", border: "none", borderRadius: 14, cursor: ok ? "pointer" : "default", fontSize: 12, letterSpacing: ".1em", fontFamily: "inherit", transition: "all .3s", boxShadow: ok ? `0 2px 8px ${P.rose}30, 0 4px 16px ${P.rose}15` : "none" }}>
@@ -514,6 +532,7 @@ export function AddForm({ types, defaultType = "together", defaultWho = "both", 
 export function EditForm({ entry, types, fieldLabels, onChange, onSave, onClose, onDelete, onAddStop, onSaveTemplate }) {
   const P = getP();
   const trapRef = useFocusTrap(true);
+  const memoryPrompt = useMemoryPrompt(entry.type);
   const [ns, setNs] = useState({ city: "", lat: "", lng: "", notes: "", dateStart: "", dateEnd: "" });
   const [stopSugg, setStopSugg] = useState([]);
   const [showStopSugg, setShowStopSugg] = useState(false);
@@ -566,6 +585,7 @@ export function EditForm({ entry, types, fieldLabels, onChange, onSave, onClose,
       <div style={{ marginBottom: 8 }}><Lbl>Type</Lbl><select value={entry.type} onChange={e => { const t = e.target.value; onChange(p => ({ ...p, type: t, who: types[t]?.who || "both" })); }} style={inpSt()}>{Object.entries(types).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}</select></div>
       <div style={{ marginBottom: 8 }}><Lbl>Notes</Lbl><textarea ref={editNotesRef} value={entry.notes || ""} onChange={e => onChange(p => ({ ...p, notes: e.target.value }))} rows={2} style={{ ...inpSt(), resize: "vertical" }} /></div>
       <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.highlights?.label || "Highlights"}</Lbl><textarea value={(entry.highlights || []).join("\n")} onChange={e => onChange(p => ({ ...p, highlights: e.target.value.split("\n").filter(Boolean) }))} rows={2} style={{ ...inpSt(), resize: "vertical" }} /></div>
+      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.memories?.label || "Memories"}</Lbl><textarea value={(entry.memories || []).join("\n")} onChange={e => onChange(p => ({ ...p, memories: e.target.value.split("\n").filter(Boolean) }))} rows={2} placeholder={memoryPrompt} style={{ ...inpSt(), resize: "vertical" }} /></div>
       <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.museums?.label || "Museums"}</Lbl><textarea value={(entry.museums || []).join("\n")} onChange={e => onChange(p => ({ ...p, museums: e.target.value.split("\n").filter(Boolean) }))} rows={1} style={{ ...inpSt(), resize: "vertical" }} /></div>
       <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.restaurants?.label || "Restaurants"}</Lbl><textarea value={(entry.restaurants || []).join("\n")} onChange={e => onChange(p => ({ ...p, restaurants: e.target.value.split("\n").filter(Boolean) }))} rows={1} style={{ ...inpSt(), resize: "vertical" }} /></div>
       <div style={{ marginBottom: 8 }}><Lbl>Music URL</Lbl><input value={entry.musicUrl || ""} onChange={e => onChange(p => ({ ...p, musicUrl: e.target.value || null }))} placeholder="paste audio URL" style={inpSt()} /></div>

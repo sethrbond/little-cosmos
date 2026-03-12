@@ -1507,6 +1507,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   });
   const [showTrash, setShowTrash] = useState(false);
   const [confirmModal, setConfirmModal] = useState(null); // { message, onConfirm }
+  const [dismissOnThisDay, setDismissOnThisDay] = useState(false);
   const starsRef = useRef(null);
   const auroraRef = useRef(null);
   const loveThreadRef = useRef([]);
@@ -3570,6 +3571,34 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   }, [config.title, isMyWorld, isPartnerWorld, worldType, showToast]);
 
   const cur = selected ? data.entries.find(e => e.id === selected.id) : null;
+  const allStickersMap = useMemo(() => {
+    const map = {};
+    const sorted = [...data.entries].sort((a, b) => (a.dateStart || "").localeCompare(b.dateStart || ""));
+    const firstByCountry = {};
+    for (const e of sorted) {
+      if (e.country && !firstByCountry[e.country]) firstByCountry[e.country] = e.id;
+    }
+    const firstId = sorted.length > 0 ? sorted[0].id : null;
+    for (const entry of data.entries) {
+      const stickers = [];
+      if (entry.id === firstId) stickers.push({ emoji: "⭐", label: "First Entry" });
+      if (entry.country && firstByCountry[entry.country] === entry.id) stickers.push({ emoji: "🏳️", label: "New Country" });
+      if (entry.favorite) stickers.push({ emoji: "💛", label: "Favorite" });
+      if ((entry.photos || []).length >= 5) stickers.push({ emoji: "📸", label: "Photo Album" });
+      if (entry.dateStart && entry.dateEnd) {
+        const days = Math.round((new Date(entry.dateEnd) - new Date(entry.dateStart)) / 86400000) + 1;
+        if (days >= 14) stickers.push({ emoji: "🗺️", label: "Epic Journey" });
+        else if (days >= 7) stickers.push({ emoji: "🧳", label: "Long Trip" });
+      }
+      if (worldType === "partner" && entry.type === "special") stickers.push({ emoji: "💝", label: "Special Moment" });
+      if ((entry.stops || []).length >= 3) stickers.push({ emoji: "🛤️", label: "Road Trip" });
+      if (entry.musicUrl) stickers.push({ emoji: "🎵", label: "Has Soundtrack" });
+      if ((entry.notes || "").length >= 100) stickers.push({ emoji: "📝", label: "Journal Entry" });
+      if (stickers.length > 0) map[entry.id] = stickers;
+    }
+    return map;
+  }, [data.entries, worldType]);
+  const entryStickers = cur ? (allStickersMap[cur.id] || []) : [];
   const totalDays = Math.max(1, daysBetween(effectiveStartDate, todayStr()));
   const sliderVal = daysBetween(effectiveStartDate, sliderDate);
 
@@ -3711,6 +3740,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 10, fontWeight: 400, color: P.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.city}{(e.stops || []).length > 0 ? ` + ${e.stops.length} stop${e.stops.length > 1 ? "s" : ""}` : ""}</div>
                     <div style={{ fontSize: 8, color: P.textFaint }}>{fmtDate(e.dateStart)}{e.dateEnd && e.dateEnd !== e.dateStart ? ` → ${fmtDate(e.dateEnd)}` : ""}{(e.stops || []).length > 0 ? ` · ${[...new Set(e.stops.map(s => s.country).filter(Boolean))].join(", ")}` : ""}</div>
+                    {allStickersMap[e.id] && <div style={{ display: "flex", gap: 2, marginTop: 1 }}>{allStickersMap[e.id].map((s, i) => <span key={i} style={{ fontSize: 8 }} title={s.label}>{s.emoji}</span>)}</div>}
                   </div>
                   {(e.photos || []).length > 1 && <span style={{ fontSize: 7, color: P.textFaint }}>📸{(e.photos || []).length}</span>}
                   {isSharedWorld && e.addedBy && memberNameMap[e.addedBy] && (
@@ -4220,6 +4250,21 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 return <span style={{ fontSize: 8, padding: "1px 6px", background: `${P.rose}10`, borderRadius: 8, color: P.textFaint, letterSpacing: ".04em" }}>{days} day{days !== 1 ? "s" : ""}</span>;
               })()}
             </div>
+            {entryStickers.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }}>
+                {entryStickers.map((s, i) => (
+                  <span key={i} style={{
+                    display: "inline-flex", alignItems: "center", gap: 3,
+                    padding: "2px 8px", borderRadius: 10,
+                    background: P.rose + "12", border: `1px solid ${P.rose}20`,
+                    fontSize: 9, color: P.textMuted, letterSpacing: ".04em",
+                    whiteSpace: "nowrap"
+                  }}>
+                    <span style={{ fontSize: 10 }}>{s.emoji}</span> {s.label}
+                  </span>
+                ))}
+              </div>
+            )}
             {isSharedWorld && cur.addedBy && memberNameMap[cur.addedBy] && (
               <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5 }}>
                 <div style={{ width: 18, height: 18, borderRadius: "50%", background: `linear-gradient(135deg, ${P.rose}40, ${P.sky}40)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 600, color: P.text, flexShrink: 0 }}>
@@ -5187,26 +5232,50 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           ))}
       </div>
 
-      {/* ON THIS DAY (clickable if entries exist) */}
-      {onThisDay.length > 0 && introComplete && !showStats && !showRecap && toasts.length === 0 && (
-        <button onClick={() => {
-          const mem = onThisDay[0];
-          const entry = data.entries.find(e => e.id === mem.id);
-          if (entry) {
-            setSelected(entry); setPhotoIdx(0); setCardTab("overview");
-            setSliderDate(entry.dateStart);
-            flyTo(entry.lat, entry.lng, 2.5);
-          }
-        }} style={{ position: "absolute", top: 75, left: "50%", transform: "translateX(-50%)", zIndex: 12, background: P.card, backdropFilter: "blur(12px)", border: `1px solid ${P.gold}25`, borderRadius: 20, padding: "5px 14px", cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6, boxShadow: "0 2px 12px rgba(0,0,0,.06)", opacity: 0.7, transition: "opacity .3s" }}
-          onMouseEnter={e => e.currentTarget.style.opacity = 1}
-          onMouseLeave={e => e.currentTarget.style.opacity = 0.7}
-        >
-          <span style={{ fontSize: 12 }}>💫</span>
-          <span style={{ fontSize: 9, color: P.textMid, letterSpacing: ".06em" }}>
-            {onThisDay[0].yearsAgo === 1 ? "1 year ago" : `${onThisDay[0].yearsAgo} years ago`}: {onThisDay[0].city}
-          </span>
-        </button>
-      )}
+      {/* ON THIS DAY — scrapbook card */}
+      {onThisDay.length > 0 && introComplete && !showStats && !showRecap && toasts.length === 0 && !selected && !editing && !showAdd && !dismissOnThisDay && (() => {
+        const mem = onThisDay[0];
+        const typeInfo = TYPES[mem.type] || DEFAULT_TYPE;
+        const yearsLabel = mem.yearsAgo === 1 ? "1 year ago" : `${mem.yearsAgo} years ago`;
+        const hasPhoto = mem.photos && mem.photos.length > 0;
+        return (
+          <div style={{ position: "absolute", bottom: 140, left: 20, zIndex: 12, maxWidth: 280, background: P.card + "ee", backdropFilter: "blur(16px)", border: `1px solid ${P.gold}25`, borderRadius: 16, padding: "14px 16px", boxShadow: "0 4px 24px rgba(0,0,0,.10)", animation: "onThisDaySlideUp .5s ease both", fontFamily: "inherit" }}>
+            {/* Dismiss button */}
+            <button onClick={() => setDismissOnThisDay(true)} style={{ position: "absolute", top: 8, right: 10, background: "none", border: "none", color: P.textFaint, cursor: "pointer", fontSize: 14, padding: "2px 4px", lineHeight: 1, fontFamily: "inherit" }} aria-label="Dismiss">×</button>
+            {/* Header */}
+            <div style={{ fontSize: 10, fontVariant: "all-small-caps", letterSpacing: ".12em", color: P.gold, marginBottom: 8 }}>💫 On This Day</div>
+            {/* Entry row */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              {hasPhoto && (
+                <img src={thumbnail(mem.photos[0], 96)} alt="" style={{ width: 48, height: 48, borderRadius: 10, objectFit: "cover", flexShrink: 0, border: `1px solid ${P.gold}20` }} />
+              )}
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 9, color: P.textMuted, letterSpacing: ".05em", marginBottom: 2 }}>{yearsLabel}</div>
+                <div style={{ fontSize: 13, color: P.text, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {typeInfo.icon} {mem.city}{mem.country ? `, ${mem.country}` : ""}
+                </div>
+              </div>
+            </div>
+            {/* More memories count */}
+            {onThisDay.length > 1 && (
+              <div style={{ fontSize: 9, color: P.textMuted, marginTop: 8, letterSpacing: ".04em" }}>+{onThisDay.length - 1} more {onThisDay.length - 1 === 1 ? "memory" : "memories"}</div>
+            )}
+            {/* Revisit button */}
+            <button onClick={() => {
+              const entry = data.entries.find(e => e.id === mem.id);
+              if (entry) {
+                setSelected(entry); setPhotoIdx(0); setCardTab("overview");
+                setSliderDate(entry.dateStart);
+                flyTo(entry.lat, entry.lng, 2.5);
+              }
+              setDismissOnThisDay(true);
+            }} style={{ marginTop: 10, width: "100%", padding: "6px 0", background: P.rose, color: "#fff", border: "none", borderRadius: 10, fontSize: 10, fontWeight: 600, letterSpacing: ".06em", cursor: "pointer", fontFamily: "inherit", transition: "opacity .2s" }}
+              onMouseEnter={e => e.currentTarget.style.opacity = "0.85"}
+              onMouseLeave={e => e.currentTarget.style.opacity = "1"}
+            >Revisit</button>
+          </div>
+        );
+      })()}
 
       {/* ONBOARDING OVERLAY */}
       {showOnboarding && introComplete && <OnboardingOverlay worldName={worldName} worldType={worldType} isSharedWorld={isSharedWorld} isPartnerWorld={isPartnerWorld} isMyWorld={isMyWorld} onboardStep={onboardStep} setOnboardStep={setOnboardStep} onClose={() => setShowOnboarding(false)} onboardKey={onboardKey} startDate={config.startDate} onStartDateChange={(d) => { setConfig(prev => ({ ...prev, startDate: d })); db.saveConfig({ ...config, startDate: d }); }} />}
@@ -5275,6 +5344,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         const prevPh = pjIndex > 0 ? allPhotos[pjIndex - 1] : null;
         const entry = sorted.find(e => e.id === ph.id);
         const note = entry?.notes || '';
+        const caption = entry?.photoCaptions?.[ph.url] || '';
         return (
           <div role="dialog" aria-modal="true" aria-label="Photo journey" style={{ position: "fixed", inset: 0, zIndex: 200, background: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}
             onClick={() => { if (pjAutoPlay) { setPjAutoPlay(false); } else if (pjIndex < allPhotos.length - 1) setPjIndex(i => i + 1); else { setShowPhotoJourney(false); setPjAutoPlay(false); } }}>
@@ -5285,7 +5355,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(transparent, rgba(0,0,0,0.7) 40%, rgba(0,0,0,0.85))", padding: "60px 24px 28px", pointerEvents: "none" }}>
               <div style={{ fontSize: 18, color: "#e8e0d0", fontFamily: "'Palatino Linotype',serif", letterSpacing: ".08em", textShadow: "0 2px 12px rgba(0,0,0,0.8)", textAlign: "center" }}>{ph.city}</div>
               <div style={{ fontSize: 11, color: "#a098a8", marginTop: 4, textShadow: "0 1px 8px rgba(0,0,0,0.8)", textAlign: "center" }}>{ph.date}{ph.country ? ` · ${ph.country}` : ''}</div>
-              {note && <div style={{ fontSize: 11, color: "#c8c0b0", marginTop: 10, textAlign: "center", maxWidth: 400, margin: "10px auto 0", lineHeight: 1.6, fontStyle: "italic", opacity: 0.85 }}>"{note}"</div>}
+              {caption && <div style={{ fontSize: 14, color: "#e8dcc8", marginTop: 10, textAlign: "center", maxWidth: 420, margin: "10px auto 0", lineHeight: 1.5, fontStyle: "italic", fontFamily: "'Palatino Linotype',serif", letterSpacing: ".04em", opacity: 0.95 }}>{caption}</div>}
+              {note && <div style={{ fontSize: 11, color: "#c8c0b0", marginTop: caption ? 6 : 10, textAlign: "center", maxWidth: 400, margin: `${caption ? 6 : 10}px auto 0`, lineHeight: 1.6, fontStyle: "italic", opacity: 0.85 }}>"{note}"</div>}
             </div>
             {/* Progress bar */}
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: "rgba(255,255,255,0.1)" }}>
@@ -5487,6 +5558,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       )}
 
       <style>{`
+        @keyframes onThisDaySlideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
         @keyframes cardIn{from{opacity:0;transform:translateY(-50%) translateX(18px)}to{opacity:1;transform:translateY(-50%) translateX(0)}}
         @keyframes fadeIn{from{opacity:0}to{opacity:1}}
         @keyframes heartPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
