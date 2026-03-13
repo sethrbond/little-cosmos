@@ -4030,7 +4030,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       </>)}
 
       {/* SLIDER */}
-      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: P.glass, backdropFilter: "blur(16px)", borderTop: `1px solid ${P.rose}10`, zIndex: 15, display: "flex", flexDirection: "column", justifyContent: "center", padding: "12px 22px", paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}>
+      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: P.glass, backdropFilter: "blur(16px)", borderTop: `1px solid ${P.rose}10`, zIndex: 15, display: "flex", flexDirection: "column", justifyContent: "center", padding: "12px 22px", paddingBottom: "max(20px, env(safe-area-inset-bottom, 20px))" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 6 }}>
           <button onClick={() => jumpNext(-1)} disabled={isAnimating} style={navSt()} title={isPartnerWorld ? "Previous together" : "Previous entry"}>{isPartnerWorld ? "💕◂" : "⏮"}</button>
           <button onClick={() => stepDay(-1)} disabled={isAnimating} style={navSt()}>◂</button>

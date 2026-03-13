@@ -1079,8 +1079,8 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       )}
 
       {/* Bottom controls — glassmorphic bar */}
-      <div style={{ position: "absolute", bottom: "4%", left: "50%", transform: "translateX(-50%)", opacity: ready ? 1 : 0, transition: "opacity 1.5s" }}>
-        <div style={{ display: "flex", gap: 6, alignItems: "center", padding: "8px 16px", background: "rgba(20,16,30,0.5)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 24, boxShadow: "0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04)" }}>
+      <div style={{ position: "absolute", bottom: "max(4%, calc(env(safe-area-inset-bottom, 0px) + 8px))", left: "50%", transform: "translateX(-50%)", opacity: ready ? 1 : 0, transition: "opacity 1.5s", maxWidth: "95vw" }}>
+        <div style={{ display: "flex", gap: 6, alignItems: "center", padding: "8px 16px", background: "rgba(20,16,30,0.5)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 24, boxShadow: "0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04)", flexWrap: "wrap", justifyContent: "center" }}>
           <button onClick={(e) => { e.stopPropagation(); setShowAddMenu(true); }}
             style={{ background: "linear-gradient(135deg, rgba(200,170,110,0.18), rgba(200,170,110,0.06))", border: "1px solid rgba(200,170,110,0.2)", borderRadius: 16, padding: "7px 18px", color: "#c9a96e", fontSize: 10, fontFamily: F, letterSpacing: "1px", cursor: "pointer", transition: "all .3s" }}
             onMouseEnter={e => { e.target.style.borderColor = "rgba(200,170,110,0.45)"; e.target.style.background = "linear-gradient(135deg, rgba(200,170,110,0.25), rgba(200,170,110,0.10))"; }}
@@ -1104,7 +1104,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       </div>
 
       {/* Top right controls — glassmorphic */}
-      <div style={{ position: "absolute", top: 16, right: 16, display: "flex", gap: 8, opacity: ready ? 1 : 0, transition: "all .5s", zIndex: 10 }}>
+      <div style={{ position: "absolute", top: 16, right: 16, display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end", opacity: ready ? 1 : 0, transition: "all .5s", zIndex: 10, maxWidth: "calc(100vw - 32px)" }}>
         <button aria-expanded={showSearch} onClick={(e) => { e.stopPropagation(); setShowSearch(!showSearch); setShowActivity(false); if (!showSearch) setTimeout(() => document.getElementById("cosmos-search-input")?.focus(), 100); }}
           style={{ background: showSearch ? "rgba(160,192,232,0.12)" : "rgba(255,255,255,0.03)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", border: `1px solid ${showSearch ? "rgba(160,192,232,0.25)" : "rgba(255,255,255,0.06)"}`, borderRadius: 12, padding: "5px 14px", color: showSearch ? "#a0c0e8" : "#706878", fontSize: 9, fontFamily: F, letterSpacing: "0.8px", cursor: "pointer", transition: "all .3s", textTransform: "uppercase" }}
           onMouseEnter={e => { if (!showSearch) { e.target.style.color = "#b0a8b8"; e.target.style.borderColor = "rgba(255,255,255,0.15)"; }}}
@@ -1706,25 +1706,12 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
 
       {/* Empty cosmos guidance — show when user has 0 shared worlds */}
       {worlds.length === 0 && connections.length === 0 && ready && (
-        <div style={{ position: "absolute", bottom: "14%", left: "50%", transform: "translateX(-50%)", textAlign: "center", opacity: 0, animation: "fadeIn 1.5s 0.8s forwards", maxWidth: 380 }}>
-          <div style={{ fontSize: 28, marginBottom: 12, animation: "emptyPulse 3s ease-in-out infinite" }}>🌌</div>
+        <div style={{ position: "absolute", bottom: "max(14%, calc(env(safe-area-inset-bottom, 0px) + 90px))", left: "50%", transform: "translateX(-50%)", textAlign: "center", opacity: 0, animation: "fadeIn 1.5s 0.8s forwards", maxWidth: 380, padding: "0 20px", boxSizing: "border-box" }}>
           <div style={{ fontSize: 16, color: "#d0c8d8", fontFamily: F, letterSpacing: "0.5px", lineHeight: 1.6, marginBottom: 8, fontWeight: 300 }}>
             Your cosmos is just beginning
           </div>
-          <div style={{ fontSize: 12, color: "#807888", fontFamily: F, letterSpacing: "0.3px", lineHeight: 1.7, marginBottom: 22 }}>
+          <div style={{ fontSize: 12, color: "#807888", fontFamily: F, letterSpacing: "0.3px", lineHeight: 1.7 }}>
             Click <strong style={{ color: "#c9a96e" }}>My World</strong> to add your first adventure, or create a shared world to start mapping memories with someone special.
-          </div>
-          <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-            <button onClick={() => setShowAddMenu(true)} style={{ padding: "10px 22px", background: "rgba(200,170,110,0.12)", border: "1px solid rgba(200,170,110,0.25)", borderRadius: 20, color: "#c9a96e", fontSize: 11, fontFamily: F, cursor: "pointer", letterSpacing: "0.5px", transition: "all .3s" }}
-              onMouseEnter={e => { e.target.style.background = "rgba(200,170,110,0.2)"; e.target.style.borderColor = "rgba(200,170,110,0.4)"; }}
-              onMouseLeave={e => { e.target.style.background = "rgba(200,170,110,0.12)"; e.target.style.borderColor = "rgba(200,170,110,0.25)"; }}>
-              + Create a Shared World
-            </button>
-            <button onClick={() => setShowAddFriend(true)} style={{ padding: "10px 22px", background: "rgba(160,192,232,0.08)", border: "1px solid rgba(160,192,232,0.15)", borderRadius: 20, color: "#8898b0", fontSize: 11, fontFamily: F, cursor: "pointer", letterSpacing: "0.5px", transition: "all .3s" }}
-              onMouseEnter={e => { e.target.style.background = "rgba(160,192,232,0.15)"; e.target.style.borderColor = "rgba(160,192,232,0.3)"; }}
-              onMouseLeave={e => { e.target.style.background = "rgba(160,192,232,0.08)"; e.target.style.borderColor = "rgba(160,192,232,0.15)"; }}>
-              Add a Friend
-            </button>
           </div>
         </div>
       )}

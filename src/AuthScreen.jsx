@@ -73,9 +73,14 @@ export default function AuthScreen({ initialMode = 'login', onBack }) {
   const handleLogin = async (e) => {
     e.preventDefault()
     setError(''); setLoading(true)
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
-    setLoading(false)
-    if (authError) setError(authError.message === 'Invalid login credentials' ? 'Email or password not recognized. Try again or reset your password.' : authError.message)
+    try {
+      const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
+      setLoading(false)
+      if (authError) setError(authError.message === 'Invalid login credentials' ? 'Email or password not recognized. Try again or reset your password.' : authError.message)
+    } catch {
+      setLoading(false)
+      setError('Unable to reach the server. Check your connection and try again.')
+    }
   }
 
   const handleSignup = async (e) => {
@@ -85,27 +90,37 @@ export default function AuthScreen({ initialMode = 'login', onBack }) {
     if (password !== confirmPassword) { setError('Passwords do not match'); return }
     if (password.length < 6) { setError('Password must be at least 6 characters'); return }
     setLoading(true)
-    const { error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { display_name: displayName.trim() },
-        emailRedirectTo: SITE_URL,
-      },
-    })
-    setLoading(false)
-    if (authError) { setError(authError.message); return }
-    setMode('verify')
-    setMessage(`We sent a verification link to ${email}. Click it to activate your account, then come back to sign in.`)
+    try {
+      const { error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { display_name: displayName.trim() },
+          emailRedirectTo: SITE_URL,
+        },
+      })
+      setLoading(false)
+      if (authError) { setError(authError.message); return }
+      setMode('verify')
+      setMessage(`We sent a verification link to ${email}. Click it to activate your account, then come back to sign in.`)
+    } catch (err) {
+      setLoading(false)
+      setError('Unable to reach the server. Check your connection and try again.')
+    }
   }
 
   const handleForgot = async (e) => {
     e.preventDefault()
     setError(''); setLoading(true)
-    const { error: authError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: SITE_URL })
-    setLoading(false)
-    if (authError) { setError(authError.message); return }
-    setMessage('Check your email for a password reset link.')
+    try {
+      const { error: authError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: SITE_URL })
+      setLoading(false)
+      if (authError) { setError(authError.message); return }
+      setMessage('Check your email for a password reset link.')
+    } catch {
+      setLoading(false)
+      setError('Unable to reach the server. Check your connection and try again.')
+    }
   }
 
   const switchMode = (m) => { clearState(); setMode(m) }
