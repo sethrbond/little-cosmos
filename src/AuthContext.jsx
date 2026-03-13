@@ -37,7 +37,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   const user = session?.user ?? null
-  const emailVerified = true // TODO: restore !!user?.email_confirmed_at once custom SMTP is configured
+  const emailVerified = !!user?.email_confirmed_at
 
   const value = {
     session,

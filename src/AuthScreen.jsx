@@ -85,42 +85,18 @@ export default function AuthScreen({ initialMode = 'login', onBack }) {
     if (password !== confirmPassword) { setError('Passwords do not match'); return }
     if (password.length < 6) { setError('Password must be at least 6 characters'); return }
     setLoading(true)
-    const { data, error: authError } = await supabase.auth.signUp({
+    const { error: authError } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: { display_name: displayName.trim() },
+        emailRedirectTo: SITE_URL,
       },
     })
     setLoading(false)
-    // If the error is about sending email but the user was created, treat as success
-    if (authError) {
-      const msg = (authError.message || '').toLowerCase()
-      if (msg.includes('email') && msg.includes('send')) {
-        // User was likely created but confirmation email failed — try logging them in directly
-        const { error: loginError } = await supabase.auth.signInWithPassword({ email, password })
-        if (!loginError) {
-          setMessage('Account created! Signing you in...')
-          setTimeout(() => window.location.reload(), 1500)
-          return
-        }
-      }
-      setError(authError.message)
-      return
-    }
-    // If we got a session back, user is auto-logged-in (email confirm off)
-    if (data?.session) {
-      setTimeout(() => window.location.reload(), 500)
-      return
-    }
-    // Fallback: try logging in directly
-    const { error: loginError } = await supabase.auth.signInWithPassword({ email, password })
-    if (!loginError) {
-      setTimeout(() => window.location.reload(), 500)
-      return
-    }
-    setMessage('Account created! Signing you in...')
-    setTimeout(() => window.location.reload(), 1500)
+    if (authError) { setError(authError.message); return }
+    setMode('verify')
+    setMessage(`We sent a verification link to ${email}. Click it to activate your account, then come back to sign in.`)
   }
 
   const handleForgot = async (e) => {
