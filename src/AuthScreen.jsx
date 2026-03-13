@@ -85,7 +85,7 @@ export default function AuthScreen({ initialMode = 'login', onBack }) {
     if (password !== confirmPassword) { setError('Passwords do not match'); return }
     if (password.length < 6) { setError('Password must be at least 6 characters'); return }
     setLoading(true)
-    const { error: authError } = await supabase.auth.signUp({
+    const { data, error: authError } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -93,9 +93,32 @@ export default function AuthScreen({ initialMode = 'login', onBack }) {
       },
     })
     setLoading(false)
-    if (authError) { setError(authError.message); return }
-    // Auto-login: Supabase signs them in on signup when email confirmation is disabled
-    // If for some reason they're not auto-logged in, show a simple message
+    // If the error is about sending email but the user was created, treat as success
+    if (authError) {
+      const msg = (authError.message || '').toLowerCase()
+      if (msg.includes('email') && msg.includes('send')) {
+        // User was likely created but confirmation email failed — try logging them in directly
+        const { error: loginError } = await supabase.auth.signInWithPassword({ email, password })
+        if (!loginError) {
+          setMessage('Account created! Signing you in...')
+          setTimeout(() => window.location.reload(), 1500)
+          return
+        }
+      }
+      setError(authError.message)
+      return
+    }
+    // If we got a session back, user is auto-logged-in (email confirm off)
+    if (data?.session) {
+      setTimeout(() => window.location.reload(), 500)
+      return
+    }
+    // Fallback: try logging in directly
+    const { error: loginError } = await supabase.auth.signInWithPassword({ email, password })
+    if (!loginError) {
+      setTimeout(() => window.location.reload(), 500)
+      return
+    }
     setMessage('Account created! Signing you in...')
     setTimeout(() => window.location.reload(), 1500)
   }
