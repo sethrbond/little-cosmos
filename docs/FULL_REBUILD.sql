@@ -45,6 +45,22 @@ $$ LANGUAGE sql SECURITY DEFINER STABLE;
 
 
 -- ============================================================
+--  GRANTS — Required for authenticated users to access tables
+--  Without these, Supabase returns 403 even if RLS policies exist
+-- ============================================================
+
+GRANT USAGE ON SCHEMA public TO authenticated, anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO anon;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO authenticated, anon;
+GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO authenticated;
+
+-- Ensure future tables also get proper grants
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO anon;
+
+
+-- ============================================================
 --  2. ENTRIES TABLE (Our World / Shared Worlds)
 -- ============================================================
 
@@ -629,7 +645,7 @@ CREATE POLICY "photos_read" ON storage.objects
 CREATE POLICY "photos_upload" ON storage.objects
   FOR INSERT WITH CHECK (bucket_id = 'photos' AND auth.role() = 'authenticated');
 CREATE POLICY "photos_delete" ON storage.objects
-  FOR DELETE USING (bucket_id = 'photos' AND (auth.uid() = owner OR auth.role() = 'authenticated'));
+  FOR DELETE USING (bucket_id = 'photos' AND auth.uid() = owner);
 
 
 -- ============================================================
@@ -937,6 +953,48 @@ CREATE TRIGGER on_connection_send_email
   AFTER INSERT ON cosmos_connections
   FOR EACH ROW
   EXECUTE FUNCTION notify_connection_email();
+
+
+-- ============================================================
+--  ADDITIONAL INDEXES AND CONSTRAINTS (added from audit)
+-- ============================================================
+
+-- Composite indexes for common query patterns
+CREATE INDEX IF NOT EXISTS idx_entries_user_world ON entries(user_id, world_id);
+CREATE INDEX IF NOT EXISTS idx_world_members_user_role ON world_members(user_id, role);
+CREATE INDEX IF NOT EXISTS idx_entries_world_created ON entries(world_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_entry_comments_world_entry ON entry_comments(world_id, entry_id);
+CREATE INDEX IF NOT EXISTS idx_world_invites_world_created ON world_invites(world_id, created_by);
+CREATE INDEX IF NOT EXISTS idx_welcome_letters_from_user ON welcome_letters(from_user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_entry_reactions_compound ON entry_reactions(world_id, entry_id, user_id);
+CREATE INDEX IF NOT EXISTS idx_cosmos_connections_status ON cosmos_connections(status, requester_id, target_user_id);
+
+-- NOT NULL constraints on critical columns (backfill first)
+DO $$
+BEGIN
+  -- Only add constraints if no NULL values exist
+  IF NOT EXISTS (SELECT 1 FROM entries WHERE user_id IS NULL LIMIT 1) THEN
+    ALTER TABLE entries ALTER COLUMN user_id SET NOT NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM entries WHERE world_id IS NULL LIMIT 1) THEN
+    ALTER TABLE entries ALTER COLUMN world_id SET NOT NULL;
+  END IF;
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'NOT NULL constraints skipped: %', SQLERRM;
+END $$;
+
+-- CHECK constraints for data validation
+DO $$
+BEGIN
+  ALTER TABLE entries ADD CONSTRAINT chk_lat CHECK (lat >= -90 AND lat <= 90);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+  ALTER TABLE entries ADD CONSTRAINT chk_lng CHECK (lng >= -180 AND lng <= 180);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 
 -- ============================================================

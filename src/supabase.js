@@ -235,9 +235,11 @@ export function createSharedWorldDB(worldId, userId) {
 
     deleteEntry: async (id) => {
       await deleteEntryPhotos(id)
-      // Clean up orphaned comments/reactions before deleting entry
-      await supabase.from('entry_comments').delete().eq('entry_id', id).eq('world_id', worldId).catch(e => console.warn('[deleteEntry] comments cleanup:', e))
-      await supabase.from('entry_reactions').delete().eq('entry_id', id).eq('world_id', worldId).catch(e => console.warn('[deleteEntry] reactions cleanup:', e))
+      // Clean up orphaned comments/reactions before deleting entry — abort if cleanup fails
+      const { error: commErr } = await supabase.from('entry_comments').delete().eq('entry_id', id).eq('world_id', worldId)
+      if (commErr) { console.error('[deleteEntry] comments cleanup failed:', commErr); return false }
+      const { error: reactErr } = await supabase.from('entry_reactions').delete().eq('entry_id', id).eq('world_id', worldId)
+      if (reactErr) { console.error('[deleteEntry] reactions cleanup failed:', reactErr); return false }
       const { error } = await supabase.from('entries').delete().eq('id', id)
       if (error) console.error('[shared:deleteEntry] error:', error)
       return !error

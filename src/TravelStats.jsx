@@ -8,12 +8,13 @@ import { haversine, daysBetween } from "./utils.js";
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 // ---- ANIMATED COUNTER ----
-function AnimCounter({ target, duration = 1200, prefix = "", suffix = "" }) {
+function AnimCounter({ target, duration = 1200, prefix = "", suffix = "", reducedMotion = false }) {
   const [val, setVal] = useState(0);
   const ref = useRef();
   useEffect(() => {
     const num = typeof target === "number" ? target : parseInt(target) || 0;
     if (num === 0) { setVal(0); return; }
+    if (reducedMotion) { setVal(num); return; }
     const start = performance.now();
     const tick = (now) => {
       const t = Math.min((now - start) / duration, 1);
@@ -23,17 +24,18 @@ function AnimCounter({ target, duration = 1200, prefix = "", suffix = "" }) {
     };
     ref.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(ref.current);
-  }, [target, duration]);
+  }, [target, duration, reducedMotion]);
   return <>{prefix}{val.toLocaleString()}{suffix}</>;
 }
 
 // ---- ANIMATED BAR ----
-function AnimBar({ pct, color, delay = 0, label, value, subLabel }) {
+function AnimBar({ pct, color, delay = 0, label, value, subLabel, reducedMotion = false }) {
   const [width, setWidth] = useState(0);
   useEffect(() => {
+    if (reducedMotion) { setWidth(pct); return; }
     const t = setTimeout(() => setWidth(pct), 60 + delay);
     return () => clearTimeout(t);
-  }, [pct, delay]);
+  }, [pct, delay, reducedMotion]);
   return (
     <div style={{ marginBottom: 10 }}>
       {label && (
@@ -47,7 +49,7 @@ function AnimBar({ pct, color, delay = 0, label, value, subLabel }) {
           height: "100%", borderRadius: 11,
           width: `${width}%`,
           background: `linear-gradient(90deg, ${color}, ${color}cc)`,
-          transition: "width 0.8s cubic-bezier(0.22,1,0.36,1)",
+          transition: reducedMotion ? "none" : "width 0.8s cubic-bezier(0.22,1,0.36,1)",
           boxShadow: `0 0 12px ${color}44`,
         }} />
       </div>
@@ -78,7 +80,7 @@ function Section({ title, icon, children, palette }) {
 }
 
 // ---- STAT CARD ----
-function StatCard({ label, value, icon, palette, animTarget }) {
+function StatCard({ label, value, icon, palette, animTarget, reducedMotion = false }) {
   return (
     <div style={{
       flex: "1 1 120px", minWidth: 120, textAlign: "center",
@@ -88,7 +90,7 @@ function StatCard({ label, value, icon, palette, animTarget }) {
     }}>
       <div style={{ fontSize: 22, marginBottom: 6 }}>{icon}</div>
       <div style={{ fontSize: 26, fontWeight: 700, color: palette.rose || "#c48aa8", lineHeight: 1.1 }}>
-        {animTarget != null ? <AnimCounter target={animTarget} /> : value}
+        {animTarget != null ? <AnimCounter target={animTarget} reducedMotion={reducedMotion} /> : value}
       </div>
       <div style={{ fontSize: 12, color: "#9088a8", marginTop: 4, fontWeight: 500, letterSpacing: "0.03em" }}>
         {label}
@@ -102,6 +104,7 @@ function StatCard({ label, value, icon, palette, animTarget }) {
 // ============================================================
 
 export default function TravelStats({ entries = [], stats = {}, palette: P, onClose, worldMode, config }) {
+  const prefersReducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const [mounted, setMounted] = useState(false);
   const scrollRef = useRef(null);
   const [showScrollHint, setShowScrollHint] = useState(true);
@@ -358,7 +361,7 @@ export default function TravelStats({ entries = [], stats = {}, palette: P, onCl
       position: "fixed", inset: 0, zIndex: 10000,
       background: "linear-gradient(180deg, #0c0a14 0%, #161226 40%, #1a1030 100%)",
       opacity: mounted ? 1 : 0,
-      transition: "opacity 0.4s ease",
+      transition: prefersReducedMotion ? "none" : "opacity 0.4s ease",
       display: "flex", flexDirection: "column",
     }}>
       {/* HEADER */}
@@ -380,7 +383,7 @@ export default function TravelStats({ entries = [], stats = {}, palette: P, onCl
           background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)",
           color: "#c0b8d8", fontSize: 20, cursor: "pointer",
           display: "flex", alignItems: "center", justifyContent: "center",
-          transition: "background 0.2s",
+          transition: prefersReducedMotion ? "none" : "background 0.2s",
         }}
           onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.15)"}
           onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.08)"}
@@ -400,11 +403,11 @@ export default function TravelStats({ entries = [], stats = {}, palette: P, onCl
           {/* ---- OVERVIEW ---- */}
           <Section title="Overview" icon="🌎" palette={P}>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-              <StatCard label="Adventures" value={overview.trips} icon="🧭" palette={P} animTarget={overview.trips} />
-              <StatCard label="Countries" value={overview.countries} icon="🌍" palette={P} animTarget={overview.countries} />
-              <StatCard label="Cities" value={overview.cities} icon="🏙️" palette={P} animTarget={overview.cities} />
-              <StatCard label="Miles" value={overview.totalMiles.toLocaleString()} icon="✈️" palette={P} animTarget={overview.totalMiles} />
-              <StatCard label="Travel Days" value={overview.totalDays} icon="📅" palette={P} animTarget={overview.totalDays} />
+              <StatCard label="Adventures" value={overview.trips} icon="🧭" palette={P} animTarget={overview.trips} reducedMotion={prefersReducedMotion} />
+              <StatCard label="Countries" value={overview.countries} icon="🌍" palette={P} animTarget={overview.countries} reducedMotion={prefersReducedMotion} />
+              <StatCard label="Cities" value={overview.cities} icon="🏙️" palette={P} animTarget={overview.cities} reducedMotion={prefersReducedMotion} />
+              <StatCard label="Miles" value={overview.totalMiles.toLocaleString()} icon="✈️" palette={P} animTarget={overview.totalMiles} reducedMotion={prefersReducedMotion} />
+              <StatCard label="Travel Days" value={overview.totalDays} icon="📅" palette={P} animTarget={overview.totalDays} reducedMotion={prefersReducedMotion} />
             </div>
           </Section>
 
@@ -415,7 +418,7 @@ export default function TravelStats({ entries = [], stats = {}, palette: P, onCl
                 <span>Less</span>
                 <div style={{ display: "flex", gap: 3, alignItems: "center" }}>
                   {[0, 0.2, 0.4, 0.6, 0.8, 1].map((v, i) => (
-                    <div key={i} style={{
+                    <div key={"ts-" + i} style={{
                       width: 12, height: 12, borderRadius: 3,
                       background: v === 0 ? "rgba(255,255,255,0.06)" : `${accent.slice(0, 7)}${Math.round(v * 200 + 55).toString(16).padStart(2, "0")}`,
                     }} />
@@ -431,7 +434,7 @@ export default function TravelStats({ entries = [], stats = {}, palette: P, onCl
                       const days = heatmap.data[y]?.[mi] || 0;
                       const intensity = days / heatmap.maxDays;
                       return (
-                        <div key={mi} title={`${m} ${y}: ${days} day${days !== 1 ? "s" : ""}`} style={{
+                        <div key={m} title={`${m} ${y}: ${days} day${days !== 1 ? "s" : ""}`} style={{
                           aspectRatio: "1", borderRadius: 4,
                           background: days === 0
                             ? "rgba(255,255,255,0.04)"
@@ -439,7 +442,7 @@ export default function TravelStats({ entries = [], stats = {}, palette: P, onCl
                           display: "flex", alignItems: "center", justifyContent: "center",
                           fontSize: 9, color: days > 0 ? "#fff" : "#504868",
                           fontWeight: days > 0 ? 600 : 400,
-                          transition: "background 0.3s",
+                          transition: prefersReducedMotion ? "none" : "background 0.3s",
                           cursor: "default",
                         }}>
                           {m.slice(0, 1)}
@@ -463,6 +466,7 @@ export default function TravelStats({ entries = [], stats = {}, palette: P, onCl
                 pct={(count / durations.max) * 100}
                 color={barColors[i % barColors.length]}
                 delay={i * 80}
+                reducedMotion={prefersReducedMotion}
               />
             ))}
           </Section>
@@ -483,6 +487,7 @@ export default function TravelStats({ entries = [], stats = {}, palette: P, onCl
                     pct={(count / topDest.maxC) * 100}
                     color={accent}
                     delay={i * 60}
+                    reducedMotion={prefersReducedMotion}
                   />
                 ))}
               </>
@@ -501,6 +506,7 @@ export default function TravelStats({ entries = [], stats = {}, palette: P, onCl
                     pct={(count / topDest.maxCi) * 100}
                     color={accent2}
                     delay={i * 60}
+                    reducedMotion={prefersReducedMotion}
                   />
                 ))}
               </>
@@ -519,7 +525,7 @@ export default function TravelStats({ entries = [], stats = {}, palette: P, onCl
                   { label: "Travel Streak", value: patterns.streak ? `${patterns.streak} mo` : "0 mo", icon: "🔥" },
                   { label: "Total Travel Days", value: `${overview.totalDays}`, icon: "🗓️" },
                 ].map((item, i) => (
-                  <div key={i} style={{
+                  <div key={"slide-" + i} style={{
                     padding: "14px 12px", borderRadius: 12,
                     background: "rgba(255,255,255,0.04)",
                     border: "1px solid rgba(255,255,255,0.05)",
@@ -538,12 +544,12 @@ export default function TravelStats({ entries = [], stats = {}, palette: P, onCl
                   <div style={{ display: "flex", gap: 4, alignItems: "flex-end", height: 80 }}>
                     {(() => { const maxM = Math.max(1, ...patterns.monthCounts); return patterns.monthCounts.map((c, i) => {
                       return (
-                        <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                        <div key={"month-" + i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
                           <div style={{
                             width: "100%", borderRadius: "4px 4px 0 0",
                             height: `${(c / maxM) * 60 + 4}px`,
                             background: c > 0 ? `linear-gradient(180deg, ${accent}, ${accent}88)` : "rgba(255,255,255,0.05)",
-                            transition: "height 0.6s ease",
+                            transition: prefersReducedMotion ? "none" : "height 0.6s ease",
                           }} />
                           <div style={{ fontSize: 9, color: "#706888" }}>{MONTHS[i].slice(0, 1)}</div>
                         </div>
@@ -597,12 +603,12 @@ export default function TravelStats({ entries = [], stats = {}, palette: P, onCl
                     {/* Area fill */}
                     <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "100%", display: "flex", alignItems: "flex-end" }}>
                       {pts.map((p, i) => (
-                        <div key={i} style={{
+                        <div key={"trip-" + i} style={{
                           flex: 1,
                           height: `${(p.miles / maxMiles) * 90 + 5}%`,
                           background: `linear-gradient(180deg, ${accent}40 0%, ${accent}08 100%)`,
                           borderTop: `2px solid ${accent}90`,
-                          transition: "height 1s ease",
+                          transition: prefersReducedMotion ? "none" : "height 1s ease",
                         }} />
                       ))}
                     </div>
@@ -622,10 +628,10 @@ export default function TravelStats({ entries = [], stats = {}, palette: P, onCl
           {/* ---- FAVORITES & HIGHLIGHTS ---- */}
           <Section title="Favorites & Highlights" icon="⭐" palette={P}>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 16 }}>
-              <StatCard label="Favorited" value={favs.favorited.length} icon="❤️" palette={P} animTarget={favs.favorited.length} />
-              <StatCard label="Total Photos" value={(stats.photos || 0)} icon="📸" palette={P} animTarget={stats.photos || entries.reduce((s, e) => s + (e.photos || []).length, 0)} />
+              <StatCard label="Favorited" value={favs.favorited.length} icon="❤️" palette={P} animTarget={favs.favorited.length} reducedMotion={prefersReducedMotion} />
+              <StatCard label="Total Photos" value={(stats.photos || 0)} icon="📸" palette={P} animTarget={stats.photos || entries.reduce((s, e) => s + (e.photos || []).length, 0)} reducedMotion={prefersReducedMotion} />
               <StatCard label="Highlights Logged" value={entries.reduce((s, e) => s + (e.highlights || []).length, 0)} icon="✨" palette={P}
-                animTarget={entries.reduce((s, e) => s + (e.highlights || []).length, 0)} />
+                animTarget={entries.reduce((s, e) => s + (e.highlights || []).length, 0)} reducedMotion={prefersReducedMotion} />
             </div>
 
             {favs.byPhotos.length > 0 && (
@@ -752,7 +758,7 @@ export default function TravelStats({ entries = [], stats = {}, palette: P, onCl
           padding: "8px 18px", borderRadius: 20,
           background: "rgba(255,255,255,0.08)", backdropFilter: "blur(8px)",
           color: "#9088a8", fontSize: 12, fontWeight: 500,
-          animation: "tsBounce 2s ease infinite",
+          animation: prefersReducedMotion ? "none" : "tsBounce 2s ease infinite",
           pointerEvents: "none",
         }}>
           Scroll for more

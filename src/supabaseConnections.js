@@ -37,6 +37,12 @@ export async function getPendingRequests(userEmail) {
 
 // Get all accepted connections for a user (as requester or target)
 export async function getMyConnections(userId) {
+  // Validate userId is a proper UUID to prevent injection via .or() template literal
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (!userId || !uuidRegex.test(userId)) {
+    console.error('[getMyConnections] invalid userId format')
+    return []
+  }
   const { data, error } = await supabase
     .from('cosmos_connections')
     .select('*')

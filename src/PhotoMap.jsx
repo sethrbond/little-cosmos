@@ -36,6 +36,7 @@ const PIN_SIZE = 40;
 const CLUSTER_DIST = 30;
 
 export default function PhotoMap({ entries = [], palette, onClose, worldMode }) {
+  const prefersReducedMotion = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const P = palette || {};
   const accent = P.rose || "#c48aa8";
   const bg = "#0d0d1a";
@@ -243,7 +244,7 @@ export default function PhotoMap({ entries = [], palette, onClose, worldMode }) 
 
   const renderContinents = () =>
     CONTINENT_PATHS.map((d, i) => (
-      <path key={i} d={d}
+      <path key={"path-" + i} d={d}
         fill="rgba(255,255,255,0.05)"
         stroke="rgba(255,255,255,0.18)"
         strokeWidth={1}
@@ -265,7 +266,7 @@ export default function PhotoMap({ entries = [], palette, onClose, worldMode }) 
 
       return (
         <div
-          key={ci}
+          key={"cluster-" + ci}
           data-pin="true"
           onMouseEnter={() => setHovered(ci)}
           onMouseLeave={() => setHovered(null)}
@@ -279,7 +280,7 @@ export default function PhotoMap({ entries = [], palette, onClose, worldMode }) 
             borderRadius: "50%",
             border: `2.5px solid ${accent}`,
             cursor: "pointer",
-            transition: "all 0.25s cubic-bezier(.4,0,.2,1)",
+            transition: prefersReducedMotion ? "all 0s" : "all 0.25s cubic-bezier(.4,0,.2,1)",
             boxShadow: isHov
               ? `0 0 18px 4px ${accent}88, 0 0 40px 8px ${accent}44`
               : `0 0 10px 2px ${accent}44`,
@@ -383,7 +384,7 @@ export default function PhotoMap({ entries = [], palette, onClose, worldMode }) 
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          animation: "photomap-fadein 0.25s ease",
+          animation: prefersReducedMotion ? "none" : "photomap-fadein 0.25s ease",
         }}
         onClick={(e) => { if (e.target === e.currentTarget) setLightbox(null); }}
       >
@@ -513,7 +514,7 @@ export default function PhotoMap({ entries = [], palette, onClose, worldMode }) 
           }}>
             {photos.map((_, i) => (
               <div
-                key={i}
+                key={"pdot-" + i}
                 role="button" tabIndex={0} aria-label={`Go to photo ${i + 1}`}
                 onClick={(e) => { e.stopPropagation(); setLightbox(lb => ({ ...lb, photoIdx: i })); }}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); setLightbox(lb => ({ ...lb, photoIdx: i })); } }}
@@ -523,7 +524,7 @@ export default function PhotoMap({ entries = [], palette, onClose, worldMode }) 
                   borderRadius: "50%",
                   background: i === idx ? accent : "rgba(255,255,255,0.35)",
                   cursor: "pointer",
-                  transition: "all 0.2s",
+                  transition: prefersReducedMotion ? "all 0s" : "all 0.2s",
                 }}
               />
             ))}
@@ -581,7 +582,7 @@ export default function PhotoMap({ entries = [], palette, onClose, worldMode }) 
         padding: "0 20px",
         borderBottom: "1px solid rgba(255,255,255,0.08)",
         flexShrink: 0,
-        animation: "photomap-slidein 0.3s ease",
+        animation: prefersReducedMotion ? "none" : "photomap-slidein 0.3s ease",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span style={{ fontSize: 18, opacity: 0.7 }}>&#128247;</span>

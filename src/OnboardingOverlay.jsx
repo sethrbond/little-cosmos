@@ -138,7 +138,9 @@ export default function OnboardingOverlay({ worldName, worldType, isSharedWorld,
         {step.hint && <div style={{ fontSize: 10, color: "#c9a96e", letterSpacing: "0.5px", marginBottom: 18, fontStyle: "italic" }}>{step.hint}</div>}
         <div style={{ display: "flex", justifyContent: "center", gap: 6, marginBottom: 20 }}>
           {steps.map((_, i) => (
-            <div key={i} style={{ width: 7, height: 7, borderRadius: "50%", background: i === onboardStep ? "#c9a96e" : "rgba(255,255,255,0.12)", transition: "background .3s", boxShadow: i === onboardStep ? "0 0 6px rgba(200,170,110,0.4)" : "none" }} />
+            <div key={"onb-" + i} role="button" aria-label={`Go to step ${i + 1}`} tabIndex={0} onClick={() => setOnboardStep(i)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOnboardStep(i); } }} style={{ minWidth: 24, minHeight: 24, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+              <div style={{ width: 7, height: 7, borderRadius: "50%", background: i === onboardStep ? "#c9a96e" : "rgba(255,255,255,0.12)", transition: "background .3s", boxShadow: i === onboardStep ? "0 0 6px rgba(200,170,110,0.4)" : "none" }} />
+            </div>
           ))}
         </div>
         <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>

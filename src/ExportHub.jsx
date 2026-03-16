@@ -1424,7 +1424,7 @@ export default function ExportHub({ entries = [], config = {}, stats = {}, palet
                         Preview
                       </div>
                       {importParsed.valid.slice(0, 50).map((e, i) => (
-                        <div key={i} style={{
+                        <div key={"import-" + i} style={{
                           display: "flex", justifyContent: "space-between",
                           alignItems: "center",
                           padding: "4px 0",
@@ -1461,7 +1461,7 @@ export default function ExportHub({ entries = [], config = {}, stats = {}, palet
                         Skipped entries
                       </div>
                       {importParsed.errors.slice(0, 10).map((err, i) => (
-                        <div key={i} style={{ fontSize: 10, color: "#c05555", lineHeight: 1.5, opacity: 0.85 }}>
+                        <div key={"err-" + i} style={{ fontSize: 10, color: "#c05555", lineHeight: 1.5, opacity: 0.85 }}>
                           {err}
                         </div>
                       ))}

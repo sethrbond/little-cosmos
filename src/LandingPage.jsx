@@ -319,6 +319,7 @@ const features = [
 ]
 
 export default function LandingPage({ onSignIn, onSignUp }) {
+  const prefersReducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
   const [scrollY, setScrollY] = useState(0)
   const [visible, setVisible] = useState(new Set())
   const featureRefs = useRef([])
@@ -345,8 +346,8 @@ export default function LandingPage({ onSignIn, onSignUp }) {
     return () => obs.disconnect()
   }, [])
 
-  const heroOpacity = Math.max(0, 1 - scrollY / 500)
-  const heroTranslate = scrollY * 0.3
+  const heroOpacity = prefersReducedMotion ? 1 : Math.max(0, 1 - scrollY / 500)
+  const heroTranslate = prefersReducedMotion ? 0 : scrollY * 0.3
 
   return (
     <div style={{ background: '#0c0a12', minHeight: '100vh', color: '#e8e0d0', fontFamily: FONT, overflowX: 'hidden' }}>
@@ -407,7 +408,7 @@ export default function LandingPage({ onSignIn, onSignUp }) {
           for the ones who never want to forget
         </p>
         <p style={{
-          fontSize: 'clamp(14px, 1.8vw, 17px)', opacity: 0.35,
+          fontSize: 'clamp(14px, 1.8vw, 17px)', opacity: 0.55,
           marginTop: 28, maxWidth: 460, lineHeight: 1.8,
         }}>
           A globe that fills up with everywhere you've been.
@@ -426,10 +427,10 @@ export default function LandingPage({ onSignIn, onSignUp }) {
         onMouseLeave={e => { e.target.style.transform = 'translateY(0)'; e.target.style.boxShadow = '0 4px 24px rgba(200,170,110,0.25), 0 1px 3px rgba(0,0,0,0.2)' }}>
           Start Your Cosmos
         </button>
-        <div style={{ fontSize: 12, opacity: 0.25, marginTop: 16 }}>Free forever. No credit card.</div>
+        <div style={{ fontSize: 12, opacity: 0.5, marginTop: 16 }}>Free forever. No credit card.</div>
         <div aria-hidden="true" style={{
-          marginTop: 48, opacity: 0.2, fontSize: 13,
-          animation: 'landingBounce 2s ease-in-out infinite',
+          marginTop: 48, opacity: 0.5, fontSize: 13,
+          animation: prefersReducedMotion ? 'none' : 'landingBounce 2s ease-in-out infinite',
         }}>
           ↓
         </div>
@@ -454,7 +455,7 @@ export default function LandingPage({ onSignIn, onSignUp }) {
             { num: '2', title: 'Add a memory', desc: 'Pick the city. Throw in some photos. Write what you remember before you forget it. A little light appears on the globe.', icon: '📍' },
             { num: '3', title: 'Come back to it', desc: 'Press play to watch your whole story unfold. It gets better every time you add something new.', icon: '✨' },
           ].map((step, i) => (
-            <div key={i} style={{
+            <div key={"step-" + i} style={{
               display: 'flex', gap: 24, alignItems: 'flex-start', padding: '20px 0',
               position: 'relative',
             }}>
@@ -467,7 +468,7 @@ export default function LandingPage({ onSignIn, onSignUp }) {
               <div style={{ paddingTop: 4 }}>
                 <div style={{ fontSize: 11, color: '#c9a96e', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 6, opacity: 0.7 }}>Step {step.num}</div>
                 <div style={{ fontSize: 18, fontWeight: 400, marginBottom: 6, opacity: 0.85 }}>{step.title}</div>
-                <div style={{ fontSize: 14, opacity: 0.35, lineHeight: 1.7 }}>{step.desc}</div>
+                <div style={{ fontSize: 14, opacity: 0.55, lineHeight: 1.7 }}>{step.desc}</div>
               </div>
             </div>
           ))}
@@ -492,7 +493,7 @@ export default function LandingPage({ onSignIn, onSignUp }) {
         }}>
           {features.map((f, i) => (
             <div
-              key={i}
+              key={"feat-" + i}
               ref={el => featureRefs.current[i] = el}
               data-idx={i}
               style={{
@@ -507,7 +508,7 @@ export default function LandingPage({ onSignIn, onSignUp }) {
             >
               <div style={{ fontSize: 32, marginBottom: 16, filter: 'drop-shadow(0 2px 8px rgba(200,170,110,0.15))' }}>{f.icon}</div>
               <div style={{ fontSize: 17, fontWeight: 600, marginBottom: 10, color: '#c9a96e', letterSpacing: 0.3 }}>{f.title}</div>
-              <div style={{ fontSize: 14, opacity: 0.45, lineHeight: 1.8 }}>{f.desc}</div>
+              <div style={{ fontSize: 14, opacity: 0.55, lineHeight: 1.8 }}>{f.desc}</div>
             </div>
           ))}
         </div>
@@ -524,7 +525,7 @@ export default function LandingPage({ onSignIn, onSignUp }) {
         }}>
           Make it yours
         </h2>
-        <p style={{ textAlign: 'center', fontSize: 14, opacity: 0.3, marginBottom: 40, lineHeight: 1.6 }}>
+        <p style={{ textAlign: 'center', fontSize: 14, opacity: 0.55, marginBottom: 40, lineHeight: 1.6 }}>
           Every world has its own colors, its own features, its own feeling.
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16 }}>
@@ -534,7 +535,7 @@ export default function LandingPage({ onSignIn, onSignUp }) {
             { name: 'Friends', desc: 'For the group chat', color: '#7090c0', accent: '#5070a0', icon: '👯' },
             { name: 'Family', desc: 'Every reunion, every trip', color: '#c4956a', accent: '#a07850', icon: '👨‍👩‍👧‍👦' },
           ].map((w, i) => (
-            <div key={i} style={{
+            <div key={"world-" + i} style={{
               padding: '24px 20px', borderRadius: 16, textAlign: 'center',
               background: `linear-gradient(145deg, ${w.color}08, ${w.color}03)`,
               border: `1px solid ${w.color}18`,
@@ -544,7 +545,7 @@ export default function LandingPage({ onSignIn, onSignUp }) {
             onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.borderColor = `${w.color}18` }}>
               <div style={{ fontSize: 28, marginBottom: 10 }}>{w.icon}</div>
               <div style={{ fontSize: 15, fontWeight: 500, color: w.color, marginBottom: 4, letterSpacing: 0.3 }}>{w.name}</div>
-              <div style={{ fontSize: 11, opacity: 0.35 }}>{w.desc}</div>
+              <div style={{ fontSize: 11, opacity: 0.55 }}>{w.desc}</div>
             </div>
           ))}
         </div>
@@ -562,7 +563,7 @@ export default function LandingPage({ onSignIn, onSignUp }) {
           That's it. That's the whole thing.
         </div>
         <p style={{
-          fontSize: 15, opacity: 0.35, maxWidth: 420, margin: '0 auto 36px',
+          fontSize: 15, opacity: 0.55, maxWidth: 420, margin: '0 auto 36px',
           lineHeight: 1.7,
         }}>
           Add one trip. See it glow. You'll get it.
@@ -599,7 +600,7 @@ export default function LandingPage({ onSignIn, onSignUp }) {
         position: 'relative', zIndex: 1,
         borderTop: '1px solid rgba(255,255,255,0.05)',
         padding: '24px 32px', textAlign: 'center',
-        fontSize: 12, opacity: 0.2, letterSpacing: 0.5,
+        fontSize: 12, opacity: 0.5, letterSpacing: 0.5,
       }}>
         Little Cosmos
       </footer>

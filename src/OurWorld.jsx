@@ -20,7 +20,7 @@ import { EntryTemplates, saveTemplate } from "./EntryTemplates.jsx";
 import useRealtimeSync, { useRealtimePresence } from "./useRealtimeSync.js";
 import { supabase } from "./supabaseClient.js";
 import { geocodeSearch } from "./geocode.js";
-import { inpSt, navSt, imgN, renderList, TBtn, TBtnGroup, Lbl, Fld, QuickAddForm, DreamAddForm, DREAM_CATEGORIES, AddForm, EditForm, hasDraft, getDraftSummary, OverlayBoundary, useFocusTrap } from "./EntryForms.jsx";
+import { inputStyle, navStyle, imageNavBtn, renderList, TBtn, TBtnGroup, Lbl, Fld, QuickAddForm, DreamAddForm, DREAM_CATEGORIES, AddForm, EditForm, hasDraft, getDraftSummary, OverlayBoundary, useFocusTrap } from "./EntryForms.jsx";
 import {
   OUR_WORLD_PALETTE, MY_WORLD_PALETTE,
   OUR_WORLD_TYPES, MY_WORLD_TYPES,
@@ -46,8 +46,10 @@ import OnboardingOverlay from "./OnboardingOverlay.jsx";
 
 // Mutable palette ref — stored on window to survive Vite production bundling
 // (Vite may convert top-level `let` to `const`, making reassignment throw)
-// External form components (inpSt, TBtn, Fld, etc.) read from P so they get correct world colors.
+// External form components (inputStyle, TBtn, Fld, etc.) read from P so they get correct world colors.
 // Initialized with Our World palette but mutated in-place by _paletteBase useMemo to match current world.
+// Shared palette object — mutated at runtime when user customizes colors.
+// Referenced as window.__cosmosP by EntryForms and other components.
 window.__cosmosP = {
   cream: "#faf7f5", warm: "#fdf8f5", parchment: "#f3ede8",
   blush: "#faf0f2", lavMist: "#f1edf8",
@@ -61,7 +63,81 @@ window.__cosmosP = {
   card: "rgba(252,249,246,0.96)", glass: "rgba(248,244,240,0.92)",
   warmMist: "#f0e6de",
 };
-const P = window.__cosmosP;
+const P = window.__cosmosP; // P = palette shorthand used throughout this file
+// ---- EXTENDED THEME PRESETS ----
+Object.assign(WORLD_THEMES, {
+  sunset: {
+    name: "Sunset Garden",
+    description: "Warm oranges and pinks",
+    preview: ["#1a1008", "#e8884a", "#d06878"],
+    palette: { rose: "#e8884a", sky: "#d06878", gold: "#f0b060", heart: "#e05858", text: "#f0e0d0", cream: "#1a1210" },
+    scene: { bg: "#120c06", globe: "#2c2018", glow: "#e8884a30", coast: "#e8884a", particles: "#d0687840", starTint: "#e8884a20" },
+  },
+  desert: {
+    name: "Desert Sand",
+    description: "Warm tans and terracotta",
+    preview: ["#1c1610", "#d4a070", "#c07850"],
+    palette: { rose: "#c07850", sky: "#a89878", gold: "#d4a070", heart: "#c86848", text: "#e8dcd0", cream: "#1c1814" },
+    scene: { bg: "#100c08", globe: "#2c2418", glow: "#d4a07030", coast: "#c07850", particles: "#d4a07040", starTint: "#d4a07020" },
+  },
+  arctic: {
+    name: "Arctic Ice",
+    description: "Cool whites and light blues",
+    preview: ["#0c1018", "#a0d0e8", "#d8e8f0"],
+    palette: { rose: "#78b8d8", sky: "#a0d0e8", gold: "#d8e8f0", heart: "#6098c0", text: "#d0e0e8", cream: "#0e1418" },
+    scene: { bg: "#060a10", globe: "#182028", glow: "#a0d0e830", coast: "#78b8d8", particles: "#a0d0e840", starTint: "#d8e8f020" },
+  },
+  lavender: {
+    name: "Lavender Fields",
+    description: "Soft purples and lilacs",
+    preview: ["#14101c", "#b090d0", "#d0b8e8"],
+    palette: { rose: "#b090d0", sky: "#9880c0", gold: "#d0b8e8", heart: "#c878b0", text: "#e0d8e8", cream: "#161020" },
+    scene: { bg: "#0a0810", globe: "#201830", glow: "#b090d030", coast: "#b090d0", particles: "#9880c040", starTint: "#d0b8e820" },
+  },
+  forest: {
+    name: "Forest Canopy",
+    description: "Deep woodland greens",
+    preview: ["#0a1208", "#58a068", "#88c898"],
+    palette: { rose: "#58a068", sky: "#78b888", gold: "#a0c878", heart: "#48884c", text: "#d0e0d0", cream: "#0c1410" },
+    scene: { bg: "#060a06", globe: "#142818", glow: "#58a06830", coast: "#58a068", particles: "#78b88840", starTint: "#88c89820" },
+  },
+  golden: {
+    name: "Golden Hour",
+    description: "Warm golds and ambers",
+    preview: ["#181008", "#d8a840", "#e8c868"],
+    palette: { rose: "#d8a840", sky: "#c89848", gold: "#e8c868", heart: "#c08830", text: "#f0e0c8", cream: "#181410" },
+    scene: { bg: "#100c04", globe: "#282010", glow: "#d8a84030", coast: "#d8a840", particles: "#e8c86840", starTint: "#e8c86820" },
+  },
+  nebula: {
+    name: "Cosmic Nebula",
+    description: "Deep purples and magentas",
+    preview: ["#10081c", "#c058a0", "#8848c0"],
+    palette: { rose: "#c058a0", sky: "#8848c0", gold: "#d080c0", heart: "#d04888", text: "#e0d0e8", cream: "#140c1c" },
+    scene: { bg: "#080410", globe: "#201030", glow: "#c058a030", coast: "#c058a0", particles: "#8848c040", starTint: "#d080c020" },
+  },
+  rosegold: {
+    name: "Rose Gold",
+    description: "Elegant blush and copper",
+    preview: ["#181014", "#c89888", "#e8b8a8"],
+    palette: { rose: "#c89888", sky: "#b8a098", gold: "#e8b8a8", heart: "#d08878", text: "#e8d8d0", cream: "#181214" },
+    scene: { bg: "#0c0808", globe: "#281c1c", glow: "#c8988830", coast: "#c89888", particles: "#e8b8a840", starTint: "#e8b8a820" },
+  },
+  monochrome: {
+    name: "Monochrome",
+    description: "Elegant grayscale",
+    preview: ["#111111", "#888888", "#cccccc"],
+    palette: { rose: "#888888", sky: "#a0a0a0", gold: "#cccccc", heart: "#707070", text: "#e0e0e0", cream: "#141414" },
+    scene: { bg: "#080808", globe: "#1c1c1c", glow: "#88888830", coast: "#888888", particles: "#a0a0a040", starTint: "#cccccc20" },
+  },
+  tropical: {
+    name: "Tropical Paradise",
+    description: "Vibrant turquoise and coral",
+    preview: ["#081418", "#40c8b8", "#e87870"],
+    palette: { rose: "#40c8b8", sky: "#58d8c8", gold: "#e8c868", heart: "#e87870", text: "#d0e8e8", cream: "#0c1618" },
+    scene: { bg: "#040c10", globe: "#142028", glow: "#40c8b830", coast: "#40c8b8", particles: "#58d8c840", starTint: "#e8c86820" },
+  },
+});
+
 
 
 
@@ -70,6 +146,23 @@ const P = window.__cosmosP;
 const _symbolCache = {};
 const _meteorV1 = new THREE.Vector3();
 const _meteorV2 = new THREE.Vector3();
+
+// Simple Three.js object pool — reuses meshes to avoid GC pressure on hot paths
+function createPool(factory, initialSize = 5) {
+  const available = [];
+  for (let i = 0; i < initialSize; i++) available.push(factory());
+  return {
+    acquire() { return available.length > 0 ? available.pop() : factory(); },
+    release(obj) {
+      if (available.length < 20) available.push(obj);
+      else { obj.geometry?.dispose(); obj.material?.dispose(); }
+    },
+    disposeAll() {
+      available.forEach(o => { o.geometry?.dispose(); o.material?.dispose(); });
+      available.length = 0;
+    }
+  };
+}
 function makeSymbolTexture(type, color) {
   const key = `${type}-${color}`;
   if (_symbolCache[key]) return _symbolCache[key];
@@ -822,7 +915,7 @@ function reducer(st, a) {
       // Apply the inverse action
       if (action.type === "ADD") {
         next = { ...st, entries: [...st.entries, action.entry], undoStack: stack, redoStack: [...(st.redoStack || []), { type: "DELETE", id: action.entry.id }] };
-        if (_saveEntry) _saveEntry(action.entry).catch(() => {});
+        if (_saveEntry) _saveEntry(action.entry).catch(err => console.error('[cosmos] save failed:', err));
       } else if (action.type === "DELETE") {
         const doomed = st.entries.find(e => e.id === action.id);
         next = { ...st, entries: st.entries.filter(e => e.id !== action.id), undoStack: stack, redoStack: [...(st.redoStack || []), { type: "ADD", entry: doomed }] };
@@ -831,7 +924,7 @@ function reducer(st, a) {
         const prev = st.entries.find(e => e.id === action.id);
         next = { ...st, entries: st.entries.map(e => e.id === action.id ? { ...e, ...action.data } : e), undoStack: stack, redoStack: [...(st.redoStack || []), { type: "UPDATE", id: action.id, data: prev ? { ...prev } : {} }] };
         const updated = next.entries.find(e => e.id === action.id);
-        if (_saveEntry && updated) _saveEntry(updated).catch(() => {});
+        if (_saveEntry && updated) _saveEntry(updated).catch(err => console.error('[cosmos] save failed:', err));
       }
       return next;
     }
@@ -841,7 +934,7 @@ function reducer(st, a) {
       const action = stack.pop();
       if (action.type === "ADD") {
         next = { ...st, entries: [...st.entries, action.entry], redoStack: stack, undoStack: [...(st.undoStack || []), { type: "DELETE", id: action.entry.id }] };
-        if (_saveEntry) _saveEntry(action.entry).catch(() => {});
+        if (_saveEntry) _saveEntry(action.entry).catch(err => console.error('[cosmos] save failed:', err));
       } else if (action.type === "DELETE") {
         const doomed = st.entries.find(e => e.id === action.id);
         next = { ...st, entries: st.entries.filter(e => e.id !== action.id), redoStack: stack, undoStack: [...(st.undoStack || []), { type: "ADD", entry: doomed }] };
@@ -850,7 +943,7 @@ function reducer(st, a) {
         const prev = st.entries.find(e => e.id === action.id);
         next = { ...st, entries: st.entries.map(e => e.id === action.id ? { ...e, ...action.data } : e), redoStack: stack, undoStack: [...(st.undoStack || []), { type: "UPDATE", id: action.id, data: prev ? { ...prev } : {} }] };
         const updated = next.entries.find(e => e.id === action.id);
-        if (_saveEntry && updated) _saveEntry(updated).catch(() => {});
+        if (_saveEntry && updated) _saveEntry(updated).catch(err => console.error('[cosmos] save failed:', err));
       }
       return next;
     }
@@ -1037,7 +1130,10 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   useEffect(() => {
     (async () => {
       try {
-        const [entries, cfg] = await Promise.all([db.loadEntries(), db.loadConfig()]);
+        const results = await Promise.allSettled([db.loadEntries(), db.loadConfig()]);
+        const entries = results[0].status === 'fulfilled' ? results[0].value : [];
+        const cfg = results[1].status === 'fulfilled' ? results[1].value : null;
+        results.forEach((r, i) => { if (r.status === 'rejected') console.error('[loadWorld] call', i, 'failed:', r.reason) });
         dispatch({ type: "LOAD", entries: entries || [] });
         if (cfg) {
           const merged = { ...DEFAULT_CONFIG, ...cfg };
@@ -1269,12 +1365,10 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     const g = globeRef.current;
     if (g && selected.lat != null && selected.lng != null) {
       const pos = ll2v(selected.lat, selected.lng, RAD * 1.015);
-      const ringGeo = new THREE.RingGeometry(0.02, 0.035, 32);
-      const ringMat = new THREE.MeshBasicMaterial({
-        color: typeColor, transparent: true, opacity: 0.25,
-        side: THREE.DoubleSide, depthTest: false
-      });
-      const ring = new THREE.Mesh(ringGeo, ringMat);
+      const ring = pulseRingPoolRef.current ? pulseRingPoolRef.current.acquire() : new THREE.Mesh(new THREE.RingGeometry(0.02, 0.035, 32), new THREE.MeshBasicMaterial({ color: typeColor, transparent: true, opacity: 0.25, side: THREE.DoubleSide, depthTest: false }));
+      ring.material.color.set(typeColor);
+      ring.material.opacity = 0.25;
+      ring.scale.setScalar(1);
       ring.position.copy(pos);
       ring.lookAt(pos.clone().multiplyScalar(2));
       ring.renderOrder = 5;
@@ -1283,12 +1377,10 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       // Second ring with slight delay for layered effect
       const ring2Timer = setTimeout(() => {
         if (!globeRef.current) return;
-        const ring2Geo = new THREE.RingGeometry(0.015, 0.025, 32);
-        const ring2Mat = new THREE.MeshBasicMaterial({
-          color: typeColor, transparent: true, opacity: 0.18,
-          side: THREE.DoubleSide, depthTest: false
-        });
-        const ring2 = new THREE.Mesh(ring2Geo, ring2Mat);
+        const ring2 = pulseRingPoolRef.current ? pulseRingPoolRef.current.acquire() : new THREE.Mesh(new THREE.RingGeometry(0.015, 0.025, 32), new THREE.MeshBasicMaterial({ color: typeColor, transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthTest: false }));
+        ring2.material.color.set(typeColor);
+        ring2.material.opacity = 0.18;
+        ring2.scale.setScalar(1);
         ring2.position.copy(pos);
         ring2.lookAt(pos.clone().multiplyScalar(2));
         ring2.renderOrder = 5;
@@ -1375,7 +1467,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   // Load reactions for shared worlds
   useEffect(() => {
     if (!isSharedWorld || !worldId) return;
-    loadAllWorldReactions(worldId).then(setWorldReactions).catch(() => {});
+    loadAllWorldReactions(worldId).then(setWorldReactions).catch(err => console.error('[cosmos] load reactions failed:', err));
   }, [isSharedWorld, worldId]);
 
   // Load comments when selecting an entry in a shared world
@@ -1414,13 +1506,13 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       .channel(`world-${worldId}-social`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'entry_comments', filter: `world_id=eq.${worldId}` }, (payload) => {
         const sel = selectedRef.current;
-        if (sel?.id) loadComments(worldId, sel.id).then(setEntryComments).catch(() => {});
+        if (sel?.id) loadComments(worldId, sel.id).then(setEntryComments).catch(err => console.error('[cosmos] load comments failed:', err));
         if (payload.eventType === 'INSERT' && payload.new?.user_id !== userId) {
           setNotifications(prev => [{ id: `n-${Date.now()}`, type: 'comment', message: `New comment on an entry`, timestamp: new Date().toISOString(), entryId: payload.new?.entry_id, read: false }, ...prev].slice(0, 100));
         }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'entry_reactions', filter: `world_id=eq.${worldId}` }, (payload) => {
-        loadAllWorldReactions(worldId).then(setWorldReactions).catch(() => {});
+        loadAllWorldReactions(worldId).then(setWorldReactions).catch(err => console.error('[cosmos] load reactions failed:', err));
         if (payload.eventType === 'INSERT' && payload.new?.user_id !== userId) {
           setNotifications(prev => [{ id: `n-${Date.now()}`, type: 'reaction', message: `Someone reacted to an entry`, timestamp: new Date().toISOString(), entryId: payload.new?.entry_id, read: false }, ...prev].slice(0, 100));
         }
@@ -1480,6 +1572,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [photoDeleteMode, setPhotoDeleteMode] = useState(false);
   const photoDragRef = useRef({ from: -1, to: -1 });
   const [searchQuery, setSearchQuery] = useState("");
+  const searchTimerRef = useRef(null);
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [searchHl, setSearchHl] = useState(-1); // keyboard highlight index in search results
   const [searchDateFrom, setSearchDateFrom] = useState("");
@@ -1539,6 +1633,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const hoverThrottleRef = useRef(0);
   const longPressRef = useRef(null); // timer for touch long-press tooltip
   const cometRef = useRef(null); // active comet animation
+  const pulseRingPoolRef = useRef(null); // pool for pulse ring meshes
+  const burstParticlePoolRef = useRef(null); // pool for burst particle meshes
   const nightShadowRef = useRef(null); // day/night terminator mesh
   const prevEntryCountRef = useRef(0);
   const mouseRef = useRef({ x: 0, y: 0 });
@@ -1918,13 +2014,19 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   }, [data.entries, togetherList, sorted, isPartnerWorld]);
 
   // ---- SEARCH (with date range, type filter, sort) ----
-  const hasSearchFilters = searchQuery.length >= 2 || searchDateFrom || searchDateTo || searchTypeFilter !== "all";
+  useEffect(() => {
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
+  }, [searchQuery]);
+
+  const hasSearchFilters = debouncedSearch.length >= 2 || searchDateFrom || searchDateTo || searchTypeFilter !== "all";
   const searchResults = useMemo(() => {
     if (!hasSearchFilters) return [];
     let results = data.entries;
     // Text filter
-    if (searchQuery.length >= 2) {
-      const q = searchQuery.toLowerCase();
+    if (debouncedSearch.length >= 2) {
+      const q = debouncedSearch.toLowerCase();
       results = results.filter(e =>
         (e.city || "").toLowerCase().includes(q) ||
         (e.country || "").toLowerCase().includes(q) ||
@@ -1946,7 +2048,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     else if (searchSort === "country") results = [...results].sort((a, b) => (a.country || "").localeCompare(b.country || "") || (a.city || "").localeCompare(b.city || ""));
     else results = [...results].sort((a, b) => (b.dateStart || "").localeCompare(a.dateStart || ""));
     return results;
-  }, [searchQuery, searchDateFrom, searchDateTo, searchTypeFilter, searchSort, data.entries, hasSearchFilters]);
+  }, [debouncedSearch, searchDateFrom, searchDateTo, searchTypeFilter, searchSort, data.entries, hasSearchFilters]);
 
   // Sync search matches to ref for animation loop access
   useEffect(() => {
@@ -2627,6 +2729,20 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     }
     shootingStarsRef.current = meteorPool;
 
+    // Initialize object pools for frequently created/destroyed meshes
+    pulseRingPoolRef.current = createPool(() => {
+      const geo = new THREE.RingGeometry(0.02, 0.035, 32);
+      const mat = new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.25, side: THREE.DoubleSide, depthTest: false });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.renderOrder = 5;
+      return mesh;
+    }, 4);
+    burstParticlePoolRef.current = createPool(() => {
+      const geo = new THREE.SphereGeometry(0.015, 8, 8);
+      const mat = new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.9 });
+      return new THREE.Mesh(geo, mat);
+    }, 10);
+
     // Aurora — rich color bands drifting across the top of the scene
     const auroraN = 160;
     const auroraG = new THREE.BufferGeometry();
@@ -2895,8 +3011,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         pr.age += 0.012;
         if (pr.age >= 1) {
           globe.remove(pr.mesh);
-          pr.mesh.geometry.dispose();
-          pr.mesh.material.dispose();
+          if (pulseRingPoolRef.current) pulseRingPoolRef.current.release(pr.mesh);
+          else { pr.mesh.geometry.dispose(); pr.mesh.material.dispose(); }
           pulseRingsRef.current.splice(pi, 1);
           continue;
         }
@@ -2937,10 +3053,11 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           const burstParticles = [];
           const normal = target.clone().normalize();
           for (let bi = 0; bi < burstN; bi++) {
-            const bGeo = new THREE.SphereGeometry(0.012 + Math.random() * 0.008, 8, 8);
-            const bColor = bi < burstN / 3 ? "#ffffff" : c.color; // mix white sparks with colored
-            const bMat = new THREE.MeshBasicMaterial({ color: bColor, transparent: true, opacity: 0.9 });
-            const bMesh = new THREE.Mesh(bGeo, bMat);
+            const bColor = bi < burstN / 3 ? "#ffffff" : c.color;
+            const bMesh = burstParticlePoolRef.current ? burstParticlePoolRef.current.acquire() : new THREE.Mesh(new THREE.SphereGeometry(0.015, 8, 8), new THREE.MeshBasicMaterial({ color: bColor, transparent: true, opacity: 0.9 }));
+            bMesh.material.color.set(bColor);
+            bMesh.material.opacity = 0.9;
+            bMesh.scale.setScalar(0.8 + Math.random() * 0.5);
             bMesh.position.copy(target);
             // Burst outward from surface, biased along normal
             const spread = new THREE.Vector3(
@@ -3007,7 +3124,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         }
         if (c.burstAge >= 1.2) {
           scene.remove(c.burst.group);
-          c.burst.particles.forEach(p => { p.mesh.geometry.dispose(); p.mesh.material.dispose(); });
+          c.burst.particles.forEach(p => { if (!p.isRing && burstParticlePoolRef.current) burstParticlePoolRef.current.release(p.mesh); else { p.mesh.geometry.dispose(); p.mesh.material.dispose(); } });
           c.burst = null;
           scene.remove(c.head); scene.remove(c.trail);
           if (c.head._halo) { c.head._halo.geometry.dispose(); c.head._halo.material.dispose(); }
@@ -3065,17 +3182,66 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       dismissTimers.current.forEach(clearTimeout);
       window.removeEventListener("resize", onR);
       // Dispose all Three.js objects to prevent GPU memory leaks
+      const disposeMaterial = (mat) => {
+        if (!mat) return;
+        // Dispose all possible texture maps on a material
+        const texProps = [
+          'map', 'lightMap', 'bumpMap', 'normalMap', 'specularMap',
+          'envMap', 'alphaMap', 'aoMap', 'displacementMap', 'emissiveMap',
+          'gradientMap', 'metalnessMap', 'roughnessMap', 'clearcoatMap',
+          'clearcoatNormalMap', 'clearcoatRoughnessMap', 'transmissionMap',
+          'thicknessMap', 'sheenColorMap', 'sheenRoughnessMap',
+        ];
+        for (const prop of texProps) {
+          if (mat[prop]) { mat[prop].dispose(); mat[prop] = null; }
+        }
+        mat.dispose();
+      };
       scene.traverse(obj => {
-        if (obj.geometry) obj.geometry.dispose();
+        if (obj.geometry) { obj.geometry.dispose(); obj.geometry = null; }
         if (obj.material) {
-          if (obj.material.map) obj.material.map.dispose();
-          obj.material.dispose();
+          if (Array.isArray(obj.material)) {
+            obj.material.forEach(disposeMaterial);
+          } else {
+            disposeMaterial(obj.material);
+          }
+          obj.material = null;
         }
       });
+      // Remove canvas from DOM
       if (el.contains(rend.domElement)) el.removeChild(rend.domElement);
       rend.dispose();
+      rend.forceContextLoss();
       // Clear symbol texture cache
       Object.keys(_symbolCache).forEach(k => { if (_symbolCache[k]?.dispose) _symbolCache[k].dispose(); delete _symbolCache[k]; });
+      // Null out Three.js refs to release references for GC
+      rendRef.current = null;
+      scnRef.current = null;
+      camRef.current = null;
+      globeRef.current = null;
+      starsRef.current = null;
+      particlesRef.current = null;
+      particles2Ref.current = null;
+      auroraRef.current = null;
+      heartRef.current = null;
+      easterEggRef.current = null;
+      nightShadowRef.current = null;
+      cometRef.current = null;
+      milestoneRef.current = null;
+      glowLayersRef.current = [];
+      mkRef.current = [];
+      rtRef.current = [];
+      loveThreadRef.current = [];
+      constellationRef.current = [];
+      routesRef.current = [];
+      pulseRingsRef.current = [];
+      if (pulseRingPoolRef.current) { pulseRingPoolRef.current.disposeAll(); pulseRingPoolRef.current = null; }
+      if (burstParticlePoolRef.current) { burstParticlePoolRef.current.disposeAll(); burstParticlePoolRef.current = null; }
+      shootingStarsRef.current = [];
+      tripRouteRef.current = [];
+      tripStopMkRef.current = [];
+      frameRef.current = 0;
+      animRef.current = null;
     };
   }, [loading]);
 
@@ -3298,7 +3464,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   }, [selected, sceneReady]);
 
   // ---- POINTER ----
-  const onDown = useCallback(e => { dragR.current = true; prevR.current = { x: e.clientX, y: e.clientY }; clickSR.current = { x: e.clientX, y: e.clientY, t: Date.now() }; }, []);
+  const onDown = useCallback(e => { dragR.current = true; prevR.current = { x: e.clientX, y: e.clientY }; clickSR.current = { x: e.clientX, y: e.clientY, t: Date.now() }; if (mountRef.current) mountRef.current.style.cursor = 'grabbing'; }, []);
   const onMove = useCallback(e => {
     mouseRef.current = { x: (e.clientX / window.innerWidth - 0.5) * 2, y: (e.clientY / window.innerHeight - 0.5) * 2 };
     if (dragR.current) {
@@ -3350,6 +3516,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const onUp = useCallback(e => {
     dragR.current = false;
     if (!mountRef.current) return;
+    mountRef.current.style.cursor = 'grab';
     if (Math.abs(e.clientX - clickSR.current.x) < 6 && Math.abs(e.clientY - clickSR.current.y) < 6 && Date.now() - clickSR.current.t < 350) {
       const rect = mountRef.current.getBoundingClientRect();
       mRef.current.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
@@ -3767,7 +3934,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 10, fontWeight: 400, color: P.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.city}{(e.stops || []).length > 0 ? ` + ${e.stops.length} stop${e.stops.length > 1 ? "s" : ""}` : ""}</div>
                     <div style={{ fontSize: 8, color: P.textFaint }}>{fmtDate(e.dateStart)}{e.dateEnd && e.dateEnd !== e.dateStart ? ` → ${fmtDate(e.dateEnd)}` : ""}{(e.stops || []).length > 0 ? ` · ${[...new Set(e.stops.map(s => s.country).filter(Boolean))].join(", ")}` : ""}</div>
-                    {allStickersMap[e.id] && <div style={{ display: "flex", gap: 2, marginTop: 1 }}>{allStickersMap[e.id].map((s, i) => <span key={i} style={{ fontSize: 8 }} title={s.label}>{s.emoji}</span>)}</div>}
+                    {allStickersMap[e.id] && <div style={{ display: "flex", gap: 2, marginTop: 1 }}>{allStickersMap[e.id].map((s, i) => <span key={s.emoji + '-' + i} style={{ fontSize: 8 }} title={s.label}>{s.emoji}</span>)}</div>}
                   </div>
                   {(e.photos || []).length > 1 && <span style={{ fontSize: 7, color: P.textFaint }}>📸{(e.photos || []).length}</span>}
                   {isSharedWorld && e.addedBy && memberNameMap[e.addedBy] && (
@@ -3908,7 +4075,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           }}
         />}
         {onSwitchWorld && <TBtn onClick={() => { flushConfigSave(); onSwitchWorld(); }} tip="Switch World">🔄</TBtn>}
-        <SyncIndicator isConnected={realtimeConnected} lastSync={lastSync} pendingOffline={pendingOffline} palette={{ bg: SC.bg, text: P.text }} style={{ margin: '4px auto' }} />
+        {pendingOffline > 0 && <SyncIndicator isConnected={true} lastSync={lastSync} pendingOffline={pendingOffline} palette={{ bg: SC.bg, text: P.text }} style={{ margin: '4px auto' }} />}
         <TBtn onClick={() => setConfirmModal({ message: "Sign out of My Cosmos?", onConfirm: () => signOut() })} tip="Sign Out">🚪</TBtn>
       </div>
 
@@ -4032,8 +4199,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       {/* SLIDER */}
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: P.glass, backdropFilter: "blur(16px)", borderTop: `1px solid ${P.rose}10`, zIndex: 15, display: "flex", flexDirection: "column", justifyContent: "center", padding: "12px 22px", paddingBottom: "max(20px, env(safe-area-inset-bottom, 20px))" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 6 }}>
-          <button onClick={() => jumpNext(-1)} disabled={isAnimating} style={navSt()} title={isPartnerWorld ? "Previous together" : "Previous entry"}>{isPartnerWorld ? "💕◂" : "⏮"}</button>
-          <button onClick={() => stepDay(-1)} disabled={isAnimating} style={navSt()}>◂</button>
+          <button onClick={() => jumpNext(-1)} disabled={isAnimating} style={navStyle()} title={isPartnerWorld ? "Previous together" : "Previous entry"}>{isPartnerWorld ? "💕◂" : "⏮"}</button>
+          <button onClick={() => stepDay(-1)} disabled={isAnimating} style={navStyle()}>◂</button>
           <div style={{ minWidth: 150, textAlign: "center" }}>
             <div style={{ fontSize: 15, color: P.text, fontWeight: 400 }}>{fmtDate(sliderDate)}</div>
             <div style={{ fontSize: 9, color: isMyWorld ? P.textMid : (isPartnerWorld && areTogether ? P.heart : P.textFaint), letterSpacing: ".1em", marginTop: 1 }}>
@@ -4045,8 +4212,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               }
             </div>
           </div>
-          <button onClick={() => stepDay(1)} disabled={isAnimating} style={navSt()}>▸</button>
-          <button onClick={() => jumpNext(1)} disabled={isAnimating} style={navSt()} title={isPartnerWorld ? "Next together" : "Next entry"}>{isPartnerWorld ? "▸💕" : "⏭"}</button>
+          <button onClick={() => stepDay(1)} disabled={isAnimating} style={navStyle()}>▸</button>
+          <button onClick={() => jumpNext(1)} disabled={isAnimating} style={navStyle()} title={isPartnerWorld ? "Next together" : "Next entry"}>{isPartnerWorld ? "▸💕" : "⏭"}</button>
         </div>
         <div style={{ position: "relative", width: "100%", height: 24, display: "flex", alignItems: "center" }}>
           <input type="range" min={0} max={totalDays} value={clamp(sliderVal, 0, totalDays)}
@@ -4076,7 +4243,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             const pctStart = totalDays > 0 ? (cStart / totalDays) * 100 : 0;
             const pctEnd = totalDays > 0 ? (cEnd / totalDays) * 100 : 100;
             if (pctStart > 100 || pctEnd < 0) return null;
-            return <div key={i} style={{ position: "absolute", left: `${clamp(pctStart, 0, 100)}%`, width: `${clamp(pctEnd - pctStart, 0, 100 - pctStart)}%`, top: -14, height: 12, background: `${[P.rose, P.sky, P.sage, P.gold, P.lavender][i % 5]}30`, borderRadius: 3, pointerEvents: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            return <div key={ch.label + '-' + i} style={{ position: "absolute", left: `${clamp(pctStart, 0, 100)}%`, width: `${clamp(pctEnd - pctStart, 0, 100 - pctStart)}%`, top: -14, height: 12, background: `${[P.rose, P.sky, P.sage, P.gold, P.lavender][i % 5]}30`, borderRadius: 3, pointerEvents: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <span style={{ fontSize: 7, color: P.textMuted, letterSpacing: ".06em", fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%", padding: "0 2px" }}>{ch.label}</span>
             </div>;
           })}
@@ -4156,8 +4323,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               } : undefined}
               style={{ position: "relative", width: "100%", background: P.parchment, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", minHeight: 120, maxHeight: 220, ...(dragOver ? { outline: `2px dashed ${P.sky}`, outlineOffset: -2 } : {}) }}>
               <img loading="lazy" src={cur.photos[photoIdx % cur.photos.length]} alt={`Photo from ${cur.city || "trip"}`} onClick={() => { setLightboxIdx(photoIdx % cur.photos.length); setLightboxOpen(true); }} style={{ maxWidth: "100%", maxHeight: 220, objectFit: "contain", display: "block", transition: "all .3s", cursor: "zoom-in", ...(polaroidMode ? { border: "6px solid #fff", borderBottom: "28px solid #fff", boxShadow: "0 4px 16px rgba(0,0,0,.15)", borderRadius: 1, transform: `rotate(${(photoIdx % 3 - 1) * 1.5}deg)` } : {}) }} />
-              {cur.photos.length > 1 && (<><button aria-label="Previous photo" onClick={() => setPhotoIdx(i => (i - 1 + cur.photos.length) % cur.photos.length)} style={imgN("left")}>‹</button><button aria-label="Next photo" onClick={() => setPhotoIdx(i => (i + 1) % cur.photos.length)} style={imgN("right")}>›</button>
-                <div style={{ position: "absolute", bottom: 6, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 4, alignItems: "center" }}>{cur.photos.slice(0, 12).map((_, i) => <div key={i} style={{ width: 6, height: 6, borderRadius: "50%", background: i === photoIdx % cur.photos.length ? "#fff" : "rgba(255,255,255,.35)", transition: "background .2s" }} />)}{cur.photos.length > 12 && <div style={{ fontSize: 8, color: "rgba(255,255,255,.5)", marginLeft: 2 }}>+{cur.photos.length - 12}</div>}</div></>)}
+              {cur.photos.length > 1 && (<><button aria-label="Previous photo" onClick={() => setPhotoIdx(i => (i - 1 + cur.photos.length) % cur.photos.length)} style={imageNavBtn("left")}>‹</button><button aria-label="Next photo" onClick={() => setPhotoIdx(i => (i + 1) % cur.photos.length)} style={imageNavBtn("right")}>›</button>
+                <div style={{ position: "absolute", bottom: 6, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 4, alignItems: "center" }}>{cur.photos.slice(0, 12).map((_, i) => <div key={'dot-' + i} style={{ width: 6, height: 6, borderRadius: "50%", background: i === photoIdx % cur.photos.length ? "#fff" : "rgba(255,255,255,.35)", transition: "background .2s" }} />)}{cur.photos.length > 12 && <div style={{ fontSize: 8, color: "rgba(255,255,255,.5)", marginLeft: 2 }}>+{cur.photos.length - 12}</div>}</div></>)}
               <button onClick={() => setCardGallery(true)} style={{ position: "absolute", top: 6, right: 6, background: "rgba(255,255,255,.85)", border: "none", borderRadius: 5, padding: "2px 8px", fontSize: 9, cursor: "pointer", fontFamily: "inherit", color: P.textMid }}>📸 {cur.photos.length}</button>
               <button onClick={() => setPolaroidMode(v => !v)} style={{ position: "absolute", bottom: 6, right: 6, background: polaroidMode ? P.goldWarm : "rgba(255,255,255,.7)", border: "none", borderRadius: 5, padding: "2px 7px", fontSize: 8, cursor: "pointer", fontFamily: "inherit", color: polaroidMode ? "#fff" : P.textFaint }} title="Polaroid mode">📸</button>
               {/* Photo collage strip — overlapping polaroids when 3+ photos */}
@@ -4166,7 +4333,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                   {cur.photos.slice(0, 5).map((url, i) => {
                     const rot = (i - 2) * 8 + (i % 2 ? 3 : -3);
                     const off = (i - 2) * 24;
-                    return <img key={i} src={thumbnail(url, 64)} alt="" style={{ width: 32, height: 32, objectFit: "cover", border: "2px solid #fff", borderRadius: 1, boxShadow: "0 1px 4px rgba(0,0,0,.2)", position: "absolute", left: `calc(50% + ${off}px - 16px)`, transform: `rotate(${rot}deg)`, zIndex: i }} />;
+                    return <img key={url} src={thumbnail(url, 64)} alt="" style={{ width: 32, height: 32, objectFit: "cover", border: "2px solid #fff", borderRadius: 1, boxShadow: "0 1px 4px rgba(0,0,0,.2)", position: "absolute", left: `calc(50% + ${off}px - 16px)`, transform: `rotate(${rot}deg)`, zIndex: i }} />;
                   })}
                 </div>
               )}
@@ -4189,7 +4356,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(90px, 1fr))", gap: 4 }}>
                 {cur.photos.map((url, i) => (
-                  <div key={i} style={{ position: "relative" }}
+                  <div key={url} style={{ position: "relative" }}
                     draggable={!photoDeleteMode && !isViewer}
                     onDragStart={e => { photoDragRef.current.from = i; e.dataTransfer.effectAllowed = "move"; e.currentTarget.style.opacity = "0.4"; }}
                     onDragEnd={e => { e.currentTarget.style.opacity = "1"; }}
@@ -4252,7 +4419,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 if (shareMenu === cur.id) { setShareMenu(null); return; }
                 setShareMenu(cur.id);
                 if (!shareWorlds) {
-                  const [w, pid] = await Promise.all([loadMyWorlds(userId), getPersonalWorldId(userId)]);
+                  const r = await Promise.allSettled([loadMyWorlds(userId), getPersonalWorldId(userId)]);
+                  const w = r[0].status === 'fulfilled' ? r[0].value : [];
+                  const pid = r[1].status === 'fulfilled' ? r[1].value : null;
                   const all = pid ? [{ id: pid, name: "My World", type: "personal" }, ...w] : w;
                   setShareWorlds(all);
                 }
@@ -4282,7 +4451,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                   {cur.favorite ? "♥" : "♡"}
                 </button>
                 {heartBurst && [0,1,2,3,4].map(i => (
-                  <span key={i} style={{ position: "absolute", left: "50%", top: "50%", fontSize: 8, pointerEvents: "none", color: P.heart, animation: `heartFloat${i} .7s ease-out forwards`, opacity: 0 }}>♥</span>
+                  <span key={'heart-' + i} style={{ position: "absolute", left: "50%", top: "50%", fontSize: 8, pointerEvents: "none", color: P.heart, animation: `heartFloat${i} .7s ease-out forwards`, opacity: 0 }}>♥</span>
                 ))}
               </div>
               <button aria-label="Close detail card" onClick={() => { setSelected(null); setLightboxOpen(false); tSpinSpd.current = 0.002; }} style={{ background: "none", border: "none", fontSize: 16, color: P.textFaint, cursor: "pointer", marginLeft: 2 }}>×</button>
@@ -4307,7 +4476,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             {entryStickers.length > 0 && (
               <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }}>
                 {entryStickers.map((s, i) => (
-                  <span key={i} style={{
+                  <span key={s.label + '-' + i} style={{
                     display: "inline-flex", alignItems: "center", gap: 3,
                     padding: "2px 8px", borderRadius: 10,
                     background: P.rose + "12", border: `1px solid ${P.rose}20`,
@@ -4446,7 +4615,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                       <span style={{ fontSize: 12, opacity: 0.6 }}>💭</span> Memories
                     </div>
                     {cur.memories.map((mem, i) => (
-                      <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "7px 10px", marginBottom: 4, background: `${P.rose || P.accent}06`, borderRadius: 10, borderLeft: `2px solid ${P.rose || P.accent}25` }}>
+                      <div key={'mem-' + i} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "7px 10px", marginBottom: 4, background: `${P.rose || P.accent}06`, borderRadius: 10, borderLeft: `2px solid ${P.rose || P.accent}25` }}>
                         <span style={{ fontSize: 10, opacity: 0.5, marginTop: 1 }}>✦</span>
                         <span style={{ flex: 1, fontSize: 11, lineHeight: 1.6, color: P.textMid, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", fontStyle: "italic" }}>{mem}</span>
                         {!isViewer && (
@@ -4535,7 +4704,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                         const offsets = [{ x: -24, y: 6 }, { x: 22, y: -4 }, { x: 0, y: 10 }];
                         const zIndexes = [1, 2, 3];
                         return (
-                          <div key={i} onClick={() => { setLightboxIdx(i); setLightboxOpen(true); }} style={{
+                          <div key={url} onClick={() => { setLightboxIdx(i); setLightboxOpen(true); }} style={{
                             position: "absolute",
                             transform: `translate(${offsets[i].x}px, ${offsets[i].y}px) rotate(${rotations[i]}deg)`,
                             zIndex: zIndexes[i],
@@ -4567,7 +4736,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                   <div style={{ display: "grid", gridTemplateColumns: polaroidMode ? "repeat(auto-fill, minmax(100px, 1fr))" : "repeat(auto-fill, minmax(80px, 1fr))", gap: polaroidMode ? 12 : 4, padding: polaroidMode ? "4px 2px" : 0 }}>
                     {cur.photos.map((url, i) => (
                       polaroidMode ? (
-                        <div key={i} onMouseEnter={e => e.currentTarget.style.transform = "rotate(0deg) scale(1.03)"} onMouseLeave={e => e.currentTarget.style.transform = `rotate(${(i % 5 - 2) * 1.8}deg)`} style={{ background: "#fff", borderRadius: 2, boxShadow: "0 2px 8px rgba(0,0,0,.12), 0 1px 2px rgba(0,0,0,.06)", transform: `rotate(${(i % 5 - 2) * 1.8}deg)`, transition: "transform .25s ease, box-shadow .25s ease", overflow: "hidden", width: "100%", padding: "6px 6px 4px", cursor: "pointer" }}>
+                        <div key={url} onMouseEnter={e => e.currentTarget.style.transform = "rotate(0deg) scale(1.03)"} onMouseLeave={e => e.currentTarget.style.transform = `rotate(${(i % 5 - 2) * 1.8}deg)`} style={{ background: "#fff", borderRadius: 2, boxShadow: "0 2px 8px rgba(0,0,0,.12), 0 1px 2px rgba(0,0,0,.06)", transform: `rotate(${(i % 5 - 2) * 1.8}deg)`, transition: "transform .25s ease, box-shadow .25s ease", overflow: "hidden", width: "100%", padding: "6px 6px 4px", cursor: "pointer" }}>
                           <img onClick={() => { setLightboxIdx(i); setLightboxOpen(true); }} loading="lazy" src={url} alt="Travel photo" style={{ width: "100%", aspectRatio: "1", objectFit: "cover", display: "block", cursor: "pointer" }} />
                           {!isViewer ? (
                             <input
@@ -4590,7 +4759,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                           )}
                         </div>
                       ) : (
-                        <button key={i} onClick={() => { setLightboxIdx(i); setLightboxOpen(true); }} style={{ padding: 0, border: "2px solid transparent", background: P.blush, cursor: "pointer", borderRadius: 6, overflow: "hidden", aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
+                        <button key={url} onClick={() => { setLightboxIdx(i); setLightboxOpen(true); }} style={{ padding: 0, border: "2px solid transparent", background: P.blush, cursor: "pointer", borderRadius: 6, overflow: "hidden", aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
                           <img loading="lazy" src={url} alt="Travel photo" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "cover", borderRadius: 4 }} />
                         </button>
                       )
@@ -4637,7 +4806,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                       <button key={rt.type} onClick={async () => {
                         try {
                           await toggleReaction(worldId, cur.id, userId, rt.type);
-                          loadAllWorldReactions(worldId).then(setWorldReactions).catch(() => {});
+                          loadAllWorldReactions(worldId).then(setWorldReactions).catch(err => console.error('[cosmos] load reactions failed:', err));
                         } catch { showToast("Failed to react", "⚠️", 2000); }
                       }} style={{
                         padding: "3px 8px", borderRadius: 12, border: myReaction ? `1px solid ${P.rose}40` : `1px solid ${P.rose}15`,
@@ -4667,7 +4836,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                         {c.user_id === userId && <button onClick={async () => {
                           try {
                             await deleteComment(c.id);
-                            loadComments(worldId, cur.id).then(setEntryComments).catch(() => {});
+                            loadComments(worldId, cur.id).then(setEntryComments).catch(err => console.error('[cosmos] load comments failed:', err));
                           } catch { showToast("Failed to delete comment", "⚠️", 2000); }
                         }} style={{ background: "none", border: "none", fontSize: 8, color: P.textFaint, cursor: "pointer", padding: 0 }}>✕</button>}
                       </div>
@@ -4683,7 +4852,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                     addComment(worldId, cur.id, userId, userDisplayName, text)
                       .then(result => {
                         if (!result) { showToast("Failed to post comment", "⚠️", 2000); return; }
-                        loadComments(worldId, cur.id).then(setEntryComments).catch(() => {});
+                        loadComments(worldId, cur.id).then(setEntryComments).catch(err => console.error('[cosmos] load comments failed:', err));
                       })
                       .catch(() => showToast("Failed to post comment", "⚠️", 2000));
                   };
@@ -4798,11 +4967,11 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               <input value={letterCity} onChange={e => {
                 const v = e.target.value; setLetterCity(v);
                 if (v.length >= 2) { geocodeSearch(v, m => setLetterCitySugg(m)); } else setLetterCitySugg([]);
-              }} placeholder="Type a city..." style={inpSt()} />
+              }} placeholder="Type a city..." style={inputStyle()} />
               {letterCitySugg.length > 0 && (
                 <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: P.card, border: `1px solid ${P.textFaint}40`, borderRadius: 6, maxHeight: 120, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
                   {letterCitySugg.map((c, i) => (
-                    <button key={i} onClick={() => { setLetterCity(c[0]); setLetterLat(c[2].toString()); setLetterLng(c[3].toString()); setLetterCitySugg([]); }}
+                    <button key={c[0] + "-" + c[2]} onClick={() => { setLetterCity(c[0]); setLetterLat(c[2].toString()); setLetterLng(c[3].toString()); setLetterCitySugg([]); }}
                       style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", border: "none", borderBottom: `1px solid ${P.textFaint}15`, background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }}
                       onMouseEnter={e => e.currentTarget.style.background = P.blush} onMouseLeave={e => e.currentTarget.style.background = "none"}>
                       <span style={{ fontWeight: 500 }}>{c[0]}</span> <span style={{ color: P.textFaint }}>{c[1]}</span>
@@ -4811,7 +4980,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 </div>
               )}
             </div>
-            <textarea value={letterDraft} onChange={e => setLetterDraft(e.target.value)} rows={8} placeholder={`Dear ${config.partnerName || "Partner"}...`} style={{ ...inpSt(), resize: "vertical", lineHeight: 1.8 }} />
+            <textarea value={letterDraft} onChange={e => setLetterDraft(e.target.value)} rows={8} placeholder={`Dear ${config.partnerName || "Partner"}...`} style={{ ...inputStyle(), resize: "vertical", lineHeight: 1.8 }} />
             <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
               <button onClick={() => {
                 const lat = parseFloat(letterLat) || (20 + Math.random() * 40);
@@ -4863,7 +5032,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           <div style={{ flex: 1, overflowY: "auto", padding: 8 }}>
             <div style={{ display: "grid", gridTemplateColumns: polaroidMode ? "1fr 1fr" : "1fr 1fr 1fr", gap: polaroidMode ? 14 : 4, padding: polaroidMode ? "4px 6px" : 0 }}>
               {allPhotos.map((ph, i) => (
-                <button key={i} onClick={() => {
+                <button key={ph.url + "-" + ph.id} onClick={() => {
                   const entry = data.entries.find(e => e.id === ph.id);
                   if (entry) {
                     setSelected(entry); setPhotoIdx(0); setCardTab("overview"); setShowGallery(false);
@@ -4972,7 +5141,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                     {photos.length > 1 && (
                       <div style={{ position: "absolute", bottom: 8, right: 12, display: "flex", gap: 3, alignItems: "center" }}>
                         {photos.slice(0, 8).map((_, i) => (
-                          <div key={i} style={{ width: 4, height: 4, borderRadius: 2, background: i === cinemaPhotoIdx ? P.goldWarm : `${P.textFaint}40`, transition: "background .4s" }} />
+                          <div key={"cdot-" + i} style={{ width: 4, height: 4, borderRadius: 2, background: i === cinemaPhotoIdx ? P.goldWarm : `${P.textFaint}40`, transition: "background .4s" }} />
                         ))}
                         {photos.length > 8 && <div style={{ fontSize: 7, color: `${P.textFaint}60`, marginLeft: 1 }}>+{photos.length - 8}</div>}
                       </div>
@@ -5100,10 +5269,10 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                     return <div style={{ marginBottom: 12 }}>
                       <Lbl>{worldType === "family" ? "Family Members" : "Group Members"}</Lbl>
                       {members.map((m, i) => (
-                        <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "center" }}>
+                        <div key={"member-" + i} style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "center" }}>
                           <input value={m.name || ""} onChange={e => updateMember(i, e.target.value)}
                             placeholder={worldType === "family" ? `Member ${i + 1}` : `Friend ${i + 1}`}
-                            style={inpSt()} />
+                            style={inputStyle()} />
                           {members.length > 1 && (
                             <button onClick={() => removeMember(i)}
                               style={{ background: "none", border: "none", color: P.textFaint, fontSize: 15, cursor: "pointer", padding: "0 4px" }}>×</button>
@@ -5131,18 +5300,33 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               const baseSC = isMyWorld ? MY_WORLD_SCENE : sharedCfg ? sharedCfg.scene : OUR_WORLD_SCENE;
               return <>
                 <div style={{ fontSize: 7, color: P.textMid, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 6, marginTop: 2 }}>Theme Presets</div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
-                  {Object.entries(WORLD_THEMES).map(([key, theme]) => (
-                    <button key={key} onClick={() => {
-                      setConfig({ customPalette: theme.palette, customScene: theme.scene });
-                      showToast(`${theme.name} theme applied — reload for scene colors`, "🎨", 3000);
-                    }} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", background: "transparent", border: `1px solid ${P.textFaint}30`, borderRadius: 10, cursor: "pointer", fontFamily: "inherit", transition: "all .2s" }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = P.rose + "60"; e.currentTarget.style.background = P.rose + "08"; }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = P.textFaint + "30"; e.currentTarget.style.background = "transparent"; }}>
-                      <div style={{ display: "flex", gap: 2 }}>{theme.preview.map((c, i) => <div key={i} style={{ width: 10, height: 10, borderRadius: "50%", background: c }} />)}</div>
-                      <span style={{ fontSize: 9, color: P.text }}>{theme.name}</span>
-                    </button>
-                  ))}
+                <div style={{ marginBottom: 12 }}>
+                  <select
+                    value={Object.entries(WORLD_THEMES).find(([k, t]) => JSON.stringify(t.palette) === JSON.stringify(config.customPalette || {}))?.[0] || ""}
+                    onChange={e => {
+                      const theme = WORLD_THEMES[e.target.value];
+                      if (theme) {
+                        setConfig({ customPalette: theme.palette, customScene: theme.scene });
+                        showToast(`${theme.name} theme applied — reload for scene colors`, "\u{1F3A8}", 3000);
+                      }
+                    }}
+                    style={{ width: "100%", padding: "8px 10px", border: `1px solid ${P.textFaint}30`, borderRadius: 8, fontSize: 10, fontFamily: "inherit", color: P.text, background: P.card, backdropFilter: "blur(12px)", cursor: "pointer", appearance: "none", WebkitAppearance: "none", backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23999'/%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 10px center" }}
+                  >
+                    <option value="" disabled>Choose a theme...</option>
+                    {Object.entries(WORLD_THEMES).map(([key, theme]) => (
+                      <option key={key} value={key}>{theme.name} — {theme.description}</option>
+                    ))}
+                  </select>
+                  {(() => {
+                    const currentKey = Object.entries(WORLD_THEMES).find(([k, t]) => JSON.stringify(t.palette) === JSON.stringify(config.customPalette || {}))?.[0];
+                    const currentTheme = currentKey ? WORLD_THEMES[currentKey] : null;
+                    return currentTheme ? (
+                      <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 6, padding: "4px 8px", background: `${P.rose}08`, borderRadius: 6, fontSize: 9, color: P.textMid }}>
+                        <div style={{ display: "flex", gap: 2 }}>{currentTheme.preview.map((c, i) => <div key={c+i} style={{ width: 8, height: 8, borderRadius: "50%", background: c }} />)}</div>
+                        <span>{currentTheme.name}</span>
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
                 <div style={{ fontSize: 7, color: P.textMid, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 4, marginTop: 2 }}>Interface Colors</div>
                 {cPick("Primary Accent", "Markers, buttons, borders, highlights", cp.rose || baseP.rose, v => setCP("rose", v))}
@@ -5173,7 +5357,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             <div style={{ fontSize: 8, color: P.textMid, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 4, fontWeight: 500 }}>🎵 Ambient Music</div>
             <p style={{ fontSize: 8, color: P.textFaint, fontStyle: "italic", marginBottom: 6 }}>Paste an audio URL (.mp3, .ogg, .wav) to play background music while exploring your globe.</p>
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <input value={config.ambientMusicUrl || ""} onChange={e => setConfig({ ambientMusicUrl: e.target.value.trim() || "" })} placeholder="https://example.com/song.mp3" style={{ ...inpSt(), flex: 1 }} />
+              <input value={config.ambientMusicUrl || ""} onChange={e => setConfig({ ambientMusicUrl: e.target.value.trim() || "" })} placeholder="https://example.com/song.mp3" style={{ ...inputStyle(), flex: 1 }} />
               {config.ambientMusicUrl && <button onClick={() => { const au = ambientRef.current; if (!au) return; if (ambientPlaying) { au.pause(); } else { au.play().catch(() => {}); } }} style={{ padding: "8px 10px", background: `${P.rose}15`, border: `1px solid ${P.rose}25`, borderRadius: 10, color: P.rose, fontSize: 11, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>{ambientPlaying ? "⏸ Stop" : "▶ Test"}</button>}
             </div>
             {config.ambientMusicUrl && !/^https?:\/\/.+\..+/.test(config.ambientMusicUrl) && <div style={{ fontSize: 8, color: "#d4846a", marginTop: 4 }}>Enter a valid URL starting with https://</div>}
@@ -5194,10 +5378,10 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             <div style={{ fontSize: 8, color: P.textMid, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 6, fontWeight: 500 }}>Timeline Chapters</div>
             <p style={{ fontSize: 8, color: P.textFaint, fontStyle: "italic", marginBottom: 8 }}>{isMyWorld ? "Name the eras of your travels" : "Name the eras of your relationship"}</p>
             {(config.chapters || []).map((ch, i) => (
-              <div key={i} style={{ display: "flex", gap: 4, alignItems: "center", marginBottom: 4 }}>
-                <input value={ch.label} onChange={e => { const chs = [...(config.chapters || [])]; chs[i] = { ...chs[i], label: e.target.value }; setConfig({ chapters: chs }); }} style={{ ...inpSt(), flex: 1, fontSize: 10 }} placeholder="Chapter name" />
-                <input type="date" value={ch.startDate || ""} onChange={e => { const chs = [...(config.chapters || [])]; chs[i] = { ...chs[i], startDate: e.target.value }; setConfig({ chapters: chs }); }} style={{ ...inpSt(), width: 95, fontSize: 9 }} />
-                <input type="date" value={ch.endDate || ""} onChange={e => { const chs = [...(config.chapters || [])]; chs[i] = { ...chs[i], endDate: e.target.value }; setConfig({ chapters: chs }); }} style={{ ...inpSt(), width: 95, fontSize: 9 }} />
+              <div key={"ch-" + i} style={{ display: "flex", gap: 4, alignItems: "center", marginBottom: 4 }}>
+                <input value={ch.label} onChange={e => { const chs = [...(config.chapters || [])]; chs[i] = { ...chs[i], label: e.target.value }; setConfig({ chapters: chs }); }} style={{ ...inputStyle(), flex: 1, fontSize: 10 }} placeholder="Chapter name" />
+                <input type="date" value={ch.startDate || ""} onChange={e => { const chs = [...(config.chapters || [])]; chs[i] = { ...chs[i], startDate: e.target.value }; setConfig({ chapters: chs }); }} style={{ ...inputStyle(), width: 95, fontSize: 9 }} />
+                <input type="date" value={ch.endDate || ""} onChange={e => { const chs = [...(config.chapters || [])]; chs[i] = { ...chs[i], endDate: e.target.value }; setConfig({ chapters: chs }); }} style={{ ...inputStyle(), width: 95, fontSize: 9 }} />
                 <button onClick={() => { const chs = (config.chapters || []).filter((_, j) => j !== i); setConfig({ chapters: chs }); }} style={{ background: "none", border: "none", color: "#c9777a", cursor: "pointer", fontSize: 12, flexShrink: 0 }}>×</button>
               </div>
             ))}
@@ -5209,13 +5393,13 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             {wlSent && <div style={{ fontSize: 10, color: "#7ab87a", marginBottom: 8 }}>Letter sent! They'll see it when they sign up.</div>}
             <div style={{ marginBottom: 6 }}>
               <Lbl>Recipient's Email</Lbl>
-              <input type="email" value={wlEmail} onChange={e => setWlEmail(e.target.value)} placeholder="their.email@example.com" style={inpSt()} />
+              <input type="email" value={wlEmail} onChange={e => setWlEmail(e.target.value)} placeholder="their.email@example.com" style={inputStyle()} />
             </div>
             <div style={{ marginBottom: 6 }}>
               <Lbl>Your Letter</Lbl>
               <textarea value={wlText} onChange={e => setWlText(e.target.value)} rows={5}
                 placeholder={"This is our world \u2014 every place we've been, every adventure we've shared...\n\nSpin the globe. Click the hearts. This is our story.\n\nI love you."}
-                style={{ ...inpSt(), resize: "vertical", lineHeight: 1.7 }} />
+                style={{ ...inputStyle(), resize: "vertical", lineHeight: 1.7 }} />
             </div>
             <button
               disabled={wlSending || !wlEmail.trim() || !wlText.trim()}
@@ -5407,7 +5591,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
       {/* YEAR-IN-REVIEW RECAP — Full-screen cinematic */}
       {showRecap && recapEntries.length > 0 && recapYearStats && <RecapOverlay
-        P={P} SC={SC} TYPES={TYPES} DEFAULT_TYPE={DEFAULT_TYPE} thumbnail={thumbnail} fmtDate={fmtDate} navSt={navSt}
+        P={P} SC={SC} TYPES={TYPES} DEFAULT_TYPE={DEFAULT_TYPE} thumbnail={thumbnail} fmtDate={fmtDate} navStyle={navStyle}
         recapYear={recapYear} recapYearStats={recapYearStats} recapEntries={recapEntries}
         recapPhase={recapPhase} recapIdx={recapIdx} recapStatIdx={recapStatIdx} recapAutoPlay={recapAutoPlay}
         setRecapPhase={setRecapPhase} setRecapIdx={setRecapIdx} setRecapStatIdx={setRecapStatIdx} setRecapAutoPlay={setRecapAutoPlay}
@@ -5490,7 +5674,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             onClick={() => setShowCelebration(false)}>
             {/* Confetti particles */}
             {showConfetti && Array.from({ length: isMilestone ? 16 : 24 }, (_, i) => (
-              <div key={i} style={{
+              <div key={"confetti-" + i} style={{
                 position: "absolute",
                 left: `${10 + Math.random() * 80}%`,
                 top: "-5%",
@@ -5657,7 +5841,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             {/* Dot indicators */}
             {photos.length > 1 && photos.length <= 20 && (
               <div style={{ position: "absolute", bottom: 24, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 6, zIndex: 210 }}>
-                {photos.map((_, i) => <button key={i} onClick={e => { e.stopPropagation(); setLightboxIdx(i); }}
+                {photos.map((_, i) => <button key={"lb-" + i} onClick={e => { e.stopPropagation(); setLightboxIdx(i); }}
                   style={{ width: i === idx ? 10 : 6, height: 6, borderRadius: 3, background: i === idx ? "#fff" : "rgba(255,255,255,0.3)", border: "none", padding: 0, cursor: "pointer", transition: "all .2s" }} />)}
               </div>
             )}
@@ -5771,7 +5955,11 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         @keyframes heartFloat4{0%{opacity:1;transform:translate(-50%,-50%)}100%{opacity:0;transform:translate(-18px,-22px) scale(1.0)}}
         *{box-sizing:border-box}
         ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:${P.textFaint}22;border-radius:2px}
-        input:focus,textarea:focus,select:focus{outline:none;border-color:${P.rose}!important}
+        input:focus:not(:focus-visible),textarea:focus:not(:focus-visible),select:focus:not(:focus-visible){outline:none;border-color:${P.rose}!important}
+        input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--accent,${P.rose});outline-offset:2px;border-color:${P.rose}!important}
+        button,a,[role="button"],[data-action]{cursor:pointer!important}
+        input,textarea{cursor:text}
+        select{cursor:pointer}
         input[type=range]{-webkit-appearance:none;appearance:none}
         input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:${P.rose};cursor:pointer;border:2px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.2);margin-top:-9px}
         input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}

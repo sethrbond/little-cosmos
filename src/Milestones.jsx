@@ -503,7 +503,7 @@ export default function Milestones({ entries, palette, onClose, worldMode, confi
     }}>
       {/* Soft background dots */}
       {bgDots.map((d, i) => (
-        <div key={i} style={{
+        <div key={`bg-dot-${i}`} style={{
           position: "absolute",
           left: `${d.left}%`, top: `${d.top}%`,
           width: d.size, height: d.size, borderRadius: "50%",
@@ -654,7 +654,7 @@ export default function Milestones({ entries, palette, onClose, worldMode, confi
                       animation: "mlFadeIn .3s ease",
                     }}>
                       {m.entry.photos.slice(0, 4).map((p, pi) => (
-                        <img key={pi} loading="lazy" src={p} alt="" style={{
+                        <img key={p} loading="lazy" src={p} alt="" style={{
                           width: 80, height: 60, objectFit: "cover",
                           borderRadius: 8, opacity: 0.8, flexShrink: 0,
                         }} />
@@ -679,7 +679,7 @@ export default function Milestones({ entries, palette, onClose, worldMode, confi
                       marginTop: 8, animation: "mlFadeIn .3s ease",
                     }}>
                       {m.entry.highlights.slice(0, 3).map((mem, mi) => (
-                        <div key={mi} style={{
+                        <div key={`milestone-highlight-${mem}-${mi}`} style={{
                           color: "rgba(255,255,255,0.35)", fontSize: 11,
                           marginTop: 3, paddingLeft: 10,
                           borderLeft: `2px solid ${accent}30`,
