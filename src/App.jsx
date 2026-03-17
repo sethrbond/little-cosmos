@@ -370,17 +370,19 @@ function AppInner() {
 
       // Refresh data in background (WorldSelector already has previous data to render with)
       if (userId) {
-        Promise.all([
+        Promise.allSettled([
           loadMyWorlds(userId),
           getMyConnections(userId),
           getPendingRequests(user?.email),
           getPendingWorldInvites(user?.email),
           loadMyWorldSubtitle(userId),
-        ]).then(([w, conn, pending, worldInvites, myInfo]) => {
-          setWorlds(w)
-          setConnections(conn)
-          setPendingRequests(pending)
-          setPendingWorldInvites(worldInvites || [])
+        ]).then((results) => {
+          const val = (i) => results[i].status === 'fulfilled' ? results[i].value : null
+          setWorlds(val(0) || [])
+          setConnections(val(1) || [])
+          setPendingRequests(val(2) || [])
+          setPendingWorldInvites(val(3) || [])
+          const myInfo = val(4)
           setMyWorldSubtitle(myInfo?.subtitle ?? '')
           setMyWorldColors({ customPalette: myInfo?.customPalette || {}, customScene: myInfo?.customScene || {} })
         }).catch(err => console.error('[switchWorld] refresh error:', err))
