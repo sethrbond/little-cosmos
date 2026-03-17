@@ -520,26 +520,23 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       return { mesh: orb, world: w, angleOffset: (idx / Math.max(ALL_ORBS.length, 1)) * Math.PI * 2, sparkles, sparkMat: sMat, sparkPhase: sPhase, sparkCfg };
     });
 
-    // Per-orbit glowing rings — each world gets its own tilted elliptical ring
+    // Saturn-style rings on each world sphere
     const orbitRings = [];
-    ALL_ORBS.forEach(w => {
-      // Elliptical ring: semi-major = orbitRadius, semi-minor shrunk by eccentricity
-      const a = w.orbitRadius;
-      const b = a * (1 - (w.orbitEccentricity || 0));
-      const ringGeo = new THREE.RingGeometry(Math.min(a, b) - 0.015, Math.max(a, b) + 0.015, 96);
-      // Scale ring to be elliptical
-      const ringMat = new THREE.MeshBasicMaterial({ color: w.glowColor || "#ffffff", transparent: true, opacity: 0.04, side: THREE.DoubleSide });
+    orbs.forEach((o) => {
+      const s = o.world.size || 0.27;
+      const innerR = s * 1.4;
+      const outerR = s * 2.2;
+      const ringGeo = new THREE.RingGeometry(innerR, outerR, 64);
+      const ringMat = new THREE.MeshBasicMaterial({
+        color: o.world.glowColor || "#ffffff",
+        transparent: true, opacity: 0.12, side: THREE.DoubleSide
+      });
       const ring = new THREE.Mesh(ringGeo, ringMat);
-      ring.rotation.x = Math.PI * 0.5;
-      // Apply orbital inclination — tilt the ring plane
-      const inc = w.orbitInclination || 0;
-      const incAxis = w.orbitInclinationAxis || 0;
-      ring.rotation.x += Math.cos(incAxis) * inc;
-      ring.rotation.z += Math.sin(incAxis) * inc;
-      // Stretch to ellipse
-      if ((w.orbitEccentricity || 0) > 0) ring.scale.set(1, 1 - (w.orbitEccentricity || 0), 1);
-      scene.add(ring);
-      orbitRings.push({ mesh: ring, mat: ringMat, baseOp: 0.04 });
+      // Tilt the ring at a fun angle
+      ring.rotation.x = Math.PI * 0.35 + (o.world.orbitInclination || 0) * 0.5;
+      ring.rotation.z = (o.world.orbitInclinationAxis || 0) * 0.3;
+      o.mesh.add(ring); // attach to world mesh so it moves with it
+      orbitRings.push({ mesh: ring, mat: ringMat, baseOp: 0.12 });
     });
 
     let t = 0, frameId;
