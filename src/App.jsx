@@ -178,7 +178,7 @@ function AppInner() {
     getAllWelcomeLetters(user.email).then(letters => {
       setWelcomeLetters(letters)
       setLetterChecked(true)
-    }).catch(err => { console.error('[welcome letter]', err); setLetterChecked(true) })
+    }).catch(err => { console.error('[welcome letter]', err); showErrorToast('Could not load welcome letters'); setLetterChecked(true) })
   }, [user?.email])
 
   // Load user's shared worlds + connections + ensure personal world exists
