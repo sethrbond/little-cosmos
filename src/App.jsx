@@ -186,6 +186,8 @@ function AppInner() {
   useEffect(() => {
     if (!userId) { setWorldsLoaded(true); return }
     (async () => {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session) { console.error("[loadData] NO SESSION"); setWorldsLoaded(true); return }
       try {
         // First pass: load everything including pending invites
         const results = await Promise.allSettled([
