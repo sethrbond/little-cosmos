@@ -188,7 +188,7 @@ function AppInner() {
     (async () => {
       try {
         // First pass: load everything including pending invites
-        const [w, conn, pending, worldInvites, myInfo, pwId] = await Promise.all([
+        const results = await Promise.allSettled([
           loadMyWorlds(userId),
           getMyConnections(userId),
           getPendingRequests(user?.email),
@@ -196,11 +196,19 @@ function AppInner() {
           loadMyWorldSubtitle(userId),
           ensurePersonalWorld(userId),
         ])
+        const val = (i) => results[i].status === 'fulfilled' ? results[i].value : null
+        const w = val(0) || []
+        const conn = val(1) || []
+        const pending = val(2) || []
+        const worldInvites = val(3) || []
+        const myInfo = val(4)
+        const pwId = val(5)
+        results.forEach((r, i) => { if (r.status === 'rejected') console.error('[loadData]', i, 'failed:', r.reason) })
         setConnections(conn)
         setPendingRequests(pending)
         setMyWorldSubtitle(myInfo?.subtitle ?? '')
         setMyWorldColors({ customPalette: myInfo?.customPalette || {}, customScene: myInfo?.customScene || {} })
-        setPersonalWorldId(pwId)
+        if (pwId) setPersonalWorldId(pwId)
 
         // Auto-accept any pending world invites so shared worlds appear immediately
         if (worldInvites && worldInvites.length > 0) {
