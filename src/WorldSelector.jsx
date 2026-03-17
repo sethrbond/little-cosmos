@@ -338,7 +338,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       bsP[i*3] = r*Math.sin(ph)*Math.cos(th); bsP[i*3+1] = r*Math.sin(ph)*Math.sin(th); bsP[i*3+2] = r*Math.cos(ph);
     }
     const bsG = new THREE.BufferGeometry(); bsG.setAttribute("position", new THREE.BufferAttribute(bsP, 3));
-    scene.add(new THREE.Points(bsG, new THREE.PointsMaterial({ color: "#f8f0e0", size: 0.09, transparent: true, opacity: 0.8 })));
+    scene.add(new THREE.Points(bsG, new THREE.PointsMaterial({ color: "#f8f0e0", size: 0.09, transparent: true, opacity: 0.8, sizeAttenuation: true })));
 
     // === VISUAL ENHANCEMENT A: Dense twinkling starfield ===
     const denseStarCount = tierDenseStarCount;
@@ -473,7 +473,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     }
     const cSparkGeo = new THREE.BufferGeometry();
     cSparkGeo.setAttribute("position", new THREE.BufferAttribute(cSparkPos, 3));
-    const cSparkMat = new THREE.PointsMaterial({ color: centerGlow, size: 0.04, transparent: true, opacity: 0.9, depthWrite: false });
+    const cSparkMat = new THREE.PointsMaterial({ color: centerGlow, size: 0.04, transparent: true, opacity: 0.9, depthWrite: false, sizeAttenuation: true });
     const centerSparkles = new THREE.Points(cSparkGeo, cSparkMat);
     centerOrb.add(centerSparkles);
 
@@ -512,7 +512,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       }
       const sGeo = new THREE.BufferGeometry();
       sGeo.setAttribute("position", new THREE.BufferAttribute(sPos, 3));
-      const sMat = new THREE.PointsMaterial({ color: w.glowColor, size: sparkCfg.size, transparent: true, opacity: 0.8, depthWrite: false });
+      const sMat = new THREE.PointsMaterial({ color: w.glowColor, size: sparkCfg.size, transparent: true, opacity: 0.8, depthWrite: false, sizeAttenuation: true });
       const sparkles = new THREE.Points(sGeo, sMat);
       orb.add(sparkles);
 
