@@ -458,8 +458,8 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       scene.add(new THREE.Mesh(new THREE.SphereGeometry(r, 24, 24),
         new THREE.MeshBasicMaterial({ color: centerGlow, transparent: true, opacity: op, side: THREE.BackSide })));
     });
-    scene.add(new THREE.Mesh(new THREE.SphereGeometry(0.72, 32, 32),
-      new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.12, side: THREE.FrontSide })));
+    scene.add(new THREE.Mesh(new THREE.SphereGeometry(0.74, 32, 32),
+      new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.06, side: THREE.BackSide })));
 
     // Surface sparkle particles for center orb
     const centerSparkleCount = 40;
@@ -496,7 +496,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
           new THREE.MeshBasicMaterial({ color: w.glowColor, transparent: true, opacity: op, side: THREE.BackSide })));
       });
       orb.add(new THREE.Mesh(new THREE.SphereGeometry(w.size * 0.98, 24, 24),
-        new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.10, side: THREE.FrontSide })));
+        new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.05, side: THREE.BackSide })));
 
       // Type-specific surface sparkle particles
       const wType = w.worldType || (w.id?.startsWith("friend-") ? "friend" : "shared");
