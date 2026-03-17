@@ -1,3 +1,4 @@
+import { debugWarn } from './debug.js'
 import { supabase } from './supabaseClient.js'
 
 /* supabaseWorlds.js — Phase 3: World Creation & Sharing */
@@ -84,20 +85,24 @@ export async function createWorld(userId, name, type = 'shared', { youName = '',
 }
 
 export async function loadMyWorlds(userId) {
+  console.log('[loadMyWorlds] starting for userId:', userId)
   // Get all worlds this user is a member of
   const { data: memberships, error: memErr } = await supabase
     .from('world_members')
     .select('world_id, role')
     .eq('user_id', userId)
+  console.log('[loadMyWorlds] memberships:', memberships?.length, 'error:', memErr?.message || 'none')
   if (memErr) { console.error('[loadMyWorlds] memberships:', memErr); return [] }
-  if (!memberships || memberships.length === 0) return []
+  if (!memberships || memberships.length === 0) { console.warn('[loadMyWorlds] NO memberships found for user'); return [] }
 
   const worldIds = memberships.map(m => m.world_id)
+  console.log('[loadMyWorlds] fetching worlds:', worldIds)
   const { data: worlds, error } = await supabase
     .from('worlds')
     .select('*')
     .in('id', worldIds)
     .order('created_at', { ascending: true })
+  console.log('[loadMyWorlds] worlds:', worlds?.length, 'error:', error?.message || 'none')
   if (error) { console.error('[loadMyWorlds]', error); return [] }
 
   // Also fetch config data (names, subtitle, metadata for members) for each world
@@ -294,7 +299,7 @@ export async function createInvite(worldId, userId, role = 'member', maxUses = 1
   // Validate role to prevent privilege escalation
   const allowedRoles = ['member', 'viewer']
   if (!allowedRoles.includes(role)) role = 'member'
-  const token = crypto.randomUUID().replace(/-/g, '').slice(0, 16)
+  const token = crypto.randomUUID().replace(/-/g, '').slice(0, 32)
   const row = { world_id: worldId, token, created_by: userId, role, max_uses: maxUses }
   if (targetEmail) row.target_email = targetEmail.toLowerCase()
   const { data, error } = await supabase.from('world_invites').insert(row).select().single()
@@ -361,7 +366,7 @@ export async function createInviteWithLetter(worldId, userId, fromName, toEmail,
     const { error: letterErr } = await supabase.from('welcome_letters').insert(letterRow)
     // If invite_token column doesn't exist yet, retry without it
     if (letterErr && (letterErr.message?.includes('invite_token') || letterErr.code === '42703')) {
-      console.warn('[createInviteWithLetter] invite_token column missing, retrying without it')
+      debugWarn('[createInviteWithLetter] invite_token column missing, retrying without it')
       const { invite_token, ...safeRow } = letterRow
       const { error: e2 } = await supabase.from('welcome_letters').insert(safeRow)
       if (e2) console.error('[createInviteWithLetter] letter retry error:', e2)
@@ -390,7 +395,7 @@ export async function createViewerInvite(worldId, userId, toEmail, letterText, f
     }
     const { error: letterErr } = await supabase.from('welcome_letters').insert(letterRow)
     if (letterErr && (letterErr.message?.includes('invite_token') || letterErr.code === '42703')) {
-      console.warn('[createViewerInvite] invite_token column missing, retrying without it')
+      debugWarn('[createViewerInvite] invite_token column missing, retrying without it')
       const { invite_token, ...safeRow } = letterRow
       const { error: e2 } = await supabase.from('welcome_letters').insert(safeRow)
       if (e2) console.error('[createViewerInvite] letter retry error:', e2)
@@ -628,11 +633,16 @@ export async function loadCrossWorldActivity(worldIds, limit = 20) {
 
 export async function loadWorldEntryCounts(worldIds) {
   if (!worldIds || worldIds.length === 0) return {}
-  const results = await Promise.all(worldIds.map(wid =>
-    supabase.from('entries').select('*', { count: 'exact', head: true }).eq('world_id', wid)
-      .then(({ count, error }) => [wid, error ? 0 : (count || 0)])
-  ))
-  return Object.fromEntries(results)
+  const { data, error } = await supabase
+    .from('entries')
+    .select('world_id')
+    .in('world_id', worldIds)
+  if (error || !data) return {}
+  const counts = {}
+  for (const row of data) {
+    counts[row.world_id] = (counts[row.world_id] || 0) + 1
+  }
+  return counts
 }
 
 export async function searchCrossWorld(worldIds, userId, query, limit = 20) {
@@ -640,6 +650,8 @@ export async function searchCrossWorld(worldIds, userId, query, limit = 20) {
   // Strict whitelist: only alphanumeric, spaces, dashes, apostrophes
   const q = query.trim().replace(/[^a-zA-Z0-9\s'-]/g, '').trim().toLowerCase()
   if (!q) return []
+  // Escape SQL LIKE wildcards to prevent pattern injection
+  const qEscaped = q.replace(/%/g, '\\%').replace(/_/g, '\\_')
 
   // Include personal world in search (all entries now in unified entries table)
   const personalId = await getPersonalWorldId(userId)
@@ -651,7 +663,7 @@ export async function searchCrossWorld(worldIds, userId, query, limit = 20) {
     .from('entries')
     .select('id, city, country, entry_type, date_start, notes, photos, world_id')
     .in('world_id', allWorldIds)
-    .or(`city.ilike.%${q}%,country.ilike.%${q}%,notes.ilike.%${q}%`)
+    .or(`city.ilike.%${qEscaped}%,country.ilike.%${qEscaped}%,notes.ilike.%${qEscaped}%`)
     .order('date_start', { ascending: false })
     .limit(limit)
 
