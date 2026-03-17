@@ -7,6 +7,7 @@ import { useState, useMemo, useEffect, useRef, useCallback } from "react";
  */
 
 const STYLE_ID = "trip-journal-keyframes";
+const prefersReducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function injectKeyframes() {
   if (document.getElementById(STYLE_ID)) return;
@@ -161,7 +162,7 @@ export default function TripJournal({
           position: "fixed", inset: 0, zIndex: 9000, display: "flex",
           alignItems: "center", justifyContent: "center",
           background: "rgba(10,8,20,0.85)", backdropFilter: "blur(12px)",
-          animation: "tj-fadeOverlay 0.3s ease",
+          animation: prefersReducedMotion ? "none" : "tj-fadeOverlay 0.3s ease",
         }}
         onClick={onClose}
       >
@@ -183,7 +184,7 @@ export default function TripJournal({
       style={{
         position: "fixed", inset: 0, zIndex: 9000, display: "flex",
         background: "rgba(10,8,20,0.88)", backdropFilter: "blur(12px)",
-        animation: "tj-fadeOverlay 0.3s ease", fontFamily: "'Palatino', Georgia, serif",
+        animation: prefersReducedMotion ? "none" : "tj-fadeOverlay 0.3s ease", fontFamily: "'Palatino', Georgia, serif",
       }}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
@@ -214,7 +215,7 @@ export default function TripJournal({
         </div>
         {trips.map((t, i) => (
           <button
-            key={i}
+            key={`trip-${t.dateStart}-${t.country}-${i}`}
             onClick={() => { setDir("right"); setTripIdx(i); }}
             style={{
               display: "block", width: "100%", textAlign: "left",
@@ -223,7 +224,7 @@ export default function TripJournal({
               borderLeft: i === tripIdx ? `3px solid ${accent}` : "3px solid transparent",
               color: i === tripIdx ? text : textMuted,
               fontSize: 13, lineHeight: 1.4, fontFamily: "inherit",
-              transition: "all 0.15s ease",
+              transition: prefersReducedMotion ? "none" : "all 0.15s ease",
             }}
           >
             <div style={{ fontWeight: i === tripIdx ? 600 : 400 }}>{t.name}</div>
@@ -247,7 +248,7 @@ export default function TripJournal({
               borderRadius: 8, overflow: "hidden", position: "relative",
               boxShadow: `0 8px 40px rgba(0,0,0,0.5), 0 0 0 1px ${textFaint}22`,
               transform: `rotate(${(pageIdx % 3 - 1) * 0.6}deg)`,
-              animation: `${animName} 0.35s ease`,
+              animation: prefersReducedMotion ? "none" : `${animName} 0.35s ease`,
               background: photo
                 ? `linear-gradient(to bottom, rgba(0,0,0,0.15), rgba(0,0,0,0.7))`
                 : `linear-gradient(135deg, ${accent}44, ${gold}22, ${textFaint}33)`,
@@ -334,7 +335,7 @@ export default function TripJournal({
               {entry.highlights?.length > 0 && (
                 <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 6 }}>
                   {entry.highlights.map((h, i) => (
-                    <span key={i} style={{
+                    <span key={`highlight-${h}-${i}`} style={{
                       fontSize: 11, padding: "3px 10px", borderRadius: 12,
                       background: `${gold}33`, color: "#fff",
                       fontFamily: "system-ui, sans-serif",
@@ -356,7 +357,7 @@ export default function TripJournal({
                     \ud83d\udcad Memories
                   </div>
                   {entry.memories.slice(0, 3).map((m, i) => (
-                    <div key={i} style={{
+                    <div key={`memory-${i}-${m.slice(0, 32)}`} style={{
                       fontSize: 13, color: "rgba(255,255,255,0.8)",
                       lineHeight: 1.45, marginTop: i ? 4 : 0,
                     }}>
@@ -374,7 +375,7 @@ export default function TripJournal({
                 }}>
                   {entry.photos.slice(0, 8).map((p, i) => (
                     <img
-                      key={i}
+                      key={p}
                       src={thumb(p)}
                       alt=""
                       style={{
@@ -400,7 +401,7 @@ export default function TripJournal({
                     color: "rgba(255,255,255,0.7)", fontSize: 12, padding: "5px 14px",
                     borderRadius: 16, cursor: "pointer", alignSelf: "flex-start",
                     fontFamily: "system-ui, sans-serif",
-                    transition: "all 0.15s ease",
+                    transition: prefersReducedMotion ? "none" : "all 0.15s ease",
                   }}
                 >
                   View full entry \u2192
@@ -424,7 +425,7 @@ export default function TripJournal({
                 fontSize: 22, width: 40, height: 40, borderRadius: "50%",
                 cursor: pageIdx === 0 ? "default" : "pointer",
                 display: "flex", alignItems: "center", justifyContent: "center",
-                transition: "all 0.15s ease",
+                transition: prefersReducedMotion ? "none" : "all 0.15s ease",
               }}
             >
               \u2039
@@ -440,7 +441,7 @@ export default function TripJournal({
                 fontSize: 22, width: 40, height: 40, borderRadius: "50%",
                 cursor: pageIdx === totalPages - 1 ? "default" : "pointer",
                 display: "flex", alignItems: "center", justifyContent: "center",
-                transition: "all 0.15s ease",
+                transition: prefersReducedMotion ? "none" : "all 0.15s ease",
               }}
             >
               \u203a
@@ -455,14 +456,14 @@ export default function TripJournal({
           }}>
             {trip.entries.map((_, i) => (
               <button
-                key={i}
+                key={`page-dot-${_.id || i}`}
                 onClick={() => { setDir(i > pageIdx ? "right" : "left"); setPageIdx(i); }}
                 aria-label={`Page ${i + 1}`}
                 style={{
                   width: i === pageIdx ? 18 : 7, height: 7, borderRadius: 4,
                   background: i === pageIdx ? accent : `${textMuted}66`,
                   border: "none", cursor: "pointer", padding: 0,
-                  transition: "all 0.2s ease",
+                  transition: prefersReducedMotion ? "none" : "all 0.2s ease",
                 }}
               />
             ))}
