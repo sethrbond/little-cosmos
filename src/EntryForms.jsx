@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, Component } from "react";
+import { usePalette } from "./PaletteContext.jsx";
 import { geocodeSearch } from "./geocode.js";
 
 // Shared font family — import this instead of duplicating the string
@@ -163,13 +164,13 @@ export function getDraftSummary(draftKey) {
 
 // ---- STYLE FUNCTIONS ----
 
-export function inputStyle() {
-  const P = getP();
+export function inputStyle(p) {
+  const P = p || getP();
   return { width: "100%", padding: "10px 14px", border: `1px solid ${P.textFaint}25`, borderRadius: 10, fontSize: 13, fontFamily: "'Palatino Linotype',Palatino,Georgia,serif", color: P.text, background: P.cream, boxSizing: "border-box", transition: "border-color .2s, box-shadow .2s", outline: "none" };
 }
 
-export function navStyle() {
-  const P = getP();
+export function navStyle(p) {
+  const P = p || getP();
   return { background: "none", border: `1px solid ${P.textFaint}25`, borderRadius: 8, padding: "8px 14px", cursor: "pointer", fontSize: 11, color: P.textMid, fontFamily: "inherit", transition: "all .25s ease", minHeight: 44 };
 }
 
@@ -287,7 +288,7 @@ function FldR({ l, v, set, t = "text", ph = "", req }) {
 // ---- QUICK ADD FORM ----
 
 export function QuickAddForm({ types, onAdd, onClose, draftKey }) {
-  const P = getP();
+  const P = usePalette();
   const trapRef = useFocusTrap(true);
   const initialQuick = { city: "", country: "", lat: "", lng: "", dateStart: "", dateEnd: "", type: Object.keys(types)[0] || "together", notes: "" };
   const [f, sf, draftRestored, clearDraft] = useDraft(draftKey, initialQuick);
@@ -351,7 +352,7 @@ const DREAM_CATEGORIES = [
 ];
 
 export function DreamAddForm({ onAdd, isMyWorld }) {
-  const P = getP();
+  const P = usePalette();
   const [f, sf] = useState({ city: "", country: "", lat: "", lng: "", notes: "", category: "", targetDate: "" });
   const [sugg, setSugg] = useState([]);
   const [showSugg, setShowSugg] = useState(false);
@@ -407,7 +408,7 @@ export { DREAM_CATEGORIES };
 // ---- ADD FORM ----
 
 export function AddForm({ types, defaultType = "together", defaultWho = "both", fieldLabels, isMyWorld, worldName, onAdd, onClose, draftKey }) {
-  const P = getP();
+  const P = usePalette();
   const trapRef = useFocusTrap(true);
   const initialForm = { city: "", country: "", lat: "", lng: "", dateStart: "", dateEnd: "", type: defaultType, who: defaultWho, zoomLevel: 1, notes: "", museums: "", restaurants: "", highlights: "", memories: "", musicUrl: "", stops: [] };
   const [f, sf, draftRestored, clearDraft, dismissRestored] = useDraft(draftKey, initialForm);
@@ -556,7 +557,7 @@ export function AddForm({ types, defaultType = "together", defaultWho = "both", 
 // ---- EDIT FORM ----
 
 export function EditForm({ entry, types, fieldLabels, onChange, onSave, onClose, onDelete, onAddStop, onSaveTemplate }) {
-  const P = getP();
+  const P = usePalette();
   const trapRef = useFocusTrap(true);
   const memoryPrompt = useMemoryPrompt(entry.type);
   const [ns, setNs] = useState({ city: "", lat: "", lng: "", notes: "", dateStart: "", dateEnd: "" });
