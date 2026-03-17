@@ -584,6 +584,9 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     scene.add(tail);
     let cometTimer = 20 + Math.random() * 30; // first comet after 20-50s
     let cometActive = false;
+    // Hide tail offscreen initially
+    for (let ti = 0; ti < tailCount * 3; ti++) tailPositions[ti] = -999;
+    tailGeo.attributes.position.needsUpdate = true;
     let cometProgress = 0;
     let cometPath = { sx: 0, sy: 0, sz: 0, ex: 0, ey: 0, ez: 0 };
     const cometHistory = [];
@@ -678,6 +681,9 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
           cometActive = false;
           cometTimer = 25 + Math.random() * 25;
           cometMat.opacity = 0; tailMat.opacity = 0;
+          for (let ti = 0; ti < tailCount * 3; ti++) tailGeo.attributes.position.array[ti] = -999;
+          tailGeo.attributes.position.needsUpdate = true;
+          cometHistory.length = 0;
         } else {
           // Curved path through center area
           const p = cometProgress;
