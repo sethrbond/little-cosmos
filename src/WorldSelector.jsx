@@ -559,8 +559,8 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     });
 
     // Comet that drifts across the cosmos every ~40 seconds
-    const cometGeo = new THREE.SphereGeometry(0.06, 8, 8);
-    const cometMat = new THREE.MeshBasicMaterial({ color: "#e8dcc8", transparent: true, opacity: 0 });
+    const cometGeo = new THREE.SphereGeometry(0.04, 8, 8);
+    const cometMat = new THREE.MeshBasicMaterial({ color: "#f0e8d8", transparent: true, opacity: 0, depthWrite: false });
     const comet = new THREE.Mesh(cometGeo, cometMat);
     scene.add(comet);
     // Comet tail (particle trail)
@@ -568,7 +568,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     const tailPositions = new Float32Array(tailCount * 3);
     const tailGeo = new THREE.BufferGeometry();
     tailGeo.setAttribute("position", new THREE.BufferAttribute(tailPositions, 3));
-    const tailMat = new THREE.PointsMaterial({ color: "#c9a96e", size: 0.04, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
+    const tailMat = new THREE.PointsMaterial({ color: "#c9a96e", size: 0.03, transparent: true, opacity: 0, sizeAttenuation: true, blending: THREE.AdditiveBlending, depthWrite: false });
     const tail = new THREE.Points(tailGeo, tailMat);
     scene.add(tail);
     let cometTimer = 20 + Math.random() * 30; // first comet after 20-50s
