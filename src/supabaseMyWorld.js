@@ -110,8 +110,7 @@ export function createMyWorldDB(worldId, userId) {
     },
 
     deleteEntry: async (id) => {
-      const photosOk = await deleteEntryPhotos(id)
-      if (!photosOk) { console.error('[my:deleteEntry] photo cleanup failed, aborting:', id); return false }
+      await deleteEntryPhotos(id)
       const { error } = await supabase.from('entries').delete().eq('id', id)
       if (error) console.error('[my:deleteEntry] error:', error)
       return !error
