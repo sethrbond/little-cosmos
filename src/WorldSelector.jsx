@@ -46,6 +46,29 @@ const FRIEND_ORB_PRESETS = [
 
 const F = "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif";
 
+const INVITE_STYLES = `
+  .invite-send-btn {
+    transition: all 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease !important;
+  }
+  .invite-send-btn:hover:not(:disabled) {
+    transform: scale(1.04);
+    box-shadow: 0 4px 20px rgba(200,170,110,0.35), 0 0 30px rgba(200,170,110,0.15) !important;
+    animation: invite-pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes invite-pulse {
+    0%, 100% { box-shadow: 0 4px 20px rgba(200,170,110,0.35), 0 0 30px rgba(200,170,110,0.15); }
+    50% { box-shadow: 0 4px 28px rgba(200,170,110,0.5), 0 0 40px rgba(200,170,110,0.25); }
+  }
+  @keyframes stardust-float {
+    0% { opacity: 0.6; transform: scale(0.95) translateY(0); }
+    50% { opacity: 1; transform: scale(1.08) translateY(-6px); }
+    100% { opacity: 0.6; transform: scale(0.95) translateY(0); }
+  }
+  .stardust-sparkle {
+    animation: stardust-float 2.5s ease-in-out infinite;
+  }
+`;
+
 // Style constants (module-scope — no state dependency, avoids re-creation each render)
 const _modalBg = { position: "fixed", inset: 0, background: "rgba(4,2,10,0.65)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 };
 const _modalBox = { background: "rgba(22,16,32,0.85)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 20, padding: "32px 28px", width: 400, maxWidth: "90vw", fontFamily: F, boxShadow: "0 8px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)" };
@@ -65,6 +88,13 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
   const pinchRef = useRef({ active: false, startDist: 0 });
   const camAngleRef = useRef({ theta: 0.3, phi: 1.2, radius: 5.8 });
   const mountedRef = useRef(true);
+  const inviteStyleRef = useRef(false);
+  if (!inviteStyleRef.current && typeof document !== "undefined") {
+    inviteStyleRef.current = true;
+    const s = document.createElement("style");
+    s.textContent = INVITE_STYLES;
+    document.head.appendChild(s);
+  }
   const toastTimerRef = useRef(null);
   const linkCopiedTimerRef = useRef(null);
   const searchTimerRef = useRef(null);
@@ -1181,7 +1211,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
             style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 16, padding: "7px 18px", color: "#908898", fontSize: 10, fontFamily: F, letterSpacing: "1px", cursor: "pointer", transition: "all .3s" }}
             onMouseEnter={e => { e.target.style.color = "#c0b8c8"; e.target.style.borderColor = "rgba(255,255,255,0.18)"; }}
             onMouseLeave={e => { e.target.style.color = "#908898"; e.target.style.borderColor = "rgba(255,255,255,0.08)"; }}>
-            Invite to Cosmos
+            Invite to Cosmos ✨
           </button>
         </div>
         <div style={{ fontSize: 10, color: "#9890a8", marginTop: 8, letterSpacing: "1.5px", textAlign: "center", textTransform: "uppercase", textShadow: "0 1px 6px rgba(0,0,0,0.5)" }}>drag to orbit · scroll or pinch to zoom</div>
@@ -1443,33 +1473,37 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
               </div>
             </>)}
             {sharedStep === 1 && (<>
-              <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Invite Someone</div>
+              <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>{"partner" === sharedType ? "Send a Love Letter to the Stars" : "family" === sharedType ? "Invite to Family Cosmos 🌟" : "Invite a Friend to Your Cosmos"}</div>
               <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 20 }}>
-                Share this world with someone special. You can write a welcome letter — it'll be the first thing they see.
+                {sharedType === "partner" ? "Share this world with your person. Your letter will be the first thing they see — like finding a note tucked between the stars." : "Share this world with someone special. You can write a welcome letter — it'll be the first thing they see."}
+              </div>
+              <div style={{ textAlign: "left", marginBottom: 4 }}>
+                <div style={{ fontSize: 10, color: "#c9a96e", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>Who are you inviting?</div>
               </div>
               <input value={inviteEmail} onChange={e => setInviteEmail(e.target.value)}
-                placeholder="Their email address"
+                placeholder={sharedType === "partner" ? "Your partner's email" : "Their email address"}
                 type="email"
-                style={{ ...inputSt, marginBottom: 12 }} autoFocus />
+                style={{ ...inputSt, marginBottom: 12, borderColor: "rgba(200,170,110,0.2)" }} autoFocus />
               <div style={{ textAlign: "left", marginBottom: 6 }}>
-                <div style={{ fontSize: 10, color: "#807888", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>Write them a letter (optional)</div>
+                <div style={{ fontSize: 10, color: "#c9a96e", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>Write them a letter (optional)</div>
               </div>
               <textarea value={inviteLetter} onChange={e => setInviteLetter(e.target.value)}
-                placeholder={"Dear ...\n\nI created this world for us to fill with our adventures together.\n\nWith love, ..."}
-                style={{ ...textareaSt, marginBottom: 16 }} />
+                placeholder={sharedType === "partner" ? "I want to share our adventures with you...\n\nEvery place we go, every moment we share — I want to map it all, together.\n\nWith love..." : sharedType === "family" ? "Let's collect our family adventures together..." : "Come explore with me!\n\nI started mapping my travels and I think it'd be amazing to share a world together."}
+                style={{ ...textareaSt, marginBottom: 16, background: "rgba(240,230,210,0.04)", borderColor: "rgba(200,170,110,0.15)" }} />
               <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
                 <button onClick={() => handleFinishShared()} style={btnS}>Skip for now</button>
                 <button onClick={handleSendInvite} disabled={creatingShared || !inviteEmail.trim()}
+                  className="invite-send-btn"
                   style={{ ...btnP, opacity: creatingShared || !inviteEmail.trim() ? 0.5 : 1 }}>
-                  {creatingShared ? "Sending..." : "Send Invite"}
+                  {creatingShared ? "Sending..." : sharedType === "partner" ? "Send with Love 💌" : sharedType === "family" ? "Invite to Family Cosmos 🌟" : "Send Invitation ✨"}
                 </button>
               </div>
             </>)}
             {sharedStep === 2 && (<>
-              <div style={{ fontSize: 44, marginBottom: 12 }}>&#10024;</div>
-              <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>World Created!</div>
+              <div style={{ fontSize: 44, marginBottom: 12 }} className="stardust-sparkle">&#10024;</div>
+              <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>{sharedType === "partner" ? "Your love letter is on its way ✨" : "World Created!"}</div>
               <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 16 }}>
-                "{sharedName}" is ready. Share this link with your person:
+                {inviteEmail ? <span>Your invitation is on its way to <strong style={{ color: "#e8e0d0" }}>{inviteEmail}</strong> ✨</span> : <span>&ldquo;{sharedName}&rdquo; is ready. Share this link with your person:</span>}
               </div>
               <div style={{ ...inputSt, marginBottom: 12, textAlign: "left", wordBreak: "break-all", fontSize: 12, lineHeight: 1.5, background: "rgba(200,170,110,0.08)", borderColor: "rgba(200,170,110,0.25)" }}>
                 {generatedLink}
@@ -1481,7 +1515,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
                 </button>
               </div>
               <div style={{ fontSize: 10, color: "#807888", marginBottom: 16 }}>
-                {inviteLetter ? "Your letter will appear when they first log in." : ""} Link expires in 7 days.
+                {inviteLetter ? "Your letter will be waiting for them like a note among the stars ✨" : ""} Link expires in 7 days.
               </div>
               <button onClick={handleFinishShared} style={btnP}>Enter World</button>
             </>)}
@@ -1494,32 +1528,36 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
         <div style={modalBg} onClick={(e) => { e.stopPropagation(); safeDismiss(); }}>
           <div role="dialog" aria-modal="true" aria-label="Invite to Little Cosmos" style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
             {!cosmosInviteSent ? (<>
-              <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Invite to Little Cosmos</div>
+              <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Invite a Friend to Your Cosmos</div>
               <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 20 }}>
-                Invite someone to create their own cosmos. They'll receive your letter when they sign up.
+                Invite someone to create their own cosmos. They'll receive your letter when they sign up — a little spark waiting for them among the stars.
+              </div>
+              <div style={{ textAlign: "left", marginBottom: 4 }}>
+                <div style={{ fontSize: 10, color: "#c9a96e", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>Who are you inviting?</div>
               </div>
               <input value={cosmosInviteEmail} onChange={e => setCosmosInviteEmail(e.target.value)}
                 placeholder="Their email address"
                 type="email"
-                style={{ ...inputSt, marginBottom: 12 }} autoFocus />
+                style={{ ...inputSt, marginBottom: 12, borderColor: "rgba(200,170,110,0.2)" }} autoFocus />
               <div style={{ textAlign: "left", marginBottom: 6 }}>
-                <div style={{ fontSize: 10, color: "#807888", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>Write them a letter (optional)</div>
+                <div style={{ fontSize: 10, color: "#c9a96e", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>Write them a letter (optional)</div>
               </div>
               <textarea value={cosmosInviteLetter} onChange={e => setCosmosInviteLetter(e.target.value)}
-                placeholder={"Hey!\n\nI've been using this beautiful app to map all my travels and adventures. I think you'd love it too.\n\nCheck it out!"}
-                style={{ ...textareaSt, marginBottom: 16 }} />
+                placeholder={"Come explore with me!\n\nI've been mapping my travels on this beautiful little globe. I think you'd love it too."}
+                style={{ ...textareaSt, marginBottom: 16, background: "rgba(240,230,210,0.04)", borderColor: "rgba(200,170,110,0.15)" }} />
               <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
                 <button onClick={closeAllModals} style={btnS}>Cancel</button>
                 <button onClick={handleCosmosInvite} disabled={cosmosInviteSending || !cosmosInviteEmail.trim()}
+                  className="invite-send-btn"
                   style={{ ...btnP, opacity: cosmosInviteSending || !cosmosInviteEmail.trim() ? 0.5 : 1 }}>
-                  {cosmosInviteSending ? "Sending..." : "Send Invite"}
+                  {cosmosInviteSending ? "Sending..." : "Send Invitation ✨"}
                 </button>
               </div>
             </>) : (<>
-              <div style={{ fontSize: 44, marginBottom: 12 }}>&#9993;</div>
-              <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Invite Sent!</div>
+              <div style={{ fontSize: 44, marginBottom: 12 }} className="stardust-sparkle">✨</div>
+              <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Your invitation is on its way ✨</div>
               <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 16 }}>
-                Your letter will be waiting for {cosmosInviteEmail} when they sign up at littlecosmos.app
+                Your letter will be waiting for <strong style={{ color: "#e8e0d0" }}>{cosmosInviteEmail}</strong> when they sign up — a little spark among the stars.
               </div>
               <button onClick={closeAllModals} style={btnP}>Done</button>
             </>)}
@@ -1532,32 +1570,36 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
         <div style={modalBg} onClick={(e) => { e.stopPropagation(); safeDismiss(); }}>
           <div role="dialog" aria-modal="true" aria-label="Add a friend" style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
             {!friendSent ? (<>
-              <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Add a Friend</div>
+              <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Invite a Friend to Your Cosmos</div>
               <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 20 }}>
-                Connect with a friend so you can see each other's worlds orbiting in your cosmos.
+                Connect with a friend so you can see each other’s worlds orbiting in your cosmos.
+              </div>
+              <div style={{ textAlign: "left", marginBottom: 4 }}>
+                <div style={{ fontSize: 10, color: "#c9a96e", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>Who are you inviting?</div>
               </div>
               <input value={friendEmail} onChange={e => setFriendEmail(e.target.value)}
                 placeholder="Their email address"
                 type="email"
-                style={{ ...inputSt, marginBottom: 14 }} autoFocus />
+                style={{ ...inputSt, marginBottom: 14, borderColor: "rgba(200,170,110,0.2)" }} autoFocus />
               <div style={{ textAlign: "left", marginBottom: 6 }}>
-                <div style={{ fontSize: 10, color: "#807888", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>Write a note (optional)</div>
+                <div style={{ fontSize: 10, color: "#c9a96e", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>Write a note (optional)</div>
               </div>
               <textarea value={friendLetter} onChange={e => setFriendLetter(e.target.value)}
-                placeholder="Hey! I'd love to share our travel worlds..."
-                style={{ ...textareaSt, minHeight: 70, marginBottom: 16 }} />
+                placeholder="Come explore with me! I'd love to share our travel worlds..."
+                style={{ ...textareaSt, minHeight: 70, marginBottom: 16, background: "rgba(240,230,210,0.04)", borderColor: "rgba(200,170,110,0.15)" }} />
               <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
                 <button onClick={closeAllModals} style={btnS}>Cancel</button>
                 <button onClick={handleAddFriend} disabled={friendSending || !friendEmail.trim()}
+                  className="invite-send-btn"
                   style={{ ...btnP, opacity: friendSending || !friendEmail.trim() ? 0.5 : 1 }}>
-                  {friendSending ? "Sending..." : "Send Invite"}
+                  {friendSending ? "Sending..." : "Send Invitation ✨"}
                 </button>
               </div>
             </>) : (<>
-              <div style={{ fontSize: 44, marginBottom: 12 }}>&#128075;</div>
-              <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Invite Sent!</div>
+              <div style={{ fontSize: 44, marginBottom: 12 }} className="stardust-sparkle">✨</div>
+              <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Your invitation is on its way ✨</div>
               <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 16 }}>
-                {friendEmail} will see your invite next time they open their cosmos. Once they accept, you'll both see each other's worlds.
+                <strong style={{ color: "#e8e0d0" }}>{friendEmail}</strong> will see your invite next time they open their cosmos. Once they accept, you’ll both see each other’s worlds orbiting together.
               </div>
               <button onClick={closeAllModals} style={btnP}>Done</button>
             </>)}
@@ -1648,9 +1690,9 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       {showInviteModal && (
         <div style={modalBg} onClick={(e) => { e.stopPropagation(); safeDismiss(); }}>
           <div role="dialog" aria-modal="true" aria-label="Invite to world" style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Invite to "{showInviteModal.name}"</div>
+            <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>{showInviteModal.worldType === "partner" ? "Send a Love Letter to the Stars" : showInviteModal.worldType === "family" ? "Invite to Family Cosmos 🌟" : `Invite to “${showInviteModal.name}”`}</div>
             <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 16 }}>
-              Enter their email to send a personal invite, or just generate a link.
+              {showInviteModal.worldType === "partner" ? "Invite your person to this world. Your letter will be the first thing they see." : "Enter their email to send a personal invite, or just generate a link."}
             </div>
             {!inviteLink ? (<>
               <div style={{ display: "flex", gap: 8, marginBottom: 14, justifyContent: "center" }}>
@@ -1674,18 +1716,22 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
                   ? "Viewers can see all entries and photos, leave comments and reactions, but can't add or edit."
                   : "Members can add entries, upload photos, and edit the world alongside you."}
               </div>
+              <div style={{ textAlign: "left", marginBottom: 4 }}>
+                <div style={{ fontSize: 10, color: "#c9a96e", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>Who are you inviting?</div>
+              </div>
               <input value={existingInviteEmail} onChange={e => setExistingInviteEmail(e.target.value)}
-                placeholder="Their email (optional)"
+                placeholder={showInviteModal.worldType === "partner" ? "Your partner's email" : "Their email (optional)"}
                 type="email"
-                style={{ ...inputSt, marginBottom: 8 }} autoFocus />
+                style={{ ...inputSt, marginBottom: 8, borderColor: "rgba(200,170,110,0.2)" }} autoFocus />
               {existingInviteEmail.trim() && (
                 <textarea value={existingInviteLetter} onChange={e => setExistingInviteLetter(e.target.value)}
-                  placeholder="Write them a welcome letter (optional)"
-                  style={{ ...textareaSt, marginBottom: 12, minHeight: 80 }} />
+                  placeholder={showInviteModal.worldType === "partner" ? "I want to share our adventures with you..." : showInviteModal.worldType === "family" ? "Let's collect our family adventures together..." : "Come explore with me!"}
+                  style={{ ...textareaSt, marginBottom: 12, minHeight: 80, background: "rgba(240,230,210,0.04)", borderColor: "rgba(200,170,110,0.15)" }} />
               )}
               <button onClick={handleGenerateInvite} disabled={inviteGenerating}
+                className="invite-send-btn"
                 style={{ ...btnP, opacity: inviteGenerating ? 0.5 : 1 }}>
-                {inviteGenerating ? "Generating..." : existingInviteEmail.trim() ? "Send Invite" : "Generate Link"}
+                {inviteGenerating ? "Generating..." : !existingInviteEmail.trim() ? "Generate Link" : showInviteModal.worldType === "partner" ? "Send with Love 💌" : showInviteModal.worldType === "family" ? "Invite to Family Cosmos 🌟" : "Send Invitation ✨"}
               </button>
             </>) : (<>
               <div style={{ ...inputSt, marginBottom: 12, textAlign: "left", wordBreak: "break-all", fontSize: 12, lineHeight: 1.5, background: "rgba(200,170,110,0.08)", borderColor: "rgba(200,170,110,0.25)" }}>
@@ -1696,7 +1742,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
                 {linkCopied ? "Copied!" : "Copy Link"}
               </button>
               <div style={{ fontSize: 10, color: "#807888", marginTop: 4 }}>
-                {existingInviteLetter.trim() ? "Your letter will appear when they first log in. " : ""}Link expires in 7 days.
+                {existingInviteLetter.trim() ? "Your letter will be waiting for them like a note among the stars ✨ " : ""}Link expires in 7 days.
               </div>
             </>)}
             {/* Sent invites history */}

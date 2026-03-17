@@ -1804,8 +1804,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       )}
 
       {/* ADD / EDIT / SETTINGS / LETTER overlays */}
-      {showAdd && <div role="dialog" aria-modal="true" aria-label="Add entry" onClick={() => setShowAdd(false)} style={{ position: "fixed", inset: 0, zIndex: 39 }}><div onClick={e => e.stopPropagation()}><AddForm types={TYPES} defaultType={isMyWorld ? "adventure" : "together"} defaultWho={isMyWorld ? "solo" : "both"} fieldLabels={FIELD_LABELS} isMyWorld={isMyWorld} worldName={worldName} draftKey={`cosmos-draft-add-${worldId || worldMode}`} onAdd={entry => { const isFirst = data.entries.length === 0; dispatch({ type: "ADD", entry }); setShowAdd(false); if (isFirst) { setCelebrationData({ type: 'first', message: 'Your First Entry!', sub: isMyWorld ? 'Your world has its first marker. Keep adding adventures to light up your globe.' : 'Your shared world has its first marker. This is where your story begins.' }); setShowCelebration(true); setTimeout(() => setShowCelebration(false), 6000); } showToast(`${entry.city} added to your world`, "🌍", 2500); flyTo(entry.lat, entry.lng, 2.6); setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400); }} onClose={() => setShowAdd(false)} /></div></div>}
-      {quickAddMode && <div role="dialog" aria-modal="true" aria-label="Quick add entry" onClick={() => setQuickAddMode(false)} style={{ position: "fixed", inset: 0, zIndex: 39 }}><div onClick={e => e.stopPropagation()}><QuickAddForm types={TYPES} draftKey={`cosmos-draft-quick-${worldId || worldMode}`} onAdd={entry => { const isFirst = data.entries.length === 0; dispatch({ type: "ADD", entry }); setQuickAddMode(false); if (isFirst) { setCelebrationData({ type: 'first', message: 'Your First Entry!', sub: isMyWorld ? 'Your world has its first marker. Keep adding adventures to light up your globe.' : 'Your shared world has its first marker. This is where your story begins.' }); setShowCelebration(true); setTimeout(() => setShowCelebration(false), 6000); } showToast(`${entry.city} added to your world ⚡`, "⚡", 2500); flyTo(entry.lat, entry.lng, 2.6); setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400); }} onClose={() => setQuickAddMode(false)} /></div></div>}
+      {showAdd && <div role="dialog" aria-modal="true" aria-label="Add entry" onClick={() => setShowAdd(false)} style={{ position: "fixed", inset: 0, zIndex: 39 }}><div onClick={e => e.stopPropagation()}><AddForm types={TYPES} defaultType={isMyWorld ? "adventure" : "together"} defaultWho={isMyWorld ? "solo" : "both"} fieldLabels={FIELD_LABELS} isMyWorld={isMyWorld} worldName={worldName} draftKey={`cosmos-draft-add-${worldId || worldMode}`} onAdd={entry => { const isFirst = data.entries.length === 0; dispatch({ type: "ADD", entry }); setShowAdd(false); if (isFirst) { const firstMsg = isMyWorld ? { type: 'first', message: 'Your First Entry!', sub: 'Your world has its first marker. Keep adding adventures to light up your globe.' } : worldType === 'friends' ? { type: 'first-shared', message: 'First adventure together', sub: entry.city + ' — the first pin on your shared map. Many more to come.', city: entry.city, worldType: 'friends' } : worldType === 'family' ? { type: 'first-shared', message: "Your family\\u2019s first memory", sub: entry.city + ' — saved forever on your family\'s globe.', city: entry.city, worldType: 'family' } : { type: 'first-shared', message: 'Your story begins here', sub: entry.city + ' — the very first chapter of your journey together.', city: entry.city, worldType: 'partner' }; setCelebrationData(firstMsg); setShowCelebration(true); if (firstMsg.type === 'first') setTimeout(() => setShowCelebration(false), 6000); else setTimeout(() => setShowCelebration(false), 5000); } showToast(`${entry.city} added to your world`, "🌍", 2500); flyTo(entry.lat, entry.lng, 2.6); setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400); }} onClose={() => setShowAdd(false)} /></div></div>}
+      {quickAddMode && <div role="dialog" aria-modal="true" aria-label="Quick add entry" onClick={() => setQuickAddMode(false)} style={{ position: "fixed", inset: 0, zIndex: 39 }}><div onClick={e => e.stopPropagation()}><QuickAddForm types={TYPES} draftKey={`cosmos-draft-quick-${worldId || worldMode}`} onAdd={entry => { const isFirst = data.entries.length === 0; dispatch({ type: "ADD", entry }); setQuickAddMode(false); if (isFirst) { const firstMsg = isMyWorld ? { type: 'first', message: 'Your First Entry!', sub: 'Your world has its first marker. Keep adding adventures to light up your globe.' } : worldType === 'friends' ? { type: 'first-shared', message: 'First adventure together', sub: entry.city + ' — the first pin on your shared map. Many more to come.', city: entry.city, worldType: 'friends' } : worldType === 'family' ? { type: 'first-shared', message: "Your family\\u2019s first memory", sub: entry.city + ' — saved forever on your family\'s globe.', city: entry.city, worldType: 'family' } : { type: 'first-shared', message: 'Your story begins here', sub: entry.city + ' — the very first chapter of your journey together.', city: entry.city, worldType: 'partner' }; setCelebrationData(firstMsg); setShowCelebration(true); if (firstMsg.type === 'first') setTimeout(() => setShowCelebration(false), 6000); else setTimeout(() => setShowCelebration(false), 5000); } showToast(`${entry.city} added to your world ⚡`, "⚡", 2500); flyTo(entry.lat, entry.lng, 2.6); setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400); }} onClose={() => setQuickAddMode(false)} /></div></div>}
 
       {editing && <div role="dialog" aria-modal="true" aria-label="Edit entry" onClick={() => setEditing(null)} style={{ position: "fixed", inset: 0, zIndex: 29 }}><div onClick={e => e.stopPropagation()}><EditForm entry={editing} types={TYPES} fieldLabels={FIELD_LABELS} onChange={setEditing}
         onSave={() => { dispatch({ type: "UPDATE", id: editing.id, data: editing }); setSelected(editing); setCardTab("overview"); setEditing(null); showToast("Entry saved", "✓", 2000); }}
@@ -2079,9 +2079,87 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         const cd = celebrationData || { type: 'first', message: 'Your First Entry!', sub: '' };
         const isAnniv = cd.type === 'anniversary';
         const isMilestone = cd.type === 'milestone';
+        const isFirstShared = cd.type === 'first-shared';
         const showConfetti = isAnniv || isMilestone;
         const celebIcon = isAnniv ? "💕" : isMilestone ? (cd.message.includes("Countries") ? "🗺" : cd.message.includes("Miles") ? "🚀" : "✨") : "✨";
         const accentColor = isAnniv ? P.heart : isMilestone ? P.goldWarm : P.goldWarm;
+
+        /* --- Cinematic shared-world first entry overlay --- */
+        if (isFirstShared) {
+          const heartIcon = cd.worldType === 'partner' ? '❤️' : cd.worldType === 'family' ? '🏡' : '✨';
+          const accentShared = cd.worldType === 'partner' ? (P.heart || '#d06888') : cd.worldType === 'family' ? (P.goldWarm || '#dab470') : (P.sky || '#8ca8c8');
+          return (
+            <div role="alert" aria-label="First entry celebration" onClick={() => setShowCelebration(false)} style={{
+              position: "fixed", inset: 0, zIndex: 260, display: "flex", alignItems: "center", justifyContent: "center",
+              flexDirection: "column", cursor: "pointer", pointerEvents: "auto",
+              background: `radial-gradient(ellipse at 50% 40%, ${accentShared}18, rgba(12,8,20,0.92) 70%)`,
+              animation: "cinematicFadeIn 1s ease forwards",
+            }}>
+              {/* Soft floating particles */}
+              {Array.from({ length: 12 }, (_, i) => (
+                <div key={"sp-" + i} style={{
+                  position: "absolute",
+                  left: `${15 + Math.random() * 70}%`,
+                  top: `${20 + Math.random() * 60}%`,
+                  width: 3 + Math.random() * 4,
+                  height: 3 + Math.random() * 4,
+                  borderRadius: "50%",
+                  background: accentShared,
+                  opacity: 0,
+                  animation: `cinematicParticle ${3 + Math.random() * 4}s ${Math.random() * 2}s ease-in-out infinite`,
+                }} />
+              ))}
+              {/* Heart animation for partner worlds */}
+              {cd.worldType === 'partner' && (
+                <div style={{
+                  fontSize: 56, marginBottom: 24, opacity: 0,
+                  animation: "cinematicHeartBeat 2s 0.6s ease forwards",
+                  filter: `drop-shadow(0 0 30px ${accentShared}80)`,
+                }}>{heartIcon}</div>
+              )}
+              {/* City name — large serif */}
+              {cd.city && (
+                <div style={{
+                  fontSize: 42, fontWeight: 300, color: "#f0ece6",
+                  fontFamily: "'Palatino Linotype', 'Book Antiqua', Palatino, Georgia, serif",
+                  letterSpacing: ".08em", marginBottom: 16, opacity: 0,
+                  textShadow: `0 0 40px ${accentShared}50, 0 2px 12px rgba(0,0,0,0.7)`,
+                  animation: "cinematicTextUp 1.2s 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+                }}>{cd.city}</div>
+              )}
+              {/* Warm message */}
+              <div style={{
+                fontSize: 20, fontWeight: 300, color: accentShared,
+                fontFamily: "'Palatino Linotype', Georgia, serif",
+                letterSpacing: ".14em", textTransform: "lowercase",
+                opacity: 0, marginBottom: 12,
+                textShadow: `0 0 20px ${accentShared}40`,
+                animation: "cinematicTextUp 1.2s 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+              }}>{cd.message}</div>
+              {/* Sub-message */}
+              {cd.sub && (
+                <div style={{
+                  fontSize: 13, color: "rgba(220,210,200,0.7)", lineHeight: 1.8,
+                  maxWidth: 360, textAlign: "center", opacity: 0,
+                  fontFamily: "'Palatino Linotype', Georgia, serif",
+                  animation: "cinematicTextUp 1s 1.2s ease forwards",
+                }}>{cd.sub}</div>
+              )}
+              {/* Decorative line */}
+              <div style={{
+                width: 40, height: 1, background: `linear-gradient(90deg, transparent, ${accentShared}60, transparent)`,
+                marginTop: 28, opacity: 0,
+                animation: "cinematicTextUp 1s 1.6s ease forwards",
+              }} />
+              <div style={{
+                fontSize: 10, color: "rgba(200,190,180,0.35)", marginTop: 20,
+                letterSpacing: ".2em", opacity: 0,
+                animation: "cinematicTextUp 1s 2s ease forwards",
+              }}>tap anywhere</div>
+            </div>
+          );
+        }
+
         return (
           <div role="alert" aria-label="Celebration" style={{ position: "fixed", inset: 0, zIndex: 250, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "auto", cursor: "pointer", background: showConfetti ? `radial-gradient(ellipse at center, ${accentColor}15, transparent 70%)` : 'transparent', animation: "fadeIn .4s ease" }}
             onClick={() => setShowCelebration(false)}>
@@ -2126,6 +2204,25 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           0% { transform: scale(0.3); opacity: 0; }
           60% { transform: scale(1.05); opacity: 1; }
           100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes cinematicFadeIn {
+          0% { opacity: 0; }
+          100% { opacity: 1; }
+        }
+        @keyframes cinematicTextUp {
+          0% { opacity: 0; transform: translateY(20px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes cinematicHeartBeat {
+          0% { opacity: 0; transform: scale(0.6); }
+          40% { opacity: 1; transform: scale(1.15); }
+          60% { transform: scale(0.95); }
+          80% { transform: scale(1.05); }
+          100% { opacity: 1; transform: scale(1); }
+        }
+        @keyframes cinematicParticle {
+          0%, 100% { opacity: 0; transform: translateY(0) scale(0.5); }
+          50% { opacity: 0.4; transform: translateY(-20px) scale(1); }
         }
         @keyframes emptyOrbit { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @keyframes emptyFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
