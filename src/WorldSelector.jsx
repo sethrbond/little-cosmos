@@ -558,6 +558,18 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       }
     });
 
+    // Circle texture for soft particles (avoids square artifacts)
+    const circleCanvas = document.createElement('canvas');
+    circleCanvas.width = 32; circleCanvas.height = 32;
+    const cCtx = circleCanvas.getContext('2d');
+    const grad = cCtx.createRadialGradient(16, 16, 0, 16, 16, 16);
+    grad.addColorStop(0, 'rgba(255,255,255,1)');
+    grad.addColorStop(0.4, 'rgba(255,255,255,0.6)');
+    grad.addColorStop(1, 'rgba(255,255,255,0)');
+    cCtx.fillStyle = grad;
+    cCtx.fillRect(0, 0, 32, 32);
+    const circleTexture = new THREE.CanvasTexture(circleCanvas);
+
     // Comet that drifts across the cosmos every ~40 seconds
     const cometGeo = new THREE.SphereGeometry(0.04, 8, 8);
     const cometMat = new THREE.MeshBasicMaterial({ color: "#f0e8d8", transparent: true, opacity: 0, depthWrite: false });
@@ -568,7 +580,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     const tailPositions = new Float32Array(tailCount * 3);
     const tailGeo = new THREE.BufferGeometry();
     tailGeo.setAttribute("position", new THREE.BufferAttribute(tailPositions, 3));
-    const tailMat = new THREE.PointsMaterial({ color: "#c9a96e", size: 0.03, transparent: true, opacity: 0, sizeAttenuation: true, blending: THREE.AdditiveBlending, depthWrite: false });
+    const tailMat = new THREE.PointsMaterial({ color: "#c9a96e", size: 0.06, transparent: true, opacity: 0, sizeAttenuation: true, blending: THREE.AdditiveBlending, depthWrite: false, map: circleTexture });
     const tail = new THREE.Points(tailGeo, tailMat);
     scene.add(tail);
     let cometTimer = 20 + Math.random() * 30; // first comet after 20-50s
@@ -583,7 +595,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     const sparkBurstVel = new Float32Array(sparkBurstCount * 3);
     const sparkBurstGeo = new THREE.BufferGeometry();
     sparkBurstGeo.setAttribute("position", new THREE.BufferAttribute(sparkBurstPos, 3));
-    const sparkBurstMat = new THREE.PointsMaterial({ color: "#ffe8a0", size: 0.05, transparent: true, opacity: 0, sizeAttenuation: true, blending: THREE.AdditiveBlending, depthWrite: false });
+    const sparkBurstMat = new THREE.PointsMaterial({ color: "#ffe8a0", size: 0.08, transparent: true, opacity: 0, sizeAttenuation: true, blending: THREE.AdditiveBlending, depthWrite: false, map: circleTexture });
     const sparkBurst = new THREE.Points(sparkBurstGeo, sparkBurstMat);
     scene.add(sparkBurst);
     let sparkBurstLife = -1; // -1 = inactive
