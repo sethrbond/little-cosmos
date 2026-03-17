@@ -2395,3 +2395,4 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 export default function OurWorld({ worldMode, worldId, worldName, worldRole, worldType, onSwitchWorld }) {
   return <OurWorldErrorBoundary><OurWorldInner worldMode={worldMode} worldId={worldId} worldName={worldName} worldRole={worldRole} worldType={worldType} onSwitchWorld={onSwitchWorld} /></OurWorldErrorBoundary>;
 }
+
