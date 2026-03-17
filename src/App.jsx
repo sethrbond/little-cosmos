@@ -294,6 +294,12 @@ function AppInner() {
     document.title = `${activeWorldName || 'Shared World'} — Little Cosmos`
   }, [worldMode, activeWorldName])
 
+  useEffect(() => {
+    const onPopState = () => { if (worldMode) switchWorld() }
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [worldMode, switchWorld])
+
   const handleSignOut = useCallback(() => {
     safeRemove('worldMode')
     safeRemove('activeWorldId')
@@ -305,6 +311,7 @@ function AppInner() {
   }, [signOut])
 
   const selectWorld = useCallback((mode, worldId = null, worldName = null, worldRole = null, worldType = null) => {
+    window.history.pushState({ cosmos: true }, '', window.location.pathname)
     // Determine accent color for zoom transition
     const colors = { partner: '#1a1230', friends: '#0e1028', family: '#181210', my: '#121820' }
     setTransitionColor(colors[worldType] || colors[mode] || '#0c0a12')
