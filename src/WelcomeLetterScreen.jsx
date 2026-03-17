@@ -6,7 +6,6 @@ import { useState, useMemo } from "react";
    and the letter dissolves into the globe experience. */
 
 const F = "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif";
-const prefersReducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function Stars() {
   const stars = useMemo(() => Array.from({ length: 60 }, (_, i) => ({
@@ -20,14 +19,14 @@ function Stars() {
   return (
     <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none" }}>
       {stars.map((s, i) => (
-        <div key={"star-" + i} style={{
+        <div key={i} style={{
           position: "absolute",
           left: s.left, top: s.top,
           width: 2, height: 2, borderRadius: "50%",
           background: "#e8e0d0",
           opacity: s.opacity,
-          animation: prefersReducedMotion ? 'none' : `twinkle ${s.duration} ease-in-out infinite`,
-          animationDelay: prefersReducedMotion ? '0s' : s.delay,
+          animation: `twinkle ${s.duration} ease-in-out infinite`,
+          animationDelay: s.delay,
         }} />
       ))}
     </div>
@@ -44,7 +43,7 @@ export default function WelcomeLetterScreen({ letter, onEnter }) {
     if (entering) return;
     setEntering(true);
     setFading(true);
-    setTimeout(() => onEnter(), prefersReducedMotion ? 0 : 800);
+    setTimeout(() => onEnter(), 800);
   };
 
   return (
@@ -52,7 +51,7 @@ export default function WelcomeLetterScreen({ letter, onEnter }) {
       position: "fixed", inset: 0, zIndex: 1000,
       background: "radial-gradient(ellipse at center, #1a1424 0%, #0c0a12 100%)",
       display: "flex", alignItems: "center", justifyContent: "center",
-      fontFamily: F, opacity: fading ? 0 : 1, transition: prefersReducedMotion ? "none" : "opacity 0.8s ease",
+      fontFamily: F, opacity: fading ? 0 : 1, transition: "opacity 0.8s ease",
     }}>
       {/* Subtle stars behind */}
       <Stars />
@@ -65,7 +64,7 @@ export default function WelcomeLetterScreen({ letter, onEnter }) {
         background: "linear-gradient(170deg, rgba(250,248,244,0.97) 0%, rgba(245,241,234,0.95) 100%)",
         borderRadius: 3,
         boxShadow: "0 20px 80px rgba(0,0,0,0.5), 0 2px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.5)",
-        animation: prefersReducedMotion ? "none" : "letterIn 1.2s ease forwards",
+        animation: "letterIn 1.2s ease forwards",
       }}>
         {/* Subtle texture overlay */}
         <div style={{
@@ -113,7 +112,7 @@ export default function WelcomeLetterScreen({ letter, onEnter }) {
             color: "#1a1520", fontSize: 14, fontWeight: 600,
             fontFamily: F, cursor: entering ? "default" : "pointer", letterSpacing: "0.06em",
             boxShadow: "0 4px 16px rgba(180,140,60,0.3)",
-            transition: prefersReducedMotion ? "none" : "all 0.3s ease",
+            transition: "all 0.3s ease",
             opacity: entering ? 0.6 : 1,
           }}
           onMouseEnter={e => { e.target.style.transform = "scale(1.04)"; e.target.style.boxShadow = "0 6px 24px rgba(180,140,60,0.4)"; }}
