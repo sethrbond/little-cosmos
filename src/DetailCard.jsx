@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { imageNavBtn, renderList } from "./EntryForms.jsx";
+import { imageNavBtn, renderList, StarRating } from "./EntryForms.jsx";
 import { thumbnail, compressImage } from "./imageUtils.js";
 import { fmtDate, daysBetween } from "./globeUtils.js";
 import { loadComments, addComment, deleteComment, loadAllWorldReactions, toggleReaction, loadMyWorlds, shareEntryToWorld, getPersonalWorldId } from "./supabaseWorlds.js";
@@ -133,21 +133,31 @@ export default function DetailCard({
       setUploading(true);
       setUploadProgress({ done: 0, total: files.length });
       const urls = [];
+      const failed = [];
       for (let fi = 0; fi < files.length; fi++) {
         try {
           const compressed = await compressImage(files[fi]);
           const url = await db.uploadPhoto(compressed, cid);
           if (url && typeof url === 'string') urls.push(url);
-        } catch (err) { /* skip */ }
+          else { failed.push(files[fi].name); console.warn(`[dragDrop] failed: ${files[fi].name} — upload returned null`); }
+        } catch (err) { failed.push(files[fi].name); console.warn(`[dragDrop] failed: ${files[fi].name}`, err); }
         setUploadProgress({ done: fi + 1, total: files.length });
       }
-      if (urls.length > 0) {
+      if (failed.length > 0) console.warn(`[dragDrop] ${failed.length} of ${files.length} uploads failed:`, failed);
+      if (urls.length === 0 && failed.length > 0) {
+        showToast("Photos couldn’t upload — check your connection", "❌", 5000);
+      } else if (urls.length > 0) {
         const current = await db.readPhotos(cid);
         const merged = [...(current.ok ? current.photos : []), ...urls];
         const result = await db.savePhotos(cid, merged);
         dispatch({ type: "ADD_PHOTOS", id: cid, urls });
-        if (result.ok) showToast(`${urls.length} photo${urls.length > 1 ? "s" : ""} added (${merged.length} total)`, "✅", 3000);
-        else showToast(`Photo save failed: ${result.error}`, "⚠️", 8000);
+        if (result.ok) {
+          if (failed.length > 0) {
+            showToast(`${urls.length} of ${files.length} photos saved — ${failed.length} couldn’t upload. Try again?`, "⚠️", 6000);
+          } else {
+            showToast(`${urls.length} photo${urls.length > 1 ? "s" : ""} added (${merged.length} total)`, "✅", 3000);
+          }
+        } else showToast(`Photo save failed: ${result.error}`, "⚠️", 8000);
       }
       setUploading(false);
     }).catch(err => { console.error('[dragDrop] queue error:', err); setUploading(false); });
@@ -291,6 +301,8 @@ export default function DetailCard({
 
         <h2 style={{ margin: 0, fontSize: 20, fontWeight: 400, lineHeight: 1.2, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif" }}>{cur.city}</h2>
         <p style={{ margin: "2px 0 0", fontSize: 10, color: P.textMuted, letterSpacing: ".04em" }}>{cur.country}</p>
+        {cur.rating != null && <div style={{ marginTop: 4 }}><StarRating value={cur.rating} onChange={v => dispatch({ type: "UPDATE", id: cur.id, data: { rating: v } })} size={16} /></div>}
+        {cur.rating == null && !isViewer && <div style={{ marginTop: 4 }}><StarRating value={null} onChange={v => dispatch({ type: "UPDATE", id: cur.id, data: { rating: v } })} size={14} /></div>}
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
           <span style={{ fontSize: 10, color: P.textMid }}>📅 {fmtDate(cur.dateStart)}{cur.dateEnd && cur.dateEnd !== cur.dateStart ? ` → ${fmtDate(cur.dateEnd)}` : ""}</span>
           {cur.dateEnd && cur.dateEnd !== cur.dateStart && (() => {
@@ -318,7 +330,11 @@ export default function DetailCard({
             <div style={{ width: 18, height: 18, borderRadius: "50%", background: `linear-gradient(135deg, ${P.rose}40, ${P.sky}40)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 600, color: P.text, flexShrink: 0 }}>
               {memberNameMap[cur.addedBy].charAt(0).toUpperCase()}
             </div>
-            <span style={{ fontSize: 9, color: P.textFaint, letterSpacing: ".04em" }}>Added by {memberNameMap[cur.addedBy]}</span>
+            <span style={{ fontSize: 9, color: P.textFaint, letterSpacing: ".04em" }}>{isPartnerWorld
+              ? (cur.addedBy === userId
+                ? `${config.youName || memberNameMap[cur.addedBy]}'s memory`
+                : `${config.partnerName || memberNameMap[cur.addedBy]}'s memory`)
+              : `Added by ${memberNameMap[cur.addedBy]}`}</span>
           </div>
         )}
 
@@ -338,7 +354,7 @@ export default function DetailCard({
         </div>
 
         {/* TAB CONTENT */}
-        <div key={cardTab} style={{ marginTop: 10, animation: "fadeIn .2s ease" }}>
+        <div key={cardTab} style={{ marginTop: 10, transition: "opacity 0.2s ease", opacity: 1, animation: "fadeIn .2s ease" }}>
           {cardTab === "overview" && (<>
             {!isViewer ? (
               <div style={{ marginBottom: 10, position: "relative", ...(handwrittenMode ? { background: `repeating-linear-gradient(transparent, transparent 23px, ${P.textFaint}15 23px, ${P.textFaint}15 24px)`, padding: "4px 8px", borderRadius: 8 } : {}) }}>
@@ -628,7 +644,7 @@ export default function DetailCard({
                     try {
                       await toggleReaction(worldId, cur.id, userId, rt.type);
                       loadAllWorldReactions(worldId).then(setWorldReactions).catch(err => console.error('[cosmos] load reactions failed:', err));
-                    } catch { showToast("Failed to react", "⚠️", 2000); }
+                    } catch { showToast("Couldn't react", "⚠️", 2000); }
                   }} style={{
                     padding: "3px 8px", borderRadius: 12, border: myReaction ? `1px solid ${P.rose}40` : `1px solid ${P.rose}15`,
                     background: myReaction ? `${P.rose}12` : "transparent", cursor: "pointer", fontSize: 11,
@@ -658,7 +674,7 @@ export default function DetailCard({
                       try {
                         await deleteComment(c.id);
                         loadComments(worldId, cur.id).then(setEntryComments).catch(err => console.error('[cosmos] load comments failed:', err));
-                      } catch { showToast("Failed to delete comment", "⚠️", 2000); }
+                      } catch { showToast("Couldn't delete comment", "⚠️", 2000); }
                     }} style={{ background: "none", border: "none", fontSize: 10, color: P.textFaint, cursor: "pointer", padding: 0 }}>✕</button>}
                   </div>
                 </div>
@@ -672,10 +688,10 @@ export default function DetailCard({
                 setCommentText("");
                 addComment(worldId, cur.id, userId, userDisplayName, text)
                   .then(result => {
-                    if (!result) { showToast("Failed to post comment", "⚠️", 2000); return; }
+                    if (!result) { showToast("Couldn't post comment", "⚠️", 2000); return; }
                     loadComments(worldId, cur.id).then(setEntryComments).catch(err => console.error('[cosmos] load comments failed:', err));
                   })
-                  .catch(() => showToast("Failed to post comment", "⚠️", 2000));
+                  .catch(() => showToast("Couldn't post comment", "⚠️", 2000));
               };
               return (
                 <div style={{ display: "flex", gap: 4, marginTop: 4 }}>

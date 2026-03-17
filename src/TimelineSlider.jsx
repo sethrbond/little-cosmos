@@ -33,7 +33,7 @@ export default function TimelineSlider({ entries, sorted, sliderDate, onSliderCh
       <div style={{ position: "relative", width: "100%", height: 24, display: "flex", alignItems: "center" }}>
         <input type="range" min={0} max={totalDays} value={clamp(sliderVal, 0, totalDays)}
           onChange={e => { if (!isAnimating) onSliderChange(addDays(effectiveStartDate, parseInt(e.target.value))); }}
-          style={{ width: "100%", height: 4, appearance: "none", WebkitAppearance: "none", background: `linear-gradient(90deg,${P.sky},${P.rose})`, borderRadius: 2, outline: "none", cursor: "pointer", opacity: 0.5, touchAction: "manipulation" }} />
+          style={{ width: "100%", height: 4, appearance: "none", WebkitAppearance: "none", background: `linear-gradient(90deg,${P.sky},${P.rose})`, borderRadius: 2, outline: "none", cursor: "pointer", opacity: 0.85, touchAction: "manipulation" }} />
         {sorted.map(e => {
           const d = daysBetween(effectiveStartDate, e.dateStart);
           const pct = totalDays > 0 ? (d / totalDays) * 100 : 0;

@@ -81,6 +81,9 @@ export function useGlobeMarkers(deps) {
   // ---- REBUILD MARKERS ----
   useEffect(() => {
     const g = globeRef.current; if (!g || !sceneReady) return;
+    // During playback, skip full marker rebuild — the animation loop in
+    // useGlobeScene already handles marker visibility/opacity updates
+    if (isPlaying) return;
     mkRef.current.forEach(m => [m.dot, m.ring, m.glow].forEach(o => {
       if (!o) return; g.remove(o); if (o.material?.map) o.material.map.dispose(); o.geometry?.dispose(); o.material?.dispose();
     }));

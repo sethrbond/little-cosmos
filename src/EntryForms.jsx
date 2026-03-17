@@ -60,6 +60,24 @@ function useMemoryPrompt(type) {
   return prompts[idx % prompts.length];
 }
 
+// ---- STAR RATING PICKER ----
+export function StarRating({ value, onChange, size = 18 }) {
+  const P = getP();
+  return (
+    <span style={{ display: "inline-flex", gap: 2, cursor: "pointer" }}>
+      {[1, 2, 3, 4, 5].map(n => (
+        <span
+          key={n}
+          role="button"
+          aria-label={`${n} star${n > 1 ? "s" : ""}`}
+          onClick={() => onChange(value === n ? null : n)}
+          style={{ fontSize: size, color: n <= (value || 0) ? "#c9a96e" : (P.textFaint || "#666") + "60", transition: "color .15s", userSelect: "none", lineHeight: 1 }}
+        >{n <= (value || 0) ? "u2605" : "u2606"}</span>
+      ))}
+    </span>
+  );
+}
+
 // ---- OVERLAY ERROR BOUNDARY ----
 
 export class OverlayBoundary extends Component {
@@ -410,7 +428,7 @@ export { DREAM_CATEGORIES };
 export function AddForm({ types, defaultType = "together", defaultWho = "both", fieldLabels, isMyWorld, worldName, onAdd, onClose, draftKey }) {
   const P = usePalette();
   const trapRef = useFocusTrap(true);
-  const initialForm = { city: "", country: "", lat: "", lng: "", dateStart: "", dateEnd: "", type: defaultType, who: defaultWho, zoomLevel: 1, notes: "", museums: "", restaurants: "", highlights: "", memories: "", musicUrl: "", stops: [] };
+  const initialForm = { city: "", country: "", lat: "", lng: "", dateStart: "", dateEnd: "", type: defaultType, who: defaultWho, zoomLevel: 1, notes: "", museums: "", restaurants: "", highlights: "", memories: "", musicUrl: "", rating: null, stops: [] };
   const [f, sf, draftRestored, clearDraft, dismissRestored] = useDraft(draftKey, initialForm);
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -468,6 +486,11 @@ export function AddForm({ types, defaultType = "together", defaultWho = "both", 
             <option value={3}>3 — Close-up</option>
           </select>
         </div>
+      </div>
+
+      <div style={{ marginBottom: 8, display: "flex", alignItems: "center", gap: 8 }}>
+        <Lbl style={{ margin: 0 }}>Rating</Lbl>
+        <StarRating value={f.rating} onChange={v => sf(p => ({ ...p, rating: v }))} />
       </div>
 
       <div style={{ marginBottom: 8, position: "relative" }}>
@@ -543,7 +566,7 @@ export function AddForm({ types, defaultType = "together", defaultWho = "both", 
         dateStart: f.dateStart, dateEnd: f.dateEnd || null, type: f.type, who: f.who, zoomLevel: f.zoomLevel,
         notes: f.notes, memories: (f.memories || "").split("\n").filter(Boolean), museums: f.museums.split("\n").filter(Boolean),
         restaurants: f.restaurants.split("\n").filter(Boolean), highlights: f.highlights.split("\n").filter(Boolean),
-        photos: [], stops: f.stops, musicUrl: f.musicUrl || null,
+        photos: [], stops: f.stops, musicUrl: f.musicUrl || null, rating: f.rating || null,
       }); }} style={{ width: "100%", padding: "12px 0", background: ok ? `linear-gradient(135deg, ${P.rose}, ${P.sky})` : `${P.textFaint}60`, color: "#fff", border: "none", borderRadius: 14, cursor: ok ? "pointer" : "default", fontSize: 12, letterSpacing: ".1em", fontFamily: "inherit", transition: "all .3s", boxShadow: ok ? `0 2px 8px ${P.rose}30, 0 4px 16px ${P.rose}15` : "none" }}>
         {ok ? `Add to ${worldName || (isMyWorld ? "My World" : "Our World")} ${isMyWorld ? "🌍" : "💕"}` : "Fill required fields to continue"}
       </button>
@@ -610,6 +633,7 @@ export function EditForm({ entry, types, fieldLabels, onChange, onSave, onClose,
       <div style={{ display: "flex", gap: 6 }}><div style={{ flex: 1 }}><Fld l="Lat" v={entry.lat} t="number" set={v => onChange(p => ({ ...p, lat: parseFloat(v) || 0 }))} /></div><div style={{ flex: 1 }}><Fld l="Lng" v={entry.lng} t="number" set={v => onChange(p => ({ ...p, lng: parseFloat(v) || 0 }))} /></div></div>
       <div style={{ display: "flex", gap: 6 }}><div style={{ flex: 1, marginBottom: 9 }}><Lbl>Start</Lbl><input type="date" value={entry.dateStart || ""} onChange={e => { const v = e.target.value; onChange(p => ({ ...p, dateStart: v })); if (parseInt(v?.split('-')[0], 10) >= 1000) setTimeout(() => { if (editDateEndRef.current) { editDateEndRef.current.showPicker?.(); editDateEndRef.current.focus(); } }, 50); }} style={inputStyle()} /></div><div style={{ flex: 1, marginBottom: 9 }}><Lbl>End</Lbl><input ref={editDateEndRef} type="date" value={entry.dateEnd || ""} onChange={e => { const v = e.target.value; onChange(p => ({ ...p, dateEnd: v || null })); if (parseInt(v?.split('-')[0], 10) >= 1000) setTimeout(() => { if (editNotesRef.current) editNotesRef.current.focus(); }, 50); }} style={inputStyle()} /></div></div>
       <div style={{ marginBottom: 8 }}><Lbl>Type</Lbl><select value={entry.type} onChange={e => { const t = e.target.value; onChange(p => ({ ...p, type: t, who: types[t]?.who || "both" })); }} style={inputStyle()}>{Object.entries(types).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}</select></div>
+      <div style={{ marginBottom: 8, display: "flex", alignItems: "center", gap: 8 }}><Lbl style={{ margin: 0 }}>Rating</Lbl><StarRating value={entry.rating} onChange={v => onChange(p => ({ ...p, rating: v }))} /></div>
       <div style={{ marginBottom: 8 }}><Lbl>Notes</Lbl><textarea ref={editNotesRef} value={entry.notes || ""} onChange={e => onChange(p => ({ ...p, notes: e.target.value }))} rows={2} style={{ ...inputStyle(), resize: "vertical" }} /></div>
       <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.highlights?.label || "Highlights"}</Lbl><textarea value={(entry.highlights || []).join("\n")} onChange={e => onChange(p => ({ ...p, highlights: e.target.value.split("\n").filter(Boolean) }))} rows={2} style={{ ...inputStyle(), resize: "vertical" }} /></div>
       <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.memories?.label || "Memories"}</Lbl><textarea value={(entry.memories || []).join("\n")} onChange={e => onChange(p => ({ ...p, memories: e.target.value.split("\n").filter(Boolean) }))} rows={2} placeholder={memoryPrompt} style={{ ...inputStyle(), resize: "vertical" }} /></div>

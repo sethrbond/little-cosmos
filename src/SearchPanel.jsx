@@ -13,6 +13,7 @@ export default function SearchPanel({ entries, types, defaultType, palette, isMo
   const [searchDateTo, setSearchDateTo] = useState("");
   const [searchTypeFilter, setSearchTypeFilter] = useState("all");
   const [searchSort, setSearchSort] = useState("date-desc");
+  const [minRating, setMinRating] = useState(0);
   const searchTimerRef = useRef(null);
 
   // Debounce search query
@@ -25,7 +26,7 @@ export default function SearchPanel({ entries, types, defaultType, palette, isMo
   const TYPES = types;
   const DEFAULT_TYPE = defaultType;
 
-  const hasSearchFilters = debouncedSearch.length >= 2 || searchDateFrom || searchDateTo || searchTypeFilter !== "all";
+  const hasSearchFilters = debouncedSearch.length >= 2 || searchDateFrom || searchDateTo || searchTypeFilter !== "all" || minRating > 0;
   const searchResults = useMemo(() => {
     if (!hasSearchFilters) return [];
     let results = entries;
@@ -44,12 +45,13 @@ export default function SearchPanel({ entries, types, defaultType, palette, isMo
     if (searchDateFrom) results = results.filter(e => (e.dateEnd || e.dateStart) >= searchDateFrom);
     if (searchDateTo) results = results.filter(e => e.dateStart <= searchDateTo);
     if (searchTypeFilter !== "all") results = results.filter(e => e.type === searchTypeFilter);
+    if (minRating > 0) results = results.filter(e => (e.rating || 0) >= minRating);
     if (searchSort === "date-asc") results = [...results].sort((a, b) => (a.dateStart || "").localeCompare(b.dateStart || ""));
     else if (searchSort === "alpha") results = [...results].sort((a, b) => (a.city || "").localeCompare(b.city || ""));
     else if (searchSort === "country") results = [...results].sort((a, b) => (a.country || "").localeCompare(b.country || "") || (a.city || "").localeCompare(b.city || ""));
     else results = [...results].sort((a, b) => (b.dateStart || "").localeCompare(a.dateStart || ""));
     return results;
-  }, [debouncedSearch, searchDateFrom, searchDateTo, searchTypeFilter, searchSort, entries, hasSearchFilters]);
+  }, [debouncedSearch, searchDateFrom, searchDateTo, searchTypeFilter, searchSort, minRating, entries, hasSearchFilters]);
 
   // Sync search matches to parent ref for animation loop access
   useEffect(() => {
@@ -78,6 +80,7 @@ export default function SearchPanel({ entries, types, defaultType, palette, isMo
     setSearchDateTo("");
     setSearchTypeFilter("all");
     setSearchSort("date-desc");
+    setMinRating(0);
     onClose();
   };
 
@@ -120,8 +123,15 @@ export default function SearchPanel({ entries, types, defaultType, palette, isMo
           <option value="alpha">A{"\u2192"}Z</option>
           <option value="country">Country</option>
         </select>
-        {(searchDateFrom || searchDateTo || searchTypeFilter !== "all") && (
-          <button onClick={() => { setSearchDateFrom(""); setSearchDateTo(""); setSearchTypeFilter("all"); setSearchSort("date-desc"); }}
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 1, marginLeft: 2 }} title="Minimum rating filter">
+          {[1, 2, 3, 4, 5].map(n => (
+            <span key={n} role="button" onClick={() => setMinRating(minRating === n ? 0 : n)}
+              style={{ fontSize: 14, color: n <= minRating ? "#c9a96e" : (P.textFaint || "#666") + "40", cursor: "pointer", userSelect: "none", lineHeight: 1 }}
+            >{n <= minRating ? "u2605" : "u2606"}</span>
+          ))}
+        </span>
+        {(searchDateFrom || searchDateTo || searchTypeFilter !== "all" || minRating > 0) && (
+          <button onClick={() => { setSearchDateFrom(""); setSearchDateTo(""); setSearchTypeFilter("all"); setSearchSort("date-desc"); setMinRating(0); }}
             style={{ background: "none", border: "none", color: P.rose, fontSize: 10, cursor: "pointer", padding: "2px 4px", fontFamily: "inherit" }}>Clear filters</button>
         )}
       </div>

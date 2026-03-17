@@ -549,7 +549,11 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'entry_reactions', filter: `world_id=eq.${worldId}` }, (payload) => {
-        loadAllWorldReactions(worldId).then(setWorldReactions).catch(err => console.error('[cosmos] load reactions failed:', err));
+        // Only reload reactions for other users' changes — current user's toggle
+        // already triggers a reload in DetailCard after the API call completes
+        if (payload.new?.user_id !== userId && payload.old?.user_id !== userId) {
+          loadAllWorldReactions(worldId).then(setWorldReactions).catch(err => console.error('[cosmos] load reactions failed:', err));
+        }
         if (payload.eventType === 'INSERT' && payload.new?.user_id !== userId) {
           setNotifications(prev => [{ id: `n-${Date.now()}`, type: 'reaction', message: `Someone reacted to an entry`, timestamp: new Date().toISOString(), entryId: payload.new?.entry_id, read: false }, ...prev].slice(0, 100));
         }
@@ -597,7 +601,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [recapYear, setRecapYear] = useState(null);
   const [recapIdx, setRecapIdx] = useState(0);
   const [showSearch, setShowSearch] = useState(false);
-  const [showLoveThread, setShowLoveThread] = useState(false);
+  const [showLoveNotes, setShowLoveNotes] = useState(false);
+  const [showLoveThread, setShowLoveThread] = useState(isPartnerWorld);
   const [showConstellation, setShowConstellation] = useState(false);
   const [showRoutes, setShowRoutes] = useState(false);
   const [showDreams, setShowDreams] = useState(false);
@@ -701,7 +706,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     dismissOnThisDay, setDismissOnThisDay, milestoneRef,
   } = useCelebrations({
     introComplete, isPartnerWorld, config, sliderDate,
-    worldId, userId, stats, data, TYPES, DEFAULT_TYPE, showToast,
+    worldId, userId, stats, data, TYPES, DEFAULT_TYPE, showToast, areTogether,
   });
 
   // Reset On This Day dismissal when deselecting an entry
@@ -742,9 +747,19 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
   // ---- FOCUS TRAP (settings modal) ----
 
+
+  // Auto-open add form for first-time empty worlds (2s delay, once only)
+  useEffect(() => {
+    if (!introComplete || data.entries.length > 0 || showAdd || quickAddMode) return;
+    const key = `cosmos_autoshow_add_${worldId || worldMode}`;
+    if (localStorage.getItem(key)) return;
+    const t = setTimeout(() => { setShowAdd(true); localStorage.setItem(key, "1"); }, 2000);
+    return () => clearTimeout(t);
+  }, [introComplete, data.entries.length, showAdd, quickAddMode, worldId, worldMode]);
+
   // ---- SAVE ERROR NOTIFICATION ----
   useEffect(() => {
-    const handler = (e) => showToast(`Failed to save ${e.detail?.city || 'entry'} — check your connection`, '⚠️', 8000)
+    const handler = (e) => showToast(`Couldn't save ${e.detail?.city || 'entry'} — are you online?`, '⚠️', 8000)
     window.addEventListener('cosmos-save-error', handler)
     return () => window.removeEventListener('cosmos-save-error', handler)
   }, [showToast])
@@ -1309,15 +1324,21 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
         // Step 1: Upload files to Supabase storage
         const urls = [];
+        const failed = [];
         for (let i = 0; i < files.length; i++) {
           try {
             const compressed = await compressImage(files[i]);
             const url = await curDb.uploadPhoto(compressed, id);
             if (url && typeof url === 'string') urls.push(url);
-          } catch (err) { /* skip failed uploads */ }
+            else { failed.push(files[i].name); console.warn(`[photoUpload] failed: ${files[i].name} — upload returned null`); }
+          } catch (err) { failed.push(files[i].name); console.warn(`[photoUpload] failed: ${files[i].name}`, err); }
           setUploadProgress({ done: i + 1, total: files.length });
         }
-        if (urls.length === 0) { setUploading(false); input.value = ""; return; }
+        if (failed.length > 0) console.warn(`[photoUpload] ${failed.length} of ${files.length} uploads failed:`, failed);
+        if (urls.length === 0) {
+          showToast("Photos couldn’t upload — check your connection", "❌", 5000);
+          setUploading(false); input.value = ""; return;
+        }
 
         // Step 2: Read current photos from DB (sequenced — no concurrent reads)
         const current = await curDb.readPhotos(id);
@@ -1332,7 +1353,11 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
         // Step 5: Show result
         if (saveResult.ok) {
-          showToast(`${urls.length} photo${urls.length > 1 ? "s" : ""} saved (${merged.length} total)`, "✅", 3000);
+          if (failed.length > 0) {
+            showToast(`${urls.length} of ${files.length} photos saved — ${failed.length} couldn’t upload. Try again?`, "⚠️", 6000);
+          } else {
+            showToast(`${urls.length} photo${urls.length > 1 ? "s" : ""} saved (${merged.length} total)`, "✅", 3000);
+          }
         } else {
           showToast(`Photo save failed: ${saveResult.error}`, "⚠️", 8000);
         }
@@ -1959,12 +1984,12 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
       {data.entries.length === 0 && introComplete && !showAdd && (() => {
         const emptyMsg = {
-          partner: { icon: "💫", title: "Your story begins here", desc: "Add your first memory together to bring your shared world to life.", hint: "Every pin on this globe is a chapter in your story." },
+          partner: { icon: "💫", title: "Your love story starts with one memory", desc: "Where did it begin? to bring your shared world to life.", hint: "Every pin on this globe is a chapter in your story." },
           friends: { icon: "🗺", title: "Adventures await", desc: "Add your first trip to start mapping your crew's adventures together.", hint: "Track every road trip, festival, and reunion." },
           family:  { icon: "🏡", title: "Every journey starts here", desc: "Add your first memory to start building your family's travel story.", hint: "From weekend getaways to dream vacations." },
         };
         const msg = isMyWorld
-          ? { icon: "🌍", title: "Your world awaits", desc: "Add your first trip to start building your personal travel map.", hint: "Track every adventure, from weekend escapes to distant horizons." }
+          ? { icon: "🌍", title: "Every globe starts with one pin", desc: "Where's yours? Add your first adventure to watch it light up on your travel map.", hint: "Track every adventure, from weekend escapes to distant horizons." }
           : emptyMsg[worldType] || emptyMsg.partner;
         return (
           <div style={{ position: "absolute", top: "46%", left: "50%", transform: "translate(-50%,-50%)", zIndex: 12, textAlign: "center", maxWidth: 380, animation: "fadeIn 1.2s ease" }}>

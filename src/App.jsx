@@ -270,12 +270,12 @@ function AppInner() {
                 }
               })
             } else {
-              showErrorToast(result?.error || 'Failed to accept invite.')
+              showErrorToast(result?.error || "Couldn't accept invite.")
             }
           }).catch(err => { console.error('[acceptInvite]', err); showErrorToast('Something went wrong accepting the invite. Please try again.') })
         }
       })
-    }).catch(err => { console.error('[getInviteInfo]', err); showErrorToast('Could not load invite details. Please check your connection and try again.') })
+    }).catch(err => { console.error('[getInviteInfo]', err); showErrorToast('Could not load invite details. Are you online? Please try again.') })
   }, [invitePending, userId])
 
   // Brand new users: show cinematic onboarding (always, regardless of how they arrived)

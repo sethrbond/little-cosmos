@@ -20,7 +20,7 @@ import { todayStr, daysBetween } from "./globeUtils.js";
 export function useCelebrations(deps) {
   const {
     introComplete, isPartnerWorld, config, sliderDate,
-    worldId, userId, stats, data, TYPES, DEFAULT_TYPE, showToast,
+    worldId, userId, stats, data, TYPES, DEFAULT_TYPE, showToast, areTogether,
   } = deps;
 
   // ---- State ----
@@ -144,6 +144,18 @@ export function useCelebrations(deps) {
       showToast(`${label}: ${mem.city} ${icon}`, "\uD83D\uDCAB", 5000);
     }
   }, [onThisDay, introComplete, showToast]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Reunion detection (apart→together on timeline)
+  const prevTogetherRef = useRef(undefined);
+  useEffect(() => {
+    if (!introComplete || !isPartnerWorld) { prevTogetherRef.current = areTogether; return; }
+    const prev = prevTogetherRef.current;
+    prevTogetherRef.current = areTogether;
+    if (prev === false && areTogether === true) {
+      const e = data.entries.find(x => x.dateStart && sliderDate >= x.dateStart && sliderDate <= (x.dateEnd || x.dateStart) && x.who !== config?.youName?.toLowerCase() && x.who !== config?.partnerName?.toLowerCase());
+      showToast(`You reunited in ${e?.city || 'this place'}! 🫂`, '💕', 4000);
+    }
+  }, [areTogether, introComplete, isPartnerWorld, sliderDate, data.entries, showToast, config]);
 
   return {
     showCelebration,

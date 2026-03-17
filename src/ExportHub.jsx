@@ -836,12 +836,12 @@ export default function ExportHub({ entries = [], config = {}, stats = {}, palet
         setImportLoading(false);
       } catch (err) {
         console.error("Import parse error:", err);
-        setImportError(err.message || "Failed to parse file. Please check the format.");
+        setImportError(err.message || "Couldn't parse file. Please check the format.");
         setImportLoading(false);
       }
     };
     reader.onerror = () => {
-      setImportError("Failed to read file.");
+      setImportError("Couldn't read file.");
       setImportLoading(false);
     };
     reader.readAsText(file);

@@ -865,7 +865,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     if (!mountedRef.current) return;
     setCreatingPersonal(false);
     if (!world || world._error) {
-      showToast("Failed to create world: " + (world?._error || "unknown error"));
+      showToast("Couldn't create world: " + (world?._error || "unknown error"));
     } else {
       const updated = await loadMyWorlds(userId);
       if (!mountedRef.current) return;
@@ -887,7 +887,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     });
     if (!mountedRef.current) return;
     setCreatingShared(false);
-    if (!world || world._error) { showToast("Failed to create world: " + (world?._error || "unknown error")); return; }
+    if (!world || world._error) { showToast("Couldn't create world: " + (world?._error || "unknown error")); return; }
     setCreatedWorldId(world.id);
     setSharedStep(1);
   };
@@ -906,7 +906,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     if (result) {
       setGeneratedLink(result.inviteLink);
       setSharedStep(2);
-    } else { showToast("Failed to generate invite."); }
+    } else { showToast("Couldn't generate invite."); }
   };
 
   const handleFinishShared = async () => {
@@ -927,7 +927,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       if (!mountedRef.current) return;
       setInviteGenerating(false);
       if (inv) { setInviteLink(`${window.location.origin}?invite=${inv.token}`); refreshInvites(); }
-      else showToast("Failed to generate invite.");
+      else showToast("Couldn't generate invite.");
       return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(existingInviteEmail.trim())) {
@@ -942,7 +942,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       if (!mountedRef.current) return;
       setInviteGenerating(false);
       if (result) { setInviteLink(result.inviteLink); refreshInvites(); }
-      else { showToast("Failed to generate invite."); }
+      else { showToast("Couldn't generate invite."); }
     } else {
       const result = await createInviteWithLetter(
         showInviteModal.id, userId, userDisplayName || "Someone special", existingInviteEmail.trim(), existingInviteLetter
@@ -950,7 +950,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       if (!mountedRef.current) return;
       setInviteGenerating(false);
       if (result) { setInviteLink(result.inviteLink); refreshInvites(); }
-      else { showToast("Failed to generate invite."); }
+      else { showToast("Couldn't generate invite."); }
     }
   };
 
@@ -968,7 +968,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     } catch (err) {
       console.error('[cosmosInvite]', err);
       if (!mountedRef.current) return;
-      showToast("Failed to send invite.");
+      showToast("Couldn't send invite.");
     }
     if (mountedRef.current) setCosmosInviteSending(false);
   };
@@ -987,7 +987,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       setFriendSent(true);
       showToast("Friend request sent!");
     } else {
-      showToast("Failed to send friend request" + (result?._error ? ": " + result._error : "."));
+      showToast("Couldn't send friend request" + (result?._error ? ": " + result._error : "."));
     }
   };
 
@@ -1011,7 +1011,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       if (onConnectionsChange) onConnectionsChange(conn);
       showToast(`You and ${req.requester_name || "your friend"} are now connected!`);
     } else {
-      showToast(result?.error || "Failed to accept request.");
+      showToast(result?.error || "Couldn't accept request.");
     }
   };
 
@@ -1149,13 +1149,13 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
                     setConfirmModal({ message: `Permanently delete "${w.label}"? All entries, photos, and settings will be lost forever. This cannot be undone.`, confirmLabel: "Delete Forever", onConfirm: async () => {
                       const ok = await deleteWorld(w.id, userId);
                       if (ok) { onWorldsChange(worlds.filter(x => x.id !== w.id)); }
-                      else { showToast("Failed to delete world."); }
+                      else { showToast("Couldn't delete world."); }
                     }});
                   } else {
                     setConfirmModal({ message: `Leave "${w.label}"? You'll lose access to this world.`, confirmLabel: "Leave World", onConfirm: async () => {
                       const ok = await leaveWorld(w.id, userId);
                       if (ok) { onWorldsChange(worlds.filter(x => x.id !== w.id)); }
-                      else { showToast("Failed to leave world."); }
+                      else { showToast("Couldn't leave world."); }
                     }});
                   }
                 }}
@@ -1672,7 +1672,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
                         closeAllModals();
                         const joined = updated.find(w => w.id === result.world_id);
                         onSelect("our", result.world_id, inv.worldName, joined?.role || "member", inv.worldType || joined?.type || "shared");
-                      } else { btn.disabled = false; btn.textContent = "Accept & Enter"; showToast(result?.error || "Failed to accept invite."); }
+                      } else { btn.disabled = false; btn.textContent = "Accept & Enter"; showToast(result?.error || "Couldn't accept invite."); }
                     }} style={{ ...btnP, padding: "5px 14px", fontSize: 11 }}>Accept & Enter</button>
                   </div>
                 </div>

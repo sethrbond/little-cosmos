@@ -313,7 +313,7 @@ export default function SettingsPanel({
               setWlSent(true); setWlEmail(""); setWlText("");
               const letters = await getMyLetters(userId);
               setMyLetters(letters);
-            } catch (err) { showToast("Failed to send: " + err.message, "\u26A0\uFE0F", 5000); }
+            } catch (err) { showToast("Couldn't send: " + err.message, "\u26A0\uFE0F", 5000); }
             setWlSending(false);
           }}
           style={{ width: "100%", padding: "10px", background: wlSending ? P.textFaint : `linear-gradient(135deg, ${P.rose}, ${P.sky})`, border: "none", borderRadius: 12, cursor: wlSending ? "wait" : "pointer", fontSize: 10, fontFamily: "inherit", color: "#fff", fontWeight: 600, opacity: (!wlEmail.trim() || !wlText.trim()) ? 0.4 : 1, letterSpacing: ".06em", boxShadow: !wlSending && wlEmail.trim() && wlText.trim() ? `0 2px 8px ${P.rose}30` : "none", transition: "all .25s" }}>
@@ -382,7 +382,7 @@ export default function SettingsPanel({
                 if (ok) {
                   localStorage.setItem('activeWorldName', newName.trim());
                   window.location.reload();
-                } else { showToast("Failed to rename world", "\u26A0\uFE0F", 4000); }
+                } else { showToast("Couldn't rename world", "\u26A0\uFE0F", 4000); }
               }} style={{ width: "100%", padding: "8px", background: `${P.parchment}`, border: `1px solid ${P.textFaint}30`, borderRadius: 8, cursor: "pointer", fontSize: 10, fontFamily: "inherit", color: P.textMid, marginBottom: 6, transition: "all .2s" }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = `${P.rose}40`; }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = `${P.textFaint}30`; }}>
@@ -394,7 +394,7 @@ export default function SettingsPanel({
                 setConfirmModal({ message: `Are you sure you want to permanently delete "${worldName}"? This cannot be undone. All entries, photos, and settings will be lost.`, onConfirm: async () => {
                   const ok = await deleteWorld(worldId, userId);
                   if (ok) { flushConfigSave(); onClose(); onSwitchWorld(); }
-                  else { showToast("Failed to delete world.", "\u26A0\uFE0F", 4000); }
+                  else { showToast("Couldn't delete world.", "\u26A0\uFE0F", 4000); }
                 }});
               }} style={{ width: "100%", padding: "8px", background: "transparent", border: "1px solid rgba(200,100,100,0.25)", borderRadius: 8, cursor: "pointer", fontSize: 10, fontFamily: "inherit", color: "#c97777", marginBottom: 6, transition: "all .2s" }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(200,100,100,0.5)"; e.currentTarget.style.background = "rgba(200,100,100,0.06)"; }}
@@ -406,7 +406,7 @@ export default function SettingsPanel({
                 setConfirmModal({ message: `Leave "${worldName}"? You'll lose access to this world.`, onConfirm: async () => {
                   const ok = await leaveWorld(worldId, userId);
                   if (ok) { flushConfigSave(); onClose(); onSwitchWorld(); }
-                  else { showToast("Failed to leave world.", "\u26A0\uFE0F", 4000); }
+                  else { showToast("Couldn't leave world.", "\u26A0\uFE0F", 4000); }
                 }});
               }} style={{ width: "100%", padding: "8px", background: "transparent", border: "1px solid rgba(200,160,100,0.25)", borderRadius: 8, cursor: "pointer", fontSize: 10, fontFamily: "inherit", color: "#c9a077", marginBottom: 6, transition: "all .2s" }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(200,160,100,0.5)"; e.currentTarget.style.background = "rgba(200,160,100,0.06)"; }}
