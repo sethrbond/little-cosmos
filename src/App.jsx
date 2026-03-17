@@ -294,12 +294,6 @@ function AppInner() {
     document.title = `${activeWorldName || 'Shared World'} — Little Cosmos`
   }, [worldMode, activeWorldName])
 
-  useEffect(() => {
-    const onPopState = () => { if (worldMode) switchWorld() }
-    window.addEventListener('popstate', onPopState)
-    return () => window.removeEventListener('popstate', onPopState)
-  }, [worldMode, switchWorld])
-
   const handleSignOut = useCallback(() => {
     safeRemove('worldMode')
     safeRemove('activeWorldId')
