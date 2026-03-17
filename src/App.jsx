@@ -389,6 +389,13 @@ function AppInner() {
     transitionTimers.current.push(t1)
   }, [userId, user?.email])
 
+  // Browser back button returns to cosmos when inside a world
+  useEffect(() => {
+    const onPopState = () => { if (worldMode) switchWorld() }
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [worldMode, switchWorld])
+
   // Show auth screen as soon as we know there's no user (don't wait for letter/worlds)
   if (loading) {
     return <LoadingScreen />
