@@ -1,0 +1,297 @@
+import { useState, useCallback, useEffect } from "react";
+import { clamp, RAD, MIN_Z, MAX_Z, ll2v } from "./globeUtils.js";
+
+/**
+ * useGlobeInteraction — extracted pointer/touch/zoom interaction handlers
+ * for the 3D globe in OurWorld.
+ *
+ * @param {object} deps
+ * @returns {{ flyTo, hoverLabel, setHoverLabel, saveGlobeScreenshot, onDown, onMove, onUp }}
+ */
+export function useGlobeInteraction(deps) {
+  const {
+    // Refs for Three.js objects
+    camRef, mkRef, rendRef, scnRef,
+    mountRef,
+    // Rotation / zoom refs
+    dragR, prevR, rot, tRot, tZm,
+    spinSpd, tSpinSpd,
+    // Click / touch refs
+    clickSR, tDistR,
+    longPressRef, lastTapRef, hoverThrottleRef,
+    mouseRef,
+    // Raycaster refs
+    rayRef, mRef,
+    // Reactive state
+    sceneReady,
+    // Data
+    dataEntries, locationGroups, config,
+    // Setters passed from parent
+    setSelected, setPhotoIdx, setCardTab, setLocationList,
+    setSliderDate, setShowLetter, setShowZoomHint,
+    // Screenshot deps
+    showToast, isMyWorld, isPartnerWorld, worldType,
+    // thumbnail helper for hover photos
+    thumbnail,
+  } = deps;
+
+  // ---- hoverLabel state ----
+  const [hoverLabel, setHoverLabel] = useState(null);
+
+  // ---- flyTo helper — Euler XYZ rotation to center (lat,lng) on camera ----
+  // Three.js Euler 'XYZ' applies as Rz·Ry·Rx (but z=0), matrix is:
+  //   | cy      0    sy   |      To send point P → (0,0,r):
+  //   | sx·sy   cx  -sx·cy|        rx = atan2(py, √(px²+pz²))
+  //   |-cx·sy   sx   cx·cy|        ry = atan2(-px, pz)
+  // Shortest-path: normalize ry to within π of current rotation
+  const flyTo = useCallback((lat, lng, zoom) => {
+    const p = ll2v(lat, lng, RAD);
+    const rx = Math.atan2(p.y, Math.sqrt(p.x * p.x + p.z * p.z));
+    let ry = Math.atan2(-p.x, p.z);
+    // Normalize ry to be within π of current actual rotation (shortest path)
+    const dy = ry - rot.current.y;
+    ry -= Math.round(dy / (2 * Math.PI)) * 2 * Math.PI;
+    tRot.current = { x: rx, y: ry };
+    tSpinSpd.current = 0;
+    spinSpd.current = 0;
+    if (zoom !== undefined) tZm.current = zoom;
+  }, []);
+
+  // ---- POINTER handlers ----
+  const onDown = useCallback(e => { dragR.current = true; prevR.current = { x: e.clientX, y: e.clientY }; clickSR.current = { x: e.clientX, y: e.clientY, t: Date.now() }; if (mountRef.current) mountRef.current.style.cursor = 'grabbing'; }, []);
+
+  const onMove = useCallback(e => {
+    mouseRef.current = { x: (e.clientX / window.innerWidth - 0.5) * 2, y: (e.clientY / window.innerHeight - 0.5) * 2 };
+    if (dragR.current) {
+      tRot.current.y += (e.clientX - prevR.current.x) * 0.005; tRot.current.x = clamp(tRot.current.x + (e.clientY - prevR.current.y) * 0.005, -1.2, 1.2); prevR.current = { x: e.clientX, y: e.clientY };
+      setHoverLabel(null);
+      return;
+    }
+    // Throttled hover detection (~every 80ms)
+    const now = Date.now();
+    if (now - hoverThrottleRef.current < 80) return;
+    hoverThrottleRef.current = now;
+    if (!mountRef.current || !camRef.current) return;
+    const rect = mountRef.current.getBoundingClientRect();
+    mRef.current.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    mRef.current.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    rayRef.current.setFromCamera(mRef.current, camRef.current);
+    const dots = mkRef.current.map(m => m.dot).filter(Boolean);
+    const hits = rayRef.current.intersectObjects(dots);
+    if (hits.length > 0) {
+      const id = hits[0].object.userData.entryId;
+      let label = null;
+      if (id.startsWith("group-")) {
+        const parts = id.replace("group-", "").split("-");
+        const glat = parseFloat(parts[0]), glng = parseFloat(parts.slice(1).join("-"));
+        const group = locationGroups.find(g => Math.abs(g.lat - glat) < 0.05 && Math.abs(g.lng - glng) < 0.05);
+        if (group) {
+          const groupPhoto = group.entries.find(en => en.photos?.length)?.photos[0] || null;
+          label = { city: group.city, date: `${group.entries.length} entries`, x: e.clientX, y: e.clientY, photo: groupPhoto };
+        }
+      } else if (id.startsWith("dream-")) {
+        const dreamId = id.replace("dream-", "");
+        const dream = (config.dreamDestinations || config.bucketList || []).find(d => d.id === dreamId);
+        if (dream) label = { city: dream.city || dream.name, date: "dream destination", x: e.clientX, y: e.clientY };
+      } else {
+        const entry = dataEntries.find(en => en.id === id);
+        if (entry) {
+          const d = entry.dateStart ? new Date(entry.dateStart + "T00:00:00").toLocaleDateString("en-US", { month: "short", year: "numeric" }) : "";
+          const photo = entry.photos?.length ? entry.photos[0] : null;
+          label = { city: entry.city, date: d, x: e.clientX, y: e.clientY, photo };
+        }
+      }
+      setHoverLabel(label);
+      mountRef.current.style.cursor = "pointer";
+    } else {
+      setHoverLabel(null);
+      if (mountRef.current) mountRef.current.style.cursor = "grab";
+    }
+  }, [dataEntries, locationGroups, config]);
+
+  const onUp = useCallback(e => {
+    dragR.current = false;
+    if (!mountRef.current) return;
+    mountRef.current.style.cursor = 'grab';
+    if (Math.abs(e.clientX - clickSR.current.x) < 6 && Math.abs(e.clientY - clickSR.current.y) < 6 && Date.now() - clickSR.current.t < 350) {
+      const rect = mountRef.current.getBoundingClientRect();
+      mRef.current.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      mRef.current.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      rayRef.current.setFromCamera(mRef.current, camRef.current);
+      const hits = rayRef.current.intersectObjects(mkRef.current.map(m => m.dot).filter(Boolean));
+      if (hits.length > 0) {
+        const id = hits[0].object.userData.entryId;
+        // Check if this is a location group
+        if (id.startsWith("group-")) {
+          const parts = id.replace("group-", "").split("-");
+          const glat = parseFloat(parts[0]), glng = parseFloat(parts.slice(1).join("-"));
+          const group = locationGroups.find(g => Math.abs(g.lat - glat) < 0.05 && Math.abs(g.lng - glng) < 0.05);
+          if (group) {
+            setLocationList(group);
+            setSelected(null);
+            flyTo(group.lat, group.lng, 2.3);
+          }
+        } else {
+          const entry = dataEntries.find(en => en.id === id);
+          if (entry) {
+            setSelected(entry); setPhotoIdx(0); setCardTab("overview"); setLocationList(null);
+            setSliderDate(entry.dateStart);
+            flyTo(entry.lat, entry.lng, 2.5);
+          } else if (id.startsWith("love-")) {
+            // Love letter easter egg clicked!
+            const letterId = id.replace("love-", "");
+            setShowLetter(letterId);
+          }
+        }
+      } else { setSelected(null); setLocationList(null); tSpinSpd.current = 0.002; }
+    }
+  }, [dataEntries, locationGroups, flyTo]);
+
+  const onWheel = useCallback(e => { e.preventDefault(); tZm.current = clamp(tZm.current + e.deltaY * 0.001, MIN_Z, MAX_Z); setShowZoomHint(false); }, []);
+
+  // Attach wheel + touch with passive:false so preventDefault works (Safari pinch zoom fix)
+  useEffect(() => {
+    const el = mountRef.current;
+    if (!el) return;
+    const opts = { passive: false };
+    el.addEventListener("wheel", onWheel, opts);
+    const canvas = el.querySelector("canvas");
+    if (canvas) canvas.addEventListener("wheel", onWheel, opts);
+
+    // Touch handlers registered imperatively so Safari respects preventDefault
+    const handleTouchStart = (e) => {
+      e.preventDefault();
+      if (longPressRef.current) { clearTimeout(longPressRef.current); longPressRef.current = null; }
+      if (e.touches.length === 1) {
+        dragR.current = true;
+        prevR.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        clickSR.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() };
+        const now = Date.now();
+        if (now - lastTapRef.current < 300) {
+          tZm.current = tZm.current < 2.5 ? 2.0 : 3.6;
+          lastTapRef.current = 0;
+        } else {
+          lastTapRef.current = now;
+        }
+        // Long-press tooltip: after 400ms without significant movement, show tooltip
+        const tx = e.touches[0].clientX, ty = e.touches[0].clientY;
+        longPressRef.current = setTimeout(() => {
+          longPressRef.current = null;
+          if (!mountRef.current || !camRef.current) return;
+          const rect = mountRef.current.getBoundingClientRect();
+          mRef.current.x = ((tx - rect.left) / rect.width) * 2 - 1;
+          mRef.current.y = -((ty - rect.top) / rect.height) * 2 + 1;
+          rayRef.current.setFromCamera(mRef.current, camRef.current);
+          const dots = mkRef.current.map(m => m.dot).filter(Boolean);
+          const hits = rayRef.current.intersectObjects(dots);
+          if (hits.length > 0) {
+            const id = hits[0].object.userData.entryId;
+            let label = null;
+            if (id.startsWith("group-")) {
+              const parts = id.replace("group-", "").split("-");
+              const glat = parseFloat(parts[0]), glng = parseFloat(parts.slice(1).join("-"));
+              const group = locationGroups.find(g => Math.abs(g.lat - glat) < 0.05 && Math.abs(g.lng - glng) < 0.05);
+              if (group) {
+                const groupPhoto = group.entries.find(en => en.photos?.length)?.photos[0] || null;
+                label = { city: group.city, date: `${group.entries.length} entries`, x: tx, y: ty, photo: groupPhoto };
+              }
+            } else if (!id.startsWith("dream-") && !id.startsWith("love-")) {
+              const entry = dataEntries.find(en => en.id === id);
+              if (entry) {
+                const d = entry.dateStart ? new Date(entry.dateStart + "T00:00:00").toLocaleDateString("en-US", { month: "short", year: "numeric" }) : "";
+                label = { city: entry.city, date: d, x: tx, y: ty, photo: entry.photos?.length ? entry.photos[0] : null };
+              }
+            }
+            if (label) {
+              setHoverLabel(label);
+              dragR.current = false; // prevent drag after long-press
+              // Auto-dismiss tooltip after 2.5s
+              setTimeout(() => setHoverLabel(prev => prev === label ? null : prev), 2500);
+            }
+          }
+        }, 400);
+      } else if (e.touches.length === 2) {
+        dragR.current = false;
+        const dx = e.touches[0].clientX - e.touches[1].clientX, dy = e.touches[0].clientY - e.touches[1].clientY;
+        tDistR.current = Math.sqrt(dx * dx + dy * dy);
+      }
+    };
+    const handleTouchMove = (e) => {
+      e.preventDefault();
+      // Cancel long-press if finger moves more than 10px
+      if (longPressRef.current && e.touches.length === 1) {
+        const dx = e.touches[0].clientX - clickSR.current.x, dy = e.touches[0].clientY - clickSR.current.y;
+        if (dx * dx + dy * dy > 100) { clearTimeout(longPressRef.current); longPressRef.current = null; }
+      }
+      if (e.touches.length === 1 && dragR.current) {
+        tRot.current.y += (e.touches[0].clientX - prevR.current.x) * 0.005;
+        tRot.current.x = clamp(tRot.current.x + (e.touches[0].clientY - prevR.current.y) * 0.005, -1.2, 1.2);
+        prevR.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      } else if (e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX, dy = e.touches[0].clientY - e.touches[1].clientY;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        tZm.current = clamp(tZm.current - (d - tDistR.current) * 0.012, MIN_Z, MAX_Z);
+        tDistR.current = d;
+      }
+    };
+    const handleTouchEnd = () => { dragR.current = false; if (longPressRef.current) { clearTimeout(longPressRef.current); longPressRef.current = null; } };
+
+    el.addEventListener("touchstart", handleTouchStart, opts);
+    el.addEventListener("touchmove", handleTouchMove, opts);
+    el.addEventListener("touchend", handleTouchEnd);
+
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+      if (canvas) canvas.removeEventListener("wheel", onWheel);
+      el.removeEventListener("touchstart", handleTouchStart);
+      el.removeEventListener("touchmove", handleTouchMove);
+      el.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, [onWheel, sceneReady]);
+
+  // ---- saveGlobeScreenshot ----
+  const saveGlobeScreenshot = useCallback(() => {
+    const rend = rendRef.current, scene = scnRef.current, cam = camRef.current;
+    if (!rend || !scene || !cam) return;
+    rend.render(scene, cam);
+    try {
+      const globeData = rend.domElement.toDataURL("image/png");
+      const img = new Image();
+      img.onload = () => {
+        const c = document.createElement("canvas");
+        c.width = img.width; c.height = img.height;
+        const ctx = c.getContext("2d");
+        ctx.drawImage(img, 0, 0);
+        ctx.fillStyle = "rgba(255,255,255,0.35)";
+        ctx.font = `${Math.round(c.height * 0.018)}px 'Palatino Linotype', Georgia, serif`;
+        ctx.textAlign = "right";
+        ctx.fillText("Little Cosmos", c.width - 16, c.height - 12);
+        const title = config.title || (isMyWorld ? "My World" : isPartnerWorld ? "Our World" : worldType === "friends" ? "Friends" : "Family");
+        ctx.fillStyle = "rgba(255,255,255,0.6)";
+        ctx.font = `${Math.round(c.height * 0.028)}px 'Palatino Linotype', Georgia, serif`;
+        ctx.textAlign = "left";
+        ctx.fillText(title, 16, c.height - 12);
+        const link = document.createElement("a");
+        link.download = `${title.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase()}_globe.png`;
+        link.href = c.toDataURL("image/png");
+        link.click();
+        showToast("Globe saved to downloads", "\uD83D\uDCF7", 2500);
+      };
+      img.src = globeData;
+    } catch (err) {
+      console.error("[screenshot]", err);
+      showToast("Couldn't capture globe", "\u26A0\uFE0F", 3000);
+    }
+  }, [config.title, isMyWorld, isPartnerWorld, worldType, showToast]);
+
+  return {
+    flyTo,
+    hoverLabel,
+    setHoverLabel,
+    saveGlobeScreenshot,
+    // Pointer handlers for JSX binding
+    onDown,
+    onMove,
+    onUp,
+  };
+}
