@@ -364,20 +364,23 @@ function AppInner() {
 
       // Refresh data in background (WorldSelector already has previous data to render with)
       if (userId) {
-        Promise.all([
+        Promise.allSettled([
           loadMyWorlds(userId),
           getMyConnections(userId),
           getPendingRequests(user?.email),
           getPendingWorldInvites(user?.email),
           loadMyWorldSubtitle(userId),
-        ]).then(([w, conn, pending, worldInvites, myInfo]) => {
-          setWorlds(w)
-          setConnections(conn)
-          setPendingRequests(pending)
-          setPendingWorldInvites(worldInvites || [])
+        ]).then((results) => {
+          const v = (i) => results[i].status === 'fulfilled' ? results[i].value : null
+          results.forEach((r, i) => { if (r.status === 'rejected') console.error('[switchWorld refresh]', i, r.reason) })
+          setWorlds(v(0) || [])
+          setConnections(v(1) || [])
+          setPendingRequests(v(2) || [])
+          setPendingWorldInvites(v(3) || [])
+          const myInfo = v(4)
           setMyWorldSubtitle(myInfo?.subtitle ?? '')
           setMyWorldColors({ customPalette: myInfo?.customPalette || {}, customScene: myInfo?.customScene || {} })
-        }).catch(err => console.error('[switchWorld] refresh error:', err))
+        })
       }
     }, 400)
     transitionTimers.current.push(t1)

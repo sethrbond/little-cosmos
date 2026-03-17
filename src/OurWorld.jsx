@@ -1461,7 +1461,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             const entries = parsed.data.entries;
             (async () => {
               for (let i = 0; i < entries.length; i += 10) {
-                await Promise.all(entries.slice(i, i + 10).map(e => db.saveEntry(e)));
+                const batch = await Promise.allSettled(entries.slice(i, i + 10).map(e => db.saveEntry(e))); batch.forEach((r, bi) => { if (r.status === "rejected") console.error("[import] save failed:", r.reason) });
               }
               showToast(`Imported ${entries.length} entries`, "📥", 3000);
             })().catch(err => console.error("Import save failed:", err));
