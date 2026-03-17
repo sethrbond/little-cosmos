@@ -65,7 +65,7 @@ function PasswordResetModal({ onDone }) {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
-    if (newPassword.length < 6) { setError('Password must be at least 6 characters'); return }
+    if (newPassword.length < 10) { setError('Password must be at least 10 characters'); return }
     if (newPassword !== confirmPassword) { setError('Passwords do not match'); return }
     setSaving(true)
     const { error } = await supabase.auth.updateUser({ password: newPassword })
@@ -178,7 +178,7 @@ function AppInner() {
     getAllWelcomeLetters(user.email).then(letters => {
       setWelcomeLetters(letters)
       setLetterChecked(true)
-    }).catch(err => { console.error('[welcome letter]', err); setLetterChecked(true) })
+    }).catch(err => { console.error('[welcome letter]', err); showErrorToast('Could not load welcome letters'); setLetterChecked(true) })
   }, [user?.email])
 
   // Load user's shared worlds + connections + ensure personal world exists
@@ -236,7 +236,7 @@ function AppInner() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const token = params.get('invite')
-    if (token) {
+    if (token && /^[a-zA-Z0-9-]{1,128}$/.test(token)) {
       setInvitePending(token)
       window.history.replaceState({}, '', window.location.pathname)
     }
@@ -292,6 +292,15 @@ function AppInner() {
     document.title = `${activeWorldName || 'Shared World'} — Little Cosmos`
   }, [worldMode, activeWorldName])
 
+  // Browser back button returns to cosmos when inside a world
+  useEffect(() => {
+    const onPopState = () => {
+      if (worldMode) switchWorld()
+    }
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [worldMode, switchWorld])
+
   const handleSignOut = useCallback(() => {
     safeRemove('worldMode')
     safeRemove('activeWorldId')
@@ -303,6 +312,7 @@ function AppInner() {
   }, [signOut])
 
   const selectWorld = useCallback((mode, worldId = null, worldName = null, worldRole = null, worldType = null) => {
+    window.history.pushState({ cosmos: true }, '', window.location.pathname)
     // Determine accent color for zoom transition
     const colors = { partner: '#1a1230', friends: '#0e1028', family: '#181210', my: '#121820' }
     setTransitionColor(colors[worldType] || colors[mode] || '#0c0a12')
@@ -361,17 +371,19 @@ function AppInner() {
 
       // Refresh data in background (WorldSelector already has previous data to render with)
       if (userId) {
-        Promise.all([
+        Promise.allSettled([
           loadMyWorlds(userId),
           getMyConnections(userId),
           getPendingRequests(user?.email),
           getPendingWorldInvites(user?.email),
           loadMyWorldSubtitle(userId),
-        ]).then(([w, conn, pending, worldInvites, myInfo]) => {
-          setWorlds(w)
-          setConnections(conn)
-          setPendingRequests(pending)
-          setPendingWorldInvites(worldInvites || [])
+        ]).then((results) => {
+          const val = (i) => results[i].status === 'fulfilled' ? results[i].value : null
+          results.forEach((r, i) => { if (r.status === 'rejected') console.error('[switchWorld refresh]', i, r.reason) })
+          setWorlds(val(0) || [])
+          setConnections(val(1) || [])
+          setPendingRequests(val(2) || [])
+          setPendingWorldInvites(val(3) || [])
           setMyWorldSubtitle(myInfo?.subtitle ?? '')
           setMyWorldColors({ customPalette: myInfo?.customPalette || {}, customScene: myInfo?.customScene || {} })
         }).catch(err => console.error('[switchWorld] refresh error:', err))
