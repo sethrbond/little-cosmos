@@ -558,186 +558,21 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       }
     });
 
-    // Circle texture for soft particles (avoids square artifacts)
-    const circleCanvas = document.createElement('canvas');
-    circleCanvas.width = 32; circleCanvas.height = 32;
-    const cCtx = circleCanvas.getContext('2d');
-    const grad = cCtx.createRadialGradient(16, 16, 0, 16, 16, 16);
-    grad.addColorStop(0, 'rgba(255,255,255,1)');
-    grad.addColorStop(0.4, 'rgba(255,255,255,0.6)');
-    grad.addColorStop(1, 'rgba(255,255,255,0)');
-    cCtx.fillStyle = grad;
-    cCtx.fillRect(0, 0, 32, 32);
-    const circleTexture = new THREE.CanvasTexture(circleCanvas);
-
     // Comet that drifts across the cosmos every ~40 seconds
-    // Comet uses only particle trail (no sphere head)
-    const cometMat = { opacity: 0 }; // dummy for opacity tracking
-    const comet = { position: new THREE.Vector3() }; // position tracker only
-    // Comet tail (particle trail)
-    const tailCount = 50;
-    const tailPositions = new Float32Array(tailCount * 3);
-    const tailGeo = new THREE.BufferGeometry();
-    tailGeo.setAttribute("position", new THREE.BufferAttribute(tailPositions, 3));
-    const tailMat = new THREE.PointsMaterial({ color: "#c9a96e", size: 0.12, transparent: true, opacity: 0, sizeAttenuation: true, blending: THREE.AdditiveBlending, depthWrite: false, map: circleTexture });
-    const tail = new THREE.Points(tailGeo, tailMat);
-    scene.add(tail);
-    let cometTimer = 20 + Math.random() * 30; // first comet after 20-50s
-    let cometActive = false;
-    // Hide tail offscreen initially
-    for (let ti = 0; ti < tailCount * 3; ti++) tailPositions[ti] = -999;
-    tailGeo.attributes.position.needsUpdate = true;
-    let cometProgress = 0;
-    let cometPath = { sx: 0, sy: 0, sz: 0, ex: 0, ey: 0, ez: 0 };
-    const cometHistory = [];
 
     // Comet sparkle burst particles
-    const sparkBurstCount = 7;
-    const sparkBurstPos = new Float32Array(sparkBurstCount * 3);
-    const sparkBurstVel = new Float32Array(sparkBurstCount * 3);
-    const sparkBurstGeo = new THREE.BufferGeometry();
-    sparkBurstGeo.setAttribute("position", new THREE.BufferAttribute(sparkBurstPos, 3));
-    const sparkBurstMat = new THREE.PointsMaterial({ color: "#ffe8a0", size: 0.08, transparent: true, opacity: 0, sizeAttenuation: true, blending: THREE.AdditiveBlending, depthWrite: false, map: circleTexture });
-    const sparkBurst = new THREE.Points(sparkBurstGeo, sparkBurstMat);
-    scene.add(sparkBurst);
-    let sparkBurstLife = -1; // -1 = inactive
-    let sparkBurstTriggered = false; // prevents re-triggering within same comet pass
-
-    let t = 0, frameId;
-    const updateCamera = () => {
-      const a = camAngleRef.current;
-      cam.position.set(a.radius * Math.sin(a.phi) * Math.cos(a.theta), a.radius * Math.cos(a.phi), a.radius * Math.sin(a.phi) * Math.sin(a.theta));
-      cam.lookAt(0, 0, 0);
-    };
-    updateCamera();
-
-    const animate = () => {
-      frameId = requestAnimationFrame(animate);
-      t += 0.006;
-      centerOrb.rotation.y += 0.002;
-      centerOrb.scale.setScalar(1 + Math.sin(t * 1.2) * 0.03);
-      // Center sparkle twinkle — individual particles fade in/out
-      if (centerSparkles.geometry.attributes.position) {
-        const sizes = [];
-        for (let i = 0; i < centerSparkleCount; i++) {
-          const tw = Math.sin(t * 3.0 + cSparkPhase[i]) * 0.5 + 0.5; // 0-1 twinkle
-          sizes.push(0.02 + tw * 0.04);
-        }
-        cSparkMat.size = 0.04; // base size
-        cSparkMat.opacity = 0.5 + Math.sin(t * 1.5) * 0.3;
-      }
-      orbs.forEach((o, i) => {
-        const w = o.world;
-        const speed = (w.orbitSpeed || 0.18) * (w.orbitSpeedMult || 1);
-        const angle = (w.orbitPhase || o.angleOffset) + t * speed;
-        // Elliptical orbit: semi-major along x, semi-minor along z
-        const ecc = w.orbitEccentricity || 0;
-        const rx = w.orbitRadius;
-        const rz = rx * (1 - ecc);
-        // Flat elliptical position
-        const px = Math.cos(angle) * rx;
-        const pz = Math.sin(angle) * rz;
-        // Orbital inclination — tilt the orbit plane for a 3D feel
-        const inc = w.orbitInclination || 0;
-        const incAxis = w.orbitInclinationAxis || 0;
-        const tiltedY = Math.sin(angle + incAxis) * Math.sin(inc) * rx * 0.5;
-        // Gentle wobble on top for extra whimsy
-        o.mesh.position.set(px, tiltedY + Math.sin(angle * 0.7) * 0.08, pz);
-        o.mesh.rotation.y += 0.008;
-        o.mesh.scale.setScalar(1 + Math.sin(t * 2 + i * 1.5) * 0.03);
-        // Per-world sparkle twinkle with type-specific speed
-        if (o.sparkMat) {
-          const sp = o.sparkCfg.speed;
-          o.sparkMat.opacity = 0.4 + Math.sin(t * sp + i * 2.0) * 0.4;
-          o.sparkMat.size = o.sparkCfg.size * (0.8 + Math.sin(t * sp * 1.3 + i) * 0.4);
-        }
-      });
-      // Pulse orbit rings gently
-      orbitRings.forEach((r, i) => { r.mat.opacity = r.baseOp + Math.sin(t * 0.8 + i * 2) * 0.02; });
-
-      // Animate tiny moons
-      moons.forEach(m => {
-        const a = t * m.speed + m.phase;
-        m.mesh.position.set(Math.cos(a) * m.dist, Math.sin(a * 0.7) * m.dist * m.tilt, Math.sin(a) * m.dist);
-      });
-      // Comet animation
-      const dt = 0.006;
-      if (!cometActive) {
-        cometTimer -= dt;
-        if (cometTimer <= 0) {
-          cometActive = true;
-          cometProgress = 0;
-          cometHistory.length = 0;
-          // Random start/end far from center
-          const a1 = Math.random() * Math.PI * 2, a2 = a1 + Math.PI * 0.6 + Math.random() * Math.PI * 0.8;
-          const r1 = 8 + Math.random() * 4, r2 = 8 + Math.random() * 4;
-          cometPath.sx = Math.cos(a1) * r1; cometPath.sy = (Math.random() - 0.5) * 4; cometPath.sz = Math.sin(a1) * r1;
-          cometPath.ex = Math.cos(a2) * r2; cometPath.ey = (Math.random() - 0.5) * 4; cometPath.ez = Math.sin(a2) * r2;
-        }
-      }
-      if (cometActive) {
-        cometProgress += dt * 0.12;
-        if (cometProgress >= 1) {
-          cometActive = false;
-          cometTimer = 25 + Math.random() * 25;
-          cometMat.opacity = 0; tailMat.opacity = 0;
-          for (let ti = 0; ti < tailCount * 3; ti++) tailGeo.attributes.position.array[ti] = -999;
-          tailGeo.attributes.position.needsUpdate = true;
-          cometHistory.length = 0;
-        } else {
-          // Curved path through center area
-          const p = cometProgress;
-          const bend = Math.sin(p * Math.PI) * 2;
-          const cx = cometPath.sx + (cometPath.ex - cometPath.sx) * p;
-          const cy = cometPath.sy + (cometPath.ey - cometPath.sy) * p + bend;
-          const cz = cometPath.sz + (cometPath.ez - cometPath.sz) * p;
-          comet.position.set(cx, cy, cz);
-          cometMat.opacity = Math.sin(p * Math.PI) * 0.8;
-          // Trail
-          cometHistory.unshift(cx, cy, cz);
-          if (cometHistory.length > tailCount * 3) cometHistory.length = tailCount * 3;
-          const pa = tailGeo.attributes.position.array;
-          for (let ti = 0; ti < tailCount * 3; ti++) pa[ti] = cometHistory[ti] ?? cx;
-          tailGeo.attributes.position.needsUpdate = true;
-          tailMat.opacity = Math.sin(p * Math.PI) * 0.4;
-          // Comet sparkle burst — spawn when comet is near center
-          if (p >= 0.45 && p <= 0.55 && !sparkBurstTriggered) {
-            sparkBurstTriggered = true;
-            sparkBurstLife = 0;
-            for (let si = 0; si < sparkBurstCount; si++) {
-              sparkBurstPos[si*3] = cx; sparkBurstPos[si*3+1] = cy; sparkBurstPos[si*3+2] = cz;
-              const ang1 = Math.random() * Math.PI * 2, ang2 = Math.random() * Math.PI;
-              const spd = 0.02 + Math.random() * 0.03;
-              sparkBurstVel[si*3] = Math.sin(ang2)*Math.cos(ang1)*spd;
-              sparkBurstVel[si*3+1] = Math.sin(ang2)*Math.sin(ang1)*spd;
-              sparkBurstVel[si*3+2] = Math.cos(ang2)*spd;
-            }
-            sparkBurstGeo.attributes.position.needsUpdate = true;
           }
         }
       }
       // Slow star field rotation for parallax (skip if reduced motion)
       // Update comet sparkle burst
-      if (sparkBurstLife >= 0) {
-        sparkBurstLife += dt;
-        const burstAlpha = 1 - sparkBurstLife / 1.0; // fade over ~1 second (dt is small, life is in animation units)
         if (burstAlpha <= 0) {
-          sparkBurstLife = -1;
-          sparkBurstMat.opacity = 0;
         } else {
-          sparkBurstMat.opacity = burstAlpha * 0.8;
-          sparkBurstMat.size = 0.05 * (1 + sparkBurstLife * 8);
-          const spa = sparkBurstGeo.attributes.position.array;
-          for (let si = 0; si < sparkBurstCount; si++) {
-            spa[si*3] += sparkBurstVel[si*3]; spa[si*3+1] += sparkBurstVel[si*3+1]; spa[si*3+2] += sparkBurstVel[si*3+2];
             // Slow down over time
-            sparkBurstVel[si*3] *= 0.96; sparkBurstVel[si*3+1] *= 0.96; sparkBurstVel[si*3+2] *= 0.96;
           }
-          sparkBurstGeo.attributes.position.needsUpdate = true;
         }
       }
       // Reset sparkle trigger when comet finishes
-      if (!cometActive) sparkBurstTriggered = false;
       if (!prefersReducedMotion) {
         stars.rotation.y = t * 0.003;
         denseStars.rotation.y = t * 0.001;
