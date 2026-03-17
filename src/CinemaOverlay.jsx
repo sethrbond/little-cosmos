@@ -14,12 +14,12 @@ export default function CinemaOverlay({ entry, photoIdx, progress, total, curren
       {/* Top bar: title + progress */}
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, padding: "12px clamp(12px, 4vw, 24px) 10px", background: `linear-gradient(180deg, ${sceneBg || '#0c0a12'}cc, transparent)`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ fontSize: 8, letterSpacing: ".2em", color: P.goldWarm, textTransform: "uppercase", opacity: 0.7 }}>
+          <div style={{ fontSize: 10, letterSpacing: ".2em", color: P.goldWarm, textTransform: "uppercase", opacity: 0.7 }}>
             {isMyWorld ? "My Story" : isPartnerWorld ? "Our Story" : "Our Journey"}
           </div>
-          <div style={{ fontSize: 9, color: P.textFaint }}>{currentIdx + 1} / {total}</div>
+          <div style={{ fontSize: 10, color: P.textFaint }}>{currentIdx + 1} / {total}</div>
         </div>
-        <button onClick={onStop} style={{ pointerEvents: "auto", background: P.glass, backdropFilter: "blur(12px)", border: `1px solid ${P.textFaint}20`, borderRadius: 16, padding: "4px 14px", fontSize: 9, color: P.textMid, cursor: "pointer", fontFamily: "inherit", transition: "all .2s" }}
+        <button onClick={onStop} style={{ pointerEvents: "auto", background: P.glass, backdropFilter: "blur(12px)", border: `1px solid ${P.textFaint}20`, borderRadius: 16, padding: "4px 14px", fontSize: 10, color: P.textMid, cursor: "pointer", fontFamily: "inherit", transition: "all .2s" }}
           onMouseEnter={e => e.currentTarget.style.borderColor = P.rose} onMouseLeave={e => e.currentTarget.style.borderColor = `${P.textFaint}20`}>
           ⏹ Stop
         </button>

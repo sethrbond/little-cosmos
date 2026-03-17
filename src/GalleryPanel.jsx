@@ -6,9 +6,9 @@ export default function GalleryPanel({ photos, entries, palette: P, onSelectPhot
       <div style={{ padding: "12px 14px 8px", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0, borderBottom: `1px solid ${P.rose}08` }}>
         <div>
           <div style={{ fontSize: 12, fontWeight: 400 }}>📸 Scrapbook</div>
-          <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".1em", marginTop: 1 }}>{photos.length} memories</div>
+          <div style={{ fontSize: 10, color: P.textFaint, letterSpacing: ".1em", marginTop: 1 }}>{photos.length} memories</div>
         </div>
-        <button aria-label="Close gallery" onClick={onClose} style={{ background: "none", border: "none", fontSize: 15, color: P.textFaint, cursor: "pointer" }}>×</button>
+        <button aria-label="Close gallery" onClick={onClose} style={{ background: "none", border: "none", fontSize: 15, color: P.textFaint, cursor: "pointer", minWidth: 44, minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
       </div>
       <div style={{ display: "flex", justifyContent: "flex-end", padding: "0 10px 4px" }}>
         <button onClick={onTogglePolaroid} style={{ background: polaroidMode ? `${P.goldWarm}18` : "none", border: `1px solid ${polaroidMode ? P.goldWarm + "30" : P.textFaint + "20"}`, borderRadius: 6, padding: "6px 10px", fontSize: 10, cursor: "pointer", fontFamily: "inherit", color: polaroidMode ? P.goldWarm : P.textFaint }}>{polaroidMode ? "📸 Polaroid" : "▦ Grid"}</button>
@@ -23,7 +23,7 @@ export default function GalleryPanel({ photos, entries, palette: P, onSelectPhot
               <img loading="lazy" src={thumbnail(ph.url, 160)} alt="Travel photo" style={polaroidMode ? { width: "100%", aspectRatio: "1", objectFit: "cover", display: "block" } : { width: "100%", height: "100%", objectFit: "cover", borderRadius: 4, transition: "transform .2s" }}
                 onMouseEnter={e => { if (!polaroidMode) e.currentTarget.style.transform = "scale(1.05)"; else e.currentTarget.parentElement.style.transform = `rotate(0deg) scale(1.05)`; }}
                 onMouseLeave={e => { if (!polaroidMode) e.currentTarget.style.transform = "scale(1)"; else e.currentTarget.parentElement.style.transform = `rotate(${(i % 5 - 2) * 2}deg)`; }} />
-              <div style={polaroidMode ? { fontSize: 8, color: "#666", textAlign: "center", padding: "4px 3px 0", letterSpacing: ".03em", fontFamily: allPhotoCaptions[ph.url] ? "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif" : "inherit", fontStyle: allPhotoCaptions[ph.url] ? "italic" : "normal", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } : { position: "absolute", bottom: 0, left: 0, right: 0, padding: "10px 3px 2px", background: "linear-gradient(transparent, rgba(0,0,0,.5))", fontSize: 6, color: "#fff", textAlign: "center", letterSpacing: ".05em" }}>{polaroidMode && allPhotoCaptions[ph.url] ? allPhotoCaptions[ph.url] : ph.city}</div>
+              <div style={polaroidMode ? { fontSize: 10, color: "#666", textAlign: "center", padding: "4px 3px 0", letterSpacing: ".03em", fontFamily: allPhotoCaptions[ph.url] ? "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif" : "inherit", fontStyle: allPhotoCaptions[ph.url] ? "italic" : "normal", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } : { position: "absolute", bottom: 0, left: 0, right: 0, padding: "10px 3px 2px", background: "linear-gradient(transparent, rgba(0,0,0,.5))", fontSize: 10, color: "#fff", textAlign: "center", letterSpacing: ".05em" }}>{polaroidMode && allPhotoCaptions[ph.url] ? allPhotoCaptions[ph.url] : ph.city}</div>
             </button>
           ))}
         </div>

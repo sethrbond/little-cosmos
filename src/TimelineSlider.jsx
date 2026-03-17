@@ -18,7 +18,7 @@ export default function TimelineSlider({ entries, sorted, sliderDate, onSliderCh
         <button onClick={() => stepDay(-1)} disabled={isAnimating} style={navStyle()}>◂</button>
         <div style={{ minWidth: 150, textAlign: "center" }}>
           <div style={{ fontSize: 15, color: P.text, fontWeight: 400 }}>{fmtDate(sliderDate)}</div>
-          <div style={{ fontSize: 9, color: isMyWorld ? P.textMid : (isPartnerWorld && areTogether ? P.heart : P.textFaint), letterSpacing: ".1em", marginTop: 1 }}>
+          <div style={{ fontSize: 10, color: isMyWorld ? P.textMid : (isPartnerWorld && areTogether ? P.heart : P.textFaint), letterSpacing: ".1em", marginTop: 1 }}>
             {isMyWorld
               ? (pos.seth?.entry?.city ? `📍 ${pos.seth.entry.city}` : "Add entries to begin")
               : isPartnerWorld
@@ -48,7 +48,7 @@ export default function TimelineSlider({ entries, sorted, sliderDate, onSliderCh
         {milestones.map(m => (
           <div key={m.days} style={{ position: "absolute", left: `${m.pct}%`, top: 2, transform: "translateX(-50%)", pointerEvents: "none", display: "flex", flexDirection: "column", alignItems: "center" }}>
             <div style={{ width: 6, height: 6, background: P.gold, transform: "rotate(45deg)", boxShadow: `0 0 6px ${P.gold}60` }} />
-            <div style={{ fontSize: 6, color: P.goldWarm, marginTop: 2, whiteSpace: "nowrap", letterSpacing: ".05em" }}>{m.label}</div>
+            <div style={{ fontSize: 10, color: P.goldWarm, marginTop: 2, whiteSpace: "nowrap", letterSpacing: ".05em" }}>{m.label}</div>
           </div>
         ))}
         {(chapters || []).map((ch, i) => {

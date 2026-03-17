@@ -337,7 +337,7 @@ export default function TripCard({ entry, palette, onClose, worldMode }) {
   const overlayStyle = {
     position: "fixed",
     inset: 0,
-    zIndex: 10000,
+    zIndex: 9500,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",

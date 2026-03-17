@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 
-export function usePlayStory(sorted, togetherList, isPartnerWorld, flyTo) {
+export function usePlayStory({ sorted, togetherList, isPartnerWorld, flyTo, tSpinSpd, showToast, setSelected, setShowGallery, setPhotoIdx, setCardTab, setSliderDate, tZm }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [cinemaEntry, setCinemaEntry] = useState(null);
   const [cinemaPhotoIdx, setCinemaPhotoIdx] = useState(0);
@@ -18,9 +18,10 @@ export function usePlayStory(sorted, togetherList, isPartnerWorld, flyTo) {
     setCinemaPhase('fly');
     if (playRef.current) { clearTimeout(playRef.current); playRef.current = null; }
     if (photoTimerRef.current) { clearInterval(photoTimerRef.current); photoTimerRef.current = null; }
-  }, []);
+    if (tSpinSpd) tSpinSpd.current = 0.001;
+  }, [tSpinSpd]);
 
-  const playStory = useCallback(({ setSelected, setShowGallery, setPhotoIdx, setCardTab, setSliderDate, tSpinSpd, tZm, showToast }) => {
+  const playStory = useCallback(() => {
     const playList = isPartnerWorld ? togetherList : sorted;
     if (playList.length === 0 || isPlaying) return;
     setIsPlaying(true);
@@ -96,7 +97,7 @@ export function usePlayStory(sorted, togetherList, isPartnerWorld, flyTo) {
       }, 1600);
     };
     step();
-  }, [togetherList, sorted, isPartnerWorld, isPlaying, stopPlay, flyTo]);
+  }, [togetherList, sorted, isPartnerWorld, isPlaying, stopPlay, showToast, setSelected, setShowGallery, setPhotoIdx, setCardTab, setSliderDate, tSpinSpd, tZm, flyTo]);
 
   return {
     isPlaying,
