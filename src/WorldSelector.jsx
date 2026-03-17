@@ -571,16 +571,15 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     const circleTexture = new THREE.CanvasTexture(circleCanvas);
 
     // Comet that drifts across the cosmos every ~40 seconds
-    const cometGeo = new THREE.SphereGeometry(0.04, 8, 8);
-    const cometMat = new THREE.MeshBasicMaterial({ color: "#f0e8d8", transparent: true, opacity: 0, depthWrite: false });
-    const comet = new THREE.Mesh(cometGeo, cometMat);
-    scene.add(comet);
+    // Comet uses only particle trail (no sphere head)
+    const cometMat = { opacity: 0 }; // dummy for opacity tracking
+    const comet = { position: new THREE.Vector3() }; // position tracker only
     // Comet tail (particle trail)
-    const tailCount = 30;
+    const tailCount = 50;
     const tailPositions = new Float32Array(tailCount * 3);
     const tailGeo = new THREE.BufferGeometry();
     tailGeo.setAttribute("position", new THREE.BufferAttribute(tailPositions, 3));
-    const tailMat = new THREE.PointsMaterial({ color: "#c9a96e", size: 0.06, transparent: true, opacity: 0, sizeAttenuation: true, blending: THREE.AdditiveBlending, depthWrite: false, map: circleTexture });
+    const tailMat = new THREE.PointsMaterial({ color: "#c9a96e", size: 0.12, transparent: true, opacity: 0, sizeAttenuation: true, blending: THREE.AdditiveBlending, depthWrite: false, map: circleTexture });
     const tail = new THREE.Points(tailGeo, tailMat);
     scene.add(tail);
     let cometTimer = 20 + Math.random() * 30; // first comet after 20-50s
@@ -674,10 +673,10 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
         }
       }
       if (cometActive) {
-        cometProgress += dt * 0.08;
+        cometProgress += dt * 0.12;
         if (cometProgress >= 1) {
           cometActive = false;
-          cometTimer = 30 + Math.random() * 30;
+          cometTimer = 25 + Math.random() * 25;
           cometMat.opacity = 0; tailMat.opacity = 0;
         } else {
           // Curved path through center area
