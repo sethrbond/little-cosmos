@@ -65,7 +65,7 @@ function PasswordResetModal({ onDone }) {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
-    if (newPassword.length < 6) { setError('Password must be at least 6 characters'); return }
+    if (newPassword.length < 10) { setError('Password must be at least 10 characters'); return }
     if (newPassword !== confirmPassword) { setError('Passwords do not match'); return }
     setSaving(true)
     const { error } = await supabase.auth.updateUser({ password: newPassword })
@@ -236,7 +236,7 @@ function AppInner() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const token = params.get('invite')
-    if (token) {
+    if (token && /^[a-zA-Z0-9-]{1,128}$/.test(token)) {
       setInvitePending(token)
       window.history.replaceState({}, '', window.location.pathname)
     }
