@@ -550,7 +550,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
         const moonSpeed = 1.5 + Math.random() * 2.0;
         const moonPhase = Math.random() * Math.PI * 2;
         const moonTilt = (Math.random() - 0.5) * 0.8;
-        const moonGeo = new THREE.SphereGeometry(moonSize, 8, 8);
+        const moonGeo = new THREE.SphereGeometry(moonSize, 16, 16);
         const moonMat = new THREE.MeshBasicMaterial({ color: o.world.glowColor || "#ffffff", transparent: true, opacity: 0.6 });
         const moonMesh = new THREE.Mesh(moonGeo, moonMat);
         o.mesh.add(moonMesh);
