@@ -63,11 +63,6 @@ export default function useRealtimeSync({
   const channelRef = useRef(null)
   const visibilityRef = useRef(true)
   const reconnectTimerRef = useRef(null)
-  const syncTimerRef = useRef(null)
-  const debouncedSetLastSync = useCallback(() => {
-    if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
-    syncTimerRef.current = setTimeout(() => setLastSync(new Date()), 500);
-  }, [])
 
   // Store callbacks in refs so the channel subscription doesn't re-fire on every render
   const onInsertRef = useRef(onInsert)
@@ -108,7 +103,7 @@ export default function useRealtimeSync({
           const entry = rowToEntry(payload.new)
           if (entry && onInsertRef.current) {
             onInsertRef.current(entry)
-            debouncedSetLastSync()
+            setLastSync(new Date())
           }
         }
       )
@@ -124,7 +119,7 @@ export default function useRealtimeSync({
           const entry = rowToEntry(payload.new)
           if (entry && onUpdateRef.current) {
             onUpdateRef.current(entry)
-            debouncedSetLastSync()
+            setLastSync(new Date())
           }
         }
       )
@@ -140,7 +135,7 @@ export default function useRealtimeSync({
           const old = payload.old
           if (old?.id && onDeleteRef.current) {
             onDeleteRef.current({ id: old.id })
-            debouncedSetLastSync()
+            setLastSync(new Date())
           }
         }
       )
@@ -167,22 +162,16 @@ export default function useRealtimeSync({
     return channel
   }, [tableName, filterCol, filterVal])
 
-  const MAX_RECONNECT_ATTEMPTS = 10
-
   const scheduleReconnect = useCallback(() => {
     if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current)
     const attempt = reconnectAttemptRef.current
-    if (attempt >= MAX_RECONNECT_ATTEMPTS) {
-      console.error(`[realtime] max reconnect attempts (${MAX_RECONNECT_ATTEMPTS}) reached for ${tableName} — giving up`)
-      return
-    }
     const delay = Math.min(1000 * Math.pow(2, attempt), 30000) // max 30s
     // exponential backoff reconnect
     reconnectTimerRef.current = setTimeout(() => {
       reconnectAttemptRef.current = attempt + 1
       subscribe()
     }, delay)
-  }, [subscribe, tableName])
+  }, [subscribe])
 
   // Visibility change handling — pause when tab is hidden, resume when visible
   useEffect(() => {
@@ -233,7 +222,6 @@ export default function useRealtimeSync({
 
     return () => {
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current)
-      if (syncTimerRef.current) clearTimeout(syncTimerRef.current)
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current)
         channelRef.current = null

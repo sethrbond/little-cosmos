@@ -502,7 +502,7 @@ export default function YearInReview({ entries = [], stats = {}, palette, onClos
             </div>
             <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "center", gap: 8, height: 120, marginBottom: 12 }}>
               {monthlyBreakdown.map((count, i) => (
-                <div key={MONTH_SHORT[i]} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, flex: 1, minWidth: 0 }}>
+                <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, flex: 1, minWidth: 0 }}>
                   <div style={{
                     width: "100%", borderRadius: 4,
                     height: Math.max(4, (count / maxMonth) * 100),
@@ -585,7 +585,7 @@ export default function YearInReview({ entries = [], stats = {}, palette, onClos
             <div style={labelStyle}>Top Highlights</div>
             <div style={{ maxWidth: 440, margin: "0 auto" }}>
               {topMemories.map((m, i) => (
-                <div key={`highlight-${m.text.slice(0, 32)}-${i}`} style={{
+                <div key={i} style={{
                   ...memoryCardStyle,
                   animation: `fadeUp 0.5s ease ${i * 0.1}s both`,
                 }}>
@@ -811,7 +811,7 @@ export default function YearInReview({ entries = [], stats = {}, palette, onClos
         {/* Dot indicators */}
         <div style={{ display: "flex", gap: 6 }}>
           {slides.map((_, i) => (
-            <button key={`slide-${slides[i].id}`} onClick={() => goTo(i, i > currentSlide ? 1 : -1)} aria-label={`Go to slide ${i + 1}`} style={{
+            <button key={i} onClick={() => goTo(i, i > currentSlide ? 1 : -1)} aria-label={`Go to slide ${i + 1}`} style={{
               width: i === currentSlide ? 18 : 6, height: 6,
               borderRadius: 3, border: "none", cursor: "pointer",
               background: i === currentSlide

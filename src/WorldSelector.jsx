@@ -161,25 +161,10 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     }).filter(Boolean);
   }, [connections, userId]);
 
-  // Fresh random seed each mount — orbits get new whimsical trajectories every visit
-  const [orbitSeed] = useState(() => Date.now() % 100000);
-
   // Build orbiting worlds from props — orb colors match world type palette
-  const WORLDS = useMemo(() => {
-    // Seeded pseudo-random so orbits are stable within a session but fresh each mount
-    let _s = orbitSeed;
-    const rand = () => { _s = (_s * 16807 + 0) % 2147483647; return (_s & 0x7fffffff) / 0x7fffffff; };
-
-    return worlds.map((w, i) => {
+  const WORLDS = useMemo(() => worlds.map((w, i) => {
     const typeColors = ORB_BY_TYPE[w.type] || ORB_BY_TYPE.shared;
     const orbit = ORB_ORBIT_PRESETS[i % ORB_ORBIT_PRESETS.length];
-    // Random orbital dynamics — each world gets a unique, playful trajectory
-    const baseRadius = orbit.orbitRadius + (rand() - 0.5) * 0.6;       // vary distance ±0.3
-    const orbitInclination = (rand() * 55 + 5) * (Math.PI / 180);      // 5-60° tilt
-    const orbitInclinationAxis = rand() * Math.PI * 2;                  // random tilt direction
-    const orbitEccentricity = rand() * 0.4;                             // 0.0-0.4 elliptical
-    const orbitSpeedMult = 0.7 + rand() * 0.6;                         // 0.7x-1.3x speed
-    const orbitPhase = rand() * Math.PI * 2;                            // random starting angle
     // Build subtitle: user-saved subtitle takes priority; only fall back to auto-generated if subtitle is null/undefined (never saved)
     const configSub = w.subtitle;
     const memberNames = (w.members || []).map(m => m.name).filter(Boolean);
@@ -200,41 +185,21 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       worldType: w.type || "shared",
       ...typeColors,
       ...orbit,
-      orbitRadius: baseRadius,
-      orbitSpeedMult,
-      orbitInclination,
-      orbitInclinationAxis,
-      orbitEccentricity,
-      orbitPhase,
-      ...(w.role === "viewer" ? { size: 0.22, orbitRadius: baseRadius + 0.4 } : {}),
+      ...(w.role === "viewer" ? { size: 0.22, orbitRadius: (orbit.orbitRadius || 2.6) + 0.4 } : {}),
       ...(w.customScene?.sphereColor ? { color: w.customScene.sphereColor } : w.customPalette?.rose ? { color: w.customPalette.rose } : w.palette?.color ? { color: w.palette.color } : {}),
       ...(w.customScene?.sphereEmissive ? { emissive: w.customScene.sphereEmissive } : {}),
       ...(w.customScene?.particleColor ? { glowColor: w.customScene.particleColor } : w.customPalette?.rose ? { glowColor: w.customPalette.rose + "80" } : {}),
     };
-  });
-  }, [worlds, orbitSeed]);
+  }), [worlds]);
 
-  // Build friend orbs — also get fun random orbits
-  const FRIEND_ORBS = useMemo(() => {
-    let _s = orbitSeed + 9999;
-    const rand = () => { _s = (_s * 16807 + 0) % 2147483647; return (_s & 0x7fffffff) / 0x7fffffff; };
-    return friendWorlds.map((fw, i) => {
-    const preset = FRIEND_ORB_PRESETS[i % FRIEND_ORB_PRESETS.length];
-    return {
-      id: fw.id,
-      friendUserId: fw.friendUserId,
-      label: fw.name,
-      sub: "Following",
-      ...preset,
-      orbitRadius: preset.orbitRadius + (rand() - 0.5) * 0.5,
-      orbitInclination: (rand() * 55 + 5) * (Math.PI / 180),
-      orbitInclinationAxis: rand() * Math.PI * 2,
-      orbitEccentricity: rand() * 0.35,
-      orbitSpeedMult: 0.7 + rand() * 0.6,
-      orbitPhase: rand() * Math.PI * 2,
-    };
-  });
-  }, [friendWorlds, orbitSeed]);
+  // Build friend orbs
+  const FRIEND_ORBS = useMemo(() => friendWorlds.map((fw, i) => ({
+    id: fw.id,
+    friendUserId: fw.friendUserId,
+    label: fw.name,
+    sub: "Following",
+    ...FRIEND_ORB_PRESETS[i % FRIEND_ORB_PRESETS.length],
+  })), [friendWorlds]);
 
   const ALL_ORBS = useMemo(() => [...WORLDS, ...FRIEND_ORBS], [WORLDS, FRIEND_ORBS]);
   const orbIdsKey = useMemo(() => ALL_ORBS.map(o => o.id).join(','), [ALL_ORBS]);
@@ -248,10 +213,10 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     const worldIds = worlds.map(w => w.id);
     const allIds = personalWorldId ? [...new Set([...worldIds, personalWorldId])] : worldIds;
     if (allIds.length > 0) {
-      loadCrossWorldActivity(allIds, 15).then(d => { if (mountedRef.current) setActivityData(d); }).catch(err => console.error('[cosmos]', err));
-      loadWorldEntryCounts(worldIds).then(d => { if (mountedRef.current) setEntryCounts(d); }).catch(err => console.error('[cosmos]', err));
+      loadCrossWorldActivity(allIds, 15).then(d => { if (mountedRef.current) setActivityData(d); }).catch(() => {});
+      loadWorldEntryCounts(worldIds).then(d => { if (mountedRef.current) setEntryCounts(d); }).catch(() => {});
     }
-    loadMyWorldEntryCount(userId).then(d => { if (mountedRef.current) setMyEntryCount(d); }).catch(err => console.error('[cosmos]', err));
+    loadMyWorldEntryCount(userId).then(d => { if (mountedRef.current) setMyEntryCount(d); }).catch(() => {});
   }, [userId, worldIdsKey, personalWorldId]);
 
   // World name map for activity feed
@@ -270,7 +235,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
 
     let testCanvas = document.createElement("canvas");
     const gl = testCanvas.getContext("webgl2") || testCanvas.getContext("webgl");
-    if (!gl) { testCanvas = null; const msg = document.createElement('div'); msg.style.cssText = 'display:flex;align-items:center;justify-content:center;height:100vh;color:#e8e0d0;font-family:serif;font-size:16px;text-align:center;padding:20px'; msg.textContent = "Your browser doesn't support WebGL. Please use a modern browser to view My Cosmos."; msg.setAttribute('role', 'alert'); mount.appendChild(msg); return; }
+    if (!gl) { testCanvas = null; mount.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#e8e0d0;font-family:serif;font-size:16px;text-align:center;padding:20px">Your browser doesn\'t support WebGL.<br/>Please use a modern browser to view My Cosmos.</div>'; return; }
     const loseCtx = gl.getExtension('WEBGL_lose_context'); if (loseCtx) loseCtx.loseContext();
     testCanvas = null;
 
@@ -520,26 +485,19 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       return { mesh: orb, world: w, angleOffset: (idx / Math.max(ALL_ORBS.length, 1)) * Math.PI * 2, sparkles, sparkMat: sMat, sparkPhase: sPhase, sparkCfg };
     });
 
-    // Per-orbit glowing rings — each world gets its own tilted elliptical ring
+    // Per-orbit glowing rings — each world gets its own subtle ring
     const orbitRings = [];
+    const seenRadii = new Set();
     ALL_ORBS.forEach(w => {
-      // Elliptical ring: semi-major = orbitRadius, semi-minor shrunk by eccentricity
-      const a = w.orbitRadius;
-      const b = a * (1 - (w.orbitEccentricity || 0));
-      const ringGeo = new THREE.RingGeometry(Math.min(a, b) - 0.015, Math.max(a, b) + 0.015, 96);
-      // Scale ring to be elliptical
-      const ringMat = new THREE.MeshBasicMaterial({ color: w.glowColor || "#ffffff", transparent: true, opacity: 0.04, side: THREE.DoubleSide });
+      const rKey = Math.round(w.orbitRadius * 10);
+      if (seenRadii.has(rKey)) return;
+      seenRadii.add(rKey);
+      const ringGeo = new THREE.RingGeometry(w.orbitRadius - 0.015, w.orbitRadius + 0.015, 96);
+      const ringMat = new THREE.MeshBasicMaterial({ color: w.glowColor || "#ffffff", transparent: true, opacity: 0.05, side: THREE.DoubleSide });
       const ring = new THREE.Mesh(ringGeo, ringMat);
       ring.rotation.x = Math.PI * 0.5;
-      // Apply orbital inclination — tilt the ring plane
-      const inc = w.orbitInclination || 0;
-      const incAxis = w.orbitInclinationAxis || 0;
-      ring.rotation.x += Math.cos(incAxis) * inc;
-      ring.rotation.z += Math.sin(incAxis) * inc;
-      // Stretch to ellipse
-      if ((w.orbitEccentricity || 0) > 0) ring.scale.set(1, 1 - (w.orbitEccentricity || 0), 1);
       scene.add(ring);
-      orbitRings.push({ mesh: ring, mat: ringMat, baseOp: 0.04 });
+      orbitRings.push({ mesh: ring, mat: ringMat, baseOp: 0.05 });
     });
 
     let t = 0, frameId;
@@ -566,22 +524,8 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
         cSparkMat.opacity = 0.5 + Math.sin(t * 1.5) * 0.3;
       }
       orbs.forEach((o, i) => {
-        const w = o.world;
-        const speed = (w.orbitSpeed || 0.18) * (w.orbitSpeedMult || 1);
-        const angle = (w.orbitPhase || o.angleOffset) + t * speed;
-        // Elliptical orbit: semi-major along x, semi-minor along z
-        const ecc = w.orbitEccentricity || 0;
-        const rx = w.orbitRadius;
-        const rz = rx * (1 - ecc);
-        // Flat elliptical position
-        const px = Math.cos(angle) * rx;
-        const pz = Math.sin(angle) * rz;
-        // Orbital inclination — tilt the orbit plane for a 3D feel
-        const inc = w.orbitInclination || 0;
-        const incAxis = w.orbitInclinationAxis || 0;
-        const tiltedY = Math.sin(angle + incAxis) * Math.sin(inc) * rx * 0.5;
-        // Gentle wobble on top for extra whimsy
-        o.mesh.position.set(px, tiltedY + Math.sin(angle * 0.7) * 0.08, pz);
+        const angle = o.angleOffset + t * o.world.orbitSpeed;
+        o.mesh.position.set(Math.cos(angle) * o.world.orbitRadius, Math.sin(angle * 0.7) * 0.15, Math.sin(angle) * o.world.orbitRadius);
         o.mesh.rotation.y += 0.008;
         o.mesh.scale.setScalar(1 + Math.sin(t * 2 + i * 1.5) * 0.03);
         // Per-world sparkle twinkle with type-specific speed
@@ -862,7 +806,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
   };
 
   const handleGenerateInvite = async () => {
-    const refreshInvites = () => getSentInvites(showInviteModal.id, userId).then(d => { if (mountedRef.current) setSentInvites(d); }).catch(err => console.error('[cosmos]', err));
+    const refreshInvites = () => getSentInvites(showInviteModal.id, userId).then(d => { if (mountedRef.current) setSentInvites(d); }).catch(() => {});
     if (!existingInviteEmail.trim()) {
       setInviteGenerating(true);
       const inv = await createInvite(showInviteModal.id, userId, existingInviteRole);
@@ -917,12 +861,12 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
 
   // Add a Friend (connection request)
   const handleAddFriend = async () => {
-    if (!friendEmail.trim().toLowerCase() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(friendEmail.trim().toLowerCase())) {
+    if (!friendEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(friendEmail.trim())) {
       showToast("Please enter a valid email address.");
       return;
     }
     setFriendSending(true);
-    const result = await sendConnectionRequest(userId, userDisplayName || "", friendEmail.trim().toLowerCase(), true, friendLetter);
+    const result = await sendConnectionRequest(userId, userDisplayName || "", friendEmail.trim(), true, friendLetter);
     if (!mountedRef.current) return;
     setFriendSending(false);
     if (result && !result._error) {
@@ -1387,7 +1331,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
                 </div>
                 <div style={{ marginBottom: 16 }}>
                   {sharedMembers.map((m, i) => (
-                    <div key={"member-" + i} style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "center" }}>
+                    <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "center" }}>
                       <input value={m.name} onChange={e => { const next = [...sharedMembers]; next[i] = { name: e.target.value }; setSharedMembers(next); }}
                         placeholder={sharedType === "family" ? `Member ${i + 1} (e.g. ${["Mom", "Dad", "Sarah", "Jake", "Grandma"][i] || "Name"})` : `Friend ${i + 1}`}
                         style={{ ...inputSt, flex: 1, marginBottom: 0 }}
@@ -1731,7 +1675,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
               {step.hint && <div style={{ fontSize: 10, color: "#c9a96e", letterSpacing: "0.5px", marginBottom: 20, fontStyle: "italic" }}>{step.hint}</div>}
               <div style={{ display: "flex", justifyContent: "center", gap: 6, marginBottom: 20 }}>
                 {steps.map((_, i) => (
-                  <div key={"tour-" + i} style={{ width: 7, height: 7, borderRadius: "50%", background: i === cosmosTourStep ? "#c9a96e" : "rgba(255,255,255,0.12)", transition: "background .3s", boxShadow: i === cosmosTourStep ? "0 0 6px rgba(200,170,110,0.4)" : "none" }} />
+                  <div key={i} style={{ width: 7, height: 7, borderRadius: "50%", background: i === cosmosTourStep ? "#c9a96e" : "rgba(255,255,255,0.12)", transition: "background .3s", boxShadow: i === cosmosTourStep ? "0 0 6px rgba(200,170,110,0.4)" : "none" }} />
                 ))}
               </div>
               <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>

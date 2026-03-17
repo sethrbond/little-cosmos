@@ -48,12 +48,11 @@ export default function SyncIndicator({ isConnected, lastSync, pendingOffline = 
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
       onClick={() => setHovering(v => !v)}
-      role="status"
-      aria-label={`Sync status: ${label}. ${syncText}`}
+      aria-label={`${label}. ${syncText}`}
     >
       <div style={{
-        width: 12,
-        height: 12,
+        width: 8,
+        height: 8,
         borderRadius: '50%',
         backgroundColor: dotColor,
         boxShadow: `0 0 6px ${pulseColor}`,
@@ -61,20 +60,19 @@ export default function SyncIndicator({ isConnected, lastSync, pendingOffline = 
         transition: 'background-color 0.3s ease, box-shadow 0.3s ease',
         animation: isConnected ? undefined : 'cosmosReconnectPulse 2s ease-in-out infinite',
       }} />
-      {/* Tooltip — positioned below, centered, clamped to viewport */}
+      {/* Tooltip */}
       <div style={{
         position: 'absolute',
-        top: 'calc(100% + 8px)',
-        right: 0,
-        transform: hovering ? 'translateY(0)' : 'translateY(4px)',
+        left: 'calc(100% + 10px)',
+        top: '50%',
+        transform: hovering ? 'translateY(-50%)' : 'translateY(-50%) translateX(4px)',
         background: palette.bg || 'rgba(30, 25, 45, 0.95)',
         color: palette.text || '#e8e0f0',
         fontSize: 11,
         fontFamily: 'system-ui, -apple-system, sans-serif',
-        padding: '8px 12px',
-        borderRadius: 8,
-        whiteSpace: 'normal',
-        maxWidth: 220,
+        padding: '6px 10px',
+        borderRadius: 6,
+        whiteSpace: 'nowrap',
         pointerEvents: 'none',
         opacity: hovering ? 1 : 0,
         transition: 'opacity 0.2s ease, transform 0.2s ease',
@@ -82,7 +80,7 @@ export default function SyncIndicator({ isConnected, lastSync, pendingOffline = 
         zIndex: 9999,
         lineHeight: 1.4,
       }}>
-        <div style={{ fontWeight: 600, marginBottom: 2 }}>Sync: {label}</div>
+        <div style={{ fontWeight: 600, marginBottom: 2 }}>{label}</div>
         {hasOffline && <div style={{ opacity: 0.85, fontSize: 10, color: '#facc15' }}>Will sync when online</div>}
         <div style={{ opacity: 0.75, fontSize: 10 }}>{syncText}</div>
       </div>

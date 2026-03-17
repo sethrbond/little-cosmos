@@ -249,7 +249,6 @@ export default function TripCard({ entry, palette, onClose, worldMode }) {
   const canvasRef = useRef(null);
   const overlayRef = useRef(null);
 
-  const prefersReducedMotion = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const P = palette || {};
   const typeInfo = resolveTypeInfo(entry?.type, worldMode);
 
@@ -345,7 +344,7 @@ export default function TripCard({ entry, palette, onClose, worldMode }) {
     backdropFilter: "blur(8px)",
     WebkitBackdropFilter: "blur(8px)",
     opacity: visible ? 1 : 0,
-    transition: prefersReducedMotion ? "opacity 0s" : "opacity 0.28s ease",
+    transition: "opacity 0.28s ease",
   };
 
   const modalStyle = {
@@ -356,9 +355,9 @@ export default function TripCard({ entry, palette, onClose, worldMode }) {
     flexDirection: "column",
     alignItems: "center",
     gap: 16,
-    transform: visible ? "scale(1) translateY(0)" : (prefersReducedMotion ? "scale(1) translateY(0)" : "scale(0.92) translateY(24px)"),
+    transform: visible ? "scale(1) translateY(0)" : "scale(0.92) translateY(24px)",
     opacity: visible ? 1 : 0,
-    transition: prefersReducedMotion ? "transform 0s, opacity 0s" : "transform 0.32s cubic-bezier(0.16,1,0.3,1), opacity 0.28s ease",
+    transition: "transform 0.32s cubic-bezier(0.16,1,0.3,1), opacity 0.28s ease",
   };
 
   const canvasStyle = {
