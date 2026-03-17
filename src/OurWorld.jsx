@@ -4054,13 +4054,16 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           {data.redoStack?.length > 0 && <TBtn onClick={() => dispatch({ type: "REDO" })} tip={`Redo (${data.redoStack.length})`}>↪</TBtn>}
         </>}
 
-        {/* — System — */}
-        <TBtn onClick={saveGlobeScreenshot} tip="Save Globe Screenshot">📷</TBtn>
-        {!isViewer && <TBtn onClick={() => setShowTemplates(true)} tip="Entry Templates">📋</TBtn>}
-        {data.entries.length >= 2 && <TBtn onClick={() => setShowTripJournal(true)} tip="Trip Journal">📖</TBtn>}
-        {data.entries.length > 0 && <TBtn onClick={() => setShowExportHub(true)} tip="Export & Import">📤</TBtn>}
-        {data.entries.length > 0 && <TBtn onClick={() => setShowYearReview(true)} tip="Year in Review">🎬</TBtn>}
-        {recentlyDeleted.length > 0 && <TBtn onClick={() => setShowTrash(true)} tip={`Recently Deleted (${recentlyDeleted.length})`}>🗑</TBtn>}
+        {/* — More group (keeps toolbar short) — */}
+        <TBtnGroup icon="⋯" label="more">
+          <TBtn onClick={saveGlobeScreenshot} tip="Save Globe Screenshot">📷</TBtn>
+          {!isViewer && <TBtn onClick={() => setShowTemplates(true)} tip="Entry Templates">📋</TBtn>}
+          {data.entries.length >= 2 && <TBtn onClick={() => setShowTripJournal(true)} tip="Trip Journal">📖</TBtn>}
+          {data.entries.length > 0 && <TBtn onClick={() => setShowExportHub(true)} tip="Export & Import">📤</TBtn>}
+          {data.entries.length > 0 && <TBtn onClick={() => setShowYearReview(true)} tip="Year in Review">🎬</TBtn>}
+          {recentlyDeleted.length > 0 && <TBtn onClick={() => setShowTrash(true)} tip={`Recently Deleted (${recentlyDeleted.length})`}>🗑</TBtn>}
+        </TBtnGroup>
+
         {isSharedWorld && <NotificationCenter
           notifications={notifications}
           palette={P}
