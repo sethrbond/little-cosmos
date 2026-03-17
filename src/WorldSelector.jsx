@@ -539,6 +539,44 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       orbitRings.push({ mesh: ring, mat: ringMat, baseOp: 0.12 });
     });
 
+
+    // Tiny moons orbiting each world
+    const moons = [];
+    orbs.forEach((o) => {
+      const numMoons = Math.floor(Math.random() * 2) + 1; // 1-2 moons per world
+      for (let mi = 0; mi < numMoons; mi++) {
+        const moonSize = 0.03 + Math.random() * 0.03;
+        const moonDist = (o.world.size || 0.27) * (2.8 + mi * 1.2 + Math.random() * 0.5);
+        const moonSpeed = 1.5 + Math.random() * 2.0;
+        const moonPhase = Math.random() * Math.PI * 2;
+        const moonTilt = (Math.random() - 0.5) * 0.8;
+        const moonGeo = new THREE.SphereGeometry(moonSize, 8, 8);
+        const moonMat = new THREE.MeshBasicMaterial({ color: o.world.glowColor || "#ffffff", transparent: true, opacity: 0.6 });
+        const moonMesh = new THREE.Mesh(moonGeo, moonMat);
+        o.mesh.add(moonMesh);
+        moons.push({ mesh: moonMesh, dist: moonDist, speed: moonSpeed, phase: moonPhase, tilt: moonTilt });
+      }
+    });
+
+    // Comet that drifts across the cosmos every ~40 seconds
+    const cometGeo = new THREE.SphereGeometry(0.06, 8, 8);
+    const cometMat = new THREE.MeshBasicMaterial({ color: "#e8dcc8", transparent: true, opacity: 0 });
+    const comet = new THREE.Mesh(cometGeo, cometMat);
+    scene.add(comet);
+    // Comet tail (particle trail)
+    const tailCount = 30;
+    const tailPositions = new Float32Array(tailCount * 3);
+    const tailGeo = new THREE.BufferGeometry();
+    tailGeo.setAttribute("position", new THREE.BufferAttribute(tailPositions, 3));
+    const tailMat = new THREE.PointsMaterial({ color: "#c9a96e", size: 0.04, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
+    const tail = new THREE.Points(tailGeo, tailMat);
+    scene.add(tail);
+    let cometTimer = 20 + Math.random() * 30; // first comet after 20-50s
+    let cometActive = false;
+    let cometProgress = 0;
+    let cometPath = { sx: 0, sy: 0, sz: 0, ex: 0, ey: 0, ez: 0 };
+    const cometHistory = [];
+
     let t = 0, frameId;
     const updateCamera = () => {
       const a = camAngleRef.current;
@@ -590,6 +628,51 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       });
       // Pulse orbit rings gently
       orbitRings.forEach((r, i) => { r.mat.opacity = r.baseOp + Math.sin(t * 0.8 + i * 2) * 0.02; });
+
+      // Animate tiny moons
+      moons.forEach(m => {
+        const a = t * m.speed + m.phase;
+        m.mesh.position.set(Math.cos(a) * m.dist, Math.sin(a * 0.7) * m.dist * m.tilt, Math.sin(a) * m.dist);
+      });
+      // Comet animation
+      const dt = 0.006;
+      if (!cometActive) {
+        cometTimer -= dt;
+        if (cometTimer <= 0) {
+          cometActive = true;
+          cometProgress = 0;
+          cometHistory.length = 0;
+          // Random start/end far from center
+          const a1 = Math.random() * Math.PI * 2, a2 = a1 + Math.PI * 0.6 + Math.random() * Math.PI * 0.8;
+          const r1 = 8 + Math.random() * 4, r2 = 8 + Math.random() * 4;
+          cometPath.sx = Math.cos(a1) * r1; cometPath.sy = (Math.random() - 0.5) * 4; cometPath.sz = Math.sin(a1) * r1;
+          cometPath.ex = Math.cos(a2) * r2; cometPath.ey = (Math.random() - 0.5) * 4; cometPath.ez = Math.sin(a2) * r2;
+        }
+      }
+      if (cometActive) {
+        cometProgress += dt * 0.08;
+        if (cometProgress >= 1) {
+          cometActive = false;
+          cometTimer = 30 + Math.random() * 30;
+          cometMat.opacity = 0; tailMat.opacity = 0;
+        } else {
+          // Curved path through center area
+          const p = cometProgress;
+          const bend = Math.sin(p * Math.PI) * 2;
+          const cx = cometPath.sx + (cometPath.ex - cometPath.sx) * p;
+          const cy = cometPath.sy + (cometPath.ey - cometPath.sy) * p + bend;
+          const cz = cometPath.sz + (cometPath.ez - cometPath.sz) * p;
+          comet.position.set(cx, cy, cz);
+          cometMat.opacity = Math.sin(p * Math.PI) * 0.8;
+          // Trail
+          cometHistory.unshift(cx, cy, cz);
+          if (cometHistory.length > tailCount * 3) cometHistory.length = tailCount * 3;
+          const pa = tailGeo.attributes.position.array;
+          for (let ti = 0; ti < tailCount * 3; ti++) pa[ti] = cometHistory[ti] ?? cx;
+          tailGeo.attributes.position.needsUpdate = true;
+          tailMat.opacity = Math.sin(p * Math.PI) * 0.4;
+        }
+      }
       // Slow star field rotation for parallax (skip if reduced motion)
       if (!prefersReducedMotion) {
         stars.rotation.y = t * 0.003;
