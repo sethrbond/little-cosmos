@@ -29,19 +29,19 @@ const ORB_BY_TYPE = {
   shared:  { color: "#d8a0c0", glowColor: "#f0d0e4", emissive: "#884870" },   // fallback = partner
 };
 const ORB_ORBIT_PRESETS = [
-  { orbitRadius: 2.4, orbitSpeed: 0.25, size: 0.32 },
-  { orbitRadius: 2.8, orbitSpeed: 0.20, size: 0.28 },
-  { orbitRadius: 3.2, orbitSpeed: 0.18, size: 0.26 },
-  { orbitRadius: 2.6, orbitSpeed: 0.22, size: 0.30 },
-  { orbitRadius: 3.0, orbitSpeed: 0.16, size: 0.27 },
-  { orbitRadius: 2.5, orbitSpeed: 0.23, size: 0.29 },
+  { orbitRadius: 2.4, orbitSpeed: 0.45, size: 0.32 },
+  { orbitRadius: 2.8, orbitSpeed: 0.38, size: 0.28 },
+  { orbitRadius: 3.2, orbitSpeed: 0.32, size: 0.26 },
+  { orbitRadius: 2.6, orbitSpeed: 0.42, size: 0.30 },
+  { orbitRadius: 3.0, orbitSpeed: 0.30, size: 0.27 },
+  { orbitRadius: 2.5, orbitSpeed: 0.40, size: 0.29 },
 ];
 
 const FRIEND_ORB_PRESETS = [
-  { color: "#c8d8e8", glowColor: "#e0ecf8", emissive: "#405870", orbitRadius: 4.0, orbitSpeed: 0.12, size: 0.20 },
-  { color: "#d8c8e0", glowColor: "#ece0f0", emissive: "#584070", orbitRadius: 4.3, orbitSpeed: 0.10, size: 0.18 },
-  { color: "#c8e0d0", glowColor: "#e0f0e8", emissive: "#406850", orbitRadius: 4.6, orbitSpeed: 0.11, size: 0.19 },
-  { color: "#e0d8c8", glowColor: "#f0ece0", emissive: "#685840", orbitRadius: 4.1, orbitSpeed: 0.13, size: 0.20 },
+  { color: "#c8d8e8", glowColor: "#e0ecf8", emissive: "#405870", orbitRadius: 4.0, orbitSpeed: 0.25, size: 0.20 },
+  { color: "#d8c8e0", glowColor: "#ece0f0", emissive: "#584070", orbitRadius: 4.3, orbitSpeed: 0.22, size: 0.18 },
+  { color: "#c8e0d0", glowColor: "#e0f0e8", emissive: "#406850", orbitRadius: 4.6, orbitSpeed: 0.24, size: 0.19 },
+  { color: "#e0d8c8", glowColor: "#f0ece0", emissive: "#685840", orbitRadius: 4.1, orbitSpeed: 0.26, size: 0.20 },
 ];
 
 const F = "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif";
