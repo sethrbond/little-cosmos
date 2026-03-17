@@ -116,7 +116,7 @@ export default function NotificationCenter({
         {unreadCount > 0 && (
           <span style={{
             position: "absolute", top: 0, right: 0,
-            background: "#ef4444", color: "#fff", fontSize: 9, fontWeight: 700,
+            background: "#ef4444", color: "#fff", fontSize: 11, fontWeight: 700,
             minWidth: 20, height: 20, borderRadius: 10,
             display: "flex", alignItems: "center", justifyContent: "center",
             padding: "0 4px", fontFamily: "system-ui, sans-serif",
