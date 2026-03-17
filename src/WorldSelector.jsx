@@ -432,12 +432,12 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     for (let i = 0; i < dustCount; i++) {
       const r = 3 + Math.random() * 12, th = Math.random() * Math.PI * 2, ph = Math.acos(2 * Math.random() - 1);
       dustPos[i*3] = r*Math.sin(ph)*Math.cos(th); dustPos[i*3+1] = r*Math.sin(ph)*Math.sin(th); dustPos[i*3+2] = r*Math.cos(ph);
-      dustVel[i*3] = (Math.random() - 0.5) * 0.003; dustVel[i*3+1] = (Math.random() - 0.5) * 0.002; dustVel[i*3+2] = (Math.random() - 0.5) * 0.003;
+      dustVel[i*3] = (Math.random() - 0.5) * 0.001; dustVel[i*3+1] = (Math.random() - 0.5) * 0.001; dustVel[i*3+2] = (Math.random() - 0.5) * 0.001;
       dustPhase[i] = Math.random() * Math.PI * 2;
     }
     const dustGeo = new THREE.BufferGeometry();
     dustGeo.setAttribute("position", new THREE.BufferAttribute(dustPos, 3));
-    const dustMat = new THREE.PointsMaterial({ color: "#c8b8d8", size: 0.025, transparent: true, opacity: 0.3, sizeAttenuation: true, depthWrite: false });
+    const dustMat = new THREE.PointsMaterial({ color: "#c8b8d8", size: 0.02, transparent: true, opacity: 0.15, sizeAttenuation: true, depthWrite: false });
     const cosmicDust = new THREE.Points(dustGeo, dustMat);
     scene.add(cosmicDust);
 
@@ -577,6 +577,18 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     let cometPath = { sx: 0, sy: 0, sz: 0, ex: 0, ey: 0, ez: 0 };
     const cometHistory = [];
 
+    // Comet sparkle burst particles
+    const sparkBurstCount = 7;
+    const sparkBurstPos = new Float32Array(sparkBurstCount * 3);
+    const sparkBurstVel = new Float32Array(sparkBurstCount * 3);
+    const sparkBurstGeo = new THREE.BufferGeometry();
+    sparkBurstGeo.setAttribute("position", new THREE.BufferAttribute(sparkBurstPos, 3));
+    const sparkBurstMat = new THREE.PointsMaterial({ color: "#ffe8a0", size: 0.05, transparent: true, opacity: 0, sizeAttenuation: true, blending: THREE.AdditiveBlending, depthWrite: false });
+    const sparkBurst = new THREE.Points(sparkBurstGeo, sparkBurstMat);
+    scene.add(sparkBurst);
+    let sparkBurstLife = -1; // -1 = inactive
+    let sparkBurstTriggered = false; // prevents re-triggering within same comet pass
+
     let t = 0, frameId;
     const updateCamera = () => {
       const a = camAngleRef.current;
@@ -671,9 +683,44 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
           for (let ti = 0; ti < tailCount * 3; ti++) pa[ti] = cometHistory[ti] ?? cx;
           tailGeo.attributes.position.needsUpdate = true;
           tailMat.opacity = Math.sin(p * Math.PI) * 0.4;
+          // Comet sparkle burst — spawn when comet is near center
+          if (p >= 0.45 && p <= 0.55 && !sparkBurstTriggered) {
+            sparkBurstTriggered = true;
+            sparkBurstLife = 0;
+            for (let si = 0; si < sparkBurstCount; si++) {
+              sparkBurstPos[si*3] = cx; sparkBurstPos[si*3+1] = cy; sparkBurstPos[si*3+2] = cz;
+              const ang1 = Math.random() * Math.PI * 2, ang2 = Math.random() * Math.PI;
+              const spd = 0.02 + Math.random() * 0.03;
+              sparkBurstVel[si*3] = Math.sin(ang2)*Math.cos(ang1)*spd;
+              sparkBurstVel[si*3+1] = Math.sin(ang2)*Math.sin(ang1)*spd;
+              sparkBurstVel[si*3+2] = Math.cos(ang2)*spd;
+            }
+            sparkBurstGeo.attributes.position.needsUpdate = true;
+          }
         }
       }
       // Slow star field rotation for parallax (skip if reduced motion)
+      // Update comet sparkle burst
+      if (sparkBurstLife >= 0) {
+        sparkBurstLife += dt;
+        const burstAlpha = 1 - sparkBurstLife / 1.0; // fade over ~1 second (dt is small, life is in animation units)
+        if (burstAlpha <= 0) {
+          sparkBurstLife = -1;
+          sparkBurstMat.opacity = 0;
+        } else {
+          sparkBurstMat.opacity = burstAlpha * 0.8;
+          sparkBurstMat.size = 0.05 * (1 + sparkBurstLife * 8);
+          const spa = sparkBurstGeo.attributes.position.array;
+          for (let si = 0; si < sparkBurstCount; si++) {
+            spa[si*3] += sparkBurstVel[si*3]; spa[si*3+1] += sparkBurstVel[si*3+1]; spa[si*3+2] += sparkBurstVel[si*3+2];
+            // Slow down over time
+            sparkBurstVel[si*3] *= 0.96; sparkBurstVel[si*3+1] *= 0.96; sparkBurstVel[si*3+2] *= 0.96;
+          }
+          sparkBurstGeo.attributes.position.needsUpdate = true;
+        }
+      }
+      // Reset sparkle trigger when comet finishes
+      if (!cometActive) sparkBurstTriggered = false;
       if (!prefersReducedMotion) {
         stars.rotation.y = t * 0.003;
         denseStars.rotation.y = t * 0.001;
@@ -726,7 +773,10 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
           dpa[i*3+1] += Math.sin(t * 0.5 + dustPhase[i]) * 0.0005;
         }
         dustGeo.attributes.position.needsUpdate = true;
-        dustMat.opacity = 0.25 + Math.sin(t * 0.4) * 0.05;
+        dustMat.opacity = 0.15 + Math.sin(t * 0.4) * 0.03;
+        // Cosmic dust rotates on different axis than stars for parallax
+        cosmicDust.rotation.x = t * 0.002;
+        cosmicDust.rotation.z = t * 0.001;
       }
 
       const allItems = [{ id: "my", mesh: centerOrb }, ...orbs.map(o => ({ id: o.world.id, mesh: o.mesh }))];
@@ -736,7 +786,9 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
         const v = mesh.position.clone().project(cam);
         el.style.left = (v.x * 0.5 + 0.5) * W + "px";
         el.style.top = (-v.y * 0.5 + 0.5) * H + "px";
-        el.style.opacity = v.z < 1 ? (el.dataset.hov === "true" ? "1" : "0.8") : "0";
+        const baseOp = v.z < 1 ? (el.dataset.hov === "true" ? 1 : 0.8) : 0;
+        const minOp = camAngleRef.current.radius > 6 ? 0.3 : 0;
+        el.style.opacity = Math.max(baseOp, minOp);
       });
       rend.render(scene, cam);
     };

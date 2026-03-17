@@ -45,18 +45,19 @@ $$ LANGUAGE sql SECURITY DEFINER STABLE;
 
 
 -- ============================================================
---  GRANTS — Required for authenticated users to access tables
---  Without these, Supabase returns 403 even if RLS policies exist
+--  GRANTS FOR authenticated AND anon ROLES
+--  Without these, Supabase returns 403 even if RLS policies exist.
 -- ============================================================
 
 GRANT USAGE ON SCHEMA public TO authenticated, anon;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO authenticated;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO authenticated;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO authenticated;
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO anon;
-GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO authenticated, anon;
-GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO authenticated;
 
--- Ensure future tables also get proper grants
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO authenticated;
+-- Ensure future tables also get grants
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO authenticated;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO anon;
 
 
