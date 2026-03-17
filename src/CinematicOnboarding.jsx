@@ -19,7 +19,8 @@ const ORBS = [
 ]
 
 export default function CinematicOnboarding({ userId, personalWorldId, onComplete }) {
-  const [phase, setPhase] = useState(0)
+  const prefersReducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const [phase, setPhase] = useState(prefersReducedMotion ? 2 : 0)
   // 0 = starfield zoom + title reveal
   // 1 = subtitle + "Begin" button
   // 2 = city search active
@@ -136,8 +137,9 @@ export default function CinematicOnboarding({ userId, personalWorldId, onComplet
     }
   }, [])
 
-  // Phase progression: auto-advance from 0 to 1
+  // Phase progression: auto-advance from 0 to 1 (skip if reduced motion)
   useEffect(() => {
+    if (prefersReducedMotion) return
     const t1 = setTimeout(() => setPhase(1), 2800)
     return () => clearTimeout(t1)
   }, [])
@@ -388,7 +390,7 @@ export default function CinematicOnboarding({ userId, personalWorldId, onComplet
                 }}>
                   {results.map((r, i) => (
                     <button
-                      key={i}
+                      key={r[0] + "-" + r[2]}
                       role="option"
                       onClick={() => handleSelectCity(r)}
                       style={{
