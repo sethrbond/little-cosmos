@@ -1,3 +1,4 @@
+import { parseGoogleTimeline, getTimelineSummary, findOverlappingTrips } from "./importTimeline.js";
 import { useState, useEffect, useCallback, useRef } from "react";
 
 /* =================================================================
@@ -706,7 +707,7 @@ const EXPORT_OPTIONS = [
 
 // ---- Component ----
 
-export default function ExportHub({ entries = [], config = {}, stats = {}, palette, onClose, onImport, worldMode, travelerName }) {
+export default function ExportHub({ entries = [], config = {}, stats = {}, palette, onClose, onImport, worldMode, travelerName, partnerEntries, onMarkTogether }) {
   const P = palette || {};
   const [status, setStatus] = useState({}); // { [id]: "loading" | "done" | "error" }
   const [activeTab, setActiveTab] = useState("export"); // "export" | "import"
@@ -720,6 +721,20 @@ export default function ExportHub({ entries = [], config = {}, stats = {}, palet
   const [importDone, setImportDone] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef(null);
+  const fileInputTimelineRef = useRef(null);
+  const [importMode, setImportMode] = useState("file");
+  const [timelineFile, setTimelineFile] = useState(null);
+  const [timelineParsed, setTimelineParsed] = useState(null);
+  const [timelineSummary, setTimelineSummary] = useState(null);
+  const [timelineSelected, setTimelineSelected] = useState(new Set());
+  const [timelineError, setTimelineError] = useState(null);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+  const [timelineImporting, setTimelineImporting] = useState(false);
+  const [timelineProgress, setTimelineProgress] = useState(0);
+  const [timelineDone, setTimelineDone] = useState(false);
+  const [timelineImportedCount, setTimelineImportedCount] = useState(0);
+  const [timelineOverlaps, setTimelineOverlaps] = useState(null);
+  const [timelineOverlapsDone, setTimelineOverlapsDone] = useState(false);
 
   // Close on escape
   useEffect(() => {
@@ -873,6 +888,101 @@ export default function ExportHub({ entries = [], config = {}, stats = {}, palet
       setImportLoading(false);
     }
   }, [importParsed, onImport]);
+
+  // ---- Google Timeline handlers ----
+  const resetTimeline = useCallback(() => {
+    setTimelineFile(null); setTimelineParsed(null); setTimelineSummary(null);
+    setTimelineSelected(new Set()); setTimelineError(null);
+    setTimelineLoading(false); setTimelineImporting(false); setTimelineProgress(0);
+    setTimelineDone(false); setTimelineImportedCount(0);
+    setTimelineOverlaps(null); setTimelineOverlapsDone(false);
+  }, []);
+
+  const processTimelineFile = useCallback((file) => {
+    resetTimeline();
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith(".json")) {
+      setTimelineError("Please upload a .json file from Google Takeout.");
+      return;
+    }
+    setTimelineFile(file);
+    setTimelineLoading(true);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const json = JSON.parse(ev.target.result);
+        const trips = parseGoogleTimeline(json);
+        if (trips.length === 0) {
+          setTimelineError("No location visits found. Make sure this is a Google Takeout location history file.");
+          setTimelineLoading(false);
+          return;
+        }
+        setTimelineParsed(trips);
+        setTimelineSummary(getTimelineSummary(trips));
+        setTimelineSelected(new Set(trips.map((_, i) => i)));
+        setTimelineLoading(false);
+      } catch (err) {
+        console.error("Timeline parse error:", err);
+        setTimelineError(err.message || "Could not parse file.");
+        setTimelineLoading(false);
+      }
+    };
+    reader.onerror = () => { setTimelineError("Could not read file."); setTimelineLoading(false); };
+    reader.readAsText(file);
+  }, [resetTimeline]);
+
+  const handleTimelineFileSelect = useCallback((e) => {
+    const file = e.target.files?.[0];
+    if (file) processTimelineFile(file);
+  }, [processTimelineFile]);
+
+  const handleTimelineToggle = useCallback((idx) => {
+    setTimelineSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx); else next.add(idx);
+      return next;
+    });
+  }, []);
+
+  const handleTimelineSelectAll = useCallback(() => {
+    if (!timelineParsed) return;
+    setTimelineSelected(prev => prev.size === timelineParsed.length ? new Set() : new Set(timelineParsed.map((_, i) => i)));
+  }, [timelineParsed, timelineSelected]);
+
+  const handleTimelineImport = useCallback(async () => {
+    if (!timelineParsed || !onImport || timelineSelected.size === 0) return;
+    setTimelineImporting(true); setTimelineProgress(0);
+    try {
+      const selected = timelineParsed.filter((_, i) => timelineSelected.has(i));
+      const total = selected.length;
+      const BATCH = 10;
+      let imported = 0;
+      for (let i = 0; i < total; i += BATCH) {
+        const batch = selected.slice(i, i + BATCH);
+        await onImport(batch);
+        imported += batch.length;
+        setTimelineProgress(Math.round((imported / total) * 100));
+        await new Promise(r => setTimeout(r, 0));
+      }
+      setTimelineImportedCount(imported);
+      setTimelineDone(true);
+      setTimelineImporting(false);
+      if (partnerEntries && partnerEntries.length > 0) {
+        const overlaps = findOverlappingTrips(selected, partnerEntries);
+        if (overlaps.length > 0) setTimelineOverlaps(overlaps);
+      }
+    } catch (err) {
+      console.error("Timeline import failed:", err);
+      setTimelineError(err.message || "Import failed.");
+      setTimelineImporting(false);
+    }
+  }, [timelineParsed, timelineSelected, onImport, partnerEntries]);
+
+  const handleMarkTogether = useCallback(async () => {
+    if (!timelineOverlaps || !onMarkTogether) return;
+    try { await onMarkTogether(timelineOverlaps); setTimelineOverlapsDone(true); }
+    catch (err) { console.error("Mark together failed:", err); }
+  }, [timelineOverlaps, onMarkTogether]);
 
   // ---- Styles ----
   const accent = P.rose || "#c48aa8";
@@ -1176,45 +1286,52 @@ export default function ExportHub({ entries = [], config = {}, stats = {}, palet
           {/* ===== IMPORT TAB ===== */}
           {activeTab === "import" && (
             <div style={{ animation: "exportCardPop 0.25s ease-out" }}>
-              {/* Import success state */}
+              {/* Import mode sub-tabs */}
+              <div style={{
+                display: "flex", justifyContent: "center", gap: 4,
+                margin: "0 0 16px",
+                background: parchment,
+                borderRadius: 10, padding: 3,
+                border: `1px solid ${accent}10`,
+              }}>
+                {[
+                  { id: "file", label: "File Import" },
+                  { id: "timeline", label: "Google Maps Timeline" },
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => { setImportMode(tab.id); if (tab.id === "file") resetTimeline(); if (tab.id === "timeline") resetImport(); }}
+                    style={{
+                      flex: 1, padding: "7px 14px", fontSize: 10, fontWeight: 600,
+                      fontFamily: "inherit", letterSpacing: "0.04em",
+                      border: "none", borderRadius: 7, cursor: "pointer",
+                      transition: "all 0.2s",
+                      background: importMode === tab.id ? `linear-gradient(135deg, ${accent}18, ${accent}08)` : "transparent",
+                      color: importMode === tab.id ? accent : textMuted,
+                      boxShadow: importMode === tab.id ? `0 1px 3px ${accent}08` : "none",
+                    }}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* ---- FILE IMPORT MODE ---- */}
+              {importMode === "file" && (
+                <div>
               {importDone ? (
-                <div style={{
-                  textAlign: "center", padding: "40px 20px",
-                }}>
-                  <div style={{
-                    fontSize: 48, marginBottom: 16,
-                    filter: "grayscale(0.2)",
-                  }}>
-                    &#x2714;
-                  </div>
-                  <div style={{
-                    fontFamily: "'Cormorant Garamond', Georgia, serif",
-                    fontSize: 22, fontWeight: 600, color: "#688c5c",
-                    marginBottom: 8,
-                  }}>
-                    Import Complete
-                  </div>
+                <div style={{ textAlign: "center", padding: "40px 20px" }}>
+                  <div style={{ fontSize: 48, marginBottom: 16, filter: "grayscale(0.2)" }}>&#x2714;</div>
+                  <div style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 22, fontWeight: 600, color: "#688c5c", marginBottom: 8 }}>Import Complete</div>
                   <div style={{ fontSize: 12, color: textMuted, marginBottom: 20 }}>
                     {importParsed?.valid?.length || 0} {(importParsed?.valid?.length || 0) === 1 ? "entry" : "entries"} imported successfully.
                   </div>
-                  <button
-                    onClick={resetImport}
-                    style={{
-                      padding: "9px 24px",
-                      background: `linear-gradient(135deg, ${accent}18, ${accent}08)`,
-                      border: `1px solid ${accent}25`,
-                      borderRadius: 10, cursor: "pointer",
-                      fontSize: 12, fontFamily: "inherit", fontWeight: 500,
-                      color: accent, transition: "all 0.2s",
-                    }}
+                  <button onClick={resetImport} style={{ padding: "9px 24px", background: `linear-gradient(135deg, ${accent}18, ${accent}08)`, border: `1px solid ${accent}25`, borderRadius: 10, cursor: "pointer", fontSize: 12, fontFamily: "inherit", fontWeight: 500, color: accent, transition: "all 0.2s" }}
                     onMouseEnter={e => e.currentTarget.style.background = `linear-gradient(135deg, ${accent}28, ${accent}14)`}
                     onMouseLeave={e => e.currentTarget.style.background = `linear-gradient(135deg, ${accent}18, ${accent}08)`}
-                  >
-                    Import More
-                  </button>
+                  >Import More</button>
                 </div>
               ) : !importParsed ? (
-                /* Drop zone / file picker */
                 <>
                   <div
                     onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(true); }}
@@ -1223,320 +1340,255 @@ export default function ExportHub({ entries = [], config = {}, stats = {}, palet
                     onClick={() => fileInputRef.current?.click()}
                     style={{
                       border: `2px dashed ${dragOver ? accent : accent + "35"}`,
-                      borderRadius: 16,
-                      padding: "48px 24px",
-                      textAlign: "center",
-                      cursor: "pointer",
-                      transition: "all 0.25s",
-                      background: dragOver
-                        ? `linear-gradient(135deg, ${accent}12, ${accent}06)`
-                        : `linear-gradient(135deg, ${accent}05, transparent)`,
+                      borderRadius: 16, padding: "48px 24px", textAlign: "center",
+                      cursor: "pointer", transition: "all 0.25s",
+                      background: dragOver ? `linear-gradient(135deg, ${accent}12, ${accent}06)` : `linear-gradient(135deg, ${accent}05, transparent)`,
                       position: "relative",
                     }}
                   >
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept=".json,.csv"
-                      onChange={handleFileSelect}
-                      style={{ display: "none" }}
-                    />
-                    <div style={{
-                      fontSize: 36, marginBottom: 12, color: accent,
-                      opacity: dragOver ? 1 : 0.6, transition: "opacity 0.2s",
-                    }}>
-                      &#x2912;
-                    </div>
-                    <div style={{
-                      fontFamily: "'Cormorant Garamond', Georgia, serif",
-                      fontSize: 18, fontWeight: 600, color: text,
-                      marginBottom: 6,
-                    }}>
-                      {dragOver ? "Drop file here" : "Drag & drop a file here"}
-                    </div>
-                    <div style={{ fontSize: 11, color: textMuted, marginBottom: 14 }}>
-                      or click to browse
-                    </div>
-                    <div style={{
-                      display: "inline-flex", gap: 8,
-                    }}>
-                      <span style={{
-                        fontSize: 9, padding: "3px 10px", borderRadius: 6,
-                        background: `${accent}10`, color: accent,
-                        border: `1px solid ${accent}15`, fontWeight: 500,
-                        letterSpacing: "0.04em", textTransform: "uppercase",
-                      }}>
-                        .json
-                      </span>
-                      <span style={{
-                        fontSize: 9, padding: "3px 10px", borderRadius: 6,
-                        background: `${accent}10`, color: accent,
-                        border: `1px solid ${accent}15`, fontWeight: 500,
-                        letterSpacing: "0.04em", textTransform: "uppercase",
-                      }}>
-                        .csv
-                      </span>
+                    <input ref={fileInputRef} type="file" accept=".json,.csv" onChange={handleFileSelect} style={{ display: "none" }} />
+                    <div style={{ fontSize: 36, marginBottom: 12, color: accent, opacity: dragOver ? 1 : 0.6, transition: "opacity 0.2s" }}>&#x2912;</div>
+                    <div style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 18, fontWeight: 600, color: text, marginBottom: 6 }}>{dragOver ? "Drop file here" : "Drag & drop a file here"}</div>
+                    <div style={{ fontSize: 11, color: textMuted, marginBottom: 14 }}>or click to browse</div>
+                    <div style={{ display: "inline-flex", gap: 8 }}>
+                      <span style={{ fontSize: 9, padding: "3px 10px", borderRadius: 6, background: `${accent}10`, color: accent, border: `1px solid ${accent}15`, fontWeight: 500, letterSpacing: "0.04em", textTransform: "uppercase" }}>.json</span>
+                      <span style={{ fontSize: 9, padding: "3px 10px", borderRadius: 6, background: `${accent}10`, color: accent, border: `1px solid ${accent}15`, fontWeight: 500, letterSpacing: "0.04em", textTransform: "uppercase" }}>.csv</span>
                     </div>
                     {importLoading && (
-                      <div style={{
-                        position: "absolute", inset: 0, borderRadius: 16,
-                        background: `${cream}dd`, display: "flex",
-                        alignItems: "center", justifyContent: "center",
-                        fontSize: 13, color: textMid, fontWeight: 500,
-                      }}>
-                        Parsing file...
-                      </div>
+                      <div style={{ position: "absolute", inset: 0, borderRadius: 16, background: `${cream}dd`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: textMid, fontWeight: 500 }}>Parsing file...</div>
                     )}
                   </div>
-
-                  {/* Error display */}
                   {importError && (
-                    <div style={{
-                      marginTop: 14, padding: "12px 16px",
-                      background: "linear-gradient(135deg, #d0686810, #d0686806)",
-                      border: "1px solid #d0686825",
-                      borderRadius: 10, fontSize: 12, color: "#c05555",
-                      lineHeight: 1.5,
-                    }}>
+                    <div style={{ marginTop: 14, padding: "12px 16px", background: "linear-gradient(135deg, #d0686810, #d0686806)", border: "1px solid #d0686825", borderRadius: 10, fontSize: 12, color: "#c05555", lineHeight: 1.5 }}>
                       <strong style={{ fontWeight: 600 }}>Error:</strong> {importError}
                     </div>
                   )}
-
-                  {/* Help text */}
-                  <div style={{
-                    marginTop: 16, padding: "14px 16px",
-                    background: cardBg, borderRadius: 12,
-                    border: `1px solid ${accent}10`,
-                  }}>
-                    <div style={{
-                      fontSize: 11, fontWeight: 600, color: text, marginBottom: 6,
-                    }}>
-                      Supported formats
-                    </div>
+                  <div style={{ marginTop: 16, padding: "14px 16px", background: cardBg, borderRadius: 12, border: `1px solid ${accent}10` }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: text, marginBottom: 6 }}>Supported formats</div>
                     <div style={{ fontSize: 10.5, color: textMuted, lineHeight: 1.6 }}>
-                      <strong style={{ color: textMid }}>JSON:</strong> My Cosmos backup files (exported from this app), or a plain array of entry objects.
-                      <br />
-                      <strong style={{ color: textMid }}>CSV:</strong> Spreadsheet with columns for City, Country, Latitude, Longitude, Start Date, and more.
-                      <br />
-                      <span style={{ color: textFaint, fontSize: 10 }}>Required fields: city, country, lat, lng, dateStart</span>
+                      <strong style={{ color: textMid }}>JSON:</strong> My Cosmos backup files, or a plain array of entry objects.<br />
+                      <strong style={{ color: textMid }}>CSV:</strong> Spreadsheet with columns for City, Country, Lat, Lng, Start Date.<br />
+                      <span style={{ color: textFaint, fontSize: 10 }}>Required: city, country, lat, lng, dateStart</span>
                     </div>
                   </div>
                 </>
               ) : (
-                /* Preview parsed entries */
                 <div>
-                  {/* File info bar */}
-                  <div style={{
-                    display: "flex", alignItems: "center", gap: 10,
-                    padding: "10px 14px", borderRadius: 10,
-                    background: cardBg, border: `1px solid ${accent}12`,
-                    marginBottom: 14,
-                  }}>
-                    <div style={{
-                      width: 32, height: 32, borderRadius: 8,
-                      background: `linear-gradient(135deg, ${accent}15, ${accent}08)`,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 14, color: accent, fontWeight: 700, fontFamily: "monospace",
-                    }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 10, background: cardBg, border: `1px solid ${accent}12`, marginBottom: 14 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 8, background: `linear-gradient(135deg, ${accent}15, ${accent}08)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: accent, fontWeight: 700, fontFamily: "monospace" }}>
                       {importFile?.name?.endsWith(".json") ? "{ }" : "|||"}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{
-                        fontSize: 12, fontWeight: 600, color: text,
-                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                      }}>
-                        {importFile?.name || "Uploaded file"}
-                      </div>
-                      <div style={{ fontSize: 10, color: textMuted }}>
-                        {importFile ? `${(importFile.size / 1024).toFixed(1)} KB` : ""}
-                      </div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{importFile?.name || "Uploaded file"}</div>
+                      <div style={{ fontSize: 10, color: textMuted }}>{importFile ? `${(importFile.size / 1024).toFixed(1)} KB` : ""}</div>
                     </div>
-                    <button
-                      onClick={resetImport}
-                      style={{
-                        background: "none", border: "none", cursor: "pointer",
-                        fontSize: 14, color: textMuted, padding: "4px 8px",
-                        borderRadius: 6, transition: "all 0.15s",
-                      }}
+                    <button onClick={resetImport} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, color: textMuted, padding: "4px 8px", borderRadius: 6, transition: "all 0.15s" }}
                       onMouseEnter={e => { e.currentTarget.style.background = `${accent}10`; e.currentTarget.style.color = text; }}
                       onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = textMuted; }}
-                      title="Remove file"
-                    >
-                      &#x2715;
-                    </button>
+                      title="Remove file">&#x2715;</button>
                   </div>
-
-                  {/* Validation summary */}
-                  <div style={{
-                    display: "flex", gap: 12, marginBottom: 14,
-                  }}>
-                    <div style={{
-                      flex: 1, padding: "14px 16px", borderRadius: 12,
-                      background: importParsed.valid.length > 0
-                        ? "linear-gradient(135deg, #90b08012, #90b08006)"
-                        : `linear-gradient(135deg, ${accent}08, transparent)`,
-                      border: `1px solid ${importParsed.valid.length > 0 ? "#90b08020" : accent + "12"}`,
-                      textAlign: "center",
-                    }}>
-                      <div style={{
-                        fontFamily: "'Cormorant Garamond', Georgia, serif",
-                        fontSize: 28, fontWeight: 600,
-                        color: importParsed.valid.length > 0 ? "#688c5c" : textFaint,
-                      }}>
-                        {importParsed.valid.length}
-                      </div>
-                      <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.1em", color: textMuted }}>
-                        Valid entries
-                      </div>
+                  <div style={{ display: "flex", gap: 12, marginBottom: 14 }}>
+                    <div style={{ flex: 1, padding: "14px 16px", borderRadius: 12, background: importParsed.valid.length > 0 ? "linear-gradient(135deg, #90b08012, #90b08006)" : `linear-gradient(135deg, ${accent}08, transparent)`, border: `1px solid ${importParsed.valid.length > 0 ? "#90b08020" : accent + "12"}`, textAlign: "center" }}>
+                      <div style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 28, fontWeight: 600, color: importParsed.valid.length > 0 ? "#688c5c" : textFaint }}>{importParsed.valid.length}</div>
+                      <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.1em", color: textMuted }}>Valid entries</div>
                     </div>
                     {importParsed.errors.length > 0 && (
-                      <div style={{
-                        flex: 1, padding: "14px 16px", borderRadius: 12,
-                        background: "linear-gradient(135deg, #d0686808, transparent)",
-                        border: "1px solid #d0686815",
-                        textAlign: "center",
-                      }}>
-                        <div style={{
-                          fontFamily: "'Cormorant Garamond', Georgia, serif",
-                          fontSize: 28, fontWeight: 600, color: "#c05555",
-                        }}>
-                          {importParsed.errors.length}
-                        </div>
-                        <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.1em", color: textMuted }}>
-                          Skipped (invalid)
-                        </div>
+                      <div style={{ flex: 1, padding: "14px 16px", borderRadius: 12, background: "linear-gradient(135deg, #d0686808, transparent)", border: "1px solid #d0686815", textAlign: "center" }}>
+                        <div style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 28, fontWeight: 600, color: "#c05555" }}>{importParsed.errors.length}</div>
+                        <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.1em", color: textMuted }}>Skipped</div>
                       </div>
                     )}
                   </div>
-
-                  {/* City preview list */}
                   {importParsed.valid.length > 0 && (
-                    <div style={{
-                      padding: "12px 14px", borderRadius: 12,
-                      background: cardBg, border: `1px solid ${accent}10`,
-                      marginBottom: 14, maxHeight: 160, overflow: "auto",
-                    }}>
-                      <div style={{
-                        fontSize: 10, fontWeight: 600, color: textMid,
-                        textTransform: "uppercase", letterSpacing: "0.08em",
-                        marginBottom: 8,
-                      }}>
-                        Preview
-                      </div>
+                    <div style={{ padding: "12px 14px", borderRadius: 12, background: cardBg, border: `1px solid ${accent}10`, marginBottom: 14, maxHeight: 160, overflow: "auto" }}>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: textMid, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Preview</div>
                       {importParsed.valid.slice(0, 50).map((e, i) => (
-                        <div key={"import-" + i} style={{
-                          display: "flex", justifyContent: "space-between",
-                          alignItems: "center",
-                          padding: "4px 0",
-                          borderBottom: i < Math.min(importParsed.valid.length, 50) - 1 ? `1px solid ${accent}08` : "none",
-                        }}>
-                          <span style={{ fontSize: 11, color: text }}>
-                            {e.city}{e.country ? `, ${e.country}` : ""}
-                          </span>
-                          <span style={{ fontSize: 10, color: textFaint }}>
-                            {e.dateStart || "no date"}
-                          </span>
+                        <div key={"import-" + i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: i < Math.min(importParsed.valid.length, 50) - 1 ? `1px solid ${accent}08` : "none" }}>
+                          <span style={{ fontSize: 11, color: text }}>{e.city}{e.country ? `, ${e.country}` : ""}</span>
+                          <span style={{ fontSize: 10, color: textFaint }}>{e.dateStart || "no date"}</span>
                         </div>
                       ))}
-                      {importParsed.valid.length > 50 && (
-                        <div style={{ fontSize: 10, color: textFaint, marginTop: 6, textAlign: "center" }}>
-                          ...and {importParsed.valid.length - 50} more
-                        </div>
-                      )}
+                      {importParsed.valid.length > 50 && <div style={{ fontSize: 10, color: textFaint, marginTop: 6, textAlign: "center" }}>...and {importParsed.valid.length - 50} more</div>}
                     </div>
                   )}
-
-                  {/* Validation errors */}
                   {importParsed.errors.length > 0 && (
-                    <div style={{
-                      padding: "10px 14px", borderRadius: 10,
-                      background: "linear-gradient(135deg, #d0686808, transparent)",
-                      border: "1px solid #d0686812",
-                      marginBottom: 14, maxHeight: 100, overflow: "auto",
-                    }}>
-                      <div style={{
-                        fontSize: 10, fontWeight: 600, color: "#c05555",
-                        marginBottom: 4,
-                      }}>
-                        Skipped entries
-                      </div>
+                    <div style={{ padding: "10px 14px", borderRadius: 10, background: "linear-gradient(135deg, #d0686808, transparent)", border: "1px solid #d0686812", marginBottom: 14, maxHeight: 100, overflow: "auto" }}>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: "#c05555", marginBottom: 4 }}>Skipped entries</div>
                       {importParsed.errors.slice(0, 10).map((err, i) => (
-                        <div key={"err-" + i} style={{ fontSize: 10, color: "#c05555", lineHeight: 1.5, opacity: 0.85 }}>
-                          {err}
-                        </div>
+                        <div key={"err-" + i} style={{ fontSize: 10, color: "#c05555", lineHeight: 1.5, opacity: 0.85 }}>{err}</div>
                       ))}
-                      {importParsed.errors.length > 10 && (
-                        <div style={{ fontSize: 10, color: "#c05555", opacity: 0.6, marginTop: 2 }}>
-                          ...and {importParsed.errors.length - 10} more
-                        </div>
-                      )}
+                      {importParsed.errors.length > 10 && <div style={{ fontSize: 10, color: "#c05555", opacity: 0.6, marginTop: 2 }}>...and {importParsed.errors.length - 10} more</div>}
                     </div>
                   )}
-
-                  {/* Import error */}
                   {importError && (
-                    <div style={{
-                      marginBottom: 14, padding: "10px 14px",
-                      background: "linear-gradient(135deg, #d0686810, #d0686806)",
-                      border: "1px solid #d0686825",
-                      borderRadius: 10, fontSize: 12, color: "#c05555",
-                    }}>
+                    <div style={{ marginBottom: 14, padding: "10px 14px", background: "linear-gradient(135deg, #d0686810, #d0686806)", border: "1px solid #d0686825", borderRadius: 10, fontSize: 12, color: "#c05555" }}>
                       <strong>Error:</strong> {importError}
                     </div>
                   )}
-
-                  {/* Action buttons */}
                   <div style={{ display: "flex", gap: 10 }}>
-                    <button
-                      onClick={resetImport}
-                      style={{
-                        flex: 1, padding: "10px 16px",
-                        background: "transparent",
-                        border: `1px solid ${accent}20`,
-                        borderRadius: 10, cursor: "pointer",
-                        fontSize: 12, fontFamily: "inherit", fontWeight: 500,
-                        color: textMuted, transition: "all 0.2s",
-                      }}
+                    <button onClick={resetImport} style={{ flex: 1, padding: "10px 16px", background: "transparent", border: `1px solid ${accent}20`, borderRadius: 10, cursor: "pointer", fontSize: 12, fontFamily: "inherit", fontWeight: 500, color: textMuted, transition: "all 0.2s" }}
                       onMouseEnter={e => { e.currentTarget.style.borderColor = `${accent}40`; e.currentTarget.style.color = text; }}
                       onMouseLeave={e => { e.currentTarget.style.borderColor = `${accent}20`; e.currentTarget.style.color = textMuted; }}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      disabled={!importParsed.valid.length || importLoading || !onImport}
-                      onClick={handleImportAll}
-                      style={{
-                        flex: 2, padding: "10px 16px",
-                        background: importParsed.valid.length && onImport
-                          ? `linear-gradient(135deg, ${accent}25, ${accent}12)`
-                          : parchment,
-                        border: `1px solid ${importParsed.valid.length && onImport ? accent + "35" : textFaint + "20"}`,
-                        borderRadius: 10,
-                        cursor: importParsed.valid.length && onImport ? "pointer" : "not-allowed",
-                        fontSize: 12, fontFamily: "inherit", fontWeight: 600,
-                        color: importParsed.valid.length && onImport ? accent : textFaint,
-                        transition: "all 0.2s",
-                        letterSpacing: "0.02em",
-                        position: "relative",
-                        overflow: "hidden",
-                      }}
+                    >Cancel</button>
+                    <button disabled={!importParsed.valid.length || importLoading || !onImport} onClick={handleImportAll} style={{
+                      flex: 2, padding: "10px 16px",
+                      background: importParsed.valid.length && onImport ? `linear-gradient(135deg, ${accent}25, ${accent}12)` : parchment,
+                      border: `1px solid ${importParsed.valid.length && onImport ? accent + "35" : textFaint + "20"}`,
+                      borderRadius: 10, cursor: importParsed.valid.length && onImport ? "pointer" : "not-allowed",
+                      fontSize: 12, fontFamily: "inherit", fontWeight: 600,
+                      color: importParsed.valid.length && onImport ? accent : textFaint, transition: "all 0.2s",
+                    }}
                       onMouseEnter={e => { if (importParsed.valid.length && onImport) e.currentTarget.style.background = `linear-gradient(135deg, ${accent}35, ${accent}18)`; }}
                       onMouseLeave={e => { if (importParsed.valid.length && onImport) e.currentTarget.style.background = `linear-gradient(135deg, ${accent}25, ${accent}12)`; }}
                     >
-                      {importLoading
-                        ? "Importing..."
-                        : `Import ${importParsed.valid.length} ${importParsed.valid.length === 1 ? "Entry" : "Entries"}`}
+                      {importLoading ? "Importing..." : `Import ${importParsed.valid.length} ${importParsed.valid.length === 1 ? "Entry" : "Entries"}`}
                     </button>
                   </div>
+                  {!onImport && <div style={{ textAlign: "center", marginTop: 10, fontSize: 10, color: textFaint, fontStyle: "italic" }}>Import is not available in this context.</div>}
+                </div>
+              )}
+                </div>
+              )}
 
-                  {!onImport && (
-                    <div style={{
-                      textAlign: "center", marginTop: 10,
-                      fontSize: 10, color: textFaint, fontStyle: "italic",
-                    }}>
-                      Import is not available in this context.
+              {/* ---- GOOGLE MAPS TIMELINE MODE ---- */}
+              {importMode === "timeline" && (
+                <div>
+                {timelineDone ? (
+                  <div style={{ textAlign: "center", padding: "32px 20px" }}>
+                    <div style={{ fontSize: 48, marginBottom: 12 }}>{"🌍"}</div>
+                    <div style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 22, fontWeight: 600, color: "#688c5c", marginBottom: 8 }}>
+                      {timelineImportedCount} memories added to your globe!
                     </div>
-                  )}
+                    <div style={{ fontSize: 12, color: textMuted, marginBottom: 20 }}>Your Google Maps history has been transformed into travel memories.</div>
+                    {timelineOverlaps && timelineOverlaps.length > 0 && !timelineOverlapsDone && (
+                      <div style={{ margin: "0 auto 20px", maxWidth: 440, padding: "18px 20px", borderRadius: 14, background: `linear-gradient(135deg, ${accent}12, ${accent}06)`, border: `1px solid ${accent}20`, textAlign: "left" }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: text, marginBottom: 8 }}>
+                          {"❤️"} We found {timelineOverlaps.length} trip{timelineOverlaps.length === 1 ? "" : "s"} where you were both in the same city!
+                        </div>
+                        <div style={{ maxHeight: 120, overflow: "auto", marginBottom: 12 }}>
+                          {timelineOverlaps.slice(0, 20).map((o, i) => (
+                            <div key={"ov-" + i} style={{ fontSize: 11, color: textMid, padding: "3px 0", borderBottom: i < Math.min(timelineOverlaps.length, 20) - 1 ? `1px solid ${accent}08` : "none" }}>
+                              {o.city}{o.country ? `, ${o.country}` : ""} — {o.dateStart}
+                            </div>
+                          ))}
+                          {timelineOverlaps.length > 20 && <div style={{ fontSize: 10, color: textFaint, marginTop: 4, textAlign: "center" }}>...and {timelineOverlaps.length - 20} more</div>}
+                        </div>
+                        {onMarkTogether && (
+                          <button onClick={handleMarkTogether} style={{ width: "100%", padding: "10px 16px", background: `linear-gradient(135deg, ${accent}25, ${accent}12)`, border: `1px solid ${accent}35`, borderRadius: 10, cursor: "pointer", fontSize: 12, fontFamily: "inherit", fontWeight: 600, color: accent, transition: "all 0.2s" }}
+                            onMouseEnter={e => e.currentTarget.style.background = `linear-gradient(135deg, ${accent}35, ${accent}18)`}
+                            onMouseLeave={e => e.currentTarget.style.background = `linear-gradient(135deg, ${accent}25, ${accent}12)`}
+                          >Yes, we were together!</button>
+                        )}
+                      </div>
+                    )}
+                    {timelineOverlapsDone && (
+                      <div style={{ margin: "0 auto 16px", maxWidth: 440, padding: "12px 16px", borderRadius: 10, background: "linear-gradient(135deg, #90b08012, #90b08006)", border: "1px solid #90b08020", fontSize: 12, color: "#688c5c" }}>
+                        {"✔"} {timelineOverlaps?.length || 0} shared trips marked as together!
+                      </div>
+                    )}
+                    <button onClick={resetTimeline} style={{ padding: "9px 24px", background: `linear-gradient(135deg, ${accent}18, ${accent}08)`, border: `1px solid ${accent}25`, borderRadius: 10, cursor: "pointer", fontSize: 12, fontFamily: "inherit", fontWeight: 500, color: accent, transition: "all 0.2s" }}
+                      onMouseEnter={e => e.currentTarget.style.background = `linear-gradient(135deg, ${accent}28, ${accent}14)`}
+                      onMouseLeave={e => e.currentTarget.style.background = `linear-gradient(135deg, ${accent}18, ${accent}08)`}
+                    >Import More</button>
+                  </div>
+                ) : !timelineParsed ? (
+                  <>
+                    <div onClick={() => fileInputTimelineRef.current?.click()} style={{ border: `2px dashed ${accent}35`, borderRadius: 16, padding: "40px 24px", textAlign: "center", cursor: "pointer", transition: "all 0.25s", background: `linear-gradient(135deg, ${accent}05, transparent)`, position: "relative" }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = accent; e.currentTarget.style.background = `linear-gradient(135deg, ${accent}10, ${accent}04)`; }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = `${accent}35`; e.currentTarget.style.background = `linear-gradient(135deg, ${accent}05, transparent)`; }}
+                    >
+                      <input ref={fileInputTimelineRef} type="file" accept=".json" onChange={handleTimelineFileSelect} style={{ display: "none" }} />
+                      <div style={{ fontSize: 36, marginBottom: 12, color: accent, opacity: 0.7 }}>{"🗺️"}</div>
+                      <div style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 18, fontWeight: 600, color: text, marginBottom: 6 }}>Upload Google Takeout Data</div>
+                      <div style={{ fontSize: 11, color: textMuted, marginBottom: 10 }}>Drop your Records.json or Location History.json</div>
+                      <span style={{ fontSize: 9, padding: "3px 10px", borderRadius: 6, background: `${accent}10`, color: accent, border: `1px solid ${accent}15`, fontWeight: 500, letterSpacing: "0.04em", textTransform: "uppercase" }}>.json</span>
+                      {timelineLoading && (
+                        <div style={{ position: "absolute", inset: 0, borderRadius: 16, background: `${cream}dd`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: textMid, fontWeight: 500 }}>Parsing location history...</div>
+                      )}
+                    </div>
+                    {timelineError && (
+                      <div style={{ marginTop: 14, padding: "12px 16px", background: "linear-gradient(135deg, #d0686810, #d0686806)", border: "1px solid #d0686825", borderRadius: 10, fontSize: 12, color: "#c05555", lineHeight: 1.5 }}>
+                        <strong style={{ fontWeight: 600 }}>Error:</strong> {timelineError}
+                      </div>
+                    )}
+                    <div style={{ marginTop: 16, padding: "14px 16px", background: cardBg, borderRadius: 12, border: `1px solid ${accent}10` }}>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: text, marginBottom: 6 }}>How to get your Google Maps Timeline data</div>
+                      <div style={{ fontSize: 10.5, color: textMuted, lineHeight: 1.7 }}>
+                        1. Go to <strong style={{ color: textMid }}>takeout.google.com</strong><br />
+                        2. Deselect all, then select only <strong style={{ color: textMid }}>Location History</strong><br />
+                        3. Choose JSON format and export<br />
+                        4. Extract the zip and upload <strong style={{ color: textMid }}>Records.json</strong> or any Semantic Location History file
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div>
+                    <div style={{ padding: "16px 18px", borderRadius: 14, background: `linear-gradient(135deg, ${accent}10, ${accent}04)`, border: `1px solid ${accent}18`, marginBottom: 14, textAlign: "center" }}>
+                      <div style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 20, fontWeight: 600, color: text, marginBottom: 6 }}>
+                        Found {timelineSummary?.tripCount || 0} trips across {timelineSummary?.countryCount || 0} countries
+                      </div>
+                      <div style={{ fontSize: 11, color: textMuted }}>
+                        {timelineSummary?.yearCount || 0} year{(timelineSummary?.yearCount || 0) !== 1 ? "s" : ""} of history
+                        {timelineSummary?.firstDate && timelineSummary?.lastDate ? ` (${timelineSummary.firstDate.slice(0,4)} – ${timelineSummary.lastDate.slice(0,4)})` : ""}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, padding: "0 2px" }}>
+                      <div style={{ fontSize: 10, color: textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em" }}>{timelineSelected.size} of {timelineParsed.length} selected</div>
+                      <button onClick={handleTimelineSelectAll} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 10, fontFamily: "inherit", fontWeight: 600, color: accent, padding: "2px 6px", borderRadius: 4, transition: "all 0.15s" }}
+                        onMouseEnter={e => e.currentTarget.style.background = `${accent}10`}
+                        onMouseLeave={e => e.currentTarget.style.background = "none"}
+                      >{timelineSelected.size === timelineParsed.length ? "Deselect All" : "Select All"}</button>
+                    </div>
+                    <div style={{ padding: "8px 10px", borderRadius: 12, background: cardBg, border: `1px solid ${accent}10`, marginBottom: 14, maxHeight: 260, overflow: "auto" }}>
+                      {timelineParsed.map((trip, i) => (
+                        <label key={"trip-" + i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 6px", borderBottom: i < timelineParsed.length - 1 ? `1px solid ${accent}06` : "none", cursor: "pointer", borderRadius: 6, transition: "background 0.15s" }}
+                          onMouseEnter={e => e.currentTarget.style.background = `${accent}05`}
+                          onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                        >
+                          <input type="checkbox" checked={timelineSelected.has(i)} onChange={() => handleTimelineToggle(i)} style={{ accentColor: accent, width: 14, height: 14, flexShrink: 0 }} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 11, fontWeight: 500, color: text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {trip.city}{trip.country ? `, ${trip.country}` : ""}
+                            </div>
+                          </div>
+                          <div style={{ fontSize: 10, color: textFaint, whiteSpace: "nowrap", flexShrink: 0 }}>
+                            {trip.dateStart || ""}{trip.dateEnd && trip.dateEnd !== trip.dateStart ? ` – ${trip.dateEnd}` : ""}
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                    {timelineError && (
+                      <div style={{ marginBottom: 14, padding: "10px 14px", background: "linear-gradient(135deg, #d0686810, #d0686806)", border: "1px solid #d0686825", borderRadius: 10, fontSize: 12, color: "#c05555" }}><strong>Error:</strong> {timelineError}</div>
+                    )}
+                    {timelineImporting && (
+                      <div style={{ marginBottom: 14 }}>
+                        <div style={{ height: 6, borderRadius: 3, background: `${accent}12`, overflow: "hidden" }}>
+                          <div style={{ height: "100%", borderRadius: 3, background: `linear-gradient(90deg, ${accent}, ${accent}cc)`, width: `${timelineProgress}%`, transition: "width 0.3s ease-out" }} />
+                        </div>
+                        <div style={{ fontSize: 10, color: textMuted, textAlign: "center", marginTop: 4 }}>Importing... {timelineProgress}%</div>
+                      </div>
+                    )}
+                    <div style={{ display: "flex", gap: 10 }}>
+                      <button onClick={resetTimeline} style={{ flex: 1, padding: "10px 16px", background: "transparent", border: `1px solid ${accent}20`, borderRadius: 10, cursor: "pointer", fontSize: 12, fontFamily: "inherit", fontWeight: 500, color: textMuted, transition: "all 0.2s" }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = `${accent}40`; e.currentTarget.style.color = text; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = `${accent}20`; e.currentTarget.style.color = textMuted; }}
+                      >Cancel</button>
+                      <button disabled={timelineSelected.size === 0 || timelineImporting || !onImport} onClick={handleTimelineImport} style={{
+                        flex: 2, padding: "10px 16px",
+                        background: timelineSelected.size > 0 && onImport && !timelineImporting ? `linear-gradient(135deg, ${accent}25, ${accent}12)` : parchment,
+                        border: `1px solid ${timelineSelected.size > 0 && onImport ? accent + "35" : textFaint + "20"}`,
+                        borderRadius: 10, cursor: timelineSelected.size > 0 && onImport && !timelineImporting ? "pointer" : "not-allowed",
+                        fontSize: 12, fontFamily: "inherit", fontWeight: 600,
+                        color: timelineSelected.size > 0 && onImport && !timelineImporting ? accent : textFaint, transition: "all 0.2s",
+                      }}
+                        onMouseEnter={e => { if (timelineSelected.size > 0 && onImport && !timelineImporting) e.currentTarget.style.background = `linear-gradient(135deg, ${accent}35, ${accent}18)`; }}
+                        onMouseLeave={e => { if (timelineSelected.size > 0 && onImport && !timelineImporting) e.currentTarget.style.background = `linear-gradient(135deg, ${accent}25, ${accent}12)`; }}
+                      >
+                        {timelineImporting ? "Importing..." : `Import ${timelineSelected.size} Trip${timelineSelected.size === 1 ? "" : "s"}`}
+                      </button>
+                    </div>
+                  </div>
+                )}
                 </div>
               )}
             </div>
