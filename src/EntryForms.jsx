@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, Component } from "react";
-import { usePalette } from "./PaletteContext.jsx";
+
 import { geocodeSearch } from "./geocode.js";
 
 // Reverse geocode helper — returns { city, country } or null
@@ -318,7 +318,7 @@ function FldR({ l, v, set, t = "text", ph = "", req }) {
 // ---- QUICK ADD FORM ----
 
 export function QuickAddForm({ types, onAdd, onClose, draftKey }) {
-  const P = usePalette();
+  const P = getP();
   const trapRef = useFocusTrap(true);
   const initialQuick = { city: "", country: "", lat: "", lng: "", dateStart: "", dateEnd: "", type: Object.keys(types)[0] || "together", notes: "" };
   const [f, sf, draftRestored, clearDraft] = useDraft(draftKey, initialQuick);
@@ -382,7 +382,7 @@ const DREAM_CATEGORIES = [
 ];
 
 export function DreamAddForm({ onAdd, isMyWorld }) {
-  const P = usePalette();
+  const P = getP();
   const [f, sf] = useState({ city: "", country: "", lat: "", lng: "", notes: "", category: "", targetDate: "" });
   const [sugg, setSugg] = useState([]);
   const [showSugg, setShowSugg] = useState(false);
@@ -438,7 +438,7 @@ export { DREAM_CATEGORIES };
 // ---- ADD FORM ----
 
 export function AddForm({ types, defaultType = "together", defaultWho = "both", fieldLabels, isMyWorld, worldName, onAdd, onClose, draftKey }) {
-  const P = usePalette();
+  const P = getP();
   const trapRef = useFocusTrap(true);
   const initialForm = { city: "", country: "", lat: "", lng: "", dateStart: "", dateEnd: "", type: defaultType, who: defaultWho, zoomLevel: 1, notes: "", museums: "", restaurants: "", highlights: "", memories: "", musicUrl: "", rating: null, stops: [] };
   const [f, sf, draftRestored, clearDraft, dismissRestored] = useDraft(draftKey, initialForm);
@@ -607,7 +607,7 @@ export function AddForm({ types, defaultType = "together", defaultWho = "both", 
 // ---- EDIT FORM ----
 
 export function EditForm({ entry, types, fieldLabels, onChange, onSave, onClose, onDelete, onAddStop, onSaveTemplate }) {
-  const P = usePalette();
+  const P = getP();
   const trapRef = useFocusTrap(true);
   const memoryPrompt = useMemoryPrompt(entry.type);
   const [ns, setNs] = useState({ city: "", lat: "", lng: "", notes: "", dateStart: "", dateEnd: "" });
