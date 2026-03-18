@@ -360,7 +360,7 @@ export function QuickAddForm({ types, onAdd, onClose, draftKey }) {
           {Object.entries(types).map(([k, v]) => <option key={k} value={k}>{v.icon}</option>)}
         </select>
       </div>
-      <input value={f.notes} onChange={e => sf(p => ({ ...p, notes: e.target.value }))} placeholder="Quick note..." style={{ ...inputStyle(), marginBottom: 8 }} />
+      <input value={f.notes} onChange={e => sf(p => ({ ...p, notes: e.target.value }))} placeholder="What happened?" style={{ ...inputStyle(), marginBottom: 8 }} />
       <button disabled={!ok} onClick={() => { clearDraft(); onAdd({ id: `e-${Date.now()}`, city: f.city, country: f.country, lat: parseFloat(f.lat), lng: parseFloat(f.lng), dateStart: f.dateStart, dateEnd: f.dateEnd || f.dateStart, type: f.type, who: types[f.type]?.who || "both", notes: f.notes, memories: [], museums: [], restaurants: [], highlights: [], photos: [], stops: [], zoomLevel: 1 }); }}
         style={{ width: "100%", padding: "11px", background: ok ? `linear-gradient(135deg, ${P.goldWarm}, ${P.rose})` : `${P.textFaint}60`, color: "#fff", border: "none", borderRadius: 12, cursor: ok ? "pointer" : "default", fontSize: 11, fontFamily: "inherit", transition: "all .3s", letterSpacing: ".06em", boxShadow: ok ? `0 2px 8px ${P.goldWarm}30, 0 4px 16px ${P.goldWarm}15` : "none" }}>
         {ok ? "⚡ Add to World" : "Select a city & date"}
