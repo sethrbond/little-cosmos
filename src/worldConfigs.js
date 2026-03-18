@@ -381,5 +381,33 @@ export const WORLD_THEMES = {
     palette: { rose: "#4a8cc8", sky: "#6aacdc", gold: "#c0d0e8", heart: "#7898c8", text: "#d0dce8", cream: "#0c1020" },
     scene: { bg: "#040810", globe: "#141c2c", glow: "#4a8cc830", coast: "#6aacdc", particles: "#4a8cc840", starTint: "#c0d0e820" },
   },
+  ghostWorld: {
+    name: "Ghost World",
+    description: "Whisper-thin lines, cream on dark — the landing page aesthetic",
+    preview: ["#0e0e12", "#f5f0e0", "#c8a860", "#f5f0e040"],
+    palette: { rose: "#c8a860", sky: "#a09880", gold: "#d4b870", heart: "#c0a070", text: "#f5f0e0", cream: "#14131a", textMid: "#a09888", textMuted: "#786e5e", textFaint: "#504838", special: "#c8a860", specialSoft: "#d4b870" },
+    scene: { bg: "#08080c", sphereColor: "#1a1820", sphereEmissive: "#181418", glowColors: ["#c8a86010", "#c8a86008", "#c8a86004"], coastColor: "#f5f0e018", particleColor: "#f5f0e00c", particleColor2: "#c8a86010", starTint: "#f5f0e008", landColors: ["#1c1a16", "#18161210", "#201e1a"] },
+  },
+  moonlight: {
+    name: "Moonlight",
+    description: "Silver and white on deep navy, lit only by the moon",
+    preview: ["#0a0e1e", "#c0c8e0", "#e8ecf4", "#6878a0"],
+    palette: { rose: "#8898c0", sky: "#6878a0", gold: "#c0c8e0", heart: "#a0a8c8", text: "#e8ecf4", cream: "#10141e", textMid: "#8890a8", textMuted: "#606880", textFaint: "#404860", special: "#c0c8e0", specialSoft: "#d0d8ec" },
+    scene: { bg: "#060810", sphereColor: "#181c28", sphereEmissive: "#141828", glowColors: ["#8898c020", "#8898c018", "#8898c010", "#8898c008"], coastColor: "#c0c8e030", particleColor: "#c0c8e020", particleColor2: "#8898c018", starTint: "#e8ecf418", landColors: ["#141824", "#181c28", "#1c2030"] },
+  },
+  ember: {
+    name: "Ember",
+    description: "Faint orange and amber on charcoal, like firelight on a globe",
+    preview: ["#181412", "#d08030", "#e8a050", "#c06820"],
+    palette: { rose: "#d08030", sky: "#a07040", gold: "#e8a050", heart: "#c06820", text: "#f0dcc8", cream: "#181412", textMid: "#a08868", textMuted: "#786048", textFaint: "#504030", special: "#e8a050", specialSoft: "#f0b868" },
+    scene: { bg: "#0c0a08", sphereColor: "#201814", sphereEmissive: "#1c1410", glowColors: ["#d0803020", "#d0803018", "#d0803010", "#d0803008"], coastColor: "#e8a05028", particleColor: "#d0803020", particleColor2: "#e8a05018", starTint: "#e8a05010", landColors: ["#1c1612", "#201a14", "#241c16"] },
+  },
+  deepSea: {
+    name: "Deep Sea",
+    description: "Bioluminescent teal and cyan on ocean black",
+    preview: ["#080c10", "#20e0c0", "#0898a0", "#10c8b0"],
+    palette: { rose: "#20c0a8", sky: "#0898a0", gold: "#40e0c8", heart: "#18a890", text: "#d0f0ec", cream: "#0c1014", textMid: "#68b0a8", textMuted: "#408880", textFaint: "#286058", special: "#40e0c8", specialSoft: "#58f0d8" },
+    scene: { bg: "#04080a", sphereColor: "#101818", sphereEmissive: "#0c1414", glowColors: ["#20c0a818", "#20c0a812", "#20c0a80c", "#20c0a806"], coastColor: "#20e0c025", particleColor: "#20c0a820", particleColor2: "#0898a018", starTint: "#20e0c00c", landColors: ["#0c1414", "#101818", "#141c1c"] },
+  },
 };
 

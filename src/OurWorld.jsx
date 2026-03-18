@@ -5243,18 +5243,29 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               const baseSC = isMyWorld ? MY_WORLD_SCENE : sharedCfg ? sharedCfg.scene : OUR_WORLD_SCENE;
               return <>
                 <div style={{ fontSize: 7, color: P.textMid, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 6, marginTop: 2 }}>Theme Presets</div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
-                  {Object.entries(WORLD_THEMES).map(([key, theme]) => (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 12 }}>
+                  {Object.entries(WORLD_THEMES).map(([key, theme]) => {
+                    const isActive = JSON.stringify(config.customPalette || {}) === JSON.stringify(theme.palette) && JSON.stringify(config.customScene || {}) === JSON.stringify(theme.scene);
+                    const bgColor = theme.preview[0] || "#1a1a2e";
+                    const accentColors = theme.preview.slice(1);
+                    return (
                     <button key={key} onClick={() => {
                       setConfig({ customPalette: theme.palette, customScene: theme.scene });
                       showToast(`${theme.name} theme applied — reload for scene colors`, "🎨", 3000);
-                    }} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", background: "transparent", border: `1px solid ${P.textFaint}30`, borderRadius: 10, cursor: "pointer", fontFamily: "inherit", transition: "all .2s" }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = P.rose + "60"; e.currentTarget.style.background = P.rose + "08"; }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = P.textFaint + "30"; e.currentTarget.style.background = "transparent"; }}>
-                      <div style={{ display: "flex", gap: 2 }}>{theme.preview.map((c, i) => <div key={i} style={{ width: 10, height: 10, borderRadius: "50%", background: c }} />)}</div>
-                      <span style={{ fontSize: 9, color: P.text }}>{theme.name}</span>
+                    }} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: "6px 4px", background: isActive ? P.rose + "12" : "transparent", border: isActive ? `1.5px solid ${P.gold || P.rose}` : `1px solid ${P.textFaint}25`, borderRadius: 10, cursor: "pointer", fontFamily: "inherit", transition: "all .2s" }}
+                    onMouseEnter={e => { if (!isActive) { e.currentTarget.style.borderColor = P.rose + "50"; e.currentTarget.style.background = P.rose + "08"; }}}
+                    onMouseLeave={e => { if (!isActive) { e.currentTarget.style.borderColor = P.textFaint + "25"; e.currentTarget.style.background = "transparent"; }}}>
+                      <div style={{ width: "100%", maxWidth: 80, height: 50, borderRadius: 6, background: bgColor, position: "relative", overflow: "hidden", border: `1px solid ${P.textFaint}15` }}>
+                        <div style={{ position: "absolute", bottom: 10, left: "50%", transform: "translateX(-50%)", width: 28, height: 28, borderRadius: "50%", border: `1.5px solid ${accentColors[0] || "#888"}80`, opacity: 0.7 }} />
+                        <div style={{ position: "absolute", top: 6, right: 6, display: "flex", gap: 3 }}>
+                          {accentColors.slice(0, 3).map((c, i) => <div key={i} style={{ width: 5, height: 5, borderRadius: "50%", background: c, opacity: 0.9 }} />)}
+                        </div>
+                        <div style={{ position: "absolute", bottom: 22, left: 8, width: 12, height: 1, background: (accentColors[0] || "#888") + "60", borderRadius: 1 }} />
+                        <div style={{ position: "absolute", bottom: 18, left: 6, width: 8, height: 1, background: (accentColors[1] || accentColors[0] || "#888") + "40", borderRadius: 1 }} />
+                      </div>
+                      <span style={{ fontSize: 7.5, color: isActive ? P.text : P.textMid, fontWeight: isActive ? 600 : 400, letterSpacing: ".02em" }}>{theme.name}</span>
                     </button>
-                  ))}
+                  );})}
                 </div>
                 <div style={{ fontSize: 7, color: P.textMid, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 4, marginTop: 2 }}>Interface Colors</div>
                 {cPick("Primary Accent", "Markers, buttons, borders, highlights", cp.rose || baseP.rose, v => setCP("rose", v))}
