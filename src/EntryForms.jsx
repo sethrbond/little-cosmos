@@ -2,6 +2,18 @@ import { useState, useRef, useEffect, useCallback, Component } from "react";
 import { usePalette } from "./PaletteContext.jsx";
 import { geocodeSearch } from "./geocode.js";
 
+// Reverse geocode helper — returns { city, country } or null
+async function reverseGeocode(lat, lng) {
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const addr = data.address;
+    if (!addr) return null;
+    return { city: addr.city || addr.town || addr.village || "", country: addr.country || "" };
+  } catch { return null; }
+}
+
 // Shared font family — import this instead of duplicating the string
 export const FONT_FAMILY = "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif";
 
@@ -435,9 +447,21 @@ export function AddForm({ types, defaultType = "together", defaultWho = "both", 
   const [ns, setNs] = useState({ city: "", lat: "", lng: "", notes: "", dateStart: "", dateEnd: "" });
   const [stopSugg, setStopSugg] = useState([]);
   const [showStopSugg, setShowStopSugg] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const dateEndRef = useRef(null);
   const notesRef = useRef(null);
   const memoryPrompt = useMemoryPrompt(f.type);
+
+  // Reverse geocode when lat/lng manually changed
+  useEffect(() => {
+    const latVal = parseFloat(f.lat), lngVal = parseFloat(f.lng);
+    if (isNaN(latVal) || isNaN(lngVal) || latVal < -90 || latVal > 90 || lngVal < -180 || lngVal > 180) return;
+    const timer = setTimeout(async () => {
+      const result = await reverseGeocode(latVal, lngVal);
+      if (result) sf(p => ({ ...p, city: result.city || p.city, country: result.country || p.country }));
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [f.lat, f.lng]);
 
   const lat = parseFloat(f.lat), lng = parseFloat(f.lng);
   const validCoords = !isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
@@ -510,10 +534,13 @@ export function AddForm({ types, defaultType = "together", defaultWho = "both", 
       </div>
 
       <Fld l="Country" v={f.country} set={v => sf(p => ({ ...p, country: v }))} ph="Auto-filled from city selection" />
-      <div style={{ display: "flex", gap: 8 }}>
+      <div style={{ marginBottom: 4 }}>
+        <span onClick={() => setShowAdvanced(a => !a)} style={{ fontSize: 11, color: P.textMuted || "#888", cursor: "pointer", userSelect: "none" }}>{showAdvanced ? "Advanced \u25be" : "Advanced \u25b8"}</span>
+      </div>
+      {showAdvanced && <div style={{ display: "flex", gap: 8 }}>
         <div style={{ flex: 1 }}><FldR l="Latitude" v={f.lat} t="number" set={v => sf(p => ({ ...p, lat: v }))} ph="Auto-filled" req /></div>
         <div style={{ flex: 1 }}><FldR l="Longitude" v={f.lng} t="number" set={v => sf(p => ({ ...p, lng: v }))} ph="Auto-filled" req /></div>
-      </div>
+      </div>}
       <div style={{ display: "flex", gap: 8 }}>
         <div style={{ flex: 1, marginBottom: 9 }}><RLbl req>Start Date</RLbl><input type="date" value={f.dateStart || ""} onChange={e => { const v = e.target.value; sf(p => ({ ...p, dateStart: v })); if (parseInt(v?.split('-')[0], 10) >= 1000) setTimeout(() => { if (dateEndRef.current) { dateEndRef.current.showPicker?.(); dateEndRef.current.focus(); } }, 50); }} style={inputStyle()} /></div>
         <div style={{ flex: 1, marginBottom: 9 }}><RLbl req>End Date</RLbl><input ref={dateEndRef} type="date" value={f.dateEnd || ""} onChange={e => { const v = e.target.value; sf(p => ({ ...p, dateEnd: v })); if (parseInt(v?.split('-')[0], 10) >= 1000) setTimeout(() => { if (notesRef.current) notesRef.current.focus(); }, 50); }} style={inputStyle()} /></div>
@@ -586,6 +613,7 @@ export function EditForm({ entry, types, fieldLabels, onChange, onSave, onClose,
   const [ns, setNs] = useState({ city: "", lat: "", lng: "", notes: "", dateStart: "", dateEnd: "" });
   const [stopSugg, setStopSugg] = useState([]);
   const [showStopSugg, setShowStopSugg] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [citySugg, setCitySugg] = useState([]);
   const [showCitySugg, setShowCitySugg] = useState(false);
   const editDateEndRef = useRef(null);
@@ -612,6 +640,17 @@ export function EditForm({ entry, types, fieldLabels, onChange, onSave, onClose,
     setStopSugg([]); setShowStopSugg(false);
   };
 
+  // Reverse geocode when lat/lng manually changed
+  useEffect(() => {
+    const latVal = parseFloat(entry.lat), lngVal = parseFloat(entry.lng);
+    if (isNaN(latVal) || isNaN(lngVal) || latVal < -90 || latVal > 90 || lngVal < -180 || lngVal > 180) return;
+    const timer = setTimeout(async () => {
+      const result = await reverseGeocode(latVal, lngVal);
+      if (result) onChange(p => ({ ...p, city: result.city || p.city, country: result.country || p.country }));
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [entry.lat, entry.lng]);
+
   return (
     <div ref={trapRef} style={{ position: "absolute", top: "42%", right: 18, transform: "translateY(-50%)", zIndex: 30, background: P.card, backdropFilter: "blur(28px)", borderRadius: 20, padding: 22, maxWidth: 340, minWidth: 270, maxHeight: "65vh", overflowY: "auto", boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 20px 56px rgba(61,53,82,.1)", border: `1px solid ${P.together}12`, fontFamily: "'Palatino Linotype',Palatino,Georgia,serif", animation: "fadeIn .3s ease" }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}><h3 style={{ margin: 0, fontSize: 15, fontWeight: 400, letterSpacing: ".04em" }}>Edit</h3><button aria-label="Close edit form" onClick={onClose} style={{ background: "none", border: "none", fontSize: 16, color: P.textFaint, cursor: "pointer" }}>×</button></div>
@@ -630,7 +669,10 @@ export function EditForm({ entry, types, fieldLabels, onChange, onSave, onClose,
         )}
       </div>
       <Fld l="Country" v={entry.country} set={v => onChange(p => ({ ...p, country: v }))} />
-      <div style={{ display: "flex", gap: 6 }}><div style={{ flex: 1 }}><Fld l="Lat" v={entry.lat} t="number" set={v => onChange(p => ({ ...p, lat: parseFloat(v) || 0 }))} /></div><div style={{ flex: 1 }}><Fld l="Lng" v={entry.lng} t="number" set={v => onChange(p => ({ ...p, lng: parseFloat(v) || 0 }))} /></div></div>
+      <div style={{ marginBottom: 4 }}>
+        <span onClick={() => setShowAdvanced(a => !a)} style={{ fontSize: 11, color: P.textMuted || "#888", cursor: "pointer", userSelect: "none" }}>{showAdvanced ? "Advanced \u25be" : "Advanced \u25b8"}</span>
+      </div>
+      {showAdvanced && <div style={{ display: "flex", gap: 6 }}><div style={{ flex: 1 }}><Fld l="Lat" v={entry.lat} t="number" set={v => onChange(p => ({ ...p, lat: parseFloat(v) || 0 }))} /></div><div style={{ flex: 1 }}><Fld l="Lng" v={entry.lng} t="number" set={v => onChange(p => ({ ...p, lng: parseFloat(v) || 0 }))} /></div></div>}
       <div style={{ display: "flex", gap: 6 }}><div style={{ flex: 1, marginBottom: 9 }}><Lbl>Start</Lbl><input type="date" value={entry.dateStart || ""} onChange={e => { const v = e.target.value; onChange(p => ({ ...p, dateStart: v })); if (parseInt(v?.split('-')[0], 10) >= 1000) setTimeout(() => { if (editDateEndRef.current) { editDateEndRef.current.showPicker?.(); editDateEndRef.current.focus(); } }, 50); }} style={inputStyle()} /></div><div style={{ flex: 1, marginBottom: 9 }}><Lbl>End</Lbl><input ref={editDateEndRef} type="date" value={entry.dateEnd || ""} onChange={e => { const v = e.target.value; onChange(p => ({ ...p, dateEnd: v || null })); if (parseInt(v?.split('-')[0], 10) >= 1000) setTimeout(() => { if (editNotesRef.current) editNotesRef.current.focus(); }, 50); }} style={inputStyle()} /></div></div>
       <div style={{ marginBottom: 8 }}><Lbl>Type</Lbl><select value={entry.type} onChange={e => { const t = e.target.value; onChange(p => ({ ...p, type: t, who: types[t]?.who || "both" })); }} style={inputStyle()}>{Object.entries(types).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}</select></div>
       <div style={{ marginBottom: 8, display: "flex", alignItems: "center", gap: 8 }}><Lbl style={{ margin: 0 }}>Rating</Lbl><StarRating value={entry.rating} onChange={v => onChange(p => ({ ...p, rating: v }))} /></div>

@@ -1,13 +1,36 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { TBtn, TBtnGroup, hasDraft, getDraftSummary } from "./EntryForms.jsx";
 import SyncIndicator from "./SyncIndicator.jsx";
 import NotificationCenter from "./NotificationCenter.jsx";
 
 const P = window.__cosmosP;
 
+const hintStyle = {
+  fontSize: 10, color: (P?.textFaint || "#aaa"), opacity: 0.7,
+  fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif",
+  whiteSpace: "nowrap", pointerEvents: "none",
+  marginLeft: 2, letterSpacing: 0.3,
+  animation: "fadeIn .6s ease",
+};
+
+function HintLabel({ show, text }) {
+  if (!show) return null;
+  return <span style={hintStyle}>{text}</span>;
+}
+
+function HintRow({ show, label, children }) {
+  if (!show) return children;
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+      {children}
+      <HintLabel show text={label} />
+    </div>
+  );
+}
+
 export default function WorldToolbar({
   actions, isViewer, isMyWorld, isPartnerWorld, isSharedWorld,
-  worldId, worldMode, introComplete,
+  worldId, worldMode, introComplete, firstVisit, onDismissFirstVisit,
   entryCount, sortedCount, togetherCount, allPhotosCount,
   undoCount, redoCount, recentlyDeletedCount,
   isPlaying, showSearch, showStats, showConstellation, showRoutes,
@@ -20,22 +43,38 @@ export default function WorldToolbar({
   const quickDraftKey = `cosmos-draft-quick-${worldId || worldMode}`;
   const hasDraftEntry = hasDraft(draftKey) || hasDraft(quickDraftKey);
 
+  // Wrap action to dismiss first-visit hints on any toolbar click
+  const w = useCallback((fn) => (...args) => {
+    if (firstVisit && onDismissFirstVisit) onDismissFirstVisit();
+    return fn(...args);
+  }, [firstVisit, onDismissFirstVisit]);
+
   return (
     <div role="toolbar" aria-label="World tools" style={{ position: "absolute", top: 22, left: 22, zIndex: 20, display: "flex", flexDirection: "column", gap: 7, opacity: introComplete ? 1 : 0, transition: "opacity .8s ease" }}>
 
       {/* Always visible: Add + Settings + More + Exit */}
-      {!isViewer && <TBtn onClick={actions.addEntry} accent tip="Add Entry">{"\uFF0B"}</TBtn>}
+      {!isViewer && (
+        <HintRow show={firstVisit} label="Add">
+          <TBtn onClick={w(actions.addEntry)} accent tip="Add Entry">{"\uFF0B"}</TBtn>
+        </HintRow>
+      )}
 
       {!isViewer && hasDraftEntry && (
-        <TBtn onClick={() => { if (hasDraft(draftKey)) actions.addEntry(); else actions.quickAdd(); }} tip="Resume draft">
+        <TBtn onClick={w(() => { if (hasDraft(draftKey)) actions.addEntry(); else actions.quickAdd(); })} tip="Resume draft">
           <span style={{ position: "relative" }}>{"\uD83D\uDCDD"}<span style={{ position: "absolute", top: -4, right: -6, width: 7, height: 7, borderRadius: "50%", background: "#c9a96e", border: "1.5px solid rgba(255,255,255,.9)", animation: "pulse 2s infinite" }} /></span>
         </TBtn>
       )}
 
-      {!isViewer && <TBtn onClick={actions.openSettings} tip="Settings">{"\u2699\uFE0F"}</TBtn>}
+      {!isViewer && (
+        <HintRow show={firstVisit} label="Settings">
+          <TBtn onClick={w(actions.openSettings)} tip="Settings">{"\u2699\uFE0F"}</TBtn>
+        </HintRow>
+      )}
 
       {/* Everything else toggle */}
-      <TBtn onClick={() => setMenuOpen(v => !v)} a={menuOpen} tip={menuOpen ? "Close menu" : "More tools"}>{"\u22EF"}</TBtn>
+      <HintRow show={firstVisit} label="More">
+        <TBtn onClick={w(() => setMenuOpen(v => !v))} a={menuOpen} tip={menuOpen ? "Close menu" : "More tools"}>{"\u22EF"}</TBtn>
+      </HintRow>
 
       {/* Expanded menu */}
       {menuOpen && (
@@ -71,8 +110,10 @@ export default function WorldToolbar({
       {pendingOffline > 0 && <SyncIndicator isConnected={true} lastSync={lastSync} pendingOffline={pendingOffline} palette={{ bg: sceneBg, text: P?.text }} style={{ margin: '4px auto' }} />}
 
       <div style={{ flex: 1 }} />
-      {onSwitchWorld && <TBtn onClick={actions.switchWorld} tip="Back to Cosmos">{"\uD83D\uDD04"}</TBtn>}
-      <TBtn onClick={actions.signOut} tip="Sign Out">{"\uD83D\uDEAA"}</TBtn>
+      {onSwitchWorld && <TBtn onClick={w(actions.switchWorld)} tip="Back to Cosmos">{"\uD83D\uDD04"}</TBtn>}
+      <HintRow show={firstVisit} label="Exit">
+        <TBtn onClick={w(actions.signOut)} tip="Sign Out">{"\uD83D\uDEAA"}</TBtn>
+      </HintRow>
     </div>
   );
 }

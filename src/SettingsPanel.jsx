@@ -8,6 +8,7 @@ import {
 } from "./worldConfigs.js";
 import { sendWelcomeLetter, getMyLetters, deleteWelcomeLetter } from "./supabaseWelcomeLetters.js";
 import { getWorldMembers, removeWorldMember, updateMemberRole, deleteWorld, leaveWorld, updateWorld } from "./supabaseWorlds.js";
+import { supabase } from "./supabaseClient.js";
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
@@ -52,6 +53,10 @@ export default function SettingsPanel({
   const [wlSending, setWlSending] = useState(false);
   const [wlSent, setWlSent] = useState(false);
   const [myLetters, setMyLetters] = useState([]);
+
+  // Delete account state
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   // Load letters on mount
   useEffect(() => {
@@ -436,6 +441,46 @@ export default function SettingsPanel({
             onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = `0 1px 3px ${P.text}04`; }}>{"\uD83D\uDCE4"} Import Data</button>
         </div>
         <div style={{ fontSize: 10, color: P.textFaint, fontStyle: "italic", marginBottom: 8 }}>Export saves all entries, photos, and settings as a JSON file</div>
+
+        <div style={{ margin: "14px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
+        <div style={{ padding: 16, background: "rgba(200,80,80,0.06)", border: "1px solid rgba(200,80,80,0.18)", borderRadius: 14 }}>
+          <div style={{ fontSize: 10, color: "#c97777", letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 6, fontWeight: 500 }}>Delete Account</div>
+          <p style={{ fontSize: 10, color: "#c9777a", lineHeight: 1.6, marginBottom: 10 }}>This will permanently delete your account and all your data. This cannot be undone.</p>
+          <div style={{ marginBottom: 8 }}>
+            <label style={{ fontSize: 10, color: P.textFaint, display: "block", marginBottom: 4 }}>Type <strong style={{ color: "#c97777" }}>DELETE</strong> to confirm</label>
+            <input
+              type="text"
+              value={deleteConfirm}
+              onChange={e => setDeleteConfirm(e.target.value)}
+              placeholder="Type DELETE"
+              style={{ ...inputStyle(), borderColor: deleteConfirm === "DELETE" ? "rgba(200,80,80,0.5)" : undefined }}
+            />
+          </div>
+          <button
+            disabled={deleteConfirm !== "DELETE" || deleting}
+            onClick={async () => {
+              setDeleting(true);
+              try {
+                const { error } = await supabase.rpc("delete_my_account");
+                if (error) throw error;
+                await supabase.auth.signOut();
+                showToast("Your account has been deleted. Goodbye \ud83d\udcab", "\u2728", 5000);
+              } catch (err) {
+                showToast("Failed to delete account: " + err.message, "\u26A0\uFE0F", 5000);
+                setDeleting(false);
+              }
+            }}
+            style={{
+              width: "100%", padding: "10px", background: deleteConfirm === "DELETE" && !deleting ? "#c94444" : `${P.textFaint}30`,
+              border: "none", borderRadius: 10, cursor: deleteConfirm === "DELETE" && !deleting ? "pointer" : "not-allowed",
+              fontSize: 10, fontFamily: "inherit", color: deleteConfirm === "DELETE" ? "#fff" : P.textFaint,
+              fontWeight: 600, letterSpacing: ".06em", transition: "all .25s",
+              opacity: deleteConfirm === "DELETE" && !deleting ? 1 : 0.5
+            }}
+          >
+            {deleting ? "Deleting..." : "Delete My Account"}
+          </button>
+        </div>
 
         <button onClick={handleClose} style={{ width: "100%", padding: "11px", background: `linear-gradient(135deg, ${P.rose}, ${P.sky})`, color: "#fff", border: "none", borderRadius: 12, cursor: "pointer", fontSize: 11, fontFamily: "inherit", marginTop: 8, letterSpacing: ".06em", boxShadow: `0 2px 8px ${P.rose}30, 0 4px 16px ${P.rose}15`, transition: "all .25s" }}
           onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = `0 4px 12px ${P.rose}40, 0 8px 24px ${P.rose}20`; }}

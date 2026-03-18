@@ -244,10 +244,20 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     return () => { unsub(); window.removeEventListener('online', handleOnline); };
   }, [dbKey, _rawDb]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Show confirmation toast when offline queue finishes flushing
+  const prevPendingRef = useRef(null);
+  useEffect(() => {
+    if (prevPendingRef.current !== null && prevPendingRef.current > 0 && pendingOffline === 0) {
+      showToast("Changes synced ✓", "✅", 2500);
+    }
+    prevPendingRef.current = pendingOffline;
+  }, [pendingOffline]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const [data, _dispatch] = useReducer(reducer, { entries: [] });
   const dispatch = useCallback(action => _dispatch({ ...action, db }), [db]);
   const [config, setConfigState] = useState(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(true);
+  const [paginationNotice, setPaginationNotice] = useState(false);
   const loadErrorRef = useRef(false);
 
   // Palette & scene merge custom overrides from config (takes effect on render for UI, on reload for scene)
@@ -291,6 +301,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         const cfg = results[1].status === 'fulfilled' ? results[1].value : null;
         results.forEach((r, i) => { if (r.status === 'rejected') console.error('[loadWorld] call', i, 'failed:', r.reason) });
         dispatch({ type: "LOAD", entries: entries || [] });
+        setPaginationNotice((entries || []).length === 500);
         if (cfg) {
           const merged = { ...DEFAULT_CONFIG, ...cfg };
           // Migrate legacy single loveLetter to loveLetters array (partner worlds only)
@@ -571,6 +582,27 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [pjAutoPlay, setPjAutoPlay] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState(null);
+  const editSnapshotRef = useRef(null); // snapshot of entry data when editing started
+
+  // Concurrent edit detection — warn when someone else updates the entry being edited
+  useEffect(() => {
+    if (!editing) { editSnapshotRef.current = null; return; }
+    // Capture snapshot when editing first opens (snapshot ref is null)
+    if (!editSnapshotRef.current) {
+      editSnapshotRef.current = JSON.stringify(data.entries.find(e => e.id === editing.id) || {});
+      return;
+    }
+    // Check if the entry in data changed since we started editing
+    const current = data.entries.find(e => e.id === editing.id);
+    if (!current) return;
+    const currentJson = JSON.stringify(current);
+    if (currentJson !== editSnapshotRef.current) {
+      showToast("Someone else just updated this entry — your save may overwrite their changes", "⚠️", 6000);
+      // Update snapshot so we only warn once per external change
+      editSnapshotRef.current = currentJson;
+    }
+  }, [data.entries, editing?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const [photoIdx, setPhotoIdx] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIdx, setLightboxIdx] = useState(0);
@@ -591,6 +623,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 });
   const uploadLockRef = useRef(Promise.resolve()); // sequential photo upload queue
+  const failedPhotosRef = useRef({ files: [], entryId: null }); // retry failed photo uploads
   const [cardGallery, setCardGallery] = useState(false);
   const [markerFilter, setMarkerFilter] = useState("all"); // "all", "together", "special", "home-seth", "home-rosie", "seth-solo", "rosie-solo"
   const [listRenderLimit, setListRenderLimit] = useState(100);
@@ -625,6 +658,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [showYearReview, setShowYearReview] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  const [toolbarFirstVisit, setToolbarFirstVisit] = useState(() => !localStorage.getItem(`cosmos_toolbar_seen_${worldId || worldMode}`));
+  const dismissToolbarFirstVisit = useCallback(() => { setToolbarFirstVisit(false); try { localStorage.setItem(`cosmos_toolbar_seen_${worldId || worldMode}`, "1"); } catch {} }, [worldId, worldMode]);
+  useEffect(() => { if (!toolbarFirstVisit) return; const t = setTimeout(dismissToolbarFirstVisit, 10000); return () => clearTimeout(t); }, [toolbarFirstVisit, dismissToolbarFirstVisit]);
   const [recentlyDeleted, setRecentlyDeleted] = useState(() => {
     try { const raw = localStorage.getItem(`cosmos_trash_${worldId || worldMode}`); return raw ? JSON.parse(raw).filter(t => Date.now() - t.deletedAt < 30 * 24 * 60 * 60 * 1000) : []; } catch { return []; }
   });
@@ -1336,7 +1372,39 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         }
         if (failed.length > 0) console.warn(`[photoUpload] ${failed.length} of ${files.length} uploads failed:`, failed);
         if (urls.length === 0) {
-          showToast("Photos couldn’t upload — check your connection", "❌", 5000);
+          failedPhotosRef.current = { files: [...files], entryId: id };
+          showToast("Photos couldn’t upload — check your connection", "❌", 6000, () => {
+            const { files: retryFiles, entryId } = failedPhotosRef.current;
+            if (retryFiles.length > 0 && entryId) {
+              uploadLockRef.current = uploadLockRef.current.then(async () => {
+                const curDb = dbRef.current;
+                const curDispatch = dispatchRef.current;
+                setUploading(true);
+                setUploadProgress({ done: 0, total: retryFiles.length });
+                const retryUrls = [];
+                for (let i = 0; i < retryFiles.length; i++) {
+                  try {
+                    const compressed = await compressImage(retryFiles[i]);
+                    const url = await curDb.uploadPhoto(compressed, entryId);
+                    if (url && typeof url === "string") retryUrls.push(url);
+                  } catch (err) { console.warn("[photoRetry] failed:", err); }
+                  setUploadProgress({ done: i + 1, total: retryFiles.length });
+                }
+                if (retryUrls.length > 0) {
+                  const current = await curDb.readPhotos(entryId);
+                  const existing = current.ok ? current.photos : [];
+                  const merged = [...existing, ...retryUrls];
+                  await curDb.savePhotos(entryId, merged);
+                  curDispatch({ type: "ADD_PHOTOS", id: entryId, urls: retryUrls });
+                  showToast(`${retryUrls.length} photo${retryUrls.length > 1 ? "s" : ""} recovered`, "✅", 3000);
+                } else {
+                  showToast("Retry failed — check your connection", "❌", 4000);
+                }
+                failedPhotosRef.current = { files: [], entryId: null };
+                setUploading(false);
+              }).catch(err => { console.error("[photoRetry] error:", err); setUploading(false); });
+            }
+          });
           setUploading(false); input.value = ""; return;
         }
 
@@ -1354,7 +1422,39 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         // Step 5: Show result
         if (saveResult.ok) {
           if (failed.length > 0) {
-            showToast(`${urls.length} of ${files.length} photos saved — ${failed.length} couldn’t upload. Try again?`, "⚠️", 6000);
+            failedPhotosRef.current = { files: files.filter(f => failed.includes(f.name)), entryId: id };
+            showToast(`${urls.length} of ${files.length} photos saved — ${failed.length} couldn’t upload`, "⚠️", 8000, () => {
+              const { files: retryFiles, entryId } = failedPhotosRef.current;
+              if (retryFiles.length > 0 && entryId) {
+                uploadLockRef.current = uploadLockRef.current.then(async () => {
+                  const curDb = dbRef.current;
+                  const curDispatch = dispatchRef.current;
+                  setUploading(true);
+                  setUploadProgress({ done: 0, total: retryFiles.length });
+                  const retryUrls = [];
+                  for (let i = 0; i < retryFiles.length; i++) {
+                    try {
+                      const compressed = await compressImage(retryFiles[i]);
+                      const url = await curDb.uploadPhoto(compressed, entryId);
+                      if (url && typeof url === "string") retryUrls.push(url);
+                    } catch (err) { console.warn("[photoRetry] failed:", err); }
+                    setUploadProgress({ done: i + 1, total: retryFiles.length });
+                  }
+                  if (retryUrls.length > 0) {
+                    const current = await curDb.readPhotos(entryId);
+                    const existing = current.ok ? current.photos : [];
+                    const merged = [...existing, ...retryUrls];
+                    await curDb.savePhotos(entryId, merged);
+                    curDispatch({ type: "ADD_PHOTOS", id: entryId, urls: retryUrls });
+                    showToast(`${retryUrls.length} photo${retryUrls.length > 1 ? "s" : ""} recovered`, "✅", 3000);
+                  } else {
+                    showToast("Retry failed — check your connection", "❌", 4000);
+                  }
+                  failedPhotosRef.current = { files: [], entryId: null };
+                  setUploading(false);
+                }).catch(err => { console.error("[photoRetry] error:", err); setUploading(false); });
+              }
+            });
           } else {
             showToast(`${urls.length} photo${urls.length > 1 ? "s" : ""} saved (${merged.length} total)`, "✅", 3000);
           }
@@ -1677,6 +1777,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         pendingOffline={pendingOffline}
         lastSync={lastSync}
         sceneBg={SC.bg}
+        firstVisit={toolbarFirstVisit}
+        onDismissFirstVisit={dismissToolbarFirstVisit}
       />
 
       {/* PRESENCE INDICATOR — who's exploring this world right now */}
@@ -2037,6 +2139,17 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         onClose={() => { setShowRecap(false); setRecapYear(null); setRecapAutoPlay(false); setRecapPhase('title'); }} flyTo={flyTo}
       />}
 
+
+      {/* PAGINATION NOTICE — shown when 500+ entries exist */}
+      {paginationNotice && (
+        <div style={{ position: "absolute", bottom: 24, left: "50%", transform: "translateX(-50%)", zIndex: 12, pointerEvents: "auto", animation: "fadeIn .8s ease" }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 16px", background: P.card, backdropFilter: "blur(12px)", borderRadius: 20, fontSize: 11, color: P.textMuted, letterSpacing: ".04em", boxShadow: "0 2px 12px rgba(0,0,0,.08)", border: `1px solid ${P.textFaint}15` }}>
+            <span>Showing your 500 most recent entries</span>
+            <button onClick={() => setPaginationNotice(false)} style={{ background: "none", border: "none", color: P.textFaint, fontSize: 14, cursor: "pointer", padding: "0 0 0 2px", lineHeight: 1, fontFamily: "inherit" }} aria-label="Dismiss">&times;</button>
+          </div>
+        </div>
+      )}
+
       {/* TOAST NOTIFICATIONS (stacked) */}
       <div aria-live="polite" role="status" style={{ position: "absolute", bottom: 120, left: "50%", transform: "translateX(-50%)", zIndex: 55, display: toasts.length > 0 ? "flex" : "none", flexDirection: "column-reverse", gap: 6, alignItems: "center", maxHeight: "30vh", overflow: "hidden", maxWidth: "90vw" }}>
           {toasts.map((t, i) => (
@@ -2044,7 +2157,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 18px", background: P.card, backdropFilter: "blur(16px)", borderRadius: 24, boxShadow: "0 4px 20px rgba(0,0,0,.1)", border: `1px solid ${P.rose}15`, fontSize: 12, color: P.text, letterSpacing: ".05em", whiteSpace: "nowrap" }}>
                 <span>{t.icon}</span>
                 <span>{t.message}</span>
-                {t.undoAction && <button onClick={() => handleUndo(t)} style={{ marginLeft: 6, padding: "2px 8px", background: P.sky, color: "#fff", border: "none", borderRadius: 12, fontSize: 9, cursor: "pointer", fontFamily: "inherit", fontWeight: 500 }}>Undo</button>}
+                {t.undoAction && <button onClick={() => handleUndo(t)} style={{ marginLeft: 6, padding: "2px 8px", background: P.sky, color: "#fff", border: "none", borderRadius: 12, fontSize: 9, cursor: "pointer", fontFamily: "inherit", fontWeight: 500 }}>{t.message?.includes("couldn't upload") || t.message?.includes("check your connection") ? "Try again" : "Undo"}</button>}
               </div>
             </div>
           ))}

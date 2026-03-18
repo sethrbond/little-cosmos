@@ -12,6 +12,7 @@ export function reducer(st, a) {
   };
   switch (a.type) {
     case "LOAD": return { ...st, entries: a.entries, undoStack: st.undoStack || [], redoStack: st.redoStack || [] };
+    case "APPEND": { const ids = new Set(st.entries.map(e => e.id)); const novel = (a.entries || []).filter(e => !ids.has(e.id)); return novel.length ? { ...st, entries: [...st.entries, ...novel] } : st; }
     case "UNDO": {
       const stack = [...(st.undoStack || [])];
       if (stack.length === 0) return st;

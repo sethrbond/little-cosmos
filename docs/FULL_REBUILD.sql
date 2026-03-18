@@ -1001,6 +1001,32 @@ END $$;
 
 
 -- ============================================================
+--  29b. RPC FUNCTION: Delete my account (self-service)
+--  Removes all user data. Storage photos must be cleaned separately.
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION delete_my_account()
+RETURNS void AS $$
+BEGIN
+  -- Delete user's entries
+  DELETE FROM entries WHERE user_id = auth.uid();
+  -- Delete user's config
+  DELETE FROM config WHERE user_id = auth.uid();
+  -- Delete user's world memberships
+  DELETE FROM world_members WHERE user_id = auth.uid();
+  -- Delete worlds created by user (that have no other members)
+  DELETE FROM worlds WHERE created_by = auth.uid()
+    AND id NOT IN (SELECT world_id FROM world_members WHERE user_id != auth.uid());
+  -- Delete user's connections
+  DELETE FROM cosmos_connections WHERE requester_id = auth.uid() OR target_user_id = auth.uid();
+  -- Delete user's welcome letters
+  DELETE FROM welcome_letters WHERE from_user_id = auth.uid();
+  -- Note: photos in storage must be cleaned separately (edge function or manual)
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+
+-- ============================================================
 --  30. CLEANUP: Remove orphaned data (safe — only removes broken refs)
 -- ============================================================
 

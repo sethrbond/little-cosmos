@@ -62,7 +62,30 @@ export function createMyWorldDB(worldId, userId) {
       const { data, error } = await supabase.from('entries').select('*')
         .eq('world_id', worldId)
         .order('date_start', { ascending: true })
+        .range(0, 499)
       if (error) { console.error('[my:loadEntries] error:', error); return [] }
+      return (data || []).map(row => ({
+        id: row.id, city: row.city, country: row.country || '',
+        lat: row.lat, lng: row.lng,
+        dateStart: row.date_start, dateEnd: row.date_end || null,
+        type: row.entry_type, who: 'solo',
+        zoomLevel: row.zoom_level || 1, notes: row.notes || '',
+        museums: safeArray(row.museums),
+        restaurants: safeArray(row.restaurants), highlights: mergeMemoriesIntoHighlights(row),
+        photos: safeArray(row.photos), stops: safeArray(row.stops),
+        musicUrl: row.music_url || null, favorite: row.favorite || false,
+        loveNote: '',
+        photoCaptions: row.photo_captions || {},
+      }))
+    },
+
+
+    loadMoreEntries: async (offset) => {
+      const { data, error } = await supabase.from('entries').select('*')
+        .eq('world_id', worldId)
+        .order('date_start', { ascending: true })
+        .range(offset, offset + 499)
+      if (error) { console.error('[my:loadMoreEntries] error:', error); return [] }
       return (data || []).map(row => ({
         id: row.id, city: row.city, country: row.country || '',
         lat: row.lat, lng: row.lng,
@@ -171,7 +194,28 @@ export function createFriendWorldDB(friendWorldId) {
       const { data, error } = await supabase.from('entries').select('*')
         .eq('world_id', friendWorldId)
         .order('date_start', { ascending: true })
+        .range(0, 499)
       if (error) { console.error('[friend:loadEntries] error:', error); return [] }
+      return (data || []).map(row => ({
+        id: row.id, city: row.city, country: row.country || '',
+        lat: row.lat, lng: row.lng,
+        dateStart: row.date_start, dateEnd: row.date_end || null,
+        type: row.entry_type, who: 'solo',
+        zoomLevel: row.zoom_level || 1, notes: row.notes || '',
+        museums: safeArray(row.museums),
+        restaurants: safeArray(row.restaurants), highlights: mergeMemoriesIntoHighlights(row),
+        photos: safeArray(row.photos), stops: safeArray(row.stops),
+        musicUrl: row.music_url || null, favorite: row.favorite || false,
+        loveNote: '',
+        photoCaptions: row.photo_captions || {},
+      }))
+    },
+    loadMoreEntries: async (offset) => {
+      const { data, error } = await supabase.from('entries').select('*')
+        .eq('world_id', friendWorldId)
+        .order('date_start', { ascending: true })
+        .range(offset, offset + 499)
+      if (error) { console.error('[friend:loadMoreEntries] error:', error); return [] }
       return (data || []).map(row => ({
         id: row.id, city: row.city, country: row.country || '',
         lat: row.lat, lng: row.lng,
