@@ -40,19 +40,19 @@ import { sendWelcomeLetter, getMyLetters, deleteWelcomeLetter } from "./supabase
 import { loadComments, addComment, deleteComment, loadAllWorldReactions, toggleReaction, getWorldMembers, removeWorldMember, updateMemberRole, deleteWorld, leaveWorld, updateWorld, loadMyWorlds, shareEntryToWorld, getPersonalWorldId } from "./supabaseWorlds.js";
 import { thumbnail, compressImage } from "./imageUtils.js";
 import { useCelebrations } from "./useCelebrations.js";
-import StatsOverlay from "./StatsOverlay.jsx";
-import RecapOverlay from "./RecapOverlay.jsx";
-import OnboardingOverlay from "./OnboardingOverlay.jsx";
-import SettingsPanel from "./SettingsPanel.jsx";
-import DetailCard from "./DetailCard.jsx";
-import CinemaOverlay from "./CinemaOverlay.jsx";
-import PhotoJourneyOverlay from "./PhotoJourneyOverlay.jsx";
-import GalleryPanel from "./GalleryPanel.jsx";
-import DreamPanel from "./DreamPanel.jsx";
-import LoveLetterOverlay from "./LoveLetterOverlay.jsx";
-import TimelineSlider from "./TimelineSlider.jsx";
+const StatsOverlay = lazy(() => import("./StatsOverlay.jsx"));
+const RecapOverlay = lazy(() => import("./RecapOverlay.jsx"));
+const OnboardingOverlay = lazy(() => import("./OnboardingOverlay.jsx"));
+const SettingsPanel = lazy(() => import("./SettingsPanel.jsx"));
+const DetailCard = lazy(() => import("./DetailCard.jsx"));
+const CinemaOverlay = lazy(() => import("./CinemaOverlay.jsx"));
+const PhotoJourneyOverlay = lazy(() => import("./PhotoJourneyOverlay.jsx"));
+const GalleryPanel = lazy(() => import("./GalleryPanel.jsx"));
+const DreamPanel = lazy(() => import("./DreamPanel.jsx"));
+const LoveLetterOverlay = lazy(() => import("./LoveLetterOverlay.jsx"));
+const TimelineSlider = lazy(() => import("./TimelineSlider.jsx"));
 import WorldToolbar from "./WorldToolbar.jsx";
-import SearchPanel from "./SearchPanel.jsx";
+const SearchPanel = lazy(() => import("./SearchPanel.jsx"));
 import { useGlobeScene } from "./useGlobeScene.js";
 
 /* =================================================================
