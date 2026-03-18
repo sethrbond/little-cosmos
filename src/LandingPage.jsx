@@ -815,8 +815,7 @@ export default function LandingPage({ onSignIn, onSignUp }) {
           fontSize: 'clamp(14px, 1.8vw, 17px)', opacity: 0.55,
           marginTop: 28, maxWidth: 460, lineHeight: 1.8,
         }}>
-          A globe that fills up with everywhere you've been.
-          Add photos, scribble notes, share it with your favorite people.
+          A spinning globe that holds every place you’ve loved, every story you’ve shared, every little moment you never want to lose. For you and your favorite person.
         </p>
         {/* CTA buttons: Start Your Cosmos + Try the Demo */}
         <div style={{ display: 'flex', gap: 14, marginTop: 44, flexWrap: 'wrap', justifyContent: 'center' }}>
