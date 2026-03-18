@@ -809,7 +809,7 @@ export default function LandingPage({ onSignIn, onSignUp }) {
           marginTop: 16, fontWeight: 300, letterSpacing: 1.5,
           fontStyle: 'italic',
         }}>
-          for the adventures worth remembering forever
+          for the adventures worth sharing forever
         </p>
         <p style={{
           fontSize: 'clamp(14px, 1.8vw, 17px)', opacity: 0.55,
