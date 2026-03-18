@@ -809,13 +809,13 @@ export default function LandingPage({ onSignIn, onSignUp }) {
           marginTop: 16, fontWeight: 300, letterSpacing: 1.5,
           fontStyle: 'italic',
         }}>
-          for the ones who never want to forget
+          for the moments you never want to lose
         </p>
         <p style={{
           fontSize: 'clamp(14px, 1.8vw, 17px)', opacity: 0.55,
           marginTop: 28, maxWidth: 460, lineHeight: 1.8,
         }}>
-          A spinning globe that holds every place you’ve loved, every story you’ve shared, every little moment you never want to lose. For you and your favorite person.
+          A universe that fills up with your stories. Add photos, scribble notes, share it with your favorite people.
         </p>
         {/* CTA buttons: Start Your Cosmos + Try the Demo */}
         <div style={{ display: 'flex', gap: 14, marginTop: 44, flexWrap: 'wrap', justifyContent: 'center' }}>
