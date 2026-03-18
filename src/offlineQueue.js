@@ -6,8 +6,6 @@ const DB_NAME = 'cosmos-offline'
 const DB_VERSION = 1
 const STORE_NAME = 'pending-ops'
 
-const MAX_QUEUE_SIZE = 500
-
 let _db = null
 let _flushInProgress = false
 const _listeners = new Set()
@@ -36,14 +34,6 @@ export async function enqueue(op) {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite')
     const store = tx.objectStore(STORE_NAME)
-    const countReq = store.count()
-    countReq.onsuccess = () => {
-      if (countReq.result >= MAX_QUEUE_SIZE) {
-        // Remove oldest entry
-        const cursorReq = store.openCursor()
-        cursorReq.onsuccess = () => { const c = cursorReq.result; if (c) c.delete() }
-      }
-    }
     store.add({ ...op, createdAt: Date.now() })
     tx.oncomplete = () => { _notify(); resolve() }
     tx.onerror = () => reject(tx.error)
@@ -83,27 +73,6 @@ async function removeOp(queueId) {
   })
 }
 
-// ---- TTL Cleanup ----
-
-async function cleanupStaleEntries() {
-  const db = await openDB()
-  return new Promise((resolve) => {
-    const tx = db.transaction(STORE_NAME, 'readwrite')
-    const store = tx.objectStore(STORE_NAME)
-    const cutoff = Date.now() - 48 * 60 * 60 * 1000
-    const req = store.openCursor()
-    req.onsuccess = () => {
-      const cursor = req.result
-      if (!cursor) { resolve(); return }
-      if (new Date(cursor.value.createdAt).getTime() < cutoff) {
-        cursor.delete()
-      }
-      cursor.continue()
-    }
-    req.onerror = () => resolve()
-  })
-}
-
 // ---- Flush Queue ----
 
 export async function flushQueue(dbFactoryMap) {
@@ -112,10 +81,7 @@ export async function flushQueue(dbFactoryMap) {
   let flushed = 0, failed = 0
 
   try {
-    await cleanupStaleEntries()
     const ops = await getPendingOps()
-    let backoff = 500
-    const MAX_BACKOFF = 30000
     for (const op of ops) {
       try {
         const db = dbFactoryMap[op.dbKey]
@@ -131,14 +97,11 @@ export async function flushQueue(dbFactoryMap) {
 
         await removeOp(op.queueId)
         flushed++
-        backoff = 500 // reset on success
       } catch (err) {
         console.error('[offlineQueue] flush op failed:', op.queueId, err)
         failed++
+        // Stop flushing on network error — will retry on next online event
         if (!navigator.onLine) break
-        // Exponential backoff before retrying next op
-        await new Promise(r => setTimeout(r, backoff))
-        backoff = Math.min(backoff * 2, MAX_BACKOFF)
       }
     }
   } finally {

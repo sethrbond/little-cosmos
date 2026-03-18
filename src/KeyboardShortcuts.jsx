@@ -218,7 +218,7 @@ function KeyboardShortcuts({ onClose, palette: P, worldMode }) {
                   <span style={descStyle}>{desc}</span>
                   <div style={keysWrap}>
                     {keys.map((k, ki) => (
-                      <span key={k + "-" + ki}>
+                      <span key={ki}>
                         {ki > 0 && <span style={plusSign}>/</span>}
                         <kbd style={kbdBase}>{k}</kbd>
                       </span>

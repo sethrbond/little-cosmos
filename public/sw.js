@@ -19,12 +19,6 @@ self.addEventListener('activate', e => {
         keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
       ))
       .then(() => self.clients.claim())
-      .then(() => {
-        // Notify clients of update
-        self.clients.matchAll().then(clients => {
-          clients.forEach(client => client.postMessage({ type: 'SW_UPDATED' }));
-        });
-      })
   );
 });
 

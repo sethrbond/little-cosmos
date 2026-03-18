@@ -65,7 +65,7 @@ function PasswordResetModal({ onDone }) {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
-    if (newPassword.length < 10) { setError('Password must be at least 10 characters'); return }
+    if (newPassword.length < 6) { setError('Password must be at least 6 characters'); return }
     if (newPassword !== confirmPassword) { setError('Passwords do not match'); return }
     setSaving(true)
     const { error } = await supabase.auth.updateUser({ password: newPassword })
@@ -178,7 +178,7 @@ function AppInner() {
     getAllWelcomeLetters(user.email).then(letters => {
       setWelcomeLetters(letters)
       setLetterChecked(true)
-    }).catch(err => { console.error('[welcome letter]', err); showErrorToast('Could not load welcome letters'); setLetterChecked(true) })
+    }).catch(err => { console.error('[welcome letter]', err); setLetterChecked(true) })
   }, [user?.email])
 
   // Load user's shared worlds + connections + ensure personal world exists
@@ -186,11 +186,9 @@ function AppInner() {
   useEffect(() => {
     if (!userId) { setWorldsLoaded(true); return }
     (async () => {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (!session) { console.error("[loadData] NO SESSION"); setWorldsLoaded(true); return }
       try {
         // First pass: load everything including pending invites
-        const results = await Promise.allSettled([
+        const [w, conn, pending, worldInvites, myInfo, pwId] = await Promise.all([
           loadMyWorlds(userId),
           getMyConnections(userId),
           getPendingRequests(user?.email),
@@ -198,19 +196,11 @@ function AppInner() {
           loadMyWorldSubtitle(userId),
           ensurePersonalWorld(userId),
         ])
-        const val = (i) => results[i].status === 'fulfilled' ? results[i].value : null
-        const w = val(0) || []
-        const conn = val(1) || []
-        const pending = val(2) || []
-        const worldInvites = val(3) || []
-        const myInfo = val(4)
-        const pwId = val(5)
-        results.forEach((r, i) => { if (r.status === 'rejected') console.error('[loadData]', i, 'failed:', r.reason) })
         setConnections(conn)
         setPendingRequests(pending)
         setMyWorldSubtitle(myInfo?.subtitle ?? '')
         setMyWorldColors({ customPalette: myInfo?.customPalette || {}, customScene: myInfo?.customScene || {} })
-        if (pwId) setPersonalWorldId(pwId)
+        setPersonalWorldId(pwId)
 
         // Auto-accept any pending world invites so shared worlds appear immediately
         if (worldInvites && worldInvites.length > 0) {
@@ -238,7 +228,7 @@ function AppInner() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const token = params.get('invite')
-    if (token && /^[a-zA-Z0-9-]{1,128}$/.test(token)) {
+    if (token) {
       setInvitePending(token)
       window.history.replaceState({}, '', window.location.pathname)
     }
@@ -270,12 +260,12 @@ function AppInner() {
                 }
               })
             } else {
-              showErrorToast(result?.error || "Couldn't accept invite.")
+              showErrorToast(result?.error || 'Failed to accept invite.')
             }
           }).catch(err => { console.error('[acceptInvite]', err); showErrorToast('Something went wrong accepting the invite. Please try again.') })
         }
       })
-    }).catch(err => { console.error('[getInviteInfo]', err); showErrorToast('Could not load invite details. Are you online? Please try again.') })
+    }).catch(err => { console.error('[getInviteInfo]', err); showErrorToast('Could not load invite details. Please check your connection and try again.') })
   }, [invitePending, userId])
 
   // Brand new users: show cinematic onboarding (always, regardless of how they arrived)
@@ -305,7 +295,6 @@ function AppInner() {
   }, [signOut])
 
   const selectWorld = useCallback((mode, worldId = null, worldName = null, worldRole = null, worldType = null) => {
-    window.history.pushState({ cosmos: true }, '', window.location.pathname)
     // Determine accent color for zoom transition
     const colors = { partner: '#1a1230', friends: '#0e1028', family: '#181210', my: '#121820' }
     setTransitionColor(colors[worldType] || colors[mode] || '#0c0a12')
@@ -364,34 +353,24 @@ function AppInner() {
 
       // Refresh data in background (WorldSelector already has previous data to render with)
       if (userId) {
-        Promise.allSettled([
+        Promise.all([
           loadMyWorlds(userId),
           getMyConnections(userId),
           getPendingRequests(user?.email),
           getPendingWorldInvites(user?.email),
           loadMyWorldSubtitle(userId),
-        ]).then((results) => {
-          const v = (i) => results[i].status === 'fulfilled' ? results[i].value : null
-          results.forEach((r, i) => { if (r.status === 'rejected') console.error('[switchWorld refresh]', i, r.reason) })
-          setWorlds(v(0) || [])
-          setConnections(v(1) || [])
-          setPendingRequests(v(2) || [])
-          setPendingWorldInvites(v(3) || [])
-          const myInfo = v(4)
+        ]).then(([w, conn, pending, worldInvites, myInfo]) => {
+          setWorlds(w)
+          setConnections(conn)
+          setPendingRequests(pending)
+          setPendingWorldInvites(worldInvites || [])
           setMyWorldSubtitle(myInfo?.subtitle ?? '')
           setMyWorldColors({ customPalette: myInfo?.customPalette || {}, customScene: myInfo?.customScene || {} })
-        })
+        }).catch(err => console.error('[switchWorld] refresh error:', err))
       }
     }, 400)
     transitionTimers.current.push(t1)
   }, [userId, user?.email])
-
-  // Browser back button returns to cosmos when inside a world
-  useEffect(() => {
-    const onPopState = () => { if (worldMode) switchWorld() }
-    window.addEventListener('popstate', onPopState)
-    return () => window.removeEventListener('popstate', onPopState)
-  }, [worldMode, switchWorld])
 
   // Show auth screen as soon as we know there's no user (don't wait for letter/worlds)
   if (loading) {

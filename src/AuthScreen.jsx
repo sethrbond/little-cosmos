@@ -88,7 +88,7 @@ export default function AuthScreen({ initialMode = 'login', onBack }) {
     setError('')
     if (!displayName.trim()) { setError('Please enter your name'); return }
     if (password !== confirmPassword) { setError('Passwords do not match'); return }
-    if (password.length < 10) { setError('Password must be at least 10 characters'); return }
+    if (password.length < 6) { setError('Password must be at least 6 characters'); return }
     setLoading(true)
     try {
       const { error: authError } = await supabase.auth.signUp({
