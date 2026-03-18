@@ -1,4 +1,7 @@
 import { parseGoogleTimeline, getTimelineSummary, findOverlappingTrips } from "./importTimeline.js";
+import { parseExifGps } from "./exifParser.js";
+import { compressImage } from "./imageUtils.js";
+import { supabase } from "./supabaseClient.js";
 import { useState, useEffect, useCallback, useRef } from "react";
 
 /* =================================================================
@@ -736,6 +739,19 @@ export default function ExportHub({ entries = [], config = {}, stats = {}, palet
   const [timelineOverlaps, setTimelineOverlaps] = useState(null);
   const [timelineOverlapsDone, setTimelineOverlapsDone] = useState(false);
 
+  // ---- Photo import state ----
+  const [photoFiles, setPhotoFiles] = useState(null);
+  const [photoGroups, setPhotoGroups] = useState(null);
+  const [photoParsing, setPhotoParsing] = useState(false);
+  const [photoParseProgress, setPhotoParseProgress] = useState("");
+  const [photoError, setPhotoError] = useState(null);
+  const [photoImporting, setPhotoImporting] = useState(false);
+  const [photoImportProgress, setPhotoImportProgress] = useState(0);
+  const [photoDone, setPhotoDone] = useState(false);
+  const [photoImportedCount, setPhotoImportedCount] = useState(0);
+  const [photoSelected, setPhotoSelected] = useState(new Set());
+  const fileInputPhotosRef = useRef(null);
+
   // Close on escape
   useEffect(() => {
     const handler = (e) => {
@@ -985,6 +1001,202 @@ export default function ExportHub({ entries = [], config = {}, stats = {}, palet
   }, [timelineOverlaps, onMarkTogether]);
 
   // ---- Styles ----
+
+  // ---- Photo import handlers ----
+  const resetPhotos = useCallback(() => {
+    setPhotoFiles(null); setPhotoGroups(null); setPhotoParsing(false);
+    setPhotoParseProgress(""); setPhotoError(null); setPhotoImporting(false);
+    setPhotoImportProgress(0); setPhotoDone(false); setPhotoImportedCount(0);
+    setPhotoSelected(new Set());
+  }, []);
+
+  const reverseGeocode = useCallback(async (lat, lng) => {
+    try {
+      const params = new URLSearchParams({ lat: String(lat), lon: String(lng), format: "json", addressdetails: "1", "accept-language": "en" });
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?${params}`, { headers: { "User-Agent": "LittleCosmos/1.0 (travel diary app)" } });
+      if (!res.ok) return null;
+      const data = await res.json();
+      const addr = data.address || {};
+      const city = addr.city || addr.town || addr.village || addr.hamlet || addr.county || addr.state || "";
+      const country = addr.country || "";
+      return { city, country };
+    } catch { return null; }
+  }, []);
+
+  const processPhotoFiles = useCallback(async (files) => {
+    resetPhotos();
+    if (!files || files.length === 0) return;
+    setPhotoFiles(files);
+    setPhotoParsing(true);
+    setPhotoParseProgress("Reading EXIF data...");
+
+    try {
+      // Parse EXIF from all files
+      const parsed = [];
+      for (let i = 0; i < files.length; i++) {
+        setPhotoParseProgress(`Reading EXIF ${i + 1} / ${files.length}...`);
+        const exif = await parseExifGps(files[i]);
+        if (exif && exif.lat && exif.lng) {
+          parsed.push({ file: files[i], ...exif, thumb: URL.createObjectURL(files[i]) });
+        }
+      }
+
+      if (parsed.length === 0) {
+        setPhotoError("No GPS data found in any of the selected photos. Only JPEG photos with embedded GPS coordinates can be imported.");
+        setPhotoParsing(false);
+        return;
+      }
+
+      setPhotoParseProgress(`Reverse geocoding ${parsed.length} locations...`);
+
+      // Reverse geocode each unique location (batch nearby coords)
+      const geocodeCache = new Map();
+      for (let i = 0; i < parsed.length; i++) {
+        const p = parsed[i];
+        // Round to ~1km grid for caching
+        const key = `${(p.lat * 100 | 0) / 100},${(p.lng * 100 | 0) / 100}`;
+        if (geocodeCache.has(key)) {
+          const cached = geocodeCache.get(key);
+          p.city = cached.city;
+          p.country = cached.country;
+        } else {
+          // Rate limit: 1 req/sec for Nominatim
+          if (i > 0) await new Promise(r => setTimeout(r, 1100));
+          setPhotoParseProgress(`Geocoding ${i + 1} / ${parsed.length}...`);
+          const geo = await reverseGeocode(p.lat, p.lng);
+          if (geo) {
+            p.city = geo.city;
+            p.country = geo.country;
+            geocodeCache.set(key, geo);
+          } else {
+            p.city = "Unknown";
+            p.country = "";
+            geocodeCache.set(key, { city: "Unknown", country: "" });
+          }
+        }
+      }
+
+      // Group by location + date (same city within 3 days)
+      const sorted = parsed.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+      const groups = [];
+      for (const photo of sorted) {
+        const dateMs = photo.date ? new Date(photo.date + "T12:00:00").getTime() : 0;
+        let matched = false;
+        for (const g of groups) {
+          if (g.city === photo.city && g.country === photo.country) {
+            const gDateMs = g.dateEnd ? new Date(g.dateEnd + "T12:00:00").getTime() : (g.dateStart ? new Date(g.dateStart + "T12:00:00").getTime() : 0);
+            if (dateMs && gDateMs && Math.abs(dateMs - gDateMs) <= 3 * 86400000) {
+              g.photos.push(photo);
+              if (photo.date && (!g.dateStart || photo.date < g.dateStart)) g.dateStart = photo.date;
+              if (photo.date && (!g.dateEnd || photo.date > g.dateEnd)) g.dateEnd = photo.date;
+              matched = true;
+              break;
+            }
+          }
+        }
+        if (!matched) {
+          groups.push({
+            city: photo.city,
+            country: photo.country,
+            lat: photo.lat,
+            lng: photo.lng,
+            dateStart: photo.date || null,
+            dateEnd: photo.date || null,
+            photos: [photo],
+          });
+        }
+      }
+
+      setPhotoGroups(groups);
+      setPhotoSelected(new Set(groups.map((_, i) => i)));
+      setPhotoParsing(false);
+      setPhotoParseProgress("");
+    } catch (err) {
+      console.error("Photo import parse error:", err);
+      setPhotoError(err.message || "Failed to process photos.");
+      setPhotoParsing(false);
+    }
+  }, [resetPhotos, reverseGeocode]);
+
+  const handlePhotoFileSelect = useCallback((e) => {
+    const files = e.target.files;
+    if (files && files.length > 0) processPhotoFiles(Array.from(files));
+  }, [processPhotoFiles]);
+
+  const handlePhotoToggle = useCallback((idx) => {
+    setPhotoSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx); else next.add(idx);
+      return next;
+    });
+  }, []);
+
+  const handlePhotoSelectAll = useCallback(() => {
+    if (!photoGroups) return;
+    setPhotoSelected(prev => prev.size === photoGroups.length ? new Set() : new Set(photoGroups.map((_, i) => i)));
+  }, [photoGroups]);
+
+  const handlePhotoImport = useCallback(async () => {
+    if (!photoGroups || !onImport || photoSelected.size === 0) return;
+    setPhotoImporting(true); setPhotoImportProgress(0);
+    try {
+      const selected = photoGroups.filter((_, i) => photoSelected.has(i));
+      const total = selected.length;
+      let imported = 0;
+
+      for (const group of selected) {
+        const entryId = `e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const photoUrls = [];
+
+        // Upload photos to Supabase
+        for (const photo of group.photos) {
+          try {
+            const compressed = await compressImage(photo.file);
+            const ext = compressed.name.split(".").pop() || "jpg";
+            const safeName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+            const path = `${entryId}/${safeName}`;
+            const { error } = await supabase.storage.from("photos").upload(path, compressed, { cacheControl: "31536000", upsert: false, contentType: compressed.type || "image/jpeg" });
+            if (!error) {
+              const { data: urlData } = supabase.storage.from("photos").getPublicUrl(path);
+              if (urlData?.publicUrl) photoUrls.push(urlData.publicUrl);
+            }
+          } catch { /* skip failed upload */ }
+        }
+
+        const entry = {
+          id: entryId,
+          city: group.city,
+          country: group.country,
+          lat: group.lat,
+          lng: group.lng,
+          dateStart: group.dateStart,
+          dateEnd: group.dateEnd || group.dateStart,
+          type: "adventure",
+          notes: `Imported from ${group.photos.length} photo${group.photos.length === 1 ? "" : "s"}`,
+          photos: photoUrls,
+        };
+
+        await onImport([entry]);
+        imported++;
+        setPhotoImportProgress(Math.round((imported / total) * 100));
+      }
+
+      setPhotoImportedCount(imported);
+      setPhotoDone(true);
+      setPhotoImporting(false);
+      // Clean up object URLs
+      for (const g of photoGroups) {
+        for (const p of g.photos) {
+          if (p.thumb) URL.revokeObjectURL(p.thumb);
+        }
+      }
+    } catch (err) {
+      console.error("Photo import failed:", err);
+      setPhotoError(err.message || "Import failed.");
+      setPhotoImporting(false);
+    }
+  }, [photoGroups, photoSelected, onImport]);
+
   const accent = P.rose || "#c48aa8";
   const text = P.text || "#2e2440";
   const textMid = P.textMid || "#584c6e";
@@ -1297,10 +1509,11 @@ export default function ExportHub({ entries = [], config = {}, stats = {}, palet
                 {[
                   { id: "file", label: "File Import" },
                   { id: "timeline", label: "Google Maps Timeline" },
+                  { id: "photos", label: "Import from Photos" },
                 ].map(tab => (
                   <button
                     key={tab.id}
-                    onClick={() => { setImportMode(tab.id); if (tab.id === "file") resetTimeline(); if (tab.id === "timeline") resetImport(); }}
+                    onClick={() => { setImportMode(tab.id); if (tab.id !== "timeline") resetTimeline(); if (tab.id !== "file") resetImport(); if (tab.id !== "photos") resetPhotos(); }}
                     style={{
                       flex: 1, padding: "7px 14px", fontSize: 10, fontWeight: 600,
                       fontFamily: "inherit", letterSpacing: "0.04em",
@@ -1588,6 +1801,136 @@ export default function ExportHub({ entries = [], config = {}, stats = {}, palet
                       </button>
                     </div>
                   </div>
+                )}
+                </div>
+              )}
+
+              {/* ---- IMPORT FROM PHOTOS MODE ---- */}
+              {importMode === "photos" && (
+                <div>
+                {photoDone ? (
+                  <div style={{ textAlign: "center", padding: "32px 20px" }}>
+                    <div style={{ fontSize: 48, marginBottom: 12 }}>{"📸"}</div>
+                    <div style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 22, fontWeight: 600, color: "#688c5c", marginBottom: 8 }}>
+                      {photoImportedCount} {photoImportedCount === 1 ? "entry" : "entries"} created from your photos!
+                    </div>
+                    <div style={{ fontSize: 12, color: textMuted, marginBottom: 20 }}>Your geotagged photos have been turned into travel memories.</div>
+                    <button onClick={resetPhotos} style={{ padding: "9px 24px", background: `linear-gradient(135deg, ${accent}18, ${accent}08)`, border: `1px solid ${accent}25`, borderRadius: 10, cursor: "pointer", fontSize: 12, fontFamily: "inherit", fontWeight: 500, color: accent, transition: "all 0.2s" }}
+                      onMouseEnter={e => e.currentTarget.style.background = `linear-gradient(135deg, ${accent}28, ${accent}14)`}
+                      onMouseLeave={e => e.currentTarget.style.background = `linear-gradient(135deg, ${accent}18, ${accent}08)`}
+                    >Import More</button>
+                  </div>
+                ) : photoGroups ? (
+                  <div>
+                    <div style={{ padding: "16px 18px", borderRadius: 14, background: `linear-gradient(135deg, ${accent}10, ${accent}04)`, border: `1px solid ${accent}18`, marginBottom: 14, textAlign: "center" }}>
+                      <div style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 20, fontWeight: 600, color: text, marginBottom: 6 }}>
+                        {photoGroups.length} {photoGroups.length === 1 ? "location" : "locations"} from {photoGroups.reduce((n, g) => n + g.photos.length, 0)} photos
+                      </div>
+                      <div style={{ fontSize: 11, color: textMuted }}>Photos grouped by city and date (within 3 days)</div>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, padding: "0 2px" }}>
+                      <div style={{ fontSize: 10, color: textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em" }}>{photoSelected.size} of {photoGroups.length} selected</div>
+                      <button onClick={handlePhotoSelectAll} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 10, fontFamily: "inherit", fontWeight: 600, color: accent, padding: "2px 6px", borderRadius: 4, transition: "all 0.15s" }}
+                        onMouseEnter={e => e.currentTarget.style.background = `${accent}10`}
+                        onMouseLeave={e => e.currentTarget.style.background = "none"}
+                      >{photoSelected.size === photoGroups.length ? "Deselect All" : "Select All"}</button>
+                    </div>
+                    <div style={{ padding: "8px 10px", borderRadius: 12, background: cardBg, border: `1px solid ${accent}10`, marginBottom: 14, maxHeight: 300, overflow: "auto" }}>
+                      {photoGroups.map((group, i) => (
+                        <label key={"photo-g-" + i} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "8px 6px", borderBottom: i < photoGroups.length - 1 ? `1px solid ${accent}06` : "none", cursor: "pointer", borderRadius: 6, transition: "background 0.15s" }}
+                          onMouseEnter={e => e.currentTarget.style.background = `${accent}05`}
+                          onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                        >
+                          <input type="checkbox" checked={photoSelected.has(i)} onChange={() => handlePhotoToggle(i)} style={{ accentColor: accent, width: 14, height: 14, flexShrink: 0, marginTop: 3 }} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 11, fontWeight: 500, color: text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {group.city}{group.country ? `, ${group.country}` : ""}
+                            </div>
+                            <div style={{ fontSize: 10, color: textFaint, marginTop: 1 }}>
+                              {group.photos.length} photo{group.photos.length === 1 ? "" : "s"}
+                              {group.dateStart ? ` \u00B7 ${group.dateStart}` : ""}
+                              {group.dateEnd && group.dateEnd !== group.dateStart ? ` \u2013 ${group.dateEnd}` : ""}
+                            </div>
+                            <div style={{ display: "flex", gap: 4, marginTop: 6, flexWrap: "wrap" }}>
+                              {group.photos.slice(0, 5).map((photo, pi) => (
+                                <img key={"pthumb-" + pi} src={photo.thumb} alt="" style={{ width: 40, height: 40, objectFit: "cover", borderRadius: 6, border: `1px solid ${accent}15` }} />
+                              ))}
+                              {group.photos.length > 5 && (
+                                <div style={{ width: 40, height: 40, borderRadius: 6, background: `${accent}10`, border: `1px solid ${accent}15`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: textMuted, fontWeight: 600 }}>+{group.photos.length - 5}</div>
+                              )}
+                            </div>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                    {photoError && (
+                      <div style={{ marginBottom: 14, padding: "10px 14px", background: "linear-gradient(135deg, #d0686810, #d0686806)", border: "1px solid #d0686825", borderRadius: 10, fontSize: 12, color: "#c05555" }}><strong>Error:</strong> {photoError}</div>
+                    )}
+                    {photoImporting && (
+                      <div style={{ marginBottom: 14 }}>
+                        <div style={{ height: 6, borderRadius: 3, background: `${accent}12`, overflow: "hidden" }}>
+                          <div style={{ height: "100%", borderRadius: 3, background: `linear-gradient(90deg, ${accent}, ${accent}cc)`, width: `${photoImportProgress}%`, transition: "width 0.3s ease-out" }} />
+                        </div>
+                        <div style={{ fontSize: 10, color: textMuted, textAlign: "center", marginTop: 4 }}>Uploading photos & creating entries... {photoImportProgress}%</div>
+                      </div>
+                    )}
+                    <div style={{ display: "flex", gap: 10 }}>
+                      <button onClick={resetPhotos} style={{ flex: 1, padding: "10px 16px", background: "transparent", border: `1px solid ${accent}20`, borderRadius: 10, cursor: "pointer", fontSize: 12, fontFamily: "inherit", fontWeight: 500, color: textMuted, transition: "all 0.2s" }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = `${accent}40`; e.currentTarget.style.color = text; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = `${accent}20`; e.currentTarget.style.color = textMuted; }}
+                      >Cancel</button>
+                      <button disabled={photoSelected.size === 0 || photoImporting || !onImport} onClick={handlePhotoImport} style={{
+                        flex: 2, padding: "10px 16px",
+                        background: photoSelected.size > 0 && onImport && !photoImporting ? `linear-gradient(135deg, ${accent}25, ${accent}12)` : parchment,
+                        border: `1px solid ${photoSelected.size > 0 && onImport ? accent + "35" : textFaint + "20"}`,
+                        borderRadius: 10, cursor: photoSelected.size > 0 && onImport && !photoImporting ? "pointer" : "not-allowed",
+                        fontSize: 12, fontFamily: "inherit", fontWeight: 600,
+                        color: photoSelected.size > 0 && onImport && !photoImporting ? accent : textFaint, transition: "all 0.2s",
+                      }}
+                        onMouseEnter={e => { if (photoSelected.size > 0 && onImport && !photoImporting) e.currentTarget.style.background = `linear-gradient(135deg, ${accent}35, ${accent}18)`; }}
+                        onMouseLeave={e => { if (photoSelected.size > 0 && onImport && !photoImporting) e.currentTarget.style.background = `linear-gradient(135deg, ${accent}25, ${accent}12)`; }}
+                      >
+                        {photoImporting ? "Importing..." : `Import ${photoSelected.size} ${photoSelected.size === 1 ? "Entry" : "Entries"}`}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div onClick={() => fileInputPhotosRef.current?.click()} style={{ border: `2px dashed ${accent}35`, borderRadius: 16, padding: "40px 24px", textAlign: "center", cursor: "pointer", transition: "all 0.25s", background: `linear-gradient(135deg, ${accent}05, transparent)`, position: "relative" }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = accent; e.currentTarget.style.background = `linear-gradient(135deg, ${accent}10, ${accent}04)`; }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = `${accent}35`; e.currentTarget.style.background = `linear-gradient(135deg, ${accent}05, transparent)`; }}
+                    >
+                      <input ref={fileInputPhotosRef} type="file" accept=".jpg,.jpeg,.png" multiple onChange={handlePhotoFileSelect} style={{ display: "none" }} />
+                      <div style={{ fontSize: 36, marginBottom: 12, color: accent, opacity: 0.7 }}>{"📷"}</div>
+                      <div style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 18, fontWeight: 600, color: text, marginBottom: 6 }}>Select Photos</div>
+                      <div style={{ fontSize: 11, color: textMuted, marginBottom: 10 }}>Choose geotagged photos to create travel entries</div>
+                      <div style={{ display: "inline-flex", gap: 8 }}>
+                        <span style={{ fontSize: 9, padding: "3px 10px", borderRadius: 6, background: `${accent}10`, color: accent, border: `1px solid ${accent}15`, fontWeight: 500, letterSpacing: "0.04em", textTransform: "uppercase" }}>.jpg</span>
+                        <span style={{ fontSize: 9, padding: "3px 10px", borderRadius: 6, background: `${accent}10`, color: accent, border: `1px solid ${accent}15`, fontWeight: 500, letterSpacing: "0.04em", textTransform: "uppercase" }}>.jpeg</span>
+                        <span style={{ fontSize: 9, padding: "3px 10px", borderRadius: 6, background: `${accent}10`, color: accent, border: `1px solid ${accent}15`, fontWeight: 500, letterSpacing: "0.04em", textTransform: "uppercase" }}>.png</span>
+                      </div>
+                      {photoParsing && (
+                        <div style={{ position: "absolute", inset: 0, borderRadius: 16, background: `${cream}dd`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                          <div style={{ fontSize: 13, color: textMid, fontWeight: 500 }}>{photoParseProgress || "Processing..."}</div>
+                          <div style={{ fontSize: 10, color: textMuted }}>This may take a moment</div>
+                        </div>
+                      )}
+                    </div>
+                    {photoError && (
+                      <div style={{ marginTop: 14, padding: "12px 16px", background: "linear-gradient(135deg, #d0686810, #d0686806)", border: "1px solid #d0686825", borderRadius: 10, fontSize: 12, color: "#c05555", lineHeight: 1.5 }}>
+                        <strong style={{ fontWeight: 600 }}>Error:</strong> {photoError}
+                      </div>
+                    )}
+                    <div style={{ marginTop: 16, padding: "14px 16px", background: cardBg, borderRadius: 12, border: `1px solid ${accent}10` }}>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: text, marginBottom: 6 }}>How it works</div>
+                      <div style={{ fontSize: 10.5, color: textMuted, lineHeight: 1.7 }}>
+                        1. Select photos with <strong style={{ color: textMid }}>GPS location data</strong> (geotagged JPEGs)<br />
+                        2. We read the EXIF data to extract <strong style={{ color: textMid }}>coordinates and dates</strong><br />
+                        3. Photos are <strong style={{ color: textMid }}>grouped by location and date</strong> (same city, within 3 days)<br />
+                        4. Review the groups and import as travel entries with photos attached
+                      </div>
+                    </div>
+                  </>
                 )}
                 </div>
               )}

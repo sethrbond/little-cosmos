@@ -20,7 +20,7 @@ import { EntryTemplates, saveTemplate } from "./EntryTemplates.jsx";
 import useRealtimeSync, { useRealtimePresence } from "./useRealtimeSync.js";
 import { supabase } from "./supabaseClient.js";
 import { geocodeSearch } from "./geocode.js";
-import { inpSt, navSt, imgN, renderList, TBtn, TBtnGroup, Lbl, Fld, QuickAddForm, DreamAddForm, DREAM_CATEGORIES, AddForm, EditForm, hasDraft, getDraftSummary, OverlayBoundary, useFocusTrap } from "./EntryForms.jsx";
+import { inputStyle, navStyle, imageNavBtn, renderList, TBtn, TBtnGroup, Lbl, Fld, QuickAddForm, DreamAddForm, DREAM_CATEGORIES, AddForm, EditForm, hasDraft, getDraftSummary, OverlayBoundary, useFocusTrap } from "./EntryForms.jsx";
 import {
   OUR_WORLD_PALETTE, MY_WORLD_PALETTE,
   OUR_WORLD_TYPES, MY_WORLD_TYPES,
@@ -1056,6 +1056,51 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     })();
   }, [db]);
 
+  // ---- PARTNER OVERLAP DETECTION ----
+  // One-time check for entries where both partners were near the same location on overlapping dates
+  useEffect(() => {
+    if (!isPartnerWorld || data.entries.length === 0 || overlapCheckedRef.current) return;
+    overlapCheckedRef.current = true;
+    const dismissedKey = `cosmos-overlap-dismissed-${worldId || "default"}`;
+    const dismissed = new Set(JSON.parse(localStorage.getItem(dismissedKey) || "[]"));
+    const byWho = {};
+    data.entries.forEach(e => {
+      if (!e.who || !e.lat || !e.lng || !e.dateStart) return;
+      if (e.who === "both") return; // skip "together" entries — we want solo overlaps
+      if (!byWho[e.who]) byWho[e.who] = [];
+      byWho[e.who].push(e);
+    });
+    const partners = Object.keys(byWho);
+    if (partners.length < 2) return;
+    const listA = byWho[partners[0]] || [];
+    const listB = byWho[partners[1]] || [];
+    const overlaps = [];
+    for (const a of listA) {
+      for (const b of listB) {
+        if (overlaps.length >= 3) break;
+        const pairKey = [a.id, b.id].sort().join("-");
+        if (dismissed.has(pairKey)) continue;
+        const aEnd = a.dateEnd || a.dateStart;
+        const bEnd = b.dateEnd || b.dateStart;
+        const datesOverlap = a.dateStart <= bEnd && b.dateStart <= aEnd;
+        if (!datesOverlap) continue;
+        const dist = haversine(a.lat, a.lng, b.lat, b.lng);
+        if (dist <= 50) {
+          overlaps.push({ city: a.city || b.city || "the same place", pairKey });
+        }
+      }
+      if (overlaps.length >= 3) break;
+    }
+    overlaps.forEach((ov, i) => {
+      setTimeout(() => {
+        showToast(`You were both in ${ov.city}. Together? 💕`, "🌍", 6000, () => {
+          dismissed.add(ov.pairKey);
+          localStorage.setItem(dismissedKey, JSON.stringify([...dismissed]));
+        });
+      }, 2000 + i * 3500);
+    });
+  }, [data.entries.length, isPartnerWorld]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Mobile detection
   const [isMobile, setIsMobile] = useState(window.innerWidth < 600);
   useEffect(() => {
@@ -1548,6 +1593,10 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const playRef = useRef(null);
   const animRef = useRef(null);
   const surpriseTimers = useRef([]);
+  const overlapCheckedRef = useRef(false); // partner overlap detection — run once
+  const prevPendingOfflineRef = useRef(null); // offline flush toast
+  const failedPhotosRef = useRef([]); // photo retry on upload failure
+  const prevAreTogetherRef = useRef(null); // reunion detection
 
   const RAD = 1; const MIN_Z = 1.15; const MAX_Z = 6;
 
@@ -1711,6 +1760,20 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     return null;
   }, [pos, areTogether]);
 
+  // ---- REUNION DETECTION ----
+  // When areTogether transitions from false to true in partner worlds, show reunion toast
+  useEffect(() => {
+    const prev = prevAreTogetherRef.current;
+    prevAreTogetherRef.current = areTogether;
+    // Skip initial mount
+    if (prev === null) return;
+    if (!isPartnerWorld) return;
+    if (prev === false && areTogether === true && pos.together) {
+      const city = pos.together.city || "the same place";
+      showToast(`You reunited in ${city}! 🫂`, "💖", 5000);
+    }
+  }, [areTogether, isPartnerWorld, pos.together, showToast]);
+
   // Next together entry (for countdown)
   const nextTogether = useMemo(() => {
     return togetherList.find(e => e.dateStart > todayStr());
@@ -1771,6 +1834,18 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     window.addEventListener("online", goOnline);
     return () => { window.removeEventListener("offline", goOffline); window.removeEventListener("online", goOnline); };
   }, [showToast]);
+
+  // ---- OFFLINE FLUSH TOAST ----
+  // When pendingOffline transitions from >0 to 0, show "Changes synced" toast
+  useEffect(() => {
+    const prev = prevPendingOfflineRef.current;
+    prevPendingOfflineRef.current = pendingOffline;
+    // Skip initial mount (prev is null)
+    if (prev === null) return;
+    if (prev > 0 && pendingOffline === 0) {
+      showToast("Changes synced ✓", "☁️", 2500);
+    }
+  }, [pendingOffline, showToast]);
 
   // ---- "ON THIS DAY" MEMORIES ----
   const onThisDay = useMemo(() => {
@@ -3519,7 +3594,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             const compressed = await compressImage(files[i]);
             const url = await curDb.uploadPhoto(compressed, id);
             if (url && typeof url === 'string') urls.push(url);
-          } catch (err) { /* skip failed uploads */ }
+          } catch (err) {
+            failedPhotosRef.current.push({ file: files[i], entryId: id });
+          }
           setUploadProgress({ done: i + 1, total: files.length });
         }
         if (urls.length === 0) { setUploading(false); input.value = ""; return; }
@@ -3540,6 +3617,41 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           showToast(`${urls.length} photo${urls.length > 1 ? "s" : ""} saved (${merged.length} total)`, "✅", 3000);
         } else {
           showToast(`Photo save failed: ${saveResult.error}`, "⚠️", 8000);
+        }
+
+        // Photo retry — if any uploads failed, offer a retry action via toast
+        if (failedPhotosRef.current.length > 0) {
+          const failedCount = failedPhotosRef.current.length;
+          const failedFiles = [...failedPhotosRef.current];
+          failedPhotosRef.current = [];
+          showToast(`${failedCount} photo${failedCount > 1 ? "s" : ""} failed to upload`, "⚠️", 8000, () => {
+            // Re-attempt failed uploads
+            const retryId = failedFiles[0]?.entryId;
+            if (!retryId) return;
+            uploadLockRef.current = uploadLockRef.current.then(async () => {
+              const rDb = dbRef.current;
+              const rDispatch = dispatchRef.current;
+              setUploading(true);
+              setUploadProgress({ done: 0, total: failedFiles.length });
+              const retryUrls = [];
+              for (let ri = 0; ri < failedFiles.length; ri++) {
+                try {
+                  const comp = await compressImage(failedFiles[ri].file);
+                  const rUrl = await rDb.uploadPhoto(comp, retryId);
+                  if (rUrl && typeof rUrl === "string") retryUrls.push(rUrl);
+                } catch (_) { /* skip again */ }
+                setUploadProgress({ done: ri + 1, total: failedFiles.length });
+              }
+              if (retryUrls.length > 0) {
+                const cur2 = await rDb.readPhotos(retryId);
+                const merged2 = [...(cur2.ok ? cur2.photos : []), ...retryUrls];
+                await rDb.savePhotos(retryId, merged2);
+                rDispatch({ type: "ADD_PHOTOS", id: retryId, urls: retryUrls });
+                showToast(`${retryUrls.length} photo${retryUrls.length > 1 ? "s" : ""} recovered`, "✅", 3000);
+              }
+              setUploading(false);
+            }).catch(() => setUploading(false));
+          });
         }
 
         setUploading(false);
@@ -4032,8 +4144,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       {/* SLIDER */}
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: P.glass, backdropFilter: "blur(16px)", borderTop: `1px solid ${P.rose}10`, zIndex: 15, display: "flex", flexDirection: "column", justifyContent: "center", padding: "12px 22px", paddingBottom: "max(20px, env(safe-area-inset-bottom, 20px))" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 6 }}>
-          <button onClick={() => jumpNext(-1)} disabled={isAnimating} style={navSt()} title={isPartnerWorld ? "Previous together" : "Previous entry"}>{isPartnerWorld ? "💕◂" : "⏮"}</button>
-          <button onClick={() => stepDay(-1)} disabled={isAnimating} style={navSt()}>◂</button>
+          <button onClick={() => jumpNext(-1)} disabled={isAnimating} style={navStyle()} title={isPartnerWorld ? "Previous together" : "Previous entry"}>{isPartnerWorld ? "💕◂" : "⏮"}</button>
+          <button onClick={() => stepDay(-1)} disabled={isAnimating} style={navStyle()}>◂</button>
           <div style={{ minWidth: 150, textAlign: "center" }}>
             <div style={{ fontSize: 15, color: P.text, fontWeight: 400 }}>{fmtDate(sliderDate)}</div>
             <div style={{ fontSize: 9, color: isMyWorld ? P.textMid : (isPartnerWorld && areTogether ? P.heart : P.textFaint), letterSpacing: ".1em", marginTop: 1 }}>
@@ -4045,8 +4157,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               }
             </div>
           </div>
-          <button onClick={() => stepDay(1)} disabled={isAnimating} style={navSt()}>▸</button>
-          <button onClick={() => jumpNext(1)} disabled={isAnimating} style={navSt()} title={isPartnerWorld ? "Next together" : "Next entry"}>{isPartnerWorld ? "▸💕" : "⏭"}</button>
+          <button onClick={() => stepDay(1)} disabled={isAnimating} style={navStyle()}>▸</button>
+          <button onClick={() => jumpNext(1)} disabled={isAnimating} style={navStyle()} title={isPartnerWorld ? "Next together" : "Next entry"}>{isPartnerWorld ? "▸💕" : "⏭"}</button>
         </div>
         <div style={{ position: "relative", width: "100%", height: 24, display: "flex", alignItems: "center" }}>
           <input type="range" min={0} max={totalDays} value={clamp(sliderVal, 0, totalDays)}
@@ -4156,7 +4268,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               } : undefined}
               style={{ position: "relative", width: "100%", background: P.parchment, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", minHeight: 120, maxHeight: 220, ...(dragOver ? { outline: `2px dashed ${P.sky}`, outlineOffset: -2 } : {}) }}>
               <img loading="lazy" src={cur.photos[photoIdx % cur.photos.length]} alt={`Photo from ${cur.city || "trip"}`} onClick={() => { setLightboxIdx(photoIdx % cur.photos.length); setLightboxOpen(true); }} style={{ maxWidth: "100%", maxHeight: 220, objectFit: "contain", display: "block", transition: "all .3s", cursor: "zoom-in", ...(polaroidMode ? { border: "6px solid #fff", borderBottom: "28px solid #fff", boxShadow: "0 4px 16px rgba(0,0,0,.15)", borderRadius: 1, transform: `rotate(${(photoIdx % 3 - 1) * 1.5}deg)` } : {}) }} />
-              {cur.photos.length > 1 && (<><button aria-label="Previous photo" onClick={() => setPhotoIdx(i => (i - 1 + cur.photos.length) % cur.photos.length)} style={imgN("left")}>‹</button><button aria-label="Next photo" onClick={() => setPhotoIdx(i => (i + 1) % cur.photos.length)} style={imgN("right")}>›</button>
+              {cur.photos.length > 1 && (<><button aria-label="Previous photo" onClick={() => setPhotoIdx(i => (i - 1 + cur.photos.length) % cur.photos.length)} style={imageNavBtn("left")}>‹</button><button aria-label="Next photo" onClick={() => setPhotoIdx(i => (i + 1) % cur.photos.length)} style={imageNavBtn("right")}>›</button>
                 <div style={{ position: "absolute", bottom: 6, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 4, alignItems: "center" }}>{cur.photos.slice(0, 12).map((_, i) => <div key={i} style={{ width: 6, height: 6, borderRadius: "50%", background: i === photoIdx % cur.photos.length ? "#fff" : "rgba(255,255,255,.35)", transition: "background .2s" }} />)}{cur.photos.length > 12 && <div style={{ fontSize: 8, color: "rgba(255,255,255,.5)", marginLeft: 2 }}>+{cur.photos.length - 12}</div>}</div></>)}
               <button onClick={() => setCardGallery(true)} style={{ position: "absolute", top: 6, right: 6, background: "rgba(255,255,255,.85)", border: "none", borderRadius: 5, padding: "2px 8px", fontSize: 9, cursor: "pointer", fontFamily: "inherit", color: P.textMid }}>📸 {cur.photos.length}</button>
               <button onClick={() => setPolaroidMode(v => !v)} style={{ position: "absolute", bottom: 6, right: 6, background: polaroidMode ? P.goldWarm : "rgba(255,255,255,.7)", border: "none", borderRadius: 5, padding: "2px 7px", fontSize: 8, cursor: "pointer", fontFamily: "inherit", color: polaroidMode ? "#fff" : P.textFaint }} title="Polaroid mode">📸</button>
@@ -4798,7 +4910,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               <input value={letterCity} onChange={e => {
                 const v = e.target.value; setLetterCity(v);
                 if (v.length >= 2) { geocodeSearch(v, m => setLetterCitySugg(m)); } else setLetterCitySugg([]);
-              }} placeholder="Type a city..." style={inpSt()} />
+              }} placeholder="Type a city..." style={inputStyle()} />
               {letterCitySugg.length > 0 && (
                 <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: P.card, border: `1px solid ${P.textFaint}40`, borderRadius: 6, maxHeight: 120, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
                   {letterCitySugg.map((c, i) => (
@@ -4811,7 +4923,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 </div>
               )}
             </div>
-            <textarea value={letterDraft} onChange={e => setLetterDraft(e.target.value)} rows={8} placeholder={`Dear ${config.partnerName || "Partner"}...`} style={{ ...inpSt(), resize: "vertical", lineHeight: 1.8 }} />
+            <textarea value={letterDraft} onChange={e => setLetterDraft(e.target.value)} rows={8} placeholder={`Dear ${config.partnerName || "Partner"}...`} style={{ ...inputStyle(), resize: "vertical", lineHeight: 1.8 }} />
             <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
               <button onClick={() => {
                 const lat = parseFloat(letterLat) || (20 + Math.random() * 40);
@@ -5103,7 +5215,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                         <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "center" }}>
                           <input value={m.name || ""} onChange={e => updateMember(i, e.target.value)}
                             placeholder={worldType === "family" ? `Member ${i + 1}` : `Friend ${i + 1}`}
-                            style={inpSt()} />
+                            style={inputStyle()} />
                           {members.length > 1 && (
                             <button onClick={() => removeMember(i)}
                               style={{ background: "none", border: "none", color: P.textFaint, fontSize: 15, cursor: "pointer", padding: "0 4px" }}>×</button>
@@ -5173,7 +5285,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             <div style={{ fontSize: 8, color: P.textMid, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 4, fontWeight: 500 }}>🎵 Ambient Music</div>
             <p style={{ fontSize: 8, color: P.textFaint, fontStyle: "italic", marginBottom: 6 }}>Paste an audio URL (.mp3, .ogg, .wav) to play background music while exploring your globe.</p>
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <input value={config.ambientMusicUrl || ""} onChange={e => setConfig({ ambientMusicUrl: e.target.value.trim() || "" })} placeholder="https://example.com/song.mp3" style={{ ...inpSt(), flex: 1 }} />
+              <input value={config.ambientMusicUrl || ""} onChange={e => setConfig({ ambientMusicUrl: e.target.value.trim() || "" })} placeholder="https://example.com/song.mp3" style={{ ...inputStyle(), flex: 1 }} />
               {config.ambientMusicUrl && <button onClick={() => { const au = ambientRef.current; if (!au) return; if (ambientPlaying) { au.pause(); } else { au.play().catch(() => {}); } }} style={{ padding: "8px 10px", background: `${P.rose}15`, border: `1px solid ${P.rose}25`, borderRadius: 10, color: P.rose, fontSize: 11, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>{ambientPlaying ? "⏸ Stop" : "▶ Test"}</button>}
             </div>
             {config.ambientMusicUrl && !/^https?:\/\/.+\..+/.test(config.ambientMusicUrl) && <div style={{ fontSize: 8, color: "#d4846a", marginTop: 4 }}>Enter a valid URL starting with https://</div>}
@@ -5195,9 +5307,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             <p style={{ fontSize: 8, color: P.textFaint, fontStyle: "italic", marginBottom: 8 }}>{isMyWorld ? "Name the eras of your travels" : "Name the eras of your relationship"}</p>
             {(config.chapters || []).map((ch, i) => (
               <div key={i} style={{ display: "flex", gap: 4, alignItems: "center", marginBottom: 4 }}>
-                <input value={ch.label} onChange={e => { const chs = [...(config.chapters || [])]; chs[i] = { ...chs[i], label: e.target.value }; setConfig({ chapters: chs }); }} style={{ ...inpSt(), flex: 1, fontSize: 10 }} placeholder="Chapter name" />
-                <input type="date" value={ch.startDate || ""} onChange={e => { const chs = [...(config.chapters || [])]; chs[i] = { ...chs[i], startDate: e.target.value }; setConfig({ chapters: chs }); }} style={{ ...inpSt(), width: 95, fontSize: 9 }} />
-                <input type="date" value={ch.endDate || ""} onChange={e => { const chs = [...(config.chapters || [])]; chs[i] = { ...chs[i], endDate: e.target.value }; setConfig({ chapters: chs }); }} style={{ ...inpSt(), width: 95, fontSize: 9 }} />
+                <input value={ch.label} onChange={e => { const chs = [...(config.chapters || [])]; chs[i] = { ...chs[i], label: e.target.value }; setConfig({ chapters: chs }); }} style={{ ...inputStyle(), flex: 1, fontSize: 10 }} placeholder="Chapter name" />
+                <input type="date" value={ch.startDate || ""} onChange={e => { const chs = [...(config.chapters || [])]; chs[i] = { ...chs[i], startDate: e.target.value }; setConfig({ chapters: chs }); }} style={{ ...inputStyle(), width: 95, fontSize: 9 }} />
+                <input type="date" value={ch.endDate || ""} onChange={e => { const chs = [...(config.chapters || [])]; chs[i] = { ...chs[i], endDate: e.target.value }; setConfig({ chapters: chs }); }} style={{ ...inputStyle(), width: 95, fontSize: 9 }} />
                 <button onClick={() => { const chs = (config.chapters || []).filter((_, j) => j !== i); setConfig({ chapters: chs }); }} style={{ background: "none", border: "none", color: "#c9777a", cursor: "pointer", fontSize: 12, flexShrink: 0 }}>×</button>
               </div>
             ))}
@@ -5209,13 +5321,13 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             {wlSent && <div style={{ fontSize: 10, color: "#7ab87a", marginBottom: 8 }}>Letter sent! They'll see it when they sign up.</div>}
             <div style={{ marginBottom: 6 }}>
               <Lbl>Recipient's Email</Lbl>
-              <input type="email" value={wlEmail} onChange={e => setWlEmail(e.target.value)} placeholder="their.email@example.com" style={inpSt()} />
+              <input type="email" value={wlEmail} onChange={e => setWlEmail(e.target.value)} placeholder="their.email@example.com" style={inputStyle()} />
             </div>
             <div style={{ marginBottom: 6 }}>
               <Lbl>Your Letter</Lbl>
               <textarea value={wlText} onChange={e => setWlText(e.target.value)} rows={5}
                 placeholder={"This is our world \u2014 every place we've been, every adventure we've shared...\n\nSpin the globe. Click the hearts. This is our story.\n\nI love you."}
-                style={{ ...inpSt(), resize: "vertical", lineHeight: 1.7 }} />
+                style={{ ...inputStyle(), resize: "vertical", lineHeight: 1.7 }} />
             </div>
             <button
               disabled={wlSending || !wlEmail.trim() || !wlText.trim()}
