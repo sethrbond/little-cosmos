@@ -1,6 +1,21 @@
 import { useState, useRef, useEffect, useCallback, Component } from "react";
 import { geocodeSearch } from "./geocode.js";
 
+// Reverse geocode helper — returns { city, country } or null
+async function reverseGeocode(lat, lng) {
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const addr = data.address;
+    if (!addr) return null;
+    return { city: addr.city || addr.town || addr.village || "", country: addr.country || "" };
+  } catch { return null; }
+}
+
+// Shared font family — import this instead of duplicating the string
+export const FONT_FAMILY = "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif";
+
 /* EntryForms.jsx — Shared UI primitives + entry forms
  *
  * All style functions read from window.__cosmosP (P) so they pick up
@@ -54,6 +69,24 @@ function useMemoryPrompt(type) {
   const prompts = MEMORY_PROMPTS[type] || MEMORY_PROMPTS.default;
   const [idx] = useState(() => Math.floor(Math.random() * prompts.length));
   return prompts[idx % prompts.length];
+}
+
+// ---- STAR RATING PICKER ----
+export function StarRating({ value, onChange, size = 18 }) {
+  const P = getP();
+  return (
+    <span style={{ display: "inline-flex", gap: 2, cursor: "pointer" }}>
+      {[1, 2, 3, 4, 5].map(n => (
+        <span
+          key={n}
+          role="button"
+          aria-label={`${n} star${n > 1 ? "s" : ""}`}
+          onClick={() => onChange(value === n ? null : n)}
+          style={{ fontSize: size, color: n <= (value || 0) ? "#c9a96e" : (P.textFaint || "#666") + "60", transition: "color .15s", userSelect: "none", lineHeight: 1 }}
+        >{n <= (value || 0) ? "u2605" : "u2606"}</span>
+      ))}
+    </span>
+  );
 }
 
 // ---- OVERLAY ERROR BOUNDARY ----
@@ -160,24 +193,24 @@ export function getDraftSummary(draftKey) {
 
 // ---- STYLE FUNCTIONS ----
 
-export function inpSt() {
-  const P = getP();
+export function inputStyle(p) {
+  const P = p || getP();
   return { width: "100%", padding: "10px 14px", border: `1px solid ${P.textFaint}25`, borderRadius: 10, fontSize: 13, fontFamily: "'Palatino Linotype',Palatino,Georgia,serif", color: P.text, background: P.cream, boxSizing: "border-box", transition: "border-color .2s, box-shadow .2s", outline: "none" };
 }
 
-export function navSt() {
-  const P = getP();
-  return { background: "none", border: `1px solid ${P.textFaint}25`, borderRadius: 8, padding: "8px 14px", cursor: "pointer", fontSize: 11, color: P.textMid, fontFamily: "inherit", transition: "all .25s ease", minHeight: 36 };
+export function navStyle(p) {
+  const P = p || getP();
+  return { background: "none", border: `1px solid ${P.textFaint}25`, borderRadius: 8, padding: "8px 14px", cursor: "pointer", fontSize: 11, color: P.textMid, fontFamily: "inherit", transition: "all .25s ease", minHeight: 44 };
 }
 
-export function imgN(s) {
-  return { position: "absolute", [s]: 5, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,.7)", border: "none", borderRadius: "50%", width: 28, height: 28, cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" };
+export function imageNavBtn(s) {
+  return { position: "absolute", [s]: 5, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,.7)", border: "none", borderRadius: "50%", width: 44, height: 44, cursor: "pointer", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center" };
 }
 
 export function renderList(t, items, icon, color, onRemove) {
   const P = getP();
   if (!items?.length) return null;
-  return <div style={{ marginTop: 10 }}><div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 6 }}>{t}</div>{items.map((it, i) => <div key={i} style={{ display: "flex", gap: 7, marginBottom: 5, padding: "4px 8px", background: `${color}08`, borderRadius: 6, borderLeft: `2px solid ${color}25`, alignItems: "center" }}><span style={{ color, fontSize: 9, flexShrink: 0 }}>{icon}</span><span style={{ flex: 1, fontSize: 11, color: P.textMid, lineHeight: 1.6, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif" }}>{it}</span>{onRemove && <button onClick={() => onRemove(i)} style={{ background: "none", border: "none", color: P.textFaint, fontSize: 12, cursor: "pointer", padding: "0 2px", lineHeight: 1, opacity: 0.4, transition: "opacity .15s" }} onMouseEnter={e => e.currentTarget.style.opacity = "1"} onMouseLeave={e => e.currentTarget.style.opacity = "0.4"}>×</button>}</div>)}</div>;
+  return <div style={{ marginTop: 10 }}><div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 6 }}>{t}</div>{items.map((it, i) => <div key={it.slice(0, 20) + '-' + i} style={{ display: "flex", gap: 7, marginBottom: 5, padding: "4px 8px", background: `${color}08`, borderRadius: 6, borderLeft: `2px solid ${color}25`, alignItems: "center" }}><span style={{ color, fontSize: 9, flexShrink: 0 }}>{icon}</span><span style={{ flex: 1, fontSize: 11, color: P.textMid, lineHeight: 1.6, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif" }}>{it}</span>{onRemove && <button onClick={() => onRemove(i)} style={{ background: "none", border: "none", color: P.textFaint, fontSize: 12, cursor: "pointer", padding: "4px 6px", lineHeight: 1, opacity: 0.4, transition: "opacity .15s" }} onMouseEnter={e => e.currentTarget.style.opacity = "1"} onMouseLeave={e => e.currentTarget.style.opacity = "0.4"}>×</button>}</div>)}</div>;
 }
 
 // ---- UI COMPONENTS ----
@@ -192,7 +225,7 @@ export function TBtn({ a, onClick, children, accent, tip }) {
   const onLeave = () => { setHov(false); clearTimeout(tipTimer.current); setShowTip(false); };
   return (
     <div style={{ position: "relative" }} onMouseEnter={onEnter} onMouseLeave={onLeave}>
-      <button onClick={onClick} aria-label={tip} style={{ width: 38, height: 38, borderRadius: 12, border: `1px solid ${a ? P.rose + "50" : accent ? P.lavender + "40" : P.textFaint + "20"}`, background: a ? P.card : P.glass, backdropFilter: "blur(12px)", cursor: "pointer", fontSize: accent ? 15 : 14, display: "flex", alignItems: "center", justifyContent: "center", transition: "all .3s ease", fontFamily: "inherit", color: P.text, boxShadow: hov ? `0 4px 16px ${P.text}12, 0 1px 3px ${P.text}08` : `0 1px 4px ${P.text}06`, transform: hov ? "translateY(-1px)" : "none" }}>{children}</button>
+      <button onClick={onClick} aria-label={tip} onTouchStart={e => { e.currentTarget.style.opacity = '0.6'; setTimeout(() => { if (e.currentTarget) e.currentTarget.style.opacity = '1'; }, 150); }} style={{ width: 44, height: 44, borderRadius: 12, border: `1px solid ${a ? P.rose + "50" : accent ? P.lavender + "40" : P.textFaint + "20"}`, background: a ? P.card : P.glass, backdropFilter: "blur(12px)", cursor: "pointer", fontSize: accent ? 15 : 14, display: "flex", alignItems: "center", justifyContent: "center", transition: "all .3s ease", fontFamily: "inherit", color: P.text, boxShadow: hov ? `0 4px 16px ${P.text}12, 0 1px 3px ${P.text}08` : `0 1px 4px ${P.text}06`, transform: hov ? "translateY(-1px)" : "none" }}>{children}</button>
       {showTip && tip && (
         <div style={{ position: "absolute", left: 46, top: "50%", transform: "translateY(-50%)", whiteSpace: "nowrap", background: P.card, backdropFilter: "blur(14px)", border: `1px solid ${P.rose}15`, borderRadius: 10, padding: "6px 14px", fontSize: 10, color: P.textMid, boxShadow: `0 4px 20px ${P.text}12, 0 1px 4px ${P.text}06`, pointerEvents: "none", animation: "fadeIn .2s ease", zIndex: 30, letterSpacing: ".05em" }}>{tip}</div>
       )}
@@ -225,7 +258,7 @@ export function TBtnGroup({ icon, label, children, badge }) {
         aria-label={label ? `${label} menu` : "More options"}
         aria-expanded={open}
         style={{
-          width: 38, height: 38, borderRadius: 12,
+          width: 44, height: 44, borderRadius: 12,
           border: `1px solid ${open ? P.rose + "40" : P.textFaint + "20"}`,
           background: open ? P.card : P.glass,
           backdropFilter: "blur(12px)", cursor: "pointer",
@@ -238,7 +271,7 @@ export function TBtnGroup({ icon, label, children, badge }) {
       >
         {icon}
         {/* Expand indicator */}
-        <span style={{ position: "absolute", right: 2, bottom: 2, fontSize: 7, opacity: open ? 0.6 : 0.3, transition: "opacity .2s", lineHeight: 1 }}>›</span>
+        <span style={{ position: "absolute", right: 2, bottom: 2, fontSize: 10, opacity: open ? 0.6 : 0.3, transition: "opacity .2s", lineHeight: 1 }}>›</span>
         {badge && <span style={{ position: "absolute", top: -2, right: -2, width: 8, height: 8, borderRadius: "50%", background: P.rose, border: `1.5px solid ${P.card}` }} />}
       </button>
       {open && (
@@ -251,7 +284,7 @@ export function TBtnGroup({ icon, label, children, badge }) {
           boxShadow: `0 4px 20px ${P.text}10, 0 1px 4px ${P.text}06`,
           animation: "fadeIn .15s ease",
         }}>
-          {label && <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".16em", textTransform: "uppercase", padding: "0 4px 3px", borderBottom: `1px solid ${P.textFaint}12`, marginBottom: 2, whiteSpace: "nowrap" }}>{label}</div>}
+          {label && <div style={{ fontSize: 10, color: P.textFaint, letterSpacing: ".16em", textTransform: "uppercase", padding: "0 4px 3px", borderBottom: `1px solid ${P.textFaint}12`, marginBottom: 2, whiteSpace: "nowrap" }}>{label}</div>}
           {children}
         </div>
       )}
@@ -265,7 +298,7 @@ export function Lbl({ children }) {
 }
 
 export function Fld({ l, v, set, t = "text", ph = "" }) {
-  return <div style={{ marginBottom: 12 }}><Lbl>{l}</Lbl><input type={t} value={v || ""} placeholder={ph} onChange={e => set(e.target.value)} style={inpSt()} /></div>;
+  return <div style={{ marginBottom: 12 }}><Lbl>{l}</Lbl><input type={t} value={v || ""} placeholder={ph} onChange={e => set(e.target.value)} style={inputStyle()} /></div>;
 }
 
 // Required-field label with pink asterisk
@@ -278,7 +311,7 @@ function RLbl({ children, req }) {
 
 // Field with required asterisk
 function FldR({ l, v, set, t = "text", ph = "", req }) {
-  return <div style={{ marginBottom: 9 }}><RLbl req={req}>{l}</RLbl><input type={t} value={v || ""} placeholder={ph} onChange={e => set(e.target.value)} style={inpSt()} /></div>;
+  return <div style={{ marginBottom: 9 }}><RLbl req={req}>{l}</RLbl><input type={t} value={v || ""} placeholder={ph} onChange={e => set(e.target.value)} style={inputStyle()} /></div>;
 }
 
 // ---- QUICK ADD FORM ----
@@ -313,21 +346,21 @@ export function QuickAddForm({ types, onAdd, onClose, draftKey }) {
         </div>
       )}
       <div style={{ position: "relative", marginBottom: 6 }}>
-        <input value={f.city} onChange={e => onCityInput(e.target.value)} onFocus={() => { if (sugg.length > 0) setShowSugg(true); }} placeholder="City..." style={inpSt()} autoFocus />
+        <input value={f.city} onChange={e => onCityInput(e.target.value)} onFocus={() => { if (sugg.length > 0) setShowSugg(true); }} placeholder="City..." style={inputStyle()} autoFocus />
         {showSugg && sugg.length > 0 && (
           <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: P.card, border: `1px solid ${P.textFaint}40`, borderRadius: 6, maxHeight: 130, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
-            {sugg.map((c, i) => <button key={i} onClick={() => selectCity(c)} style={{ display: "block", width: "100%", textAlign: "left", padding: "7px 10px", border: "none", borderBottom: `1px solid ${P.textFaint}15`, background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }} onMouseEnter={e => e.currentTarget.style.background = P.blush} onMouseLeave={e => e.currentTarget.style.background = "none"}><span style={{ fontWeight: 500, color: P.text }}>{c[0]}</span> <span style={{ color: P.textFaint }}>{c[1]}</span></button>)}
+            {sugg.map((c) => <button key={c[0] + '-' + c[2] + '-' + c[3]} onClick={() => selectCity(c)} style={{ display: "block", width: "100%", textAlign: "left", padding: "7px 10px", border: "none", borderBottom: `1px solid ${P.textFaint}15`, background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }} onMouseEnter={e => e.currentTarget.style.background = P.blush} onMouseLeave={e => e.currentTarget.style.background = "none"}><span style={{ fontWeight: 500, color: P.text }}>{c[0]}</span> <span style={{ color: P.textFaint }}>{c[1]}</span></button>)}
           </div>
         )}
       </div>
       <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-        <input type="date" value={f.dateStart} onChange={e => { sf(p => ({ ...p, dateStart: e.target.value, dateEnd: p.dateEnd || e.target.value })); }} style={{ ...inpSt(), flex: 1 }} />
-        <input type="date" value={f.dateEnd} onChange={e => sf(p => ({ ...p, dateEnd: e.target.value }))} style={{ ...inpSt(), flex: 1 }} />
-        <select value={f.type} onChange={e => sf(p => ({ ...p, type: e.target.value }))} style={{ ...inpSt(), width: 80 }}>
+        <input type="date" value={f.dateStart} onChange={e => { sf(p => ({ ...p, dateStart: e.target.value, dateEnd: p.dateEnd || e.target.value })); }} style={{ ...inputStyle(), flex: 1 }} />
+        <input type="date" value={f.dateEnd} onChange={e => sf(p => ({ ...p, dateEnd: e.target.value }))} style={{ ...inputStyle(), flex: 1 }} />
+        <select value={f.type} onChange={e => sf(p => ({ ...p, type: e.target.value }))} style={{ ...inputStyle(), width: 80 }}>
           {Object.entries(types).map(([k, v]) => <option key={k} value={k}>{v.icon}</option>)}
         </select>
       </div>
-      <input value={f.notes} onChange={e => sf(p => ({ ...p, notes: e.target.value }))} placeholder="Quick note..." style={{ ...inpSt(), marginBottom: 8 }} />
+      <input value={f.notes} onChange={e => sf(p => ({ ...p, notes: e.target.value }))} placeholder="Quick note..." style={{ ...inputStyle(), marginBottom: 8 }} />
       <button disabled={!ok} onClick={() => { clearDraft(); onAdd({ id: `e-${Date.now()}`, city: f.city, country: f.country, lat: parseFloat(f.lat), lng: parseFloat(f.lng), dateStart: f.dateStart, dateEnd: f.dateEnd || f.dateStart, type: f.type, who: types[f.type]?.who || "both", notes: f.notes, memories: [], museums: [], restaurants: [], highlights: [], photos: [], stops: [], zoomLevel: 1 }); }}
         style={{ width: "100%", padding: "11px", background: ok ? `linear-gradient(135deg, ${P.goldWarm}, ${P.rose})` : `${P.textFaint}60`, color: "#fff", border: "none", borderRadius: 12, cursor: ok ? "pointer" : "default", fontSize: 11, fontFamily: "inherit", transition: "all .3s", letterSpacing: ".06em", boxShadow: ok ? `0 2px 8px ${P.goldWarm}30, 0 4px 16px ${P.goldWarm}15` : "none" }}>
         {ok ? "⚡ Add to World" : "Select a city & date"}
@@ -364,11 +397,11 @@ export function DreamAddForm({ onAdd, isMyWorld }) {
     <div style={{ marginTop: 14, padding: 14, background: `linear-gradient(145deg, ${P.gold}06, ${P.cream})`, borderRadius: 14, border: `1px dashed ${P.goldWarm}25` }}>
       <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 8 }}>{isMyWorld ? "Add to Bucket List" : "Add a Dream"}</div>
       <div style={{ position: "relative", marginBottom: 6 }}>
-        <input placeholder="Start typing a city..." value={f.city} onChange={e => onInput(e.target.value)} onFocus={() => { if (sugg.length > 0) setShowSugg(true); }} style={{ ...inpSt(), fontSize: 11 }} />
+        <input placeholder="Start typing a city..." value={f.city} onChange={e => onInput(e.target.value)} onFocus={() => { if (sugg.length > 0) setShowSugg(true); }} style={{ ...inputStyle(), fontSize: 11 }} />
         {showSugg && sugg.length > 0 && (
           <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: P.card, border: `1px solid ${P.textFaint}40`, borderRadius: 6, maxHeight: 120, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
-            {sugg.map((c, i) => (
-              <button key={i} onClick={() => pick(c)} style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", border: "none", borderBottom: `1px solid ${P.textFaint}15`, background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }}
+            {sugg.map((c) => (
+              <button key={c[0] + '-' + c[2] + '-' + c[3]} onClick={() => pick(c)} style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", border: "none", borderBottom: `1px solid ${P.textFaint}15`, background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }}
                 onMouseEnter={e => e.currentTarget.style.background = P.blush}
                 onMouseLeave={e => e.currentTarget.style.background = "none"}
               >
@@ -388,8 +421,8 @@ export function DreamAddForm({ onAdd, isMyWorld }) {
         ))}
       </div>
       <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-        <input placeholder="Why this place?" value={f.notes} onChange={e => sf(p => ({ ...p, notes: e.target.value }))} style={{ ...inpSt(), fontSize: 10, flex: 1 }} />
-        <input type="date" placeholder="Target date" value={f.targetDate} onChange={e => sf(p => ({ ...p, targetDate: e.target.value }))} style={{ ...inpSt(), fontSize: 10, width: 110, flexShrink: 0 }} />
+        <input placeholder="Why this place?" value={f.notes} onChange={e => sf(p => ({ ...p, notes: e.target.value }))} style={{ ...inputStyle(), fontSize: 10, flex: 1 }} />
+        <input type="date" placeholder="Target date" value={f.targetDate} onChange={e => sf(p => ({ ...p, targetDate: e.target.value }))} style={{ ...inputStyle(), fontSize: 10, width: 110, flexShrink: 0 }} />
       </div>
       <button disabled={!ok} onClick={() => { onAdd({ city: f.city, country: f.country, lat: parseFloat(f.lat), lng: parseFloat(f.lng), notes: f.notes, category: f.category, targetDate: f.targetDate }); sf({ city: "", country: "", lat: "", lng: "", notes: "", category: "", targetDate: "" }); }}
         style={{ width: "100%", padding: "9px", background: ok ? `linear-gradient(135deg, ${P.goldWarm}, ${P.rose})` : `${P.textFaint}60`, color: "#fff", border: "none", borderRadius: 10, cursor: ok ? "pointer" : "default", fontSize: 10, fontFamily: "inherit", transition: "all .3s", letterSpacing: ".06em", boxShadow: ok ? `0 2px 8px ${P.goldWarm}25` : "none" }}>
@@ -406,16 +439,28 @@ export { DREAM_CATEGORIES };
 export function AddForm({ types, defaultType = "together", defaultWho = "both", fieldLabels, isMyWorld, worldName, onAdd, onClose, draftKey }) {
   const P = getP();
   const trapRef = useFocusTrap(true);
-  const initialForm = { city: "", country: "", lat: "", lng: "", dateStart: "", dateEnd: "", type: defaultType, who: defaultWho, zoomLevel: 1, notes: "", museums: "", restaurants: "", highlights: "", memories: "", musicUrl: "", stops: [] };
+  const initialForm = { city: "", country: "", lat: "", lng: "", dateStart: "", dateEnd: "", type: defaultType, who: defaultWho, zoomLevel: 1, notes: "", museums: "", restaurants: "", highlights: "", memories: "", musicUrl: "", rating: null, stops: [] };
   const [f, sf, draftRestored, clearDraft, dismissRestored] = useDraft(draftKey, initialForm);
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [ns, setNs] = useState({ city: "", lat: "", lng: "", notes: "", dateStart: "", dateEnd: "" });
   const [stopSugg, setStopSugg] = useState([]);
   const [showStopSugg, setShowStopSugg] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const dateEndRef = useRef(null);
   const notesRef = useRef(null);
   const memoryPrompt = useMemoryPrompt(f.type);
+
+  // Reverse geocode when lat/lng manually changed
+  useEffect(() => {
+    const latVal = parseFloat(f.lat), lngVal = parseFloat(f.lng);
+    if (isNaN(latVal) || isNaN(lngVal) || latVal < -90 || latVal > 90 || lngVal < -180 || lngVal > 180) return;
+    const timer = setTimeout(async () => {
+      const result = await reverseGeocode(latVal, lngVal);
+      if (result) sf(p => ({ ...p, city: result.city || p.city, country: result.country || p.country }));
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [f.lat, f.lng]);
 
   const lat = parseFloat(f.lat), lng = parseFloat(f.lng);
   const validCoords = !isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
@@ -452,13 +497,13 @@ export function AddForm({ types, defaultType = "together", defaultWho = "both", 
       <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
         <div style={{ flex: 1 }}>
           <RLbl req>Type</RLbl>
-          <select value={f.type} onChange={e => { const t = e.target.value; sf(p => ({ ...p, type: t, who: types[t]?.who || "both" })); }} style={inpSt()}>
+          <select value={f.type} onChange={e => { const t = e.target.value; sf(p => ({ ...p, type: t, who: types[t]?.who || "both" })); }} style={inputStyle()}>
             {Object.entries(types).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
           </select>
         </div>
         <div style={{ flex: 1 }}>
           <RLbl>Zoom (1-3)</RLbl>
-          <select value={f.zoomLevel} onChange={e => sf(p => ({ ...p, zoomLevel: parseInt(e.target.value) || 1 }))} style={inpSt()}>
+          <select value={f.zoomLevel} onChange={e => sf(p => ({ ...p, zoomLevel: parseInt(e.target.value) || 1 }))} style={inputStyle()}>
             <option value={1}>1 — Always</option>
             <option value={2}>2 — Regional</option>
             <option value={3}>3 — Close-up</option>
@@ -466,13 +511,18 @@ export function AddForm({ types, defaultType = "together", defaultWho = "both", 
         </div>
       </div>
 
+      <div style={{ marginBottom: 8, display: "flex", alignItems: "center", gap: 8 }}>
+        <Lbl style={{ margin: 0 }}>Rating</Lbl>
+        <StarRating value={f.rating} onChange={v => sf(p => ({ ...p, rating: v }))} />
+      </div>
+
       <div style={{ marginBottom: 8, position: "relative" }}>
         <RLbl req>City</RLbl>
-        <input value={f.city} onChange={e => onCityInput(e.target.value)} onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }} placeholder="Start typing — e.g. Haw..." style={{ ...inpSt(), borderColor: f.city ? `${P.textFaint}60` : undefined }} />
+        <input value={f.city} onChange={e => onCityInput(e.target.value)} onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }} placeholder="Start typing — e.g. Haw..." style={{ ...inputStyle(), borderColor: f.city ? `${P.textFaint}60` : undefined }} />
         {showSuggestions && suggestions.length > 0 && (
           <div role="listbox" aria-label="City suggestions" style={{ position: "absolute", top: "100%", left: 0, right: 0, background: P.card, border: `1px solid ${P.textFaint}40`, borderRadius: 6, maxHeight: 150, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
-            {suggestions.map((c, i) => (
-              <button key={i} role="option" onClick={() => selectCity(c)} style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", textAlign: "left", padding: "8px 10px", border: "none", borderBottom: `1px solid ${P.textFaint}15`, background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 11, color: P.textMid, transition: "background .15s" }}
+            {suggestions.map((c) => (
+              <button key={c[0] + '-' + c[2] + '-' + c[3]} role="option" onClick={() => selectCity(c)} style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", textAlign: "left", padding: "8px 10px", border: "none", borderBottom: `1px solid ${P.textFaint}15`, background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 11, color: P.textMid, transition: "background .15s" }}
                 onMouseEnter={e => e.currentTarget.style.background = P.blush} onMouseLeave={e => e.currentTarget.style.background = "none"}>
                 <span style={{ fontSize: 13 }}>📍</span>
                 <div><div style={{ fontWeight: 500, color: P.text }}>{c[0]}</div><div style={{ fontSize: 9, color: P.textFaint }}>{c[1]} · {c[2].toFixed(2)}, {c[3].toFixed(2)}</div></div>
@@ -483,37 +533,40 @@ export function AddForm({ types, defaultType = "together", defaultWho = "both", 
       </div>
 
       <Fld l="Country" v={f.country} set={v => sf(p => ({ ...p, country: v }))} ph="Auto-filled from city selection" />
-      <div style={{ display: "flex", gap: 8 }}>
+      <div style={{ marginBottom: 4 }}>
+        <span onClick={() => setShowAdvanced(a => !a)} style={{ fontSize: 11, color: P.textMuted || "#888", cursor: "pointer", userSelect: "none" }}>{showAdvanced ? "Advanced \u25be" : "Advanced \u25b8"}</span>
+      </div>
+      {showAdvanced && <div style={{ display: "flex", gap: 8 }}>
         <div style={{ flex: 1 }}><FldR l="Latitude" v={f.lat} t="number" set={v => sf(p => ({ ...p, lat: v }))} ph="Auto-filled" req /></div>
         <div style={{ flex: 1 }}><FldR l="Longitude" v={f.lng} t="number" set={v => sf(p => ({ ...p, lng: v }))} ph="Auto-filled" req /></div>
-      </div>
+      </div>}
       <div style={{ display: "flex", gap: 8 }}>
-        <div style={{ flex: 1, marginBottom: 9 }}><RLbl req>Start Date</RLbl><input type="date" value={f.dateStart || ""} onChange={e => { const v = e.target.value; sf(p => ({ ...p, dateStart: v })); if (parseInt(v?.split('-')[0], 10) >= 1000) setTimeout(() => { if (dateEndRef.current) { dateEndRef.current.showPicker?.(); dateEndRef.current.focus(); } }, 50); }} style={inpSt()} /></div>
-        <div style={{ flex: 1, marginBottom: 9 }}><RLbl req>End Date</RLbl><input ref={dateEndRef} type="date" value={f.dateEnd || ""} onChange={e => { const v = e.target.value; sf(p => ({ ...p, dateEnd: v })); if (parseInt(v?.split('-')[0], 10) >= 1000) setTimeout(() => { if (notesRef.current) notesRef.current.focus(); }, 50); }} style={inpSt()} /></div>
+        <div style={{ flex: 1, marginBottom: 9 }}><RLbl req>Start Date</RLbl><input type="date" value={f.dateStart || ""} onChange={e => { const v = e.target.value; sf(p => ({ ...p, dateStart: v })); if (parseInt(v?.split('-')[0], 10) >= 1000) setTimeout(() => { if (dateEndRef.current) { dateEndRef.current.showPicker?.(); dateEndRef.current.focus(); } }, 50); }} style={inputStyle()} /></div>
+        <div style={{ flex: 1, marginBottom: 9 }}><RLbl req>End Date</RLbl><input ref={dateEndRef} type="date" value={f.dateEnd || ""} onChange={e => { const v = e.target.value; sf(p => ({ ...p, dateEnd: v })); if (parseInt(v?.split('-')[0], 10) >= 1000) setTimeout(() => { if (notesRef.current) notesRef.current.focus(); }, 50); }} style={inputStyle()} /></div>
       </div>
 
       <div style={{ margin: "10px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
 
-      <div style={{ marginBottom: 8 }}><Lbl>Notes</Lbl><textarea ref={notesRef} value={f.notes} onChange={e => sf(p => ({ ...p, notes: e.target.value }))} rows={2} placeholder="What made this place special?" style={{ ...inpSt(), resize: "vertical" }} /></div>
-      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.highlights?.label || "Highlights"} (one per line)</Lbl><textarea value={f.highlights} onChange={e => sf(p => ({ ...p, highlights: e.target.value }))} rows={2} placeholder={isMyWorld ? "Hiked the summit trail\nSunrise over the valley" : "The sunset was perfect\nDancing until midnight"} style={{ ...inpSt(), resize: "vertical" }} /></div>
-      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.memories?.label || "Memories"} (one per line)</Lbl><textarea value={f.memories || ""} onChange={e => sf(p => ({ ...p, memories: e.target.value }))} rows={2} placeholder={memoryPrompt} style={{ ...inpSt(), resize: "vertical" }} /></div>
-      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.museums?.label || "Museums & Culture"}</Lbl><textarea value={f.museums} onChange={e => sf(p => ({ ...p, museums: e.target.value }))} rows={1} style={{ ...inpSt(), resize: "vertical" }} /></div>
-      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.restaurants?.label || "Restaurants & Food"}</Lbl><textarea value={f.restaurants} onChange={e => sf(p => ({ ...p, restaurants: e.target.value }))} rows={1} style={{ ...inpSt(), resize: "vertical" }} /></div>
-      <div style={{ marginBottom: 8 }}><Lbl>Music URL</Lbl><input value={f.musicUrl} onChange={e => sf(p => ({ ...p, musicUrl: e.target.value }))} placeholder="Paste audio URL (optional)" style={inpSt()} /></div>
+      <div style={{ marginBottom: 8 }}><Lbl>Notes</Lbl><textarea ref={notesRef} value={f.notes} onChange={e => sf(p => ({ ...p, notes: e.target.value }))} rows={2} placeholder="What made this place special?" style={{ ...inputStyle(), resize: "vertical" }} /></div>
+      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.highlights?.label || "Highlights"} (one per line)</Lbl><textarea value={f.highlights} onChange={e => sf(p => ({ ...p, highlights: e.target.value }))} rows={2} placeholder={isMyWorld ? "Hiked the summit trail\nSunrise over the valley" : "The sunset was perfect\nDancing until midnight"} style={{ ...inputStyle(), resize: "vertical" }} /></div>
+      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.memories?.label || "Memories"} (one per line)</Lbl><textarea value={f.memories || ""} onChange={e => sf(p => ({ ...p, memories: e.target.value }))} rows={2} placeholder={memoryPrompt} style={{ ...inputStyle(), resize: "vertical" }} /></div>
+      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.museums?.label || "Museums & Culture"}</Lbl><textarea value={f.museums} onChange={e => sf(p => ({ ...p, museums: e.target.value }))} rows={1} style={{ ...inputStyle(), resize: "vertical" }} /></div>
+      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.restaurants?.label || "Restaurants & Food"}</Lbl><textarea value={f.restaurants} onChange={e => sf(p => ({ ...p, restaurants: e.target.value }))} rows={1} style={{ ...inputStyle(), resize: "vertical" }} /></div>
+      <div style={{ marginBottom: 8 }}><Lbl>Music URL</Lbl><input value={f.musicUrl} onChange={e => sf(p => ({ ...p, musicUrl: e.target.value }))} placeholder="Paste audio URL (optional)" style={inputStyle()} /></div>
 
       <div style={{ margin: "6px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
       <Lbl>Trip Stops</Lbl>
       {f.stops.map(s => <div key={s.sid} style={{ fontSize: 10, padding: "3px 7px", background: `${P.rose}08`, borderRadius: 5, marginBottom: 3, display: "flex", justifyContent: "space-between" }}><span>{s.city}</span><button onClick={() => sf(p => ({ ...p, stops: p.stops.filter(st => st.sid !== s.sid) }))} style={{ background: "none", border: "none", color: "#c9777a", cursor: "pointer", fontSize: 11 }}>×</button></div>)}
       <div style={{ position: "relative", marginTop: 4, marginBottom: 12 }}>
         <div style={{ display: "flex", gap: 4 }}>
-          <input placeholder="Start typing city..." value={ns.city} onChange={e => onStopCityInput(e.target.value)} onFocus={() => { if (stopSugg.length > 0) setShowStopSugg(true); }} style={{ ...inpSt(), flex: 1 }} />
-          <input placeholder="Lat" value={ns.lat} onChange={e => setNs(p => ({ ...p, lat: e.target.value }))} style={{ ...inpSt(), width: 48 }} />
-          <input placeholder="Lng" value={ns.lng} onChange={e => setNs(p => ({ ...p, lng: e.target.value }))} style={{ ...inpSt(), width: 48 }} />
+          <input placeholder="Start typing city..." value={ns.city} onChange={e => onStopCityInput(e.target.value)} onFocus={() => { if (stopSugg.length > 0) setShowStopSugg(true); }} style={{ ...inputStyle(), flex: 1 }} />
+          <input placeholder="Lat" value={ns.lat} onChange={e => setNs(p => ({ ...p, lat: e.target.value }))} style={{ ...inputStyle(), width: 48 }} />
+          <input placeholder="Lng" value={ns.lng} onChange={e => setNs(p => ({ ...p, lng: e.target.value }))} style={{ ...inputStyle(), width: 48 }} />
         </div>
         {showStopSugg && stopSugg.length > 0 && (
           <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: P.card, border: `1px solid ${P.textFaint}40`, borderRadius: 6, maxHeight: 120, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
-            {stopSugg.map((c, i) => (
-              <button key={i} onClick={() => selectStopCity(c)} style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", border: "none", borderBottom: `1px solid ${P.textFaint}15`, background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }}
+            {stopSugg.map((c) => (
+              <button key={c[0] + '-' + c[2] + '-' + c[3]} onClick={() => selectStopCity(c)} style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", border: "none", borderBottom: `1px solid ${P.textFaint}15`, background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }}
                 onMouseEnter={e => e.currentTarget.style.background = P.blush} onMouseLeave={e => e.currentTarget.style.background = "none"}>
                 <span style={{ fontWeight: 500, color: P.text }}>{c[0]}</span> <span style={{ color: P.textFaint }}>{c[1]}</span>
               </button>
@@ -521,8 +574,8 @@ export function AddForm({ types, defaultType = "together", defaultWho = "both", 
           </div>
         )}
         <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
-          <input type="date" placeholder="Start" value={ns.dateStart || ""} onChange={e => setNs(p => ({ ...p, dateStart: e.target.value }))} style={{ ...inpSt(), flex: 1, fontSize: 9 }} />
-          <input type="date" placeholder="End" value={ns.dateEnd || ""} onChange={e => setNs(p => ({ ...p, dateEnd: e.target.value }))} style={{ ...inpSt(), flex: 1, fontSize: 9 }} />
+          <input type="date" placeholder="Start" value={ns.dateStart || ""} onChange={e => setNs(p => ({ ...p, dateStart: e.target.value }))} style={{ ...inputStyle(), flex: 1, fontSize: 9 }} />
+          <input type="date" placeholder="End" value={ns.dateEnd || ""} onChange={e => setNs(p => ({ ...p, dateEnd: e.target.value }))} style={{ ...inputStyle(), flex: 1, fontSize: 9 }} />
         </div>
         <button disabled={!ns.city || !ns.lat} onClick={() => { setShowStopSugg(false); sf(p => ({ ...p, stops: [...p.stops, { sid: `s-${Date.now()}`, city: ns.city, lat: parseFloat(ns.lat) || 0, lng: parseFloat(ns.lng) || 0, notes: ns.notes, dateStart: ns.dateStart || null, dateEnd: ns.dateEnd || null }] })); setNs({ city: "", lat: "", lng: "", notes: "", dateStart: "", dateEnd: "" }); }} style={{ marginTop: 4, width: "100%", padding: "6px", background: P.rose, color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 10, fontFamily: "inherit" }}>+ Add Stop</button>
       </div>
@@ -539,7 +592,7 @@ export function AddForm({ types, defaultType = "together", defaultWho = "both", 
         dateStart: f.dateStart, dateEnd: f.dateEnd || null, type: f.type, who: f.who, zoomLevel: f.zoomLevel,
         notes: f.notes, memories: (f.memories || "").split("\n").filter(Boolean), museums: f.museums.split("\n").filter(Boolean),
         restaurants: f.restaurants.split("\n").filter(Boolean), highlights: f.highlights.split("\n").filter(Boolean),
-        photos: [], stops: f.stops, musicUrl: f.musicUrl || null,
+        photos: [], stops: f.stops, musicUrl: f.musicUrl || null, rating: f.rating || null,
       }); }} style={{ width: "100%", padding: "12px 0", background: ok ? `linear-gradient(135deg, ${P.rose}, ${P.sky})` : `${P.textFaint}60`, color: "#fff", border: "none", borderRadius: 14, cursor: ok ? "pointer" : "default", fontSize: 12, letterSpacing: ".1em", fontFamily: "inherit", transition: "all .3s", boxShadow: ok ? `0 2px 8px ${P.rose}30, 0 4px 16px ${P.rose}15` : "none" }}>
         {ok ? `Add to ${worldName || (isMyWorld ? "My World" : "Our World")} ${isMyWorld ? "🌍" : "💕"}` : "Fill required fields to continue"}
       </button>
@@ -559,6 +612,7 @@ export function EditForm({ entry, types, fieldLabels, onChange, onSave, onClose,
   const [ns, setNs] = useState({ city: "", lat: "", lng: "", notes: "", dateStart: "", dateEnd: "" });
   const [stopSugg, setStopSugg] = useState([]);
   const [showStopSugg, setShowStopSugg] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [citySugg, setCitySugg] = useState([]);
   const [showCitySugg, setShowCitySugg] = useState(false);
   const editDateEndRef = useRef(null);
@@ -585,16 +639,27 @@ export function EditForm({ entry, types, fieldLabels, onChange, onSave, onClose,
     setStopSugg([]); setShowStopSugg(false);
   };
 
+  // Reverse geocode when lat/lng manually changed
+  useEffect(() => {
+    const latVal = parseFloat(entry.lat), lngVal = parseFloat(entry.lng);
+    if (isNaN(latVal) || isNaN(lngVal) || latVal < -90 || latVal > 90 || lngVal < -180 || lngVal > 180) return;
+    const timer = setTimeout(async () => {
+      const result = await reverseGeocode(latVal, lngVal);
+      if (result) onChange(p => ({ ...p, city: result.city || p.city, country: result.country || p.country }));
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [entry.lat, entry.lng]);
+
   return (
     <div ref={trapRef} style={{ position: "absolute", top: "42%", right: 18, transform: "translateY(-50%)", zIndex: 30, background: P.card, backdropFilter: "blur(28px)", borderRadius: 20, padding: 22, maxWidth: 340, minWidth: 270, maxHeight: "65vh", overflowY: "auto", boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 20px 56px rgba(61,53,82,.1)", border: `1px solid ${P.together}12`, fontFamily: "'Palatino Linotype',Palatino,Georgia,serif", animation: "fadeIn .3s ease" }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}><h3 style={{ margin: 0, fontSize: 15, fontWeight: 400, letterSpacing: ".04em" }}>Edit</h3><button aria-label="Close edit form" onClick={onClose} style={{ background: "none", border: "none", fontSize: 16, color: P.textFaint, cursor: "pointer" }}>×</button></div>
       <div style={{ marginBottom: 9, position: "relative" }}>
         <Lbl>City</Lbl>
-        <input value={entry.city || ""} onChange={e => onEditCity(e.target.value)} onFocus={() => { if (citySugg.length > 0) setShowCitySugg(true); }} style={inpSt()} />
+        <input value={entry.city || ""} onChange={e => onEditCity(e.target.value)} onFocus={() => { if (citySugg.length > 0) setShowCitySugg(true); }} style={inputStyle()} />
         {showCitySugg && citySugg.length > 0 && (
           <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: P.card, border: `1px solid ${P.textFaint}40`, borderRadius: 6, maxHeight: 120, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
-            {citySugg.map((c, i) => (
-              <button key={i} onClick={() => selectEditCity(c)} style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", border: "none", borderBottom: `1px solid ${P.textFaint}15`, background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }}
+            {citySugg.map((c) => (
+              <button key={c[0] + '-' + c[2] + '-' + c[3]} onClick={() => selectEditCity(c)} style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", border: "none", borderBottom: `1px solid ${P.textFaint}15`, background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }}
                 onMouseEnter={e => e.currentTarget.style.background = P.blush} onMouseLeave={e => e.currentTarget.style.background = "none"}>
                 <span style={{ fontWeight: 500, color: P.text }}>{c[0]}</span> <span style={{ color: P.textFaint }}>{c[1]}</span>
               </button>
@@ -603,15 +668,19 @@ export function EditForm({ entry, types, fieldLabels, onChange, onSave, onClose,
         )}
       </div>
       <Fld l="Country" v={entry.country} set={v => onChange(p => ({ ...p, country: v }))} />
-      <div style={{ display: "flex", gap: 6 }}><div style={{ flex: 1 }}><Fld l="Lat" v={entry.lat} t="number" set={v => onChange(p => ({ ...p, lat: parseFloat(v) || 0 }))} /></div><div style={{ flex: 1 }}><Fld l="Lng" v={entry.lng} t="number" set={v => onChange(p => ({ ...p, lng: parseFloat(v) || 0 }))} /></div></div>
-      <div style={{ display: "flex", gap: 6 }}><div style={{ flex: 1, marginBottom: 9 }}><Lbl>Start</Lbl><input type="date" value={entry.dateStart || ""} onChange={e => { const v = e.target.value; onChange(p => ({ ...p, dateStart: v })); if (parseInt(v?.split('-')[0], 10) >= 1000) setTimeout(() => { if (editDateEndRef.current) { editDateEndRef.current.showPicker?.(); editDateEndRef.current.focus(); } }, 50); }} style={inpSt()} /></div><div style={{ flex: 1, marginBottom: 9 }}><Lbl>End</Lbl><input ref={editDateEndRef} type="date" value={entry.dateEnd || ""} onChange={e => { const v = e.target.value; onChange(p => ({ ...p, dateEnd: v || null })); if (parseInt(v?.split('-')[0], 10) >= 1000) setTimeout(() => { if (editNotesRef.current) editNotesRef.current.focus(); }, 50); }} style={inpSt()} /></div></div>
-      <div style={{ marginBottom: 8 }}><Lbl>Type</Lbl><select value={entry.type} onChange={e => { const t = e.target.value; onChange(p => ({ ...p, type: t, who: types[t]?.who || "both" })); }} style={inpSt()}>{Object.entries(types).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}</select></div>
-      <div style={{ marginBottom: 8 }}><Lbl>Notes</Lbl><textarea ref={editNotesRef} value={entry.notes || ""} onChange={e => onChange(p => ({ ...p, notes: e.target.value }))} rows={2} style={{ ...inpSt(), resize: "vertical" }} /></div>
-      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.highlights?.label || "Highlights"}</Lbl><textarea value={(entry.highlights || []).join("\n")} onChange={e => onChange(p => ({ ...p, highlights: e.target.value.split("\n").filter(Boolean) }))} rows={2} style={{ ...inpSt(), resize: "vertical" }} /></div>
-      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.memories?.label || "Memories"}</Lbl><textarea value={(entry.memories || []).join("\n")} onChange={e => onChange(p => ({ ...p, memories: e.target.value.split("\n").filter(Boolean) }))} rows={2} placeholder={memoryPrompt} style={{ ...inpSt(), resize: "vertical" }} /></div>
-      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.museums?.label || "Museums"}</Lbl><textarea value={(entry.museums || []).join("\n")} onChange={e => onChange(p => ({ ...p, museums: e.target.value.split("\n").filter(Boolean) }))} rows={1} style={{ ...inpSt(), resize: "vertical" }} /></div>
-      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.restaurants?.label || "Restaurants"}</Lbl><textarea value={(entry.restaurants || []).join("\n")} onChange={e => onChange(p => ({ ...p, restaurants: e.target.value.split("\n").filter(Boolean) }))} rows={1} style={{ ...inpSt(), resize: "vertical" }} /></div>
-      <div style={{ marginBottom: 8 }}><Lbl>Music URL</Lbl><input value={entry.musicUrl || ""} onChange={e => onChange(p => ({ ...p, musicUrl: e.target.value || null }))} placeholder="paste audio URL" style={inpSt()} /></div>
+      <div style={{ marginBottom: 4 }}>
+        <span onClick={() => setShowAdvanced(a => !a)} style={{ fontSize: 11, color: P.textMuted || "#888", cursor: "pointer", userSelect: "none" }}>{showAdvanced ? "Advanced \u25be" : "Advanced \u25b8"}</span>
+      </div>
+      {showAdvanced && <div style={{ display: "flex", gap: 6 }}><div style={{ flex: 1 }}><Fld l="Lat" v={entry.lat} t="number" set={v => onChange(p => ({ ...p, lat: parseFloat(v) || 0 }))} /></div><div style={{ flex: 1 }}><Fld l="Lng" v={entry.lng} t="number" set={v => onChange(p => ({ ...p, lng: parseFloat(v) || 0 }))} /></div></div>}
+      <div style={{ display: "flex", gap: 6 }}><div style={{ flex: 1, marginBottom: 9 }}><Lbl>Start</Lbl><input type="date" value={entry.dateStart || ""} onChange={e => { const v = e.target.value; onChange(p => ({ ...p, dateStart: v })); if (parseInt(v?.split('-')[0], 10) >= 1000) setTimeout(() => { if (editDateEndRef.current) { editDateEndRef.current.showPicker?.(); editDateEndRef.current.focus(); } }, 50); }} style={inputStyle()} /></div><div style={{ flex: 1, marginBottom: 9 }}><Lbl>End</Lbl><input ref={editDateEndRef} type="date" value={entry.dateEnd || ""} onChange={e => { const v = e.target.value; onChange(p => ({ ...p, dateEnd: v || null })); if (parseInt(v?.split('-')[0], 10) >= 1000) setTimeout(() => { if (editNotesRef.current) editNotesRef.current.focus(); }, 50); }} style={inputStyle()} /></div></div>
+      <div style={{ marginBottom: 8 }}><Lbl>Type</Lbl><select value={entry.type} onChange={e => { const t = e.target.value; onChange(p => ({ ...p, type: t, who: types[t]?.who || "both" })); }} style={inputStyle()}>{Object.entries(types).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}</select></div>
+      <div style={{ marginBottom: 8, display: "flex", alignItems: "center", gap: 8 }}><Lbl style={{ margin: 0 }}>Rating</Lbl><StarRating value={entry.rating} onChange={v => onChange(p => ({ ...p, rating: v }))} /></div>
+      <div style={{ marginBottom: 8 }}><Lbl>Notes</Lbl><textarea ref={editNotesRef} value={entry.notes || ""} onChange={e => onChange(p => ({ ...p, notes: e.target.value }))} rows={2} style={{ ...inputStyle(), resize: "vertical" }} /></div>
+      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.highlights?.label || "Highlights"}</Lbl><textarea value={(entry.highlights || []).join("\n")} onChange={e => onChange(p => ({ ...p, highlights: e.target.value.split("\n").filter(Boolean) }))} rows={2} style={{ ...inputStyle(), resize: "vertical" }} /></div>
+      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.memories?.label || "Memories"}</Lbl><textarea value={(entry.memories || []).join("\n")} onChange={e => onChange(p => ({ ...p, memories: e.target.value.split("\n").filter(Boolean) }))} rows={2} placeholder={memoryPrompt} style={{ ...inputStyle(), resize: "vertical" }} /></div>
+      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.museums?.label || "Museums"}</Lbl><textarea value={(entry.museums || []).join("\n")} onChange={e => onChange(p => ({ ...p, museums: e.target.value.split("\n").filter(Boolean) }))} rows={1} style={{ ...inputStyle(), resize: "vertical" }} /></div>
+      <div style={{ marginBottom: 8 }}><Lbl>{fieldLabels?.restaurants?.label || "Restaurants"}</Lbl><textarea value={(entry.restaurants || []).join("\n")} onChange={e => onChange(p => ({ ...p, restaurants: e.target.value.split("\n").filter(Boolean) }))} rows={1} style={{ ...inputStyle(), resize: "vertical" }} /></div>
+      <div style={{ marginBottom: 8 }}><Lbl>Music URL</Lbl><input value={entry.musicUrl || ""} onChange={e => onChange(p => ({ ...p, musicUrl: e.target.value || null }))} placeholder="paste audio URL" style={inputStyle()} /></div>
 
       <div style={{ margin: "8px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
       <Lbl>Trip Stops</Lbl>
@@ -619,12 +688,12 @@ export function EditForm({ entry, types, fieldLabels, onChange, onSave, onClose,
 
       <div style={{ position: "relative", marginTop: 4 }}>
         <div style={{ display: "flex", gap: 4 }}>
-          <input placeholder="Start typing city..." value={ns.city} onChange={e => onStopCity(e.target.value)} onFocus={() => { if (stopSugg.length > 0) setShowStopSugg(true); }} style={{ ...inpSt(), flex: 1 }} />
+          <input placeholder="Start typing city..." value={ns.city} onChange={e => onStopCity(e.target.value)} onFocus={() => { if (stopSugg.length > 0) setShowStopSugg(true); }} style={{ ...inputStyle(), flex: 1 }} />
         </div>
         {showStopSugg && stopSugg.length > 0 && (
           <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: P.card, border: `1px solid ${P.textFaint}40`, borderRadius: 6, maxHeight: 120, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
-            {stopSugg.map((c, i) => (
-              <button key={i} onClick={() => selectStopCity(c)} style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", border: "none", borderBottom: `1px solid ${P.textFaint}15`, background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }}
+            {stopSugg.map((c) => (
+              <button key={c[0] + '-' + c[2] + '-' + c[3]} onClick={() => selectStopCity(c)} style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", border: "none", borderBottom: `1px solid ${P.textFaint}15`, background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }}
                 onMouseEnter={e => e.currentTarget.style.background = P.blush} onMouseLeave={e => e.currentTarget.style.background = "none"}>
                 <span style={{ fontWeight: 500, color: P.text }}>{c[0]}</span> <span style={{ color: P.textFaint }}>{c[1]}</span>
               </button>
@@ -632,10 +701,10 @@ export function EditForm({ entry, types, fieldLabels, onChange, onSave, onClose,
           </div>
         )}
         <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
-          <input placeholder="Lat" value={ns.lat} onChange={e => setNs(p => ({ ...p, lat: e.target.value }))} style={{ ...inpSt(), width: 55 }} />
-          <input placeholder="Lng" value={ns.lng} onChange={e => setNs(p => ({ ...p, lng: e.target.value }))} style={{ ...inpSt(), width: 55 }} />
-          <input type="date" value={ns.dateStart} onChange={e => setNs(p => ({ ...p, dateStart: e.target.value }))} style={{ ...inpSt(), flex: 1, fontSize: 9 }} />
-          <input type="date" value={ns.dateEnd} onChange={e => setNs(p => ({ ...p, dateEnd: e.target.value }))} style={{ ...inpSt(), flex: 1, fontSize: 9 }} />
+          <input placeholder="Lat" value={ns.lat} onChange={e => setNs(p => ({ ...p, lat: e.target.value }))} style={{ ...inputStyle(), width: 55 }} />
+          <input placeholder="Lng" value={ns.lng} onChange={e => setNs(p => ({ ...p, lng: e.target.value }))} style={{ ...inputStyle(), width: 55 }} />
+          <input type="date" value={ns.dateStart} onChange={e => setNs(p => ({ ...p, dateStart: e.target.value }))} style={{ ...inputStyle(), flex: 1, fontSize: 9 }} />
+          <input type="date" value={ns.dateEnd} onChange={e => setNs(p => ({ ...p, dateEnd: e.target.value }))} style={{ ...inputStyle(), flex: 1, fontSize: 9 }} />
         </div>
         <button disabled={!ns.city || !ns.lat} onClick={() => { setShowStopSugg(false); onAddStop({ sid: `s-${Date.now()}`, city: ns.city, lat: parseFloat(ns.lat) || 0, lng: parseFloat(ns.lng) || 0, notes: ns.notes, dateStart: ns.dateStart || null, dateEnd: ns.dateEnd || null }); setNs({ city: "", lat: "", lng: "", notes: "", dateStart: "", dateEnd: "" }); }} style={{ marginTop: 4, width: "100%", padding: "6px", background: P.rose, color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 10, fontFamily: "inherit" }}>+ Add Stop</button>
       </div>

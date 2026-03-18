@@ -5474,7 +5474,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       })()}
 
       {/* ONBOARDING OVERLAY */}
-      {showOnboarding && introComplete && <OnboardingOverlay worldName={worldName} worldType={worldType} isSharedWorld={isSharedWorld} isPartnerWorld={isPartnerWorld} isMyWorld={isMyWorld} onboardStep={onboardStep} setOnboardStep={setOnboardStep} onClose={() => setShowOnboarding(false)} onboardKey={onboardKey} startDate={config.startDate} onStartDateChange={(d) => { setConfig(prev => ({ ...prev, startDate: d })); db.saveConfig({ ...config, startDate: d }); }} />}
+      {showOnboarding && introComplete && <OnboardingOverlay worldName={worldName} worldType={worldType} isSharedWorld={isSharedWorld} isPartnerWorld={isPartnerWorld} isMyWorld={isMyWorld} onboardStep={onboardStep} setOnboardStep={setOnboardStep} onClose={() => setShowOnboarding(false)} onboardKey={onboardKey} />}
 
 
       {/* FIRST ENTRY CELEBRATION */}

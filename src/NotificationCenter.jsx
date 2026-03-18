@@ -103,7 +103,8 @@ export default function NotificationCenter({
     <div ref={panelRef} style={{ position: "relative", display: "inline-block" }}>
       {/* Bell button */}
       <button
-        aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ""}`}
+        aria-label={`Notifications — view activity from shared worlds${unreadCount > 0 ? ` (${unreadCount} unread)` : ""}`}
+        aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
         style={{
           position: "relative", background: "none", border: "none", cursor: "pointer",
@@ -115,8 +116,8 @@ export default function NotificationCenter({
         {unreadCount > 0 && (
           <span style={{
             position: "absolute", top: 0, right: 0,
-            background: "#ef4444", color: "#fff", fontSize: 9, fontWeight: 700,
-            minWidth: 16, height: 16, borderRadius: 8,
+            background: "#ef4444", color: "#fff", fontSize: 11, fontWeight: 700,
+            minWidth: 20, height: 20, borderRadius: 10,
             display: "flex", alignItems: "center", justifyContent: "center",
             padding: "0 4px", fontFamily: "system-ui, sans-serif",
           }}>

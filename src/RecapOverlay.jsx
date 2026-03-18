@@ -1,12 +1,13 @@
 /* RecapOverlay.jsx — Year-in-Review inline recap extracted from OurWorld.jsx */
 
 export default function RecapOverlay({
-  P, SC, TYPES, DEFAULT_TYPE, thumbnail, fmtDate, navSt,
+  P, SC, TYPES, DEFAULT_TYPE, thumbnail, fmtDate, navStyle,
   recapYear, recapYearStats, recapEntries, recapPhase, recapIdx, recapStatIdx, recapAutoPlay,
   setRecapPhase, setRecapIdx, setRecapStatIdx, setRecapAutoPlay, setSliderDate,
   setSelected, setPhotoIdx, setCardTab, setTripCardEntry,
   onClose, flyTo,
 }) {
+  const prefersReducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const rS = recapYearStats;
   const statCards = [
     { val: rS.entries, lbl: rS.entries === 1 ? "Adventure" : "Adventures", icon: "🗺" },
@@ -20,24 +21,24 @@ export default function RecapOverlay({
   const closeRecap = () => onClose();
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="Year in review" style={{ position: "fixed", inset: 0, zIndex: 55, background: recapPhase === 'journey' ? 'transparent' : (SC.bg || "#0c0a12"), display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .6s ease", pointerEvents: recapPhase === 'journey' ? 'none' : 'auto', transition: "background .5s ease" }}>
+    <div role="dialog" aria-modal="true" aria-label="Year in review" style={{ position: "fixed", inset: 0, zIndex: 55, background: recapPhase === 'journey' ? 'transparent' : (SC.bg || "#0c0a12"), display: "flex", alignItems: "center", justifyContent: "center", animation: prefersReducedMotion ? "none" : "fadeIn .6s ease", pointerEvents: recapPhase === 'journey' ? 'none' : 'auto', transition: "background .5s ease" }}>
       {/* Close button (hidden during journey — card has its own) */}
       {recapPhase !== 'journey' && <button onClick={closeRecap} style={{ position: "absolute", top: 20, right: 24, background: "none", border: "none", fontSize: 20, color: `${P.textFaint}80`, cursor: "pointer", zIndex: 60, transition: "color .2s", pointerEvents: "auto" }}
         onMouseEnter={e => e.currentTarget.style.color = P.text} onMouseLeave={e => e.currentTarget.style.color = `${P.textFaint}80`}>×</button>}
 
       {/* PHASE: Title */}
       {recapPhase === 'title' && (
-        <div style={{ textAlign: "center", animation: "fadeIn 1s ease", maxWidth: 500, padding: "0 24px" }}>
+        <div style={{ textAlign: "center", animation: prefersReducedMotion ? "none" : "fadeIn 1s ease", maxWidth: 500, padding: "0 24px" }}>
           <div style={{ fontSize: 11, letterSpacing: "0.3em", color: P.goldWarm, textTransform: "uppercase", marginBottom: 16, opacity: 0.7 }}>Year in Review</div>
-          <div style={{ fontSize: 72, fontWeight: 200, color: P.text, lineHeight: 1, marginBottom: 12, fontFamily: "Georgia, 'Palatino Linotype', serif", animation: "recapNumIn 1.2s cubic-bezier(0.16,1,0.3,1) both" }}>{recapYear}</div>
+          <div style={{ fontSize: 72, fontWeight: 200, color: P.text, lineHeight: 1, marginBottom: 12, fontFamily: "Georgia, 'Palatino Linotype', serif", animation: prefersReducedMotion ? "none" : "recapNumIn 1.2s cubic-bezier(0.16,1,0.3,1) both" }}>{recapYear}</div>
           <div style={{ fontSize: 13, color: P.textMuted, lineHeight: 1.6, marginBottom: 32 }}>
             {rS.entries} {rS.entries === 1 ? "adventure" : "adventures"} across {rS.countries} {rS.countries === 1 ? "country" : "countries"}
           </div>
           {/* Photo mosaic preview */}
           {rS.allPhotos.length > 0 && (
-            <div style={{ display: "flex", justifyContent: "center", gap: 4, marginBottom: 32, animation: "recapSlideUp .8s .4s cubic-bezier(0.16,1,0.3,1) both" }}>
+            <div style={{ display: "flex", justifyContent: "center", gap: 4, marginBottom: 32, animation: prefersReducedMotion ? "none" : "recapSlideUp .8s .4s cubic-bezier(0.16,1,0.3,1) both" }}>
               {rS.allPhotos.slice(0, 5).map((p, i) => (
-                <div key={i} style={{ width: 52, height: 52, borderRadius: 8, overflow: "hidden", opacity: 0.85, transform: `rotate(${(i - 2) * 3}deg)`, transition: "transform .3s, opacity .3s" }}
+                <div key={"recap-photo-" + i} style={{ width: 52, height: 52, borderRadius: 8, overflow: "hidden", opacity: 0.85, transform: `rotate(${(i - 2) * 3}deg)`, transition: "transform .3s, opacity .3s" }}
                   onMouseEnter={e => { e.currentTarget.style.transform = `rotate(0deg) scale(1.15)`; e.currentTarget.style.opacity = "1"; }}
                   onMouseLeave={e => { e.currentTarget.style.transform = `rotate(${(i - 2) * 3}deg)`; e.currentTarget.style.opacity = "0.85"; }}>
                   <img loading="lazy" src={p.url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -49,7 +50,7 @@ export default function RecapOverlay({
             padding: "14px 40px", background: `linear-gradient(135deg, ${P.goldWarm}25, ${P.goldWarm}10)`,
             border: `1px solid ${P.goldWarm}40`, borderRadius: 28, color: P.goldWarm,
             fontSize: 13, letterSpacing: ".08em", cursor: "pointer", fontFamily: "inherit",
-            transition: "all .3s", animation: "recapSlideUp 1s .6s cubic-bezier(0.16,1,0.3,1) both",
+            transition: "all .3s", animation: prefersReducedMotion ? "none" : "recapSlideUp 1s .6s cubic-bezier(0.16,1,0.3,1) both",
           }}
             onMouseEnter={e => { e.currentTarget.style.background = `linear-gradient(135deg, ${P.goldWarm}35, ${P.goldWarm}18)`; e.currentTarget.style.transform = "translateY(-2px)"; }}
             onMouseLeave={e => { e.currentTarget.style.background = `linear-gradient(135deg, ${P.goldWarm}25, ${P.goldWarm}10)`; e.currentTarget.style.transform = "none"; }}
@@ -59,7 +60,7 @@ export default function RecapOverlay({
 
       {/* PHASE: Stats reveal */}
       {recapPhase === 'stats' && (
-        <div style={{ textAlign: "center", maxWidth: 520, width: "92vw", padding: "0 20px", animation: "fadeIn .5s ease" }}>
+        <div style={{ textAlign: "center", maxWidth: 520, width: "92vw", padding: "0 20px", animation: prefersReducedMotion ? "none" : "fadeIn .5s ease" }}>
           <div style={{ fontSize: 9, letterSpacing: "0.25em", color: P.goldWarm, textTransform: "uppercase", marginBottom: 24, opacity: 0.6 }}>{recapYear} — By the Numbers</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 28 }}>
             {statCards.map((s, i) => (
@@ -120,7 +121,7 @@ export default function RecapOverlay({
             <div style={{ position: "absolute", inset: 0, background: `${SC.bg || '#0c0a12'}90`, pointerEvents: "none" }} />
             {/* Entry card — bottom center */}
             <div style={{ position: "absolute", bottom: 100, left: 0, right: 0, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
-              <div style={{ pointerEvents: "auto", background: P.card, backdropFilter: "blur(24px)", borderRadius: 20, padding: "20px 24px", boxShadow: `0 8px 32px ${SC.bg || '#0c0a12'}60`, maxWidth: 460, width: "92vw", animation: "recapSlideUp .5s cubic-bezier(0.16,1,0.3,1)", border: `1px solid ${P.rose}10` }}>
+              <div style={{ pointerEvents: "auto", background: P.card, backdropFilter: "blur(24px)", borderRadius: 20, padding: "20px 24px", boxShadow: `0 8px 32px ${SC.bg || '#0c0a12'}60`, maxWidth: 460, width: "92vw", animation: prefersReducedMotion ? "none" : "recapSlideUp .5s cubic-bezier(0.16,1,0.3,1)", border: `1px solid ${P.rose}10` }}>
                 {/* Header */}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                   <span style={{ fontSize: 8, color: P.goldWarm, letterSpacing: ".14em", textTransform: "uppercase" }}>
@@ -137,7 +138,7 @@ export default function RecapOverlay({
                 {/* Photo */}
                 {(e.photos || []).length > 0 && (
                   <div style={{ marginBottom: 10, borderRadius: 12, overflow: "hidden", maxHeight: 160 }}>
-                    <img loading="lazy" src={thumbnail(e.photos[0], 400)} alt="" style={{ width: "100%", height: 160, objectFit: "cover", animation: "fadeIn .4s ease" }} />
+                    <img loading="lazy" src={thumbnail(e.photos[0], 400)} alt="" style={{ width: "100%", height: 160, objectFit: "cover", animation: prefersReducedMotion ? "none" : "fadeIn .4s ease" }} />
                   </div>
                 )}
 
@@ -163,22 +164,22 @@ export default function RecapOverlay({
                 {/* Progress bar */}
                 <div style={{ display: "flex", gap: 2, marginTop: 12, marginBottom: 10 }}>
                   {Array.from({ length: recapEntries.length }, (_, i) => (
-                    <div key={i} style={{ flex: 1, height: 2.5, borderRadius: 2, background: i <= recapIdx ? P.goldWarm : `${P.textFaint}25`, transition: "background .4s" }} />
+                    <div key={"prog-" + i} style={{ flex: 1, height: 2.5, borderRadius: 2, background: i <= recapIdx ? P.goldWarm : `${P.textFaint}25`, transition: "background .4s" }} />
                   ))}
                 </div>
 
                 {/* Navigation */}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <button onClick={() => { if (recapIdx === 0) { setRecapPhase('stats'); setRecapStatIdx(5); } else { setRecapIdx(recapIdx - 1); const prev = recapEntries[recapIdx - 1]; if (prev) { setSliderDate(prev.dateStart); flyTo(prev.lat, prev.lng, 2.4); } } }}
-                    style={navSt()}>◂ Prev</button>
+                    style={navStyle()}>◂ Prev</button>
                   <div style={{ display: "flex", gap: 6 }}>
-                    <button onClick={() => { setSelected(e); setPhotoIdx(0); setCardTab("overview"); }} style={{ ...navSt(), color: P.heart, fontSize: 10 }}>View</button>
-                    <button onClick={() => setTripCardEntry(e)} style={{ ...navSt(), fontSize: 10 }} title="Trip Card">🎴</button>
+                    <button onClick={() => { setSelected(e); setPhotoIdx(0); setCardTab("overview"); }} style={{ ...navStyle(), color: P.heart, fontSize: 10 }}>View</button>
+                    <button onClick={() => setTripCardEntry(e)} style={{ ...navStyle(), fontSize: 10 }} title="Trip Card">🎴</button>
                   </div>
                   <button onClick={() => {
                     if (recapIdx >= recapEntries.length - 1) { setRecapPhase('summary'); }
                     else { const next = recapIdx + 1; setRecapIdx(next); const ne = recapEntries[next]; if (ne) { setSliderDate(ne.dateStart); flyTo(ne.lat, ne.lng, 2.4); } }
-                  }} style={navSt()}>{recapIdx >= recapEntries.length - 1 ? "Summary ✨" : "Next ▸"}</button>
+                  }} style={navStyle()}>{recapIdx >= recapEntries.length - 1 ? "Summary ✨" : "Next ▸"}</button>
                 </div>
               </div>
             </div>
@@ -188,7 +189,7 @@ export default function RecapOverlay({
 
       {/* PHASE: Summary — shareable recap card */}
       {recapPhase === 'summary' && (
-        <div style={{ textAlign: "center", maxWidth: 480, width: "92vw", padding: "0 20px", animation: "fadeIn .6s ease" }}>
+        <div style={{ textAlign: "center", maxWidth: 480, width: "92vw", padding: "0 20px", animation: prefersReducedMotion ? "none" : "fadeIn .6s ease" }}>
           <div style={{ fontSize: 9, letterSpacing: "0.25em", color: P.goldWarm, textTransform: "uppercase", marginBottom: 20, opacity: 0.6 }}>Your {recapYear} Wrapped</div>
 
           {/* Summary card */}
@@ -221,7 +222,7 @@ export default function RecapOverlay({
             {rS.allPhotos.length > 0 && (
               <div style={{ display: "flex", justifyContent: "center", gap: 4, marginBottom: 16 }}>
                 {rS.allPhotos.slice(0, 6).map((p, i) => (
-                  <div key={i} style={{ width: 48, height: 48, borderRadius: 6, overflow: "hidden" }}>
+                  <div key={"highlight-" + i} style={{ width: 48, height: 48, borderRadius: 6, overflow: "hidden" }}>
                     <img loading="lazy" src={p.url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                   </div>
                 ))}

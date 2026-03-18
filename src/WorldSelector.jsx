@@ -29,22 +29,45 @@ const ORB_BY_TYPE = {
   shared:  { color: "#d8a0c0", glowColor: "#f0d0e4", emissive: "#884870" },   // fallback = partner
 };
 const ORB_ORBIT_PRESETS = [
-  { orbitRadius: 2.4, orbitSpeed: 0.25, size: 0.32 },
-  { orbitRadius: 2.8, orbitSpeed: 0.20, size: 0.28 },
-  { orbitRadius: 3.2, orbitSpeed: 0.18, size: 0.26 },
-  { orbitRadius: 2.6, orbitSpeed: 0.22, size: 0.30 },
-  { orbitRadius: 3.0, orbitSpeed: 0.16, size: 0.27 },
-  { orbitRadius: 2.5, orbitSpeed: 0.23, size: 0.29 },
+  { orbitRadius: 2.4, orbitSpeed: 0.45, size: 0.32 },
+  { orbitRadius: 2.8, orbitSpeed: 0.38, size: 0.28 },
+  { orbitRadius: 3.2, orbitSpeed: 0.32, size: 0.26 },
+  { orbitRadius: 2.6, orbitSpeed: 0.42, size: 0.30 },
+  { orbitRadius: 3.0, orbitSpeed: 0.30, size: 0.27 },
+  { orbitRadius: 2.5, orbitSpeed: 0.40, size: 0.29 },
 ];
 
 const FRIEND_ORB_PRESETS = [
-  { color: "#c8d8e8", glowColor: "#e0ecf8", emissive: "#405870", orbitRadius: 4.0, orbitSpeed: 0.12, size: 0.20 },
-  { color: "#d8c8e0", glowColor: "#ece0f0", emissive: "#584070", orbitRadius: 4.3, orbitSpeed: 0.10, size: 0.18 },
-  { color: "#c8e0d0", glowColor: "#e0f0e8", emissive: "#406850", orbitRadius: 4.6, orbitSpeed: 0.11, size: 0.19 },
-  { color: "#e0d8c8", glowColor: "#f0ece0", emissive: "#685840", orbitRadius: 4.1, orbitSpeed: 0.13, size: 0.20 },
+  { color: "#c8d8e8", glowColor: "#e0ecf8", emissive: "#405870", orbitRadius: 4.0, orbitSpeed: 0.25, size: 0.20 },
+  { color: "#d8c8e0", glowColor: "#ece0f0", emissive: "#584070", orbitRadius: 4.3, orbitSpeed: 0.22, size: 0.18 },
+  { color: "#c8e0d0", glowColor: "#e0f0e8", emissive: "#406850", orbitRadius: 4.6, orbitSpeed: 0.24, size: 0.19 },
+  { color: "#e0d8c8", glowColor: "#f0ece0", emissive: "#685840", orbitRadius: 4.1, orbitSpeed: 0.26, size: 0.20 },
 ];
 
 const F = "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif";
+
+const INVITE_STYLES = `
+  .invite-send-btn {
+    transition: all 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease !important;
+  }
+  .invite-send-btn:hover:not(:disabled) {
+    transform: scale(1.04);
+    box-shadow: 0 4px 20px rgba(200,170,110,0.35), 0 0 30px rgba(200,170,110,0.15) !important;
+    animation: invite-pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes invite-pulse {
+    0%, 100% { box-shadow: 0 4px 20px rgba(200,170,110,0.35), 0 0 30px rgba(200,170,110,0.15); }
+    50% { box-shadow: 0 4px 28px rgba(200,170,110,0.5), 0 0 40px rgba(200,170,110,0.25); }
+  }
+  @keyframes stardust-float {
+    0% { opacity: 0.6; transform: scale(0.95) translateY(0); }
+    50% { opacity: 1; transform: scale(1.08) translateY(-6px); }
+    100% { opacity: 0.6; transform: scale(0.95) translateY(0); }
+  }
+  .stardust-sparkle {
+    animation: stardust-float 2.5s ease-in-out infinite;
+  }
+`;
 
 // Style constants (module-scope — no state dependency, avoids re-creation each render)
 const _modalBg = { position: "fixed", inset: 0, background: "rgba(4,2,10,0.65)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 };
@@ -65,6 +88,13 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
   const pinchRef = useRef({ active: false, startDist: 0 });
   const camAngleRef = useRef({ theta: 0.3, phi: 1.2, radius: 5.8 });
   const mountedRef = useRef(true);
+  const inviteStyleRef = useRef(false);
+  if (!inviteStyleRef.current && typeof document !== "undefined") {
+    inviteStyleRef.current = true;
+    const s = document.createElement("style");
+    s.textContent = INVITE_STYLES;
+    document.head.appendChild(s);
+  }
   const toastTimerRef = useRef(null);
   const linkCopiedTimerRef = useRef(null);
   const searchTimerRef = useRef(null);
@@ -161,10 +191,25 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     }).filter(Boolean);
   }, [connections, userId]);
 
+  // Fresh random seed each mount — orbits get new whimsical trajectories every visit
+  const [orbitSeed] = useState(() => Date.now() % 100000);
+
   // Build orbiting worlds from props — orb colors match world type palette
-  const WORLDS = useMemo(() => worlds.map((w, i) => {
+  const WORLDS = useMemo(() => {
+    // Seeded pseudo-random so orbits are stable within a session but fresh each mount
+    let _s = orbitSeed;
+    const rand = () => { _s = (_s * 16807 + 0) % 2147483647; return (_s & 0x7fffffff) / 0x7fffffff; };
+
+    return worlds.map((w, i) => {
     const typeColors = ORB_BY_TYPE[w.type] || ORB_BY_TYPE.shared;
     const orbit = ORB_ORBIT_PRESETS[i % ORB_ORBIT_PRESETS.length];
+    // Random orbital dynamics — each world gets a unique, playful trajectory
+    const baseRadius = orbit.orbitRadius + (rand() - 0.5) * 0.6;       // vary distance ±0.3
+    const orbitInclination = (rand() * 55 + 5) * (Math.PI / 180);      // 5-60° tilt
+    const orbitInclinationAxis = rand() * Math.PI * 2;                  // random tilt direction
+    const orbitEccentricity = rand() * 0.4;                             // 0.0-0.4 elliptical
+    const orbitSpeedMult = 0.7 + rand() * 0.6;                         // 0.7x-1.3x speed
+    const orbitPhase = rand() * Math.PI * 2;                            // random starting angle
     // Build subtitle: user-saved subtitle takes priority; only fall back to auto-generated if subtitle is null/undefined (never saved)
     const configSub = w.subtitle;
     const memberNames = (w.members || []).map(m => m.name).filter(Boolean);
@@ -185,21 +230,41 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       worldType: w.type || "shared",
       ...typeColors,
       ...orbit,
-      ...(w.role === "viewer" ? { size: 0.22, orbitRadius: (orbit.orbitRadius || 2.6) + 0.4 } : {}),
+      orbitRadius: baseRadius,
+      orbitSpeedMult,
+      orbitInclination,
+      orbitInclinationAxis,
+      orbitEccentricity,
+      orbitPhase,
+      ...(w.role === "viewer" ? { size: 0.22, orbitRadius: baseRadius + 0.4 } : {}),
       ...(w.customScene?.sphereColor ? { color: w.customScene.sphereColor } : w.customPalette?.rose ? { color: w.customPalette.rose } : w.palette?.color ? { color: w.palette.color } : {}),
       ...(w.customScene?.sphereEmissive ? { emissive: w.customScene.sphereEmissive } : {}),
       ...(w.customScene?.particleColor ? { glowColor: w.customScene.particleColor } : w.customPalette?.rose ? { glowColor: w.customPalette.rose + "80" } : {}),
     };
-  }), [worlds]);
+  });
+  }, [worlds, orbitSeed]);
 
-  // Build friend orbs
-  const FRIEND_ORBS = useMemo(() => friendWorlds.map((fw, i) => ({
-    id: fw.id,
-    friendUserId: fw.friendUserId,
-    label: fw.name,
-    sub: "Following",
-    ...FRIEND_ORB_PRESETS[i % FRIEND_ORB_PRESETS.length],
-  })), [friendWorlds]);
+  // Build friend orbs — also get fun random orbits
+  const FRIEND_ORBS = useMemo(() => {
+    let _s = orbitSeed + 9999;
+    const rand = () => { _s = (_s * 16807 + 0) % 2147483647; return (_s & 0x7fffffff) / 0x7fffffff; };
+    return friendWorlds.map((fw, i) => {
+    const preset = FRIEND_ORB_PRESETS[i % FRIEND_ORB_PRESETS.length];
+    return {
+      id: fw.id,
+      friendUserId: fw.friendUserId,
+      label: fw.name,
+      sub: "Following",
+      ...preset,
+      orbitRadius: preset.orbitRadius + (rand() - 0.5) * 0.5,
+      orbitInclination: (rand() * 55 + 5) * (Math.PI / 180),
+      orbitInclinationAxis: rand() * Math.PI * 2,
+      orbitEccentricity: rand() * 0.35,
+      orbitSpeedMult: 0.7 + rand() * 0.6,
+      orbitPhase: rand() * Math.PI * 2,
+    };
+  });
+  }, [friendWorlds, orbitSeed]);
 
   const ALL_ORBS = useMemo(() => [...WORLDS, ...FRIEND_ORBS], [WORLDS, FRIEND_ORBS]);
   const orbIdsKey = useMemo(() => ALL_ORBS.map(o => o.id).join(','), [ALL_ORBS]);
@@ -213,10 +278,10 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     const worldIds = worlds.map(w => w.id);
     const allIds = personalWorldId ? [...new Set([...worldIds, personalWorldId])] : worldIds;
     if (allIds.length > 0) {
-      loadCrossWorldActivity(allIds, 15).then(d => { if (mountedRef.current) setActivityData(d); }).catch(() => {});
-      loadWorldEntryCounts(worldIds).then(d => { if (mountedRef.current) setEntryCounts(d); }).catch(() => {});
+      loadCrossWorldActivity(allIds, 15).then(d => { if (mountedRef.current) setActivityData(d); }).catch(err => console.error('[cosmos]', err));
+      loadWorldEntryCounts(worldIds).then(d => { if (mountedRef.current) setEntryCounts(d); }).catch(err => console.error('[cosmos]', err));
     }
-    loadMyWorldEntryCount(userId).then(d => { if (mountedRef.current) setMyEntryCount(d); }).catch(() => {});
+    loadMyWorldEntryCount(userId).then(d => { if (mountedRef.current) setMyEntryCount(d); }).catch(err => console.error('[cosmos]', err));
   }, [userId, worldIdsKey, personalWorldId]);
 
   // World name map for activity feed
@@ -235,7 +300,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
 
     let testCanvas = document.createElement("canvas");
     const gl = testCanvas.getContext("webgl2") || testCanvas.getContext("webgl");
-    if (!gl) { testCanvas = null; mount.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#e8e0d0;font-family:serif;font-size:16px;text-align:center;padding:20px">Your browser doesn\'t support WebGL.<br/>Please use a modern browser to view My Cosmos.</div>'; return; }
+    if (!gl) { testCanvas = null; const msg = document.createElement('div'); msg.style.cssText = 'display:flex;align-items:center;justify-content:center;height:100vh;color:#e8e0d0;font-family:serif;font-size:16px;text-align:center;padding:20px'; msg.textContent = "Your browser doesn't support WebGL. Please use a modern browser to view My Cosmos."; msg.setAttribute('role', 'alert'); mount.appendChild(msg); return; }
     const loseCtx = gl.getExtension('WEBGL_lose_context'); if (loseCtx) loseCtx.loseContext();
     testCanvas = null;
 
@@ -303,7 +368,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       bsP[i*3] = r*Math.sin(ph)*Math.cos(th); bsP[i*3+1] = r*Math.sin(ph)*Math.sin(th); bsP[i*3+2] = r*Math.cos(ph);
     }
     const bsG = new THREE.BufferGeometry(); bsG.setAttribute("position", new THREE.BufferAttribute(bsP, 3));
-    scene.add(new THREE.Points(bsG, new THREE.PointsMaterial({ color: "#f8f0e0", size: 0.09, transparent: true, opacity: 0.8 })));
+    scene.add(new THREE.Points(bsG, new THREE.PointsMaterial({ color: "#f8f0e0", size: 0.09, transparent: true, opacity: 0.8, sizeAttenuation: true })));
 
     // === VISUAL ENHANCEMENT A: Dense twinkling starfield ===
     const denseStarCount = tierDenseStarCount;
@@ -397,12 +462,12 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     for (let i = 0; i < dustCount; i++) {
       const r = 3 + Math.random() * 12, th = Math.random() * Math.PI * 2, ph = Math.acos(2 * Math.random() - 1);
       dustPos[i*3] = r*Math.sin(ph)*Math.cos(th); dustPos[i*3+1] = r*Math.sin(ph)*Math.sin(th); dustPos[i*3+2] = r*Math.cos(ph);
-      dustVel[i*3] = (Math.random() - 0.5) * 0.003; dustVel[i*3+1] = (Math.random() - 0.5) * 0.002; dustVel[i*3+2] = (Math.random() - 0.5) * 0.003;
+      dustVel[i*3] = (Math.random() - 0.5) * 0.001; dustVel[i*3+1] = (Math.random() - 0.5) * 0.001; dustVel[i*3+2] = (Math.random() - 0.5) * 0.001;
       dustPhase[i] = Math.random() * Math.PI * 2;
     }
     const dustGeo = new THREE.BufferGeometry();
     dustGeo.setAttribute("position", new THREE.BufferAttribute(dustPos, 3));
-    const dustMat = new THREE.PointsMaterial({ color: "#c8b8d8", size: 0.025, transparent: true, opacity: 0.3, sizeAttenuation: true, depthWrite: false });
+    const dustMat = new THREE.PointsMaterial({ color: "#c8b8d8", size: 0.02, transparent: true, opacity: 0.15, sizeAttenuation: true, depthWrite: false });
     const cosmicDust = new THREE.Points(dustGeo, dustMat);
     scene.add(cosmicDust);
 
@@ -423,8 +488,8 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       scene.add(new THREE.Mesh(new THREE.SphereGeometry(r, 24, 24),
         new THREE.MeshBasicMaterial({ color: centerGlow, transparent: true, opacity: op, side: THREE.BackSide })));
     });
-    scene.add(new THREE.Mesh(new THREE.SphereGeometry(0.72, 32, 32),
-      new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.12, side: THREE.FrontSide })));
+    scene.add(new THREE.Mesh(new THREE.SphereGeometry(0.74, 32, 32),
+      new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.06, side: THREE.BackSide })));
 
     // Surface sparkle particles for center orb
     const centerSparkleCount = 40;
@@ -438,7 +503,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     }
     const cSparkGeo = new THREE.BufferGeometry();
     cSparkGeo.setAttribute("position", new THREE.BufferAttribute(cSparkPos, 3));
-    const cSparkMat = new THREE.PointsMaterial({ color: centerGlow, size: 0.04, transparent: true, opacity: 0.9, depthWrite: false });
+    const cSparkMat = new THREE.PointsMaterial({ color: centerGlow, size: 0.04, transparent: true, opacity: 0.9, depthWrite: false, sizeAttenuation: true });
     const centerSparkles = new THREE.Points(cSparkGeo, cSparkMat);
     centerOrb.add(centerSparkles);
 
@@ -461,7 +526,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
           new THREE.MeshBasicMaterial({ color: w.glowColor, transparent: true, opacity: op, side: THREE.BackSide })));
       });
       orb.add(new THREE.Mesh(new THREE.SphereGeometry(w.size * 0.98, 24, 24),
-        new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.10, side: THREE.FrontSide })));
+        new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.05, side: THREE.BackSide })));
 
       // Type-specific surface sparkle particles
       const wType = w.worldType || (w.id?.startsWith("friend-") ? "friend" : "shared");
@@ -477,7 +542,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       }
       const sGeo = new THREE.BufferGeometry();
       sGeo.setAttribute("position", new THREE.BufferAttribute(sPos, 3));
-      const sMat = new THREE.PointsMaterial({ color: w.glowColor, size: sparkCfg.size, transparent: true, opacity: 0.8, depthWrite: false });
+      const sMat = new THREE.PointsMaterial({ color: w.glowColor, size: sparkCfg.size, transparent: true, opacity: 0.8, depthWrite: false, sizeAttenuation: true });
       const sparkles = new THREE.Points(sGeo, sMat);
       orb.add(sparkles);
 
@@ -485,20 +550,44 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       return { mesh: orb, world: w, angleOffset: (idx / Math.max(ALL_ORBS.length, 1)) * Math.PI * 2, sparkles, sparkMat: sMat, sparkPhase: sPhase, sparkCfg };
     });
 
-    // Per-orbit glowing rings — each world gets its own subtle ring
+    // Saturn-style rings on each world sphere
     const orbitRings = [];
-    const seenRadii = new Set();
-    ALL_ORBS.forEach(w => {
-      const rKey = Math.round(w.orbitRadius * 10);
-      if (seenRadii.has(rKey)) return;
-      seenRadii.add(rKey);
-      const ringGeo = new THREE.RingGeometry(w.orbitRadius - 0.015, w.orbitRadius + 0.015, 96);
-      const ringMat = new THREE.MeshBasicMaterial({ color: w.glowColor || "#ffffff", transparent: true, opacity: 0.05, side: THREE.DoubleSide });
+    orbs.forEach((o) => {
+      const s = o.world.size || 0.27;
+      const innerR = s * 1.4;
+      const outerR = s * 2.2;
+      const ringGeo = new THREE.RingGeometry(innerR, outerR, 64);
+      const ringMat = new THREE.MeshBasicMaterial({
+        color: o.world.glowColor || "#ffffff",
+        transparent: true, opacity: 0.12, side: THREE.DoubleSide
+      });
       const ring = new THREE.Mesh(ringGeo, ringMat);
-      ring.rotation.x = Math.PI * 0.5;
-      scene.add(ring);
-      orbitRings.push({ mesh: ring, mat: ringMat, baseOp: 0.05 });
+      // Tilt the ring at a fun angle
+      ring.rotation.x = Math.PI * 0.35 + (o.world.orbitInclination || 0) * 0.5;
+      ring.rotation.z = (o.world.orbitInclinationAxis || 0) * 0.3;
+      o.mesh.add(ring); // attach to world mesh so it moves with it
+      orbitRings.push({ mesh: ring, mat: ringMat, baseOp: 0.12 });
     });
+
+
+    // Tiny moons orbiting each world
+    const moons = [];
+    orbs.forEach((o) => {
+      const numMoons = Math.floor(Math.random() * 2) + 1; // 1-2 moons per world
+      for (let mi = 0; mi < numMoons; mi++) {
+        const moonSize = 0.03 + Math.random() * 0.03;
+        const moonDist = (o.world.size || 0.27) * (2.8 + mi * 1.2 + Math.random() * 0.5);
+        const moonSpeed = 1.5 + Math.random() * 2.0;
+        const moonPhase = Math.random() * Math.PI * 2;
+        const moonTilt = (Math.random() - 0.5) * 0.8;
+        const moonGeo = new THREE.SphereGeometry(moonSize, 8, 8);
+        const moonMat = new THREE.MeshBasicMaterial({ color: o.world.glowColor || "#ffffff", transparent: true, opacity: 0.6 });
+        const moonMesh = new THREE.Mesh(moonGeo, moonMat);
+        o.mesh.add(moonMesh);
+        moons.push({ mesh: moonMesh, dist: moonDist, speed: moonSpeed, phase: moonPhase, tilt: moonTilt });
+      }
+    });
+
 
     let t = 0, frameId;
     const updateCamera = () => {
@@ -524,8 +613,22 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
         cSparkMat.opacity = 0.5 + Math.sin(t * 1.5) * 0.3;
       }
       orbs.forEach((o, i) => {
-        const angle = o.angleOffset + t * o.world.orbitSpeed;
-        o.mesh.position.set(Math.cos(angle) * o.world.orbitRadius, Math.sin(angle * 0.7) * 0.15, Math.sin(angle) * o.world.orbitRadius);
+        const w = o.world;
+        const speed = (w.orbitSpeed || 0.18) * (w.orbitSpeedMult || 1);
+        const angle = (w.orbitPhase || o.angleOffset) + t * speed;
+        // Elliptical orbit: semi-major along x, semi-minor along z
+        const ecc = w.orbitEccentricity || 0;
+        const rx = w.orbitRadius;
+        const rz = rx * (1 - ecc);
+        // Flat elliptical position
+        const px = Math.cos(angle) * rx;
+        const pz = Math.sin(angle) * rz;
+        // Orbital inclination — tilt the orbit plane for a 3D feel
+        const inc = w.orbitInclination || 0;
+        const incAxis = w.orbitInclinationAxis || 0;
+        const tiltedY = Math.sin(angle + incAxis) * Math.sin(inc) * rx * 0.5;
+        // Gentle wobble on top for extra whimsy
+        o.mesh.position.set(px, tiltedY + Math.sin(angle * 0.7) * 0.08, pz);
         o.mesh.rotation.y += 0.008;
         o.mesh.scale.setScalar(1 + Math.sin(t * 2 + i * 1.5) * 0.03);
         // Per-world sparkle twinkle with type-specific speed
@@ -537,6 +640,12 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       });
       // Pulse orbit rings gently
       orbitRings.forEach((r, i) => { r.mat.opacity = r.baseOp + Math.sin(t * 0.8 + i * 2) * 0.02; });
+
+      // Animate tiny moons
+      moons.forEach(m => {
+        const a = t * m.speed + m.phase;
+        m.mesh.position.set(Math.cos(a) * m.dist, Math.sin(a * 0.7) * m.dist * m.tilt, Math.sin(a) * m.dist);
+      });
       // Slow star field rotation for parallax (skip if reduced motion)
       if (!prefersReducedMotion) {
         stars.rotation.y = t * 0.003;
@@ -590,7 +699,10 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
           dpa[i*3+1] += Math.sin(t * 0.5 + dustPhase[i]) * 0.0005;
         }
         dustGeo.attributes.position.needsUpdate = true;
-        dustMat.opacity = 0.25 + Math.sin(t * 0.4) * 0.05;
+        dustMat.opacity = 0.15 + Math.sin(t * 0.4) * 0.03;
+        // Cosmic dust rotates on different axis than stars for parallax
+        cosmicDust.rotation.x = t * 0.002;
+        cosmicDust.rotation.z = t * 0.001;
       }
 
       const allItems = [{ id: "my", mesh: centerOrb }, ...orbs.map(o => ({ id: o.world.id, mesh: o.mesh }))];
@@ -600,7 +712,9 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
         const v = mesh.position.clone().project(cam);
         el.style.left = (v.x * 0.5 + 0.5) * W + "px";
         el.style.top = (-v.y * 0.5 + 0.5) * H + "px";
-        el.style.opacity = v.z < 1 ? (el.dataset.hov === "true" ? "1" : "0.8") : "0";
+        const baseOp = v.z < 1 ? (el.dataset.hov === "true" ? 1 : 0.8) : 0;
+        const minOp = camAngleRef.current.radius > 6 ? 0.3 : 0;
+        el.style.opacity = Math.max(baseOp, minOp);
       });
       rend.render(scene, cam);
     };
@@ -751,7 +865,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     if (!mountedRef.current) return;
     setCreatingPersonal(false);
     if (!world || world._error) {
-      showToast("Failed to create world: " + (world?._error || "unknown error"));
+      showToast("Couldn't create world: " + (world?._error || "unknown error"));
     } else {
       const updated = await loadMyWorlds(userId);
       if (!mountedRef.current) return;
@@ -773,7 +887,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     });
     if (!mountedRef.current) return;
     setCreatingShared(false);
-    if (!world || world._error) { showToast("Failed to create world: " + (world?._error || "unknown error")); return; }
+    if (!world || world._error) { showToast("Couldn't create world: " + (world?._error || "unknown error")); return; }
     setCreatedWorldId(world.id);
     setSharedStep(1);
   };
@@ -792,7 +906,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     if (result) {
       setGeneratedLink(result.inviteLink);
       setSharedStep(2);
-    } else { showToast("Failed to generate invite."); }
+    } else { showToast("Couldn't generate invite."); }
   };
 
   const handleFinishShared = async () => {
@@ -806,14 +920,14 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
   };
 
   const handleGenerateInvite = async () => {
-    const refreshInvites = () => getSentInvites(showInviteModal.id, userId).then(d => { if (mountedRef.current) setSentInvites(d); }).catch(() => {});
+    const refreshInvites = () => getSentInvites(showInviteModal.id, userId).then(d => { if (mountedRef.current) setSentInvites(d); }).catch(err => console.error('[cosmos]', err));
     if (!existingInviteEmail.trim()) {
       setInviteGenerating(true);
       const inv = await createInvite(showInviteModal.id, userId, existingInviteRole);
       if (!mountedRef.current) return;
       setInviteGenerating(false);
       if (inv) { setInviteLink(`${window.location.origin}?invite=${inv.token}`); refreshInvites(); }
-      else showToast("Failed to generate invite.");
+      else showToast("Couldn't generate invite.");
       return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(existingInviteEmail.trim())) {
@@ -828,7 +942,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       if (!mountedRef.current) return;
       setInviteGenerating(false);
       if (result) { setInviteLink(result.inviteLink); refreshInvites(); }
-      else { showToast("Failed to generate invite."); }
+      else { showToast("Couldn't generate invite."); }
     } else {
       const result = await createInviteWithLetter(
         showInviteModal.id, userId, userDisplayName || "Someone special", existingInviteEmail.trim(), existingInviteLetter
@@ -836,7 +950,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       if (!mountedRef.current) return;
       setInviteGenerating(false);
       if (result) { setInviteLink(result.inviteLink); refreshInvites(); }
-      else { showToast("Failed to generate invite."); }
+      else { showToast("Couldn't generate invite."); }
     }
   };
 
@@ -854,26 +968,26 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
     } catch (err) {
       console.error('[cosmosInvite]', err);
       if (!mountedRef.current) return;
-      showToast("Failed to send invite.");
+      showToast("Couldn't send invite.");
     }
     if (mountedRef.current) setCosmosInviteSending(false);
   };
 
   // Add a Friend (connection request)
   const handleAddFriend = async () => {
-    if (!friendEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(friendEmail.trim())) {
+    if (!friendEmail.trim().toLowerCase() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(friendEmail.trim().toLowerCase())) {
       showToast("Please enter a valid email address.");
       return;
     }
     setFriendSending(true);
-    const result = await sendConnectionRequest(userId, userDisplayName || "", friendEmail.trim(), true, friendLetter);
+    const result = await sendConnectionRequest(userId, userDisplayName || "", friendEmail.trim().toLowerCase(), true, friendLetter);
     if (!mountedRef.current) return;
     setFriendSending(false);
     if (result && !result._error) {
       setFriendSent(true);
       showToast("Friend request sent!");
     } else {
-      showToast("Failed to send friend request" + (result?._error ? ": " + result._error : "."));
+      showToast("Couldn't send friend request" + (result?._error ? ": " + result._error : "."));
     }
   };
 
@@ -897,7 +1011,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       if (onConnectionsChange) onConnectionsChange(conn);
       showToast(`You and ${req.requester_name || "your friend"} are now connected!`);
     } else {
-      showToast(result?.error || "Failed to accept request.");
+      showToast(result?.error || "Couldn't accept request.");
     }
   };
 
@@ -1035,13 +1149,13 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
                     setConfirmModal({ message: `Permanently delete "${w.label}"? All entries, photos, and settings will be lost forever. This cannot be undone.`, confirmLabel: "Delete Forever", onConfirm: async () => {
                       const ok = await deleteWorld(w.id, userId);
                       if (ok) { onWorldsChange(worlds.filter(x => x.id !== w.id)); }
-                      else { showToast("Failed to delete world."); }
+                      else { showToast("Couldn't delete world."); }
                     }});
                   } else {
                     setConfirmModal({ message: `Leave "${w.label}"? You'll lose access to this world.`, confirmLabel: "Leave World", onConfirm: async () => {
                       const ok = await leaveWorld(w.id, userId);
                       if (ok) { onWorldsChange(worlds.filter(x => x.id !== w.id)); }
-                      else { showToast("Failed to leave world."); }
+                      else { showToast("Couldn't leave world."); }
                     }});
                   }
                 }}
@@ -1097,7 +1211,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
             style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 16, padding: "7px 18px", color: "#908898", fontSize: 10, fontFamily: F, letterSpacing: "1px", cursor: "pointer", transition: "all .3s" }}
             onMouseEnter={e => { e.target.style.color = "#c0b8c8"; e.target.style.borderColor = "rgba(255,255,255,0.18)"; }}
             onMouseLeave={e => { e.target.style.color = "#908898"; e.target.style.borderColor = "rgba(255,255,255,0.08)"; }}>
-            Invite to Cosmos
+            Invite to Cosmos ✨
           </button>
         </div>
         <div style={{ fontSize: 10, color: "#9890a8", marginTop: 8, letterSpacing: "1.5px", textAlign: "center", textTransform: "uppercase", textShadow: "0 1px 6px rgba(0,0,0,0.5)" }}>drag to orbit · scroll or pinch to zoom</div>
@@ -1331,7 +1445,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
                 </div>
                 <div style={{ marginBottom: 16 }}>
                   {sharedMembers.map((m, i) => (
-                    <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "center" }}>
+                    <div key={"member-" + i} style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "center" }}>
                       <input value={m.name} onChange={e => { const next = [...sharedMembers]; next[i] = { name: e.target.value }; setSharedMembers(next); }}
                         placeholder={sharedType === "family" ? `Member ${i + 1} (e.g. ${["Mom", "Dad", "Sarah", "Jake", "Grandma"][i] || "Name"})` : `Friend ${i + 1}`}
                         style={{ ...inputSt, flex: 1, marginBottom: 0 }}
@@ -1359,33 +1473,37 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
               </div>
             </>)}
             {sharedStep === 1 && (<>
-              <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Invite Someone</div>
+              <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>{"partner" === sharedType ? "Send a Love Letter to the Stars" : "family" === sharedType ? "Invite to Family Cosmos 🌟" : "Invite a Friend to Your Cosmos"}</div>
               <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 20 }}>
-                Share this world with someone special. You can write a welcome letter — it'll be the first thing they see.
+                {sharedType === "partner" ? "Share this world with your person. Your letter will be the first thing they see — like finding a note tucked between the stars." : "Share this world with someone special. You can write a welcome letter — it'll be the first thing they see."}
+              </div>
+              <div style={{ textAlign: "left", marginBottom: 4 }}>
+                <div style={{ fontSize: 10, color: "#c9a96e", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>Who are you inviting?</div>
               </div>
               <input value={inviteEmail} onChange={e => setInviteEmail(e.target.value)}
-                placeholder="Their email address"
+                placeholder={sharedType === "partner" ? "Your partner's email" : "Their email address"}
                 type="email"
-                style={{ ...inputSt, marginBottom: 12 }} autoFocus />
+                style={{ ...inputSt, marginBottom: 12, borderColor: "rgba(200,170,110,0.2)" }} autoFocus />
               <div style={{ textAlign: "left", marginBottom: 6 }}>
-                <div style={{ fontSize: 10, color: "#807888", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>Write them a letter (optional)</div>
+                <div style={{ fontSize: 10, color: "#c9a96e", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>Write them a letter (optional)</div>
               </div>
               <textarea value={inviteLetter} onChange={e => setInviteLetter(e.target.value)}
-                placeholder={"Dear ...\n\nI created this world for us to fill with our adventures together.\n\nWith love, ..."}
-                style={{ ...textareaSt, marginBottom: 16 }} />
+                placeholder={sharedType === "partner" ? "I want to share our adventures with you...\n\nEvery place we go, every moment we share — I want to map it all, together.\n\nWith love..." : sharedType === "family" ? "Let's collect our family adventures together..." : "Come explore with me!\n\nI started mapping my travels and I think it'd be amazing to share a world together."}
+                style={{ ...textareaSt, marginBottom: 16, background: "rgba(240,230,210,0.04)", borderColor: "rgba(200,170,110,0.15)" }} />
               <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
                 <button onClick={() => handleFinishShared()} style={btnS}>Skip for now</button>
                 <button onClick={handleSendInvite} disabled={creatingShared || !inviteEmail.trim()}
+                  className="invite-send-btn"
                   style={{ ...btnP, opacity: creatingShared || !inviteEmail.trim() ? 0.5 : 1 }}>
-                  {creatingShared ? "Sending..." : "Send Invite"}
+                  {creatingShared ? "Sending..." : sharedType === "partner" ? "Send with Love 💌" : sharedType === "family" ? "Invite to Family Cosmos 🌟" : "Send Invitation ✨"}
                 </button>
               </div>
             </>)}
             {sharedStep === 2 && (<>
-              <div style={{ fontSize: 44, marginBottom: 12 }}>&#10024;</div>
-              <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>World Created!</div>
+              <div style={{ fontSize: 44, marginBottom: 12 }} className="stardust-sparkle">&#10024;</div>
+              <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>{sharedType === "partner" ? "Your love letter is on its way ✨" : "World Created!"}</div>
               <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 16 }}>
-                "{sharedName}" is ready. Share this link with your person:
+                {inviteEmail ? <span>Your invitation is on its way to <strong style={{ color: "#e8e0d0" }}>{inviteEmail}</strong> ✨</span> : <span>&ldquo;{sharedName}&rdquo; is ready. Share this link with your person:</span>}
               </div>
               <div style={{ ...inputSt, marginBottom: 12, textAlign: "left", wordBreak: "break-all", fontSize: 12, lineHeight: 1.5, background: "rgba(200,170,110,0.08)", borderColor: "rgba(200,170,110,0.25)" }}>
                 {generatedLink}
@@ -1397,7 +1515,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
                 </button>
               </div>
               <div style={{ fontSize: 10, color: "#807888", marginBottom: 16 }}>
-                {inviteLetter ? "Your letter will appear when they first log in." : ""} Link expires in 7 days.
+                {inviteLetter ? "Your letter will be waiting for them like a note among the stars ✨" : ""} Link expires in 7 days.
               </div>
               <button onClick={handleFinishShared} style={btnP}>Enter World</button>
             </>)}
@@ -1410,32 +1528,36 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
         <div style={modalBg} onClick={(e) => { e.stopPropagation(); safeDismiss(); }}>
           <div role="dialog" aria-modal="true" aria-label="Invite to Little Cosmos" style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
             {!cosmosInviteSent ? (<>
-              <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Invite to Little Cosmos</div>
+              <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Invite a Friend to Your Cosmos</div>
               <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 20 }}>
-                Invite someone to create their own cosmos. They'll receive your letter when they sign up.
+                Invite someone to create their own cosmos. They'll receive your letter when they sign up — a little spark waiting for them among the stars.
+              </div>
+              <div style={{ textAlign: "left", marginBottom: 4 }}>
+                <div style={{ fontSize: 10, color: "#c9a96e", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>Who are you inviting?</div>
               </div>
               <input value={cosmosInviteEmail} onChange={e => setCosmosInviteEmail(e.target.value)}
                 placeholder="Their email address"
                 type="email"
-                style={{ ...inputSt, marginBottom: 12 }} autoFocus />
+                style={{ ...inputSt, marginBottom: 12, borderColor: "rgba(200,170,110,0.2)" }} autoFocus />
               <div style={{ textAlign: "left", marginBottom: 6 }}>
-                <div style={{ fontSize: 10, color: "#807888", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>Write them a letter (optional)</div>
+                <div style={{ fontSize: 10, color: "#c9a96e", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>Write them a letter (optional)</div>
               </div>
               <textarea value={cosmosInviteLetter} onChange={e => setCosmosInviteLetter(e.target.value)}
-                placeholder={"Hey!\n\nI've been using this beautiful app to map all my travels and adventures. I think you'd love it too.\n\nCheck it out!"}
-                style={{ ...textareaSt, marginBottom: 16 }} />
+                placeholder={"Come explore with me!\n\nI've been mapping my travels on this beautiful little globe. I think you'd love it too."}
+                style={{ ...textareaSt, marginBottom: 16, background: "rgba(240,230,210,0.04)", borderColor: "rgba(200,170,110,0.15)" }} />
               <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
                 <button onClick={closeAllModals} style={btnS}>Cancel</button>
                 <button onClick={handleCosmosInvite} disabled={cosmosInviteSending || !cosmosInviteEmail.trim()}
+                  className="invite-send-btn"
                   style={{ ...btnP, opacity: cosmosInviteSending || !cosmosInviteEmail.trim() ? 0.5 : 1 }}>
-                  {cosmosInviteSending ? "Sending..." : "Send Invite"}
+                  {cosmosInviteSending ? "Sending..." : "Send Invitation ✨"}
                 </button>
               </div>
             </>) : (<>
-              <div style={{ fontSize: 44, marginBottom: 12 }}>&#9993;</div>
-              <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Invite Sent!</div>
+              <div style={{ fontSize: 44, marginBottom: 12 }} className="stardust-sparkle">✨</div>
+              <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Your invitation is on its way ✨</div>
               <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 16 }}>
-                Your letter will be waiting for {cosmosInviteEmail} when they sign up at littlecosmos.app
+                Your letter will be waiting for <strong style={{ color: "#e8e0d0" }}>{cosmosInviteEmail}</strong> when they sign up — a little spark among the stars.
               </div>
               <button onClick={closeAllModals} style={btnP}>Done</button>
             </>)}
@@ -1448,32 +1570,36 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
         <div style={modalBg} onClick={(e) => { e.stopPropagation(); safeDismiss(); }}>
           <div role="dialog" aria-modal="true" aria-label="Add a friend" style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
             {!friendSent ? (<>
-              <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Add a Friend</div>
+              <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Invite a Friend to Your Cosmos</div>
               <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 20 }}>
-                Connect with a friend so you can see each other's worlds orbiting in your cosmos.
+                Connect with a friend so you can see each other’s worlds orbiting in your cosmos.
+              </div>
+              <div style={{ textAlign: "left", marginBottom: 4 }}>
+                <div style={{ fontSize: 10, color: "#c9a96e", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>Who are you inviting?</div>
               </div>
               <input value={friendEmail} onChange={e => setFriendEmail(e.target.value)}
                 placeholder="Their email address"
                 type="email"
-                style={{ ...inputSt, marginBottom: 14 }} autoFocus />
+                style={{ ...inputSt, marginBottom: 14, borderColor: "rgba(200,170,110,0.2)" }} autoFocus />
               <div style={{ textAlign: "left", marginBottom: 6 }}>
-                <div style={{ fontSize: 10, color: "#807888", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>Write a note (optional)</div>
+                <div style={{ fontSize: 10, color: "#c9a96e", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>Write a note (optional)</div>
               </div>
               <textarea value={friendLetter} onChange={e => setFriendLetter(e.target.value)}
-                placeholder="Hey! I'd love to share our travel worlds..."
-                style={{ ...textareaSt, minHeight: 70, marginBottom: 16 }} />
+                placeholder="Come explore with me! I'd love to share our travel worlds..."
+                style={{ ...textareaSt, minHeight: 70, marginBottom: 16, background: "rgba(240,230,210,0.04)", borderColor: "rgba(200,170,110,0.15)" }} />
               <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
                 <button onClick={closeAllModals} style={btnS}>Cancel</button>
                 <button onClick={handleAddFriend} disabled={friendSending || !friendEmail.trim()}
+                  className="invite-send-btn"
                   style={{ ...btnP, opacity: friendSending || !friendEmail.trim() ? 0.5 : 1 }}>
-                  {friendSending ? "Sending..." : "Send Invite"}
+                  {friendSending ? "Sending..." : "Send Invitation ✨"}
                 </button>
               </div>
             </>) : (<>
-              <div style={{ fontSize: 44, marginBottom: 12 }}>&#128075;</div>
-              <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Invite Sent!</div>
+              <div style={{ fontSize: 44, marginBottom: 12 }} className="stardust-sparkle">✨</div>
+              <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Your invitation is on its way ✨</div>
               <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 16 }}>
-                {friendEmail} will see your invite next time they open their cosmos. Once they accept, you'll both see each other's worlds.
+                <strong style={{ color: "#e8e0d0" }}>{friendEmail}</strong> will see your invite next time they open their cosmos. Once they accept, you’ll both see each other’s worlds orbiting together.
               </div>
               <button onClick={closeAllModals} style={btnP}>Done</button>
             </>)}
@@ -1546,7 +1672,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
                         closeAllModals();
                         const joined = updated.find(w => w.id === result.world_id);
                         onSelect("our", result.world_id, inv.worldName, joined?.role || "member", inv.worldType || joined?.type || "shared");
-                      } else { btn.disabled = false; btn.textContent = "Accept & Enter"; showToast(result?.error || "Failed to accept invite."); }
+                      } else { btn.disabled = false; btn.textContent = "Accept & Enter"; showToast(result?.error || "Couldn't accept invite."); }
                     }} style={{ ...btnP, padding: "5px 14px", fontSize: 11 }}>Accept & Enter</button>
                   </div>
                 </div>
@@ -1564,9 +1690,9 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
       {showInviteModal && (
         <div style={modalBg} onClick={(e) => { e.stopPropagation(); safeDismiss(); }}>
           <div role="dialog" aria-modal="true" aria-label="Invite to world" style={{ ...modalBox, textAlign: "center" }} onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>Invite to "{showInviteModal.name}"</div>
+            <div style={{ fontSize: 20, fontWeight: 600, color: "#e8e0d0", marginBottom: 6 }}>{showInviteModal.worldType === "partner" ? "Send a Love Letter to the Stars" : showInviteModal.worldType === "family" ? "Invite to Family Cosmos 🌟" : `Invite to “${showInviteModal.name}”`}</div>
             <div style={{ fontSize: 12, color: "#a098a8", lineHeight: 1.6, marginBottom: 16 }}>
-              Enter their email to send a personal invite, or just generate a link.
+              {showInviteModal.worldType === "partner" ? "Invite your person to this world. Your letter will be the first thing they see." : "Enter their email to send a personal invite, or just generate a link."}
             </div>
             {!inviteLink ? (<>
               <div style={{ display: "flex", gap: 8, marginBottom: 14, justifyContent: "center" }}>
@@ -1590,18 +1716,22 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
                   ? "Viewers can see all entries and photos, leave comments and reactions, but can't add or edit."
                   : "Members can add entries, upload photos, and edit the world alongside you."}
               </div>
+              <div style={{ textAlign: "left", marginBottom: 4 }}>
+                <div style={{ fontSize: 10, color: "#c9a96e", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>Who are you inviting?</div>
+              </div>
               <input value={existingInviteEmail} onChange={e => setExistingInviteEmail(e.target.value)}
-                placeholder="Their email (optional)"
+                placeholder={showInviteModal.worldType === "partner" ? "Your partner's email" : "Their email (optional)"}
                 type="email"
-                style={{ ...inputSt, marginBottom: 8 }} autoFocus />
+                style={{ ...inputSt, marginBottom: 8, borderColor: "rgba(200,170,110,0.2)" }} autoFocus />
               {existingInviteEmail.trim() && (
                 <textarea value={existingInviteLetter} onChange={e => setExistingInviteLetter(e.target.value)}
-                  placeholder="Write them a welcome letter (optional)"
-                  style={{ ...textareaSt, marginBottom: 12, minHeight: 80 }} />
+                  placeholder={showInviteModal.worldType === "partner" ? "I want to share our adventures with you..." : showInviteModal.worldType === "family" ? "Let's collect our family adventures together..." : "Come explore with me!"}
+                  style={{ ...textareaSt, marginBottom: 12, minHeight: 80, background: "rgba(240,230,210,0.04)", borderColor: "rgba(200,170,110,0.15)" }} />
               )}
               <button onClick={handleGenerateInvite} disabled={inviteGenerating}
+                className="invite-send-btn"
                 style={{ ...btnP, opacity: inviteGenerating ? 0.5 : 1 }}>
-                {inviteGenerating ? "Generating..." : existingInviteEmail.trim() ? "Send Invite" : "Generate Link"}
+                {inviteGenerating ? "Generating..." : !existingInviteEmail.trim() ? "Generate Link" : showInviteModal.worldType === "partner" ? "Send with Love 💌" : showInviteModal.worldType === "family" ? "Invite to Family Cosmos 🌟" : "Send Invitation ✨"}
               </button>
             </>) : (<>
               <div style={{ ...inputSt, marginBottom: 12, textAlign: "left", wordBreak: "break-all", fontSize: 12, lineHeight: 1.5, background: "rgba(200,170,110,0.08)", borderColor: "rgba(200,170,110,0.25)" }}>
@@ -1612,7 +1742,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
                 {linkCopied ? "Copied!" : "Copy Link"}
               </button>
               <div style={{ fontSize: 10, color: "#807888", marginTop: 4 }}>
-                {existingInviteLetter.trim() ? "Your letter will appear when they first log in. " : ""}Link expires in 7 days.
+                {existingInviteLetter.trim() ? "Your letter will be waiting for them like a note among the stars ✨ " : ""}Link expires in 7 days.
               </div>
             </>)}
             {/* Sent invites history */}
@@ -1675,7 +1805,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
               {step.hint && <div style={{ fontSize: 10, color: "#c9a96e", letterSpacing: "0.5px", marginBottom: 20, fontStyle: "italic" }}>{step.hint}</div>}
               <div style={{ display: "flex", justifyContent: "center", gap: 6, marginBottom: 20 }}>
                 {steps.map((_, i) => (
-                  <div key={i} style={{ width: 7, height: 7, borderRadius: "50%", background: i === cosmosTourStep ? "#c9a96e" : "rgba(255,255,255,0.12)", transition: "background .3s", boxShadow: i === cosmosTourStep ? "0 0 6px rgba(200,170,110,0.4)" : "none" }} />
+                  <div key={"tour-" + i} style={{ width: 7, height: 7, borderRadius: "50%", background: i === cosmosTourStep ? "#c9a96e" : "rgba(255,255,255,0.12)", transition: "background .3s", boxShadow: i === cosmosTourStep ? "0 0 6px rgba(200,170,110,0.4)" : "none" }} />
                 ))}
               </div>
               <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>

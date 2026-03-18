@@ -65,7 +65,7 @@ function PasswordResetModal({ onDone }) {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
-    if (newPassword.length < 6) { setError('Password must be at least 6 characters'); return }
+    if (newPassword.length < 10) { setError('Password must be at least 10 characters'); return }
     if (newPassword !== confirmPassword) { setError('Passwords do not match'); return }
     setSaving(true)
     const { error } = await supabase.auth.updateUser({ password: newPassword })
@@ -169,6 +169,75 @@ function AppInner() {
     }
   }, [])
 
+  // ---- Service Worker messaging for "On This Day" notifications ----
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return
+    function handleSWMessage(event) {
+      const { data } = event
+      if (!data) return
+
+      // SW requests cached entries for OTD check
+      if (data.type === 'OTD_CHECK_REQUEST') {
+        try {
+          const pref = localStorage.getItem('cosmos_notif_pref')
+          if (pref !== 'enabled') return
+          const entries = JSON.parse(localStorage.getItem('cosmos_notif_entries') || '[]')
+          const today = new Date().toISOString().slice(0, 10)
+          const firedKey = 'cosmos_otd_notif_' + today
+          const firedIds = JSON.parse(localStorage.getItem(firedKey) || '[]')
+          if (navigator.serviceWorker.controller) {
+            navigator.serviceWorker.controller.postMessage({
+              type: 'OTD_CHECK_ENTRIES',
+              entries,
+              firedIds,
+              today,
+            })
+          }
+        } catch {}
+      }
+
+      // SW reports it fired OTD notifications — update tracking
+      if (data.type === 'OTD_FIRED') {
+        try {
+          const firedKey = 'cosmos_otd_notif_' + data.today
+          const existing = JSON.parse(localStorage.getItem(firedKey) || '[]')
+          const merged = [...new Set([...existing, ...(data.ids || [])])]
+          localStorage.setItem(firedKey, JSON.stringify(merged))
+        } catch {}
+      }
+
+      // User clicked a notification — navigate to that entry
+      if (data.type === 'NOTIFICATION_CLICK') {
+        const { entryId, worldId: nWorldId } = data
+        if (nWorldId && entryId) {
+          // Store pending navigation so OurWorld can pick it up on mount
+          safeSet('cosmos_notif_nav_entry', entryId)
+          safeSet('cosmos_notif_nav_world', nWorldId)
+          // If we're on a different world or no world, navigate to the right one
+          if (!worldMode || activeWorldId !== nWorldId) {
+            selectWorld('our', nWorldId, '', 'member', '')
+          }
+          // Dispatch custom event for OurWorld to handle if already mounted
+          window.dispatchEvent(new CustomEvent('cosmos-notif-navigate', { detail: { entryId, worldId: nWorldId } }))
+        }
+      }
+    }
+    navigator.serviceWorker.addEventListener('message', handleSWMessage)
+    return () => navigator.serviceWorker.removeEventListener('message', handleSWMessage)
+  }, [worldMode, activeWorldId])
+
+  // ---- Handle notification click from URL params (cold start from SW openWindow) ----
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const notifEntry = params.get('notif_entry')
+    const notifWorld = params.get('notif_world')
+    if (notifEntry && notifWorld) {
+      safeSet('cosmos_notif_nav_entry', notifEntry)
+      safeSet('cosmos_notif_nav_world', notifWorld)
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [])
+
   // User's display name from auth metadata
   const userDisplayName = user?.user_metadata?.display_name || ''
 
@@ -178,7 +247,7 @@ function AppInner() {
     getAllWelcomeLetters(user.email).then(letters => {
       setWelcomeLetters(letters)
       setLetterChecked(true)
-    }).catch(err => { console.error('[welcome letter]', err); setLetterChecked(true) })
+    }).catch(err => { console.error('[welcome letter]', err); showErrorToast('Could not load welcome letters'); setLetterChecked(true) })
   }, [user?.email])
 
   // Load user's shared worlds + connections + ensure personal world exists
@@ -186,9 +255,11 @@ function AppInner() {
   useEffect(() => {
     if (!userId) { setWorldsLoaded(true); return }
     (async () => {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session) { console.error("[loadData] NO SESSION"); setWorldsLoaded(true); return }
       try {
         // First pass: load everything including pending invites
-        const [w, conn, pending, worldInvites, myInfo, pwId] = await Promise.all([
+        const results = await Promise.allSettled([
           loadMyWorlds(userId),
           getMyConnections(userId),
           getPendingRequests(user?.email),
@@ -196,11 +267,19 @@ function AppInner() {
           loadMyWorldSubtitle(userId),
           ensurePersonalWorld(userId),
         ])
+        const val = (i) => results[i].status === 'fulfilled' ? results[i].value : null
+        const w = val(0) || []
+        const conn = val(1) || []
+        const pending = val(2) || []
+        const worldInvites = val(3) || []
+        const myInfo = val(4)
+        const pwId = val(5)
+        results.forEach((r, i) => { if (r.status === 'rejected') console.error('[loadData]', i, 'failed:', r.reason) })
         setConnections(conn)
         setPendingRequests(pending)
         setMyWorldSubtitle(myInfo?.subtitle ?? '')
         setMyWorldColors({ customPalette: myInfo?.customPalette || {}, customScene: myInfo?.customScene || {} })
-        setPersonalWorldId(pwId)
+        if (pwId) setPersonalWorldId(pwId)
 
         // Auto-accept any pending world invites so shared worlds appear immediately
         if (worldInvites && worldInvites.length > 0) {
@@ -228,7 +307,7 @@ function AppInner() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const token = params.get('invite')
-    if (token) {
+    if (token && /^[a-zA-Z0-9-]{1,128}$/.test(token)) {
       setInvitePending(token)
       window.history.replaceState({}, '', window.location.pathname)
     }
@@ -260,12 +339,12 @@ function AppInner() {
                 }
               })
             } else {
-              showErrorToast(result?.error || 'Failed to accept invite.')
+              showErrorToast(result?.error || "Couldn't accept invite.")
             }
           }).catch(err => { console.error('[acceptInvite]', err); showErrorToast('Something went wrong accepting the invite. Please try again.') })
         }
       })
-    }).catch(err => { console.error('[getInviteInfo]', err); showErrorToast('Could not load invite details. Please check your connection and try again.') })
+    }).catch(err => { console.error('[getInviteInfo]', err); showErrorToast('Could not load invite details. Are you online? Please try again.') })
   }, [invitePending, userId])
 
   // Brand new users: show cinematic onboarding (always, regardless of how they arrived)
@@ -295,6 +374,7 @@ function AppInner() {
   }, [signOut])
 
   const selectWorld = useCallback((mode, worldId = null, worldName = null, worldRole = null, worldType = null) => {
+    window.history.pushState({ cosmos: true }, '', window.location.pathname)
     // Determine accent color for zoom transition
     const colors = { partner: '#1a1230', friends: '#0e1028', family: '#181210', my: '#121820' }
     setTransitionColor(colors[worldType] || colors[mode] || '#0c0a12')
@@ -353,24 +433,34 @@ function AppInner() {
 
       // Refresh data in background (WorldSelector already has previous data to render with)
       if (userId) {
-        Promise.all([
+        Promise.allSettled([
           loadMyWorlds(userId),
           getMyConnections(userId),
           getPendingRequests(user?.email),
           getPendingWorldInvites(user?.email),
           loadMyWorldSubtitle(userId),
-        ]).then(([w, conn, pending, worldInvites, myInfo]) => {
-          setWorlds(w)
-          setConnections(conn)
-          setPendingRequests(pending)
-          setPendingWorldInvites(worldInvites || [])
+        ]).then((results) => {
+          const v = (i) => results[i].status === 'fulfilled' ? results[i].value : null
+          results.forEach((r, i) => { if (r.status === 'rejected') console.error('[switchWorld refresh]', i, r.reason) })
+          setWorlds(v(0) || [])
+          setConnections(v(1) || [])
+          setPendingRequests(v(2) || [])
+          setPendingWorldInvites(v(3) || [])
+          const myInfo = v(4)
           setMyWorldSubtitle(myInfo?.subtitle ?? '')
           setMyWorldColors({ customPalette: myInfo?.customPalette || {}, customScene: myInfo?.customScene || {} })
-        }).catch(err => console.error('[switchWorld] refresh error:', err))
+        })
       }
     }, 400)
     transitionTimers.current.push(t1)
   }, [userId, user?.email])
+
+  // Browser back button returns to cosmos when inside a world
+  useEffect(() => {
+    const onPopState = () => { if (worldMode) switchWorld() }
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [worldMode, switchWorld])
 
   // Show auth screen as soon as we know there's no user (don't wait for letter/worlds)
   if (loading) {
