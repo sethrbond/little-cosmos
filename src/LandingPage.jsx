@@ -809,7 +809,7 @@ export default function LandingPage({ onSignIn, onSignUp }) {
           marginTop: 16, fontWeight: 300, letterSpacing: 1.5,
           fontStyle: 'italic',
         }}>
-          for the moments you never want to lose
+          for the moments worth remembering forever
         </p>
         <p style={{
           fontSize: 'clamp(14px, 1.8vw, 17px)', opacity: 0.55,
