@@ -1,7 +1,5 @@
 import { usePlayStory } from "./usePlayStory.js";
 import { useToasts } from "./useToasts.js";
-import { useModalStates } from "./useModalStates.js";
-import { useEntrySelection } from "./useEntrySelection.js";
 import { reducer, getFirstBadges } from "./entryReducer.js";
 import { useState, useEffect, useRef, useCallback, useMemo, useReducer, Component, lazy, Suspense } from "react";
 import * as THREE from "three";
@@ -42,19 +40,19 @@ import { sendWelcomeLetter, getMyLetters, deleteWelcomeLetter } from "./supabase
 import { loadComments, addComment, deleteComment, loadAllWorldReactions, toggleReaction, getWorldMembers, removeWorldMember, updateMemberRole, deleteWorld, leaveWorld, updateWorld, loadMyWorlds, shareEntryToWorld, getPersonalWorldId } from "./supabaseWorlds.js";
 import { thumbnail, compressImage } from "./imageUtils.js";
 import { useCelebrations } from "./useCelebrations.js";
-const StatsOverlay = lazy(() => import("./StatsOverlay.jsx"));
-const RecapOverlay = lazy(() => import("./RecapOverlay.jsx"));
-const OnboardingOverlay = lazy(() => import("./OnboardingOverlay.jsx"));
-const SettingsPanel = lazy(() => import("./SettingsPanel.jsx"));
-const DetailCard = lazy(() => import("./DetailCard.jsx"));
-const CinemaOverlay = lazy(() => import("./CinemaOverlay.jsx"));
-const PhotoJourneyOverlay = lazy(() => import("./PhotoJourneyOverlay.jsx"));
-const GalleryPanel = lazy(() => import("./GalleryPanel.jsx"));
-const DreamPanel = lazy(() => import("./DreamPanel.jsx"));
-const LoveLetterOverlay = lazy(() => import("./LoveLetterOverlay.jsx"));
-const TimelineSlider = lazy(() => import("./TimelineSlider.jsx"));
+import StatsOverlay from "./StatsOverlay.jsx";
+import RecapOverlay from "./RecapOverlay.jsx";
+import OnboardingOverlay from "./OnboardingOverlay.jsx";
+import SettingsPanel from "./SettingsPanel.jsx";
+import DetailCard from "./DetailCard.jsx";
+import CinemaOverlay from "./CinemaOverlay.jsx";
+import PhotoJourneyOverlay from "./PhotoJourneyOverlay.jsx";
+import GalleryPanel from "./GalleryPanel.jsx";
+import DreamPanel from "./DreamPanel.jsx";
+import LoveLetterOverlay from "./LoveLetterOverlay.jsx";
+import TimelineSlider from "./TimelineSlider.jsx";
 import WorldToolbar from "./WorldToolbar.jsx";
-const SearchPanel = lazy(() => import("./SearchPanel.jsx"));
+import SearchPanel from "./SearchPanel.jsx";
 import { useGlobeScene } from "./useGlobeScene.js";
 
 /* =================================================================
@@ -295,60 +293,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     : worldType === "family" ? (TYPES["family-trip"] || Object.values(TYPES)[0])
     : TYPES.together;
 
-  // ---- MODAL STATES (extracted hook) ----
-  const {
-    showPhotoJourney, setShowPhotoJourney,
-    showAdd, setShowAdd,
-    showSettings, setShowSettings,
-    showGallery, setShowGallery,
-    showFilter, setShowFilter,
-    showStats, setShowStats,
-    showRecap, setShowRecap,
-    showSearch, setShowSearch,
-    showLoveNotes, setShowLoveNotes,
-    showLoveThread, setShowLoveThread,
-    showConstellation, setShowConstellation,
-    showRoutes, setShowRoutes,
-    showDreams, setShowDreams,
-    showShortcuts, setShowShortcuts,
-    quickAddMode, setQuickAddMode,
-    showPhotoMap, setShowPhotoMap,
-    showMilestones, setShowMilestones,
-    showTravelStats, setShowTravelStats,
-    showExportHub, setShowExportHub,
-    showYearReview, setShowYearReview,
-    showTemplates, setShowTemplates,
-    showTripJournal, setShowTripJournal,
-    showLetter, setShowLetter,
-    editLetter, setEditLetter,
-    lightboxOpen, setLightboxOpen,
-    cardGallery, setCardGallery,
-    showZoomHint, setShowZoomHint,
-    showOnboarding, setShowOnboarding,
-    onboardStep, setOnboardStep,
-    shareMenu, setShareMenu,
-    confirmModal, setConfirmModal,
-    showTrash, setShowTrash,
-    showLinkPicker, setShowLinkPicker,
-    photoDeleteMode, setPhotoDeleteMode,
-    pjIndex, setPjIndex,
-    pjAutoPlay, setPjAutoPlay,
-    polaroidMode, setPolaroidMode,
-    closeAll: closeAllModals,
-  } = useModalStates({ isPartnerWorld });
-
-  // ---- ENTRY SELECTION (extracted hook) ----
-  const {
-    selected, setSelected,
-    editing, setEditing,
-    photoIdx, setPhotoIdx,
-    cardTab, setCardTab,
-    lightboxIdx, setLightboxIdx,
-    confirmDelete, setConfirmDelete,
-    tripCardEntry, setTripCardEntry,
-    selectEntry,
-  } = useEntrySelection();
-
   useEffect(() => {
     (async () => {
       try {
@@ -439,6 +383,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const clickSR = useRef({ x: 0, y: 0, t: 0 });
   const tDistR = useRef(0);
 
+  const [selected, setSelected] = useState(null);
   const selectedRef = useRef(null);
   useEffect(() => { selectedRef.current = selected; setShareMenu(null); }, [selected]);
 
@@ -632,6 +577,11 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [ready, setReady] = useState(false);
   const [introComplete, setIntroComplete] = useState(false);
   const onboardKey = isSharedWorld ? `v3_cosmos_onboarded_${worldId}` : isMyWorld ? `v3_cosmos_onboarded_my_${userId}` : `v3_cosmos_onboarded_${userId}`;
+  const [showPhotoJourney, setShowPhotoJourney] = useState(false);
+  const [pjIndex, setPjIndex] = useState(0);
+  const [pjAutoPlay, setPjAutoPlay] = useState(false);
+  const [showAdd, setShowAdd] = useState(false);
+  const [editing, setEditing] = useState(null);
   const editSnapshotRef = useRef(null); // snapshot of entry data when editing started
 
   // Concurrent edit detection — warn when someone else updates the entry being edited
@@ -653,30 +603,60 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     }
   }, [data.entries, editing?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const [photoIdx, setPhotoIdx] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIdx, setLightboxIdx] = useState(0);
+  const [showLetter, setShowLetter] = useState(null); // letter id to show, or null
+  const [editLetter, setEditLetter] = useState(false); // show letter editor
   const [letterDraft, setLetterDraft] = useState("");
   const [letterEditId, setLetterEditId] = useState(null); // null = new letter
   const [letterCity, setLetterCity] = useState("");
   const [letterCitySugg, setLetterCitySugg] = useState([]);
   const [letterLat, setLetterLat] = useState("");
   const [letterLng, setLetterLng] = useState("");
+  const [showSettings, setShowSettings] = useState(false);
   const [worldMembers, setWorldMembers] = useState([]);
   const [sliderDate, setSliderDate] = useState(todayStr());
   const [isAnimating, setIsAnimating] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [showGallery, setShowGallery] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 });
   const uploadLockRef = useRef(Promise.resolve()); // sequential photo upload queue
   const failedPhotosRef = useRef({ files: [], entryId: null }); // retry failed photo uploads
+  const [cardGallery, setCardGallery] = useState(false);
   const [markerFilter, setMarkerFilter] = useState("all"); // "all", "together", "special", "home-seth", "home-rosie", "seth-solo", "rosie-solo"
   const [listRenderLimit, setListRenderLimit] = useState(100);
+  const [showFilter, setShowFilter] = useState(false);
   const { toasts, showToast, dismissToast, handleUndo } = useToasts();
+  const [showStats, setShowStats] = useState(false);
+  const [showRecap, setShowRecap] = useState(false);
   const [recapYear, setRecapYear] = useState(null);
   const [recapIdx, setRecapIdx] = useState(0);
+  const [showSearch, setShowSearch] = useState(false);
+  const [showLoveNotes, setShowLoveNotes] = useState(false);
+  const [showLoveThread, setShowLoveThread] = useState(isPartnerWorld);
+  const [showConstellation, setShowConstellation] = useState(false);
+  const [showRoutes, setShowRoutes] = useState(false);
+  const [showDreams, setShowDreams] = useState(false);
+  const [cardTab, setCardTab] = useState("overview"); // overview, highlights, places, photos
   const [locationList, setLocationList] = useState(null); // for multi-entry popup
   // Comments & Reactions (shared/viewer worlds)
   const [entryComments, setEntryComments] = useState([]);
   const [worldReactions, setWorldReactions] = useState([]);
+  const [showZoomHint, setShowZoomHint] = useState(true);
+  const [showShortcuts, setShowShortcuts] = useState(false);
   // Share entry to another world
   const [monthlyPromptShown, setMonthlyPromptShown] = useState(false);
+  const [quickAddMode, setQuickAddMode] = useState(false);
+  const [polaroidMode, setPolaroidMode] = useState(true);
+  const [showPhotoMap, setShowPhotoMap] = useState(false);
+  const [showMilestones, setShowMilestones] = useState(false);
+  const [showTravelStats, setShowTravelStats] = useState(false);
+  const [showExportHub, setShowExportHub] = useState(false);
+  const [tripCardEntry, setTripCardEntry] = useState(null);
+  const [showYearReview, setShowYearReview] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [toolbarFirstVisit, setToolbarFirstVisit] = useState(() => !localStorage.getItem(`cosmos_toolbar_seen_${worldId || worldMode}`));
   const dismissToolbarFirstVisit = useCallback(() => { setToolbarFirstVisit(false); try { localStorage.setItem(`cosmos_toolbar_seen_${worldId || worldMode}`, "1"); } catch {} }, [worldId, worldMode]);
@@ -686,6 +666,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   });
   // Reset On This Day dismissal when deselecting an entry
   useEffect(() => { if (!selected) setDismissOnThisDay(false); }, [selected]);
+  const [showTripJournal, setShowTripJournal] = useState(false);
   const [handwrittenMode, setHandwrittenMode] = useState(() => { try { return localStorage.getItem("cosmos_handwritten") === "1"; } catch { return false; } });
   const loveThreadRef = useRef([]);
   const constellationRef = useRef([]);
@@ -698,88 +679,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const cometRef = useRef(null); // active comet animation
   const prevEntryCountRef = useRef(0);
   const mouseRef = useRef({ x: 0, y: 0 });
-
-  // ---- TOGETHER DETECTION ----
-  const [togetherSuggestions, setTogetherSuggestions] = useState([]); // [{id, entryA, entryB, city, dateLabel}]
-  const [showTogetherBatch, setShowTogetherBatch] = useState(false);
-  const [togetherBatchItems, setTogetherBatchItems] = useState([]); // [{id, entryA, entryB, city, dateLabel, checked}]
-  const togetherDetectionRanRef = useRef(false);
-
-  // 50km ~ 31 miles (haversine returns miles)
-  const TOGETHER_RADIUS_MILES = 31;
-
-  const getTogetherDismissals = useCallback(() => {
-    try { const raw = localStorage.getItem(`cosmos_together_dismissed_$${worldId || worldMode}`); return raw ? JSON.parse(raw) : []; } catch { return []; }
-  }, [worldId, worldMode]);
-
-  const dismissTogetherPair = useCallback((pairId) => {
-    try {
-      const dismissed = getTogetherDismissals();
-      if (!dismissed.includes(pairId)) {
-        dismissed.push(pairId);
-        localStorage.setItem(`cosmos_together_dismissed_$${worldId || worldMode}`, JSON.stringify(dismissed));
-      }
-    } catch {}
-    setTogetherSuggestions(prev => prev.filter(s => s.id !== pairId));
-  }, [worldId, worldMode, getTogetherDismissals]);
-
-  const detectTogetherOverlaps = useCallback((entries) => {
-    if (!isPartnerWorld) return [];
-    const dismissed = getTogetherDismissals();
-    const sethList = entries.filter(e => e.who === "seth" && e.lat != null && e.lng != null && e.dateStart);
-    const rosieList = entries.filter(e => e.who === "rosie" && e.lat != null && e.lng != null && e.dateStart);
-    const overlaps = [];
-    for (const a of sethList) {
-      for (const b of rosieList) {
-        const pairId = [a.id, b.id].sort().join(":");
-        if (dismissed.includes(pairId)) continue;
-        // Check date overlap
-        const aStart = a.dateStart, aEnd = a.dateEnd || a.dateStart;
-        const bStart = b.dateStart, bEnd = b.dateEnd || b.dateStart;
-        if (aStart > bEnd || bStart > aEnd) continue;
-        // Check location proximity (50km ~ 31 miles)
-        const d = haversine(a.lat, a.lng, b.lat, b.lng);
-        if (d > TOGETHER_RADIUS_MILES) continue;
-        // Compute overlap date range
-        const overlapStart = aStart > bStart ? aStart : bStart;
-        const overlapEnd = aEnd < bEnd ? aEnd : bEnd;
-        const dateLabel = overlapStart === overlapEnd ? fmtDate(overlapStart) : `$${fmtDate(overlapStart)} – $${fmtDate(overlapEnd)}`;
-        overlaps.push({ id: pairId, entryA: a, entryB: b, city: a.city || b.city || "Unknown", dateLabel, checked: true });
-      }
-    }
-    return overlaps;
-  }, [isPartnerWorld, getTogetherDismissals]);
-
-  // Run together detection after initial load (once)
-  useEffect(() => {
-    if (!isPartnerWorld || loading || togetherDetectionRanRef.current) return;
-    if (data.entries.length === 0) return;
-    togetherDetectionRanRef.current = true;
-    const overlaps = detectTogetherOverlaps(data.entries);
-    if (overlaps.length > 0) {
-      setTogetherSuggestions(overlaps.slice(0, 3));
-    }
-  }, [isPartnerWorld, loading, data.entries, detectTogetherOverlaps]);
-
-  const markPairAsTogether = useCallback((suggestion) => {
-    dispatch({ type: "UPDATE", id: suggestion.entryA.id, data: { who: "both", type: "together" } });
-    dispatch({ type: "UPDATE", id: suggestion.entryB.id, data: { who: "both", type: "together" } });
-    dismissTogetherPair(suggestion.id);
-    showToast(`$${suggestion.city} marked as together`, "💕", 3000);
-  }, [dispatch, dismissTogetherPair, showToast]);
-
-  const markBatchAsTogether = useCallback(() => {
-    const checked = togetherBatchItems.filter(i => i.checked);
-    checked.forEach(item => {
-      dispatch({ type: "UPDATE", id: item.entryA.id, data: { who: "both", type: "together" } });
-      dispatch({ type: "UPDATE", id: item.entryB.id, data: { who: "both", type: "together" } });
-      dismissTogetherPair(item.id);
-    });
-    showToast(`Marked $${checked.length} trip$${checked.length === 1 ? "" : "s"} as together`, "💕", 4000);
-    setShowTogetherBatch(false);
-    setTogetherBatchItems([]);
-  }, [togetherBatchItems, dispatch, dismissTogetherPair, showToast]);
-
 
   // Theme colors (always light mode)
   const lastTapRef = useRef(0); // for double-tap to zoom
@@ -1170,7 +1069,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         tSpinSpd.current = 0.001;
         setIsAnimating(false);
         flyTo(target.lat, target.lng, 2.5);
-        setTimeout(() => { selectEntry(target); }, 500);
+        setTimeout(() => { setSelected(target); setPhotoIdx(0); setCardTab("overview"); }, 500);
       }
     };
     animRef.current = requestAnimationFrame(anim);
@@ -1187,7 +1086,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       if (inInput && e.key !== "Escape") return;
       if (e.key === "ArrowLeft") { e.preventDefault(); stepDay(-1); }
       if (e.key === "ArrowRight") { e.preventDefault(); stepDay(1); }
-      if (e.key === "Escape") { flushConfigSave(); closeAllModals(); setSelected(null); setEditing(null); setConfirmDelete(null); setTripCardEntry(null); setMarkerFilter("all"); setLocationList(null); setShowCelebration(false); localStorage.setItem(onboardKey, "1"); tSpinSpd.current = 0.002; if (isPlaying) stopPlay(); }
+      if (e.key === "Escape") { flushConfigSave(); setSelected(null); setEditing(null); setShowAdd(false); setQuickAddMode(false); setShowLetter(null); setShowSettings(false); setShowGallery(false); setCardGallery(false); setShowFilter(false); setMarkerFilter("all"); setLocationList(null); setShowStats(false); setShowRecap(false); setShowSearch(false); setShowDreams(false); setConfirmDelete(null); setLightboxOpen(false); setShowShortcuts(false); setShowPhotoJourney(false); setShowCelebration(false); setShowOnboarding(false); setConfirmModal(null); setShowConstellation(false); setShowRoutes(false); setShowMilestones(false); setShowTravelStats(false); setShowLoveThread(false); setShowExportHub(false); setShowYearReview(false); setShowPhotoMap(false); setEditLetter(false); setTripCardEntry(null); setShowTemplates(false); setShowTrash(false); setShowTripJournal(false); setShowLinkPicker(false); setPhotoDeleteMode(false); setShareMenu(null); localStorage.setItem(onboardKey, "1"); tSpinSpd.current = 0.002; if (isPlaying) stopPlay(); }
       if (e.key === "z" && (e.metaKey || e.ctrlKey) && !e.shiftKey && !showAdd && !editing) { e.preventDefault(); dispatch({ type: "UNDO" }); showToast("Undone", "↩", 1500); }
       if (e.key === "z" && (e.metaKey || e.ctrlKey) && e.shiftKey && !showAdd && !editing) { e.preventDefault(); dispatch({ type: "REDO" }); showToast("Redone", "↪", 1500); }
       if (e.key === "?" && !showAdd && !editing && !showSettings) setShowShortcuts(v => !v);
@@ -1202,7 +1101,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         if (pool.length > 1) {
           const pick = pool[Math.floor(Math.random() * pool.length)];
           tZm.current = 4.5;
-          const t1 = setTimeout(() => { flyTo(pick.lat, pick.lng, 2.2); const t2 = setTimeout(() => { selectEntry(pick); }, 600); surpriseTimers.current.push(t2); }, 400);
+          const t1 = setTimeout(() => { flyTo(pick.lat, pick.lng, 2.2); const t2 = setTimeout(() => { setSelected(pick); setPhotoIdx(0); setCardTab("overview"); }, 600); surpriseTimers.current.push(t2); }, 400);
           surpriseTimers.current.push(t1);
         }
       }
@@ -1817,7 +1716,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             tZm.current = 4.5;
             setTimeout(() => {
               flyTo(pick.lat, pick.lng, 2.2);
-              setTimeout(() => { selectEntry(pick); }, 600);
+              setTimeout(() => { setSelected(pick); setPhotoIdx(0); setCardTab("overview"); }, 600);
             }, 400);
           },
           toggleAmbient: () => {
@@ -1839,7 +1738,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           clickNotification: (n) => {
             if (n.entryId) {
               const entry = data.entries.find(e => e.id === n.entryId);
-              if (entry) { selectEntry(entry); flyTo(entry.lat, entry.lng, 2.5); }
+              if (entry) { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); flyTo(entry.lat, entry.lng, 2.5); }
             }
             setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, read: true } : x));
           },
@@ -1908,7 +1807,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         palette={P}
         isMobile={isMobile}
         onSelectEntry={(entry) => {
-          selectEntry(entry); setShowSearch(false);
+          setSelected(entry); setPhotoIdx(0); setCardTab("overview"); setShowSearch(false);
           setSliderDate(entry.dateStart); flyTo(entry.lat, entry.lng, 2.5);
         }}
         onClose={() => setShowSearch(false)}
@@ -2032,8 +1931,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       )}
 
       {/* ADD / EDIT / SETTINGS / LETTER overlays */}
-      {showAdd && <div role="dialog" aria-modal="true" aria-label="Add entry" onClick={() => setShowAdd(false)} style={{ position: "fixed", inset: 0, zIndex: 39 }}><div onClick={e => e.stopPropagation()}><AddForm types={TYPES} defaultType={isMyWorld ? "adventure" : "together"} defaultWho={isMyWorld ? "solo" : "both"} fieldLabels={FIELD_LABELS} isMyWorld={isMyWorld} worldName={worldName} draftKey={`cosmos-draft-add-${worldId || worldMode}`} onAdd={entry => { const isFirst = data.entries.length === 0; dispatch({ type: "ADD", entry }); setShowAdd(false); if (isFirst) { const firstMsg = isMyWorld ? { type: 'first', message: 'Your First Entry!', sub: 'Your world has its first marker. Keep adding adventures to light up your globe.' } : worldType === 'friends' ? { type: 'first-shared', message: 'First adventure together', sub: entry.city + ' — the first pin on your shared map. Many more to come.', city: entry.city, worldType: 'friends' } : worldType === 'family' ? { type: 'first-shared', message: "Your family\\u2019s first memory", sub: entry.city + ' — saved forever on your family\'s globe.', city: entry.city, worldType: 'family' } : { type: 'first-shared', message: 'Your story begins here', sub: entry.city + ' — the very first chapter of your journey together.', city: entry.city, worldType: 'partner' }; setCelebrationData(firstMsg); setShowCelebration(true); if (firstMsg.type === 'first') setTimeout(() => setShowCelebration(false), 6000); else setTimeout(() => setShowCelebration(false), 5000); } showToast(`${entry.city} added to your world`, "🌍", 2500); flyTo(entry.lat, entry.lng, 2.6); setTimeout(() => { selectEntry(entry); }, 400); }} onClose={() => setShowAdd(false)} /></div></div>}
-      {quickAddMode && <div role="dialog" aria-modal="true" aria-label="Quick add entry" onClick={() => setQuickAddMode(false)} style={{ position: "fixed", inset: 0, zIndex: 39 }}><div onClick={e => e.stopPropagation()}><QuickAddForm types={TYPES} draftKey={`cosmos-draft-quick-${worldId || worldMode}`} onAdd={entry => { const isFirst = data.entries.length === 0; dispatch({ type: "ADD", entry }); setQuickAddMode(false); if (isFirst) { const firstMsg = isMyWorld ? { type: 'first', message: 'Your First Entry!', sub: 'Your world has its first marker. Keep adding adventures to light up your globe.' } : worldType === 'friends' ? { type: 'first-shared', message: 'First adventure together', sub: entry.city + ' — the first pin on your shared map. Many more to come.', city: entry.city, worldType: 'friends' } : worldType === 'family' ? { type: 'first-shared', message: "Your family\\u2019s first memory", sub: entry.city + ' — saved forever on your family\'s globe.', city: entry.city, worldType: 'family' } : { type: 'first-shared', message: 'Your story begins here', sub: entry.city + ' — the very first chapter of your journey together.', city: entry.city, worldType: 'partner' }; setCelebrationData(firstMsg); setShowCelebration(true); if (firstMsg.type === 'first') setTimeout(() => setShowCelebration(false), 6000); else setTimeout(() => setShowCelebration(false), 5000); } showToast(`${entry.city} added to your world ⚡`, "⚡", 2500); flyTo(entry.lat, entry.lng, 2.6); setTimeout(() => { selectEntry(entry); }, 400); }} onClose={() => setQuickAddMode(false)} /></div></div>}
+      {showAdd && <div role="dialog" aria-modal="true" aria-label="Add entry" onClick={() => setShowAdd(false)} style={{ position: "fixed", inset: 0, zIndex: 39 }}><div onClick={e => e.stopPropagation()}><AddForm types={TYPES} defaultType={isMyWorld ? "adventure" : "together"} defaultWho={isMyWorld ? "solo" : "both"} fieldLabels={FIELD_LABELS} isMyWorld={isMyWorld} worldName={worldName} draftKey={`cosmos-draft-add-${worldId || worldMode}`} onAdd={entry => { const isFirst = data.entries.length === 0; dispatch({ type: "ADD", entry }); setShowAdd(false); if (isFirst) { const firstMsg = isMyWorld ? { type: 'first', message: 'Your First Entry!', sub: 'Your world has its first marker. Keep adding adventures to light up your globe.' } : worldType === 'friends' ? { type: 'first-shared', message: 'First adventure together', sub: entry.city + ' — the first pin on your shared map. Many more to come.', city: entry.city, worldType: 'friends' } : worldType === 'family' ? { type: 'first-shared', message: "Your family\\u2019s first memory", sub: entry.city + ' — saved forever on your family\'s globe.', city: entry.city, worldType: 'family' } : { type: 'first-shared', message: 'Your story begins here', sub: entry.city + ' — the very first chapter of your journey together.', city: entry.city, worldType: 'partner' }; setCelebrationData(firstMsg); setShowCelebration(true); if (firstMsg.type === 'first') setTimeout(() => setShowCelebration(false), 6000); else setTimeout(() => setShowCelebration(false), 5000); } showToast(`${entry.city} added to your world`, "🌍", 2500); flyTo(entry.lat, entry.lng, 2.6); setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400); }} onClose={() => setShowAdd(false)} /></div></div>}
+      {quickAddMode && <div role="dialog" aria-modal="true" aria-label="Quick add entry" onClick={() => setQuickAddMode(false)} style={{ position: "fixed", inset: 0, zIndex: 39 }}><div onClick={e => e.stopPropagation()}><QuickAddForm types={TYPES} draftKey={`cosmos-draft-quick-${worldId || worldMode}`} onAdd={entry => { const isFirst = data.entries.length === 0; dispatch({ type: "ADD", entry }); setQuickAddMode(false); if (isFirst) { const firstMsg = isMyWorld ? { type: 'first', message: 'Your First Entry!', sub: 'Your world has its first marker. Keep adding adventures to light up your globe.' } : worldType === 'friends' ? { type: 'first-shared', message: 'First adventure together', sub: entry.city + ' — the first pin on your shared map. Many more to come.', city: entry.city, worldType: 'friends' } : worldType === 'family' ? { type: 'first-shared', message: "Your family\\u2019s first memory", sub: entry.city + ' — saved forever on your family\'s globe.', city: entry.city, worldType: 'family' } : { type: 'first-shared', message: 'Your story begins here', sub: entry.city + ' — the very first chapter of your journey together.', city: entry.city, worldType: 'partner' }; setCelebrationData(firstMsg); setShowCelebration(true); if (firstMsg.type === 'first') setTimeout(() => setShowCelebration(false), 6000); else setTimeout(() => setShowCelebration(false), 5000); } showToast(`${entry.city} added to your world ⚡`, "⚡", 2500); flyTo(entry.lat, entry.lng, 2.6); setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400); }} onClose={() => setQuickAddMode(false)} /></div></div>}
 
       {editing && <div role="dialog" aria-modal="true" aria-label="Edit entry" onClick={() => setEditing(null)} style={{ position: "fixed", inset: 0, zIndex: 29 }}><div onClick={e => e.stopPropagation()}><EditForm entry={editing} types={TYPES} fieldLabels={FIELD_LABELS} onChange={setEditing}
         onSave={() => { dispatch({ type: "UPDATE", id: editing.id, data: editing }); setSelected(editing); setCardTab("overview"); setEditing(null); showToast("Entry saved", "✓", 2000); }}
@@ -2143,7 +2042,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         entries={data.entries}
         palette={P}
         onSelectPhoto={(entry) => {
-          selectEntry(entry); setShowGallery(false);
+          setSelected(entry); setPhotoIdx(0); setCardTab("overview"); setShowGallery(false);
           flyTo(entry.lat, entry.lng, 2.5);
           setSliderDate(entry.dateStart);
         }}
@@ -2296,7 +2195,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             <button onClick={() => {
               const entry = data.entries.find(e => e.id === mem.id);
               if (entry) {
-                selectEntry(entry);
+                setSelected(entry); setPhotoIdx(0); setCardTab("overview");
                 setSliderDate(entry.dateStart);
                 flyTo(entry.lat, entry.lng, 2.5);
               }
@@ -2434,54 +2333,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           </div>
         );
       })()}
-      {/* TOGETHER DETECTION — toast-style suggestions */}
-      {togetherSuggestions.length > 0 && (
-        <div style={{ position: "fixed", bottom: 90, right: 20, zIndex: 400, display: "flex", flexDirection: "column", gap: 8, maxWidth: 340 }}>
-          {togetherSuggestions.map(s => (
-            <div key={s.id} style={{ background: P.card, borderRadius: 14, padding: "14px 16px", border: `1px solid ${P.together}30`, boxShadow: `0 4px 20px rgba(0,0,0,0.12), 0 0 0 1px ${P.together}10`, animation: "cardIn .3s ease", fontFamily: "'Palatino Linotype',Georgia,serif" }}>
-              <div style={{ fontSize: 11, color: P.text, marginBottom: 6, lineHeight: 1.5 }}>
-                You were both in <strong>{s.city}</strong> on {s.dateLabel}. Together? 💕
-              </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={() => markPairAsTogether(s)} style={{ flex: 1, padding: "7px 12px", background: `linear-gradient(135deg, ${P.together}, ${P.rose})`, color: "#fff", border: "none", borderRadius: 8, fontSize: 10, cursor: "pointer", fontFamily: "inherit", fontWeight: 600, letterSpacing: ".04em" }}>Yes</button>
-                <button onClick={() => dismissTogetherPair(s.id)} style={{ padding: "7px 12px", background: "transparent", border: `1px solid ${P.textFaint}30`, borderRadius: 8, fontSize: 10, cursor: "pointer", color: P.textMuted, fontFamily: "inherit" }}>Dismiss</button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* TOGETHER DETECTION — batch modal after import */}
-      {showTogetherBatch && togetherBatchItems.length > 0 && (
-        <div role="dialog" aria-modal="true" aria-label="Together detection results" onClick={() => setShowTogetherBatch(false)} style={{ position: "fixed", inset: 0, zIndex: 999, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .2s ease" }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: P.card, borderRadius: 18, padding: "28px 28px 20px", maxWidth: 460, width: "92vw", maxHeight: "75vh", overflowY: "auto", border: `1px solid ${P.together}20`, boxShadow: `0 12px 48px rgba(0,0,0,0.25), 0 0 0 1px ${P.together}08` }}>
-            <div style={{ textAlign: "center", marginBottom: 16 }}>
-              <div style={{ fontSize: 28, marginBottom: 8 }}>💕</div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: P.text, fontFamily: "'Palatino Linotype',Georgia,serif" }}>Together Detection</div>
-              <div style={{ fontSize: 11, color: P.textMuted, marginTop: 4, lineHeight: 1.5 }}>
-                We found {togetherBatchItems.length} trip{togetherBatchItems.length === 1 ? "" : "s"} where you were in the same city
-              </div>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
-              {togetherBatchItems.map((item, idx) => (
-                <label key={item.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 10, background: item.checked ? `${P.together}12` : `${P.textFaint}06`, border: `1px solid ${item.checked ? P.together + "25" : P.textFaint + "15"}`, cursor: "pointer", transition: "all .15s" }}>
-                  <input type="checkbox" checked={item.checked} onChange={() => setTogetherBatchItems(prev => prev.map((it, i) => i === idx ? { ...it, checked: !it.checked } : it))} style={{ accentColor: P.together, width: 16, height: 16, cursor: "pointer" }} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12, color: P.text, fontWeight: 500 }}>{item.city}</div>
-                    <div style={{ fontSize: 10, color: P.textMuted }}>{item.dateLabel}</div>
-                  </div>
-                </label>
-              ))}
-            </div>
-            <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-              <button onClick={() => { setShowTogetherBatch(false); setTogetherBatchItems([]); }} style={{ padding: "9px 20px", background: "transparent", border: `1px solid ${P.textFaint}30`, borderRadius: 10, color: P.textMuted, fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Skip</button>
-              <button onClick={markBatchAsTogether} disabled={!togetherBatchItems.some(i => i.checked)} style={{ padding: "9px 24px", background: togetherBatchItems.some(i => i.checked) ? `linear-gradient(135deg, ${P.together}, ${P.rose})` : `${P.textFaint}40`, color: "#fff", border: "none", borderRadius: 10, fontSize: 11, cursor: togetherBatchItems.some(i => i.checked) ? "pointer" : "default", fontFamily: "inherit", fontWeight: 600, letterSpacing: ".04em", boxShadow: togetherBatchItems.some(i => i.checked) ? `0 2px 12px ${P.together}30` : "none" }}>Mark All as Together</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-            <style>{`
+      <style>{`
         @keyframes confettiFall {
           0% { transform: translateY(0) rotate(0deg); opacity: 1; }
           100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
@@ -2538,7 +2390,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           showToast(`${"$"}{dream.city} is now real!`, "\u{1F389}", 3000);
           setShowDreams(false);
           flyTo(dream.lat, dream.lng, 2.5);
-          setTimeout(() => { selectEntry(entry); }, 400);
+          setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400);
         }}
       />}
 
@@ -2568,17 +2420,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 });
                 showToast(`Imported ${count} entries`, "📥", 4000);
                 setShowExportHub(false);
-                // Run together detection after import for partner worlds
-                if (isPartnerWorld) {
-                  setTimeout(() => {
-                    const allEntries = [...data.entries, ...entries.map(e => ({ ...e, id: e.id || `e-$${Date.now()}-$${Math.random().toString(36).slice(2, 6)}` }))];
-                    const overlaps = detectTogetherOverlaps(allEntries);
-                    if (overlaps.length > 0) {
-                      setTogetherBatchItems(overlaps.map(o => ({ ...o, checked: true })));
-                      setShowTogetherBatch(true);
-                    }
-                  }, 500);
-                }
               } : undefined} /></Suspense></OverlayBoundary>}
       {tripCardEntry && <OverlayBoundary onClose={() => setTripCardEntry(null)}><Suspense fallback={<div style={{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(8,6,18,0.7)",backdropFilter:"blur(8px)"}}><div style={{color:"rgba(255,255,255,0.4)",fontSize:14,fontFamily:"'Palatino Linotype',Georgia,serif",letterSpacing:".05em"}}>Loading…</div></div>}><TripCard entry={tripCardEntry} palette={P} onClose={() => setTripCardEntry(null)} worldMode={worldMode} /></Suspense></OverlayBoundary>}
       {showYearReview && <OverlayBoundary onClose={() => setShowYearReview(false)}><Suspense fallback={<div style={{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(8,6,18,0.7)",backdropFilter:"blur(8px)"}}><div style={{color:"rgba(255,255,255,0.4)",fontSize:14,fontFamily:"'Palatino Linotype',Georgia,serif",letterSpacing:".05em"}}>Loading…</div></div>}><YearInReview entries={data.entries} stats={stats} palette={P} onClose={() => setShowYearReview(false)} worldMode={worldMode} config={config} /></Suspense></OverlayBoundary>}

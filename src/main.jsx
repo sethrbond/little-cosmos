@@ -14,4 +14,3 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => {})
   })
 }
-// deploy trigger 1773814125
