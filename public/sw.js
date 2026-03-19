@@ -7,7 +7,7 @@
    - "On This Day" notifications: check on activate + periodic fetch
 */
 
-const CACHE_NAME = 'cosmos-v8';
+const CACHE_NAME = 'cosmos-v9';
 
 // Install — skip waiting to activate immediately
 self.addEventListener('install', () => self.skipWaiting());
@@ -171,5 +171,15 @@ self.addEventListener('fetch', e => {
       })
     );
     return;
+  }
+});
+
+
+// Self-healing: if a module import fails, clear caches and force reload
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'MODULE_LOAD_FAILED') {
+    caches.keys().then(names => Promise.all(names.map(n => caches.delete(n)))).then(() => {
+      self.clients.matchAll().then(clients => clients.forEach(c => c.postMessage({ type: 'RELOAD_REQUIRED' })));
+    });
   }
 });
