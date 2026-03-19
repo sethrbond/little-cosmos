@@ -1056,51 +1056,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     })();
   }, [db]);
 
-  // ---- PARTNER OVERLAP DETECTION ----
-  // One-time check for entries where both partners were near the same location on overlapping dates
-  useEffect(() => {
-    if (!isPartnerWorld || data.entries.length === 0 || overlapCheckedRef.current) return;
-    overlapCheckedRef.current = true;
-    const dismissedKey = `cosmos-overlap-dismissed-${worldId || "default"}`;
-    const dismissed = new Set(JSON.parse(localStorage.getItem(dismissedKey) || "[]"));
-    const byWho = {};
-    data.entries.forEach(e => {
-      if (!e.who || !e.lat || !e.lng || !e.dateStart) return;
-      if (e.who === "both") return; // skip "together" entries — we want solo overlaps
-      if (!byWho[e.who]) byWho[e.who] = [];
-      byWho[e.who].push(e);
-    });
-    const partners = Object.keys(byWho);
-    if (partners.length < 2) return;
-    const listA = byWho[partners[0]] || [];
-    const listB = byWho[partners[1]] || [];
-    const overlaps = [];
-    for (const a of listA) {
-      for (const b of listB) {
-        if (overlaps.length >= 3) break;
-        const pairKey = [a.id, b.id].sort().join("-");
-        if (dismissed.has(pairKey)) continue;
-        const aEnd = a.dateEnd || a.dateStart;
-        const bEnd = b.dateEnd || b.dateStart;
-        const datesOverlap = a.dateStart <= bEnd && b.dateStart <= aEnd;
-        if (!datesOverlap) continue;
-        const dist = haversine(a.lat, a.lng, b.lat, b.lng);
-        if (dist <= 50) {
-          overlaps.push({ city: a.city || b.city || "the same place", pairKey });
-        }
-      }
-      if (overlaps.length >= 3) break;
-    }
-    overlaps.forEach((ov, i) => {
-      setTimeout(() => {
-        showToast(`You were both in ${ov.city}. Together? 💕`, "🌍", 6000, () => {
-          dismissed.add(ov.pairKey);
-          localStorage.setItem(dismissedKey, JSON.stringify([...dismissed]));
-        });
-      }, 2000 + i * 3500);
-    });
-  }, [data.entries.length, isPartnerWorld]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // Mobile detection
   const [isMobile, setIsMobile] = useState(window.innerWidth < 600);
   useEffect(() => {
@@ -1593,10 +1548,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const playRef = useRef(null);
   const animRef = useRef(null);
   const surpriseTimers = useRef([]);
-  const overlapCheckedRef = useRef(false); // partner overlap detection — run once
-  const prevPendingOfflineRef = useRef(null); // offline flush toast
-  const failedPhotosRef = useRef([]); // photo retry on upload failure
-  const prevAreTogetherRef = useRef(null); // reunion detection
 
   const RAD = 1; const MIN_Z = 1.15; const MAX_Z = 6;
 
@@ -1760,20 +1711,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     return null;
   }, [pos, areTogether]);
 
-  // ---- REUNION DETECTION ----
-  // When areTogether transitions from false to true in partner worlds, show reunion toast
-  useEffect(() => {
-    const prev = prevAreTogetherRef.current;
-    prevAreTogetherRef.current = areTogether;
-    // Skip initial mount
-    if (prev === null) return;
-    if (!isPartnerWorld) return;
-    if (prev === false && areTogether === true && pos.together) {
-      const city = pos.together.city || "the same place";
-      showToast(`You reunited in ${city}! 🫂`, "💖", 5000);
-    }
-  }, [areTogether, isPartnerWorld, pos.together, showToast]);
-
   // Next together entry (for countdown)
   const nextTogether = useMemo(() => {
     return togetherList.find(e => e.dateStart > todayStr());
@@ -1834,18 +1771,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     window.addEventListener("online", goOnline);
     return () => { window.removeEventListener("offline", goOffline); window.removeEventListener("online", goOnline); };
   }, [showToast]);
-
-  // ---- OFFLINE FLUSH TOAST ----
-  // When pendingOffline transitions from >0 to 0, show "Changes synced" toast
-  useEffect(() => {
-    const prev = prevPendingOfflineRef.current;
-    prevPendingOfflineRef.current = pendingOffline;
-    // Skip initial mount (prev is null)
-    if (prev === null) return;
-    if (prev > 0 && pendingOffline === 0) {
-      showToast("Changes synced ✓", "☁️", 2500);
-    }
-  }, [pendingOffline, showToast]);
 
   // ---- "ON THIS DAY" MEMORIES ----
   const onThisDay = useMemo(() => {
@@ -3594,9 +3519,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             const compressed = await compressImage(files[i]);
             const url = await curDb.uploadPhoto(compressed, id);
             if (url && typeof url === 'string') urls.push(url);
-          } catch (err) {
-            failedPhotosRef.current.push({ file: files[i], entryId: id });
-          }
+          } catch (err) { /* skip failed uploads */ }
           setUploadProgress({ done: i + 1, total: files.length });
         }
         if (urls.length === 0) { setUploading(false); input.value = ""; return; }
@@ -3617,41 +3540,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           showToast(`${urls.length} photo${urls.length > 1 ? "s" : ""} saved (${merged.length} total)`, "✅", 3000);
         } else {
           showToast(`Photo save failed: ${saveResult.error}`, "⚠️", 8000);
-        }
-
-        // Photo retry — if any uploads failed, offer a retry action via toast
-        if (failedPhotosRef.current.length > 0) {
-          const failedCount = failedPhotosRef.current.length;
-          const failedFiles = [...failedPhotosRef.current];
-          failedPhotosRef.current = [];
-          showToast(`${failedCount} photo${failedCount > 1 ? "s" : ""} failed to upload`, "⚠️", 8000, () => {
-            // Re-attempt failed uploads
-            const retryId = failedFiles[0]?.entryId;
-            if (!retryId) return;
-            uploadLockRef.current = uploadLockRef.current.then(async () => {
-              const rDb = dbRef.current;
-              const rDispatch = dispatchRef.current;
-              setUploading(true);
-              setUploadProgress({ done: 0, total: failedFiles.length });
-              const retryUrls = [];
-              for (let ri = 0; ri < failedFiles.length; ri++) {
-                try {
-                  const comp = await compressImage(failedFiles[ri].file);
-                  const rUrl = await rDb.uploadPhoto(comp, retryId);
-                  if (rUrl && typeof rUrl === "string") retryUrls.push(rUrl);
-                } catch (_) { /* skip again */ }
-                setUploadProgress({ done: ri + 1, total: failedFiles.length });
-              }
-              if (retryUrls.length > 0) {
-                const cur2 = await rDb.readPhotos(retryId);
-                const merged2 = [...(cur2.ok ? cur2.photos : []), ...retryUrls];
-                await rDb.savePhotos(retryId, merged2);
-                rDispatch({ type: "ADD_PHOTOS", id: retryId, urls: retryUrls });
-                showToast(`${retryUrls.length} photo${retryUrls.length > 1 ? "s" : ""} recovered`, "✅", 3000);
-              }
-              setUploading(false);
-            }).catch(() => setUploading(false));
-          });
         }
 
         setUploading(false);
@@ -5243,29 +5131,18 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               const baseSC = isMyWorld ? MY_WORLD_SCENE : sharedCfg ? sharedCfg.scene : OUR_WORLD_SCENE;
               return <>
                 <div style={{ fontSize: 7, color: P.textMid, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 6, marginTop: 2 }}>Theme Presets</div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 12 }}>
-                  {Object.entries(WORLD_THEMES).map(([key, theme]) => {
-                    const isActive = JSON.stringify(config.customPalette || {}) === JSON.stringify(theme.palette) && JSON.stringify(config.customScene || {}) === JSON.stringify(theme.scene);
-                    const bgColor = theme.preview[0] || "#1a1a2e";
-                    const accentColors = theme.preview.slice(1);
-                    return (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+                  {Object.entries(WORLD_THEMES).map(([key, theme]) => (
                     <button key={key} onClick={() => {
                       setConfig({ customPalette: theme.palette, customScene: theme.scene });
                       showToast(`${theme.name} theme applied — reload for scene colors`, "🎨", 3000);
-                    }} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: "6px 4px", background: isActive ? P.rose + "12" : "transparent", border: isActive ? `1.5px solid ${P.gold || P.rose}` : `1px solid ${P.textFaint}25`, borderRadius: 10, cursor: "pointer", fontFamily: "inherit", transition: "all .2s" }}
-                    onMouseEnter={e => { if (!isActive) { e.currentTarget.style.borderColor = P.rose + "50"; e.currentTarget.style.background = P.rose + "08"; }}}
-                    onMouseLeave={e => { if (!isActive) { e.currentTarget.style.borderColor = P.textFaint + "25"; e.currentTarget.style.background = "transparent"; }}}>
-                      <div style={{ width: "100%", maxWidth: 80, height: 50, borderRadius: 6, background: bgColor, position: "relative", overflow: "hidden", border: `1px solid ${P.textFaint}15` }}>
-                        <div style={{ position: "absolute", bottom: 10, left: "50%", transform: "translateX(-50%)", width: 28, height: 28, borderRadius: "50%", border: `1.5px solid ${accentColors[0] || "#888"}80`, opacity: 0.7 }} />
-                        <div style={{ position: "absolute", top: 6, right: 6, display: "flex", gap: 3 }}>
-                          {accentColors.slice(0, 3).map((c, i) => <div key={i} style={{ width: 5, height: 5, borderRadius: "50%", background: c, opacity: 0.9 }} />)}
-                        </div>
-                        <div style={{ position: "absolute", bottom: 22, left: 8, width: 12, height: 1, background: (accentColors[0] || "#888") + "60", borderRadius: 1 }} />
-                        <div style={{ position: "absolute", bottom: 18, left: 6, width: 8, height: 1, background: (accentColors[1] || accentColors[0] || "#888") + "40", borderRadius: 1 }} />
-                      </div>
-                      <span style={{ fontSize: 7.5, color: isActive ? P.text : P.textMid, fontWeight: isActive ? 600 : 400, letterSpacing: ".02em" }}>{theme.name}</span>
+                    }} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", background: "transparent", border: `1px solid ${P.textFaint}30`, borderRadius: 10, cursor: "pointer", fontFamily: "inherit", transition: "all .2s" }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = P.rose + "60"; e.currentTarget.style.background = P.rose + "08"; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = P.textFaint + "30"; e.currentTarget.style.background = "transparent"; }}>
+                      <div style={{ display: "flex", gap: 2 }}>{theme.preview.map((c, i) => <div key={i} style={{ width: 10, height: 10, borderRadius: "50%", background: c }} />)}</div>
+                      <span style={{ fontSize: 9, color: P.text }}>{theme.name}</span>
                     </button>
-                  );})}
+                  ))}
                 </div>
                 <div style={{ fontSize: 7, color: P.textMid, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 4, marginTop: 2 }}>Interface Colors</div>
                 {cPick("Primary Accent", "Markers, buttons, borders, highlights", cp.rose || baseP.rose, v => setCP("rose", v))}
