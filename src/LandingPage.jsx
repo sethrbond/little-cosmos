@@ -357,11 +357,13 @@ function DemoExperience({ onClose, onSignUp }) {
       if (!s) { resolve(); return }
       const { globe, wire } = s
       const entry = DEMO_ENTRIES[entryIndex]
-      const targetY = -entry.lng * Math.PI / 180
-      const targetX = entry.lat * Math.PI / 180 * 0.5
+      // Convert lat/lng to globe rotation: lng maps to -Y rotation, lat to X tilt
+      const targetY = (-entry.lng - 90) * Math.PI / 180
+      const targetX = entry.lat * Math.PI / 180 * 0.4
       const startY = globe.rotation.y, startX = globe.rotation.x
+      // Shortest path rotation (normalize to -PI..PI)
       let dy = targetY - startY
-      dy = dy - Math.round(dy / (2 * Math.PI)) * 2 * Math.PI
+      dy = ((dy + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI
       const start = Date.now()
       const step = () => {
         const p = Math.min(1, (Date.now() - start) / duration)
