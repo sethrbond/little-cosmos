@@ -6,22 +6,22 @@ const FONT = '"Palatino Linotype", "Book Antiqua", Palatino, serif'
 
 // Demo entries with real cities and warm notes
 const DEMO_ENTRIES = [
-  { city: 'Paris', lat: 48.86, lng: 2.35, dates: 'Sep 12\u201318, 2024',
+  { city: 'Paris', emoji: '🥐', lat: 48.86, lng: 2.35, dates: 'Sep 12\u201318, 2024',
     note: 'We watched the sunset from Montmartre and promised we\u2019d come back every year.',
     gradient: 'linear-gradient(135deg, #e8a87c, #d4758b)' },
-  { city: 'Tokyo', lat: 35.68, lng: 139.69, dates: 'Mar 28 \u2013 Apr 5, 2024',
+  { city: 'Tokyo', emoji: '🗼', lat: 35.68, lng: 139.69, dates: 'Mar 28 \u2013 Apr 5, 2024',
     note: 'Cherry blossoms everywhere. We sat under that one tree in Ueno Park for three hours and didn\u2019t say a word.',
     gradient: 'linear-gradient(135deg, #f8b4c8, #c084c0)' },
-  { city: 'New York', lat: 40.71, lng: -74.01, dates: 'Jan 3\u20138, 2023',
+  { city: 'New York', emoji: '🗽', lat: 40.71, lng: -74.01, dates: 'Jan 3\u20138, 2023',
     note: 'Our first apartment was tiny and perfect. We ate pizza on the fire escape at midnight.',
     gradient: 'linear-gradient(135deg, #7eb5d6, #5a8fb0)' },
-  { city: 'Iceland', lat: 64.15, lng: -21.94, dates: 'Nov 20\u201326, 2023',
+  { city: 'Iceland', emoji: '🌌', lat: 64.15, lng: -21.94, dates: 'Nov 20\u201326, 2023',
     note: 'The northern lights came out on our last night. We both cried a little, honestly.',
     gradient: 'linear-gradient(135deg, #6dd5c0, #3daa98)' },
-  { city: 'Barcelona', lat: 41.39, lng: 2.17, dates: 'Jun 14\u201320, 2024',
+  { city: 'Barcelona', emoji: '🎭', lat: 41.39, lng: 2.17, dates: 'Jun 14\u201320, 2024',
     note: 'Anniversary trip. Got lost in the Gothic Quarter and found that tiny wine bar with the candles.',
     gradient: 'linear-gradient(135deg, #f0c27f, #d4945a)' },
-  { city: 'Bali', lat: -8.41, lng: 115.19, dates: 'Aug 1\u201312, 2023',
+  { city: 'Bali', emoji: '🏖️', lat: -8.41, lng: 115.19, dates: 'Aug 1\u201312, 2023',
     note: 'Honeymoon. The rice terraces at sunrise, the temple at dusk. Everything glowed.',
     gradient: 'linear-gradient(135deg, #a8e6a3, #68b898)' },
 ]
@@ -503,7 +503,8 @@ function DemoExperience({ onClose, onSignUp }) {
             border: '1px solid #efe3d0',
             boxShadow: '0 8px 32px rgba(90,62,40,0.15)',
           }}>
-            <div style={{ padding: '20px 22px', textAlign: 'center' }}>
+            <div style={{ height: 6, background: DEMO_ENTRIES[activeEntry].gradient || 'linear-gradient(135deg, #c9a96e, #b8944f)', borderRadius: '20px 20px 0 0' }} />
+            <div style={{ padding: '18px 22px', textAlign: 'center' }}>
               <div style={{ fontSize: 28, marginBottom: 8 }}>{DEMO_ENTRIES[activeEntry].emoji}</div>
               <div style={{ fontSize: 18, fontWeight: 500, color: '#5a3e28', fontFamily: FONT, marginBottom: 4 }}>
                 {DEMO_ENTRIES[activeEntry].city}
@@ -525,7 +526,7 @@ function DemoExperience({ onClose, onSignUp }) {
               border: 'none', color: 'rgba(200,170,110,0.5)', fontSize: 12,
               fontFamily: FONT, cursor: 'pointer',
             }}>
-              click anywhere to close
+              ×
             </button>
           )}
         </div>
