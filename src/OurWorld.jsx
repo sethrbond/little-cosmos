@@ -20,7 +20,9 @@ import { EntryTemplates, saveTemplate } from "./EntryTemplates.jsx";
 import useRealtimeSync, { useRealtimePresence } from "./useRealtimeSync.js";
 import { supabase } from "./supabaseClient.js";
 import { geocodeSearch } from "./geocode.js";
-import { inputStyle, navStyle, imageNavBtn, renderList, TBtn, TBtnGroup, Lbl, Fld, QuickAddForm, DreamAddForm, DREAM_CATEGORIES, AddForm, EditForm, hasDraft, getDraftSummary, OverlayBoundary, useFocusTrap } from "./EntryForms.jsx";
+import { inputStyle, navStyle, imageNavBtn, renderList, StarRating, hasDraft, getDraftSummary, FONT_FAMILY } from "./formUtils.jsx";
+import { TBtn, TBtnGroup, Lbl, Fld } from "./uiPrimitives.jsx";
+import { QuickAddForm, DreamAddForm, DREAM_CATEGORIES, AddForm, EditForm, OverlayBoundary, useFocusTrap } from "./formComponents.jsx";
 import {
   OUR_WORLD_PALETTE, MY_WORLD_PALETTE,
   OUR_WORLD_TYPES, MY_WORLD_TYPES,
