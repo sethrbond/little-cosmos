@@ -78,11 +78,35 @@ function buildGlobeScene(el, w, h) {
   const wire = new THREE.Mesh(globeGeo, wireMat)
   scene.add(wire)
 
-  const coastMat = new THREE.LineBasicMaterial({ color: 0xd4b896, transparent: true, opacity: 0.45 })
-  for (const coast of COAST_DATA) {
-    const pts = coast.map(([lat, lng]) => ll2v(lat, lng, 1.002))
-    globe.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), coastMat))
+  // Merge all coastlines into batched LineSegments (like OurWorld) for quality + performance
+  const coastSegments = []
+  for (const ring of COAST_DATA) {
+    for (let i = 0; i < ring.length - 1; i++) {
+      const a = ll2v(ring[i][0], ring[i][1], 1.003)
+      const b = ll2v(ring[i+1][0], ring[i+1][1], 1.003)
+      coastSegments.push(a.x, a.y, a.z, b.x, b.y, b.z)
+    }
   }
+  const coastGeo = new THREE.BufferGeometry()
+  coastGeo.setAttribute('position', new THREE.Float32BufferAttribute(coastSegments, 3))
+  // Primary coastlines
+  const coastPrimary = new THREE.LineSegments(coastGeo, new THREE.LineBasicMaterial({ color: 0xd4b896, transparent: true, opacity: 0.7 }))
+  coastPrimary.renderOrder = -1
+  globe.add(coastPrimary)
+  // Glow layer (slightly farther out, lower opacity)
+  const coastGlowSegs = []
+  for (const ring of COAST_DATA) {
+    for (let i = 0; i < ring.length - 1; i++) {
+      const a = ll2v(ring[i][0], ring[i][1], 1.005)
+      const b = ll2v(ring[i+1][0], ring[i+1][1], 1.005)
+      coastGlowSegs.push(a.x, a.y, a.z, b.x, b.y, b.z)
+    }
+  }
+  const coastGlowGeo = new THREE.BufferGeometry()
+  coastGlowGeo.setAttribute('position', new THREE.Float32BufferAttribute(coastGlowSegs, 3))
+  const coastGlow = new THREE.LineSegments(coastGlowGeo, new THREE.LineBasicMaterial({ color: 0xd4b896, transparent: true, opacity: 0.25 }))
+  coastGlow.renderOrder = -2
+  globe.add(coastGlow)
 
   const dotGeo = new THREE.SphereGeometry(0.004, 4, 4)
   const dotMat = new THREE.MeshBasicMaterial({ color: 0xc9a96e, transparent: true, opacity: 0.12 })
