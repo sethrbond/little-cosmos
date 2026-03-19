@@ -6,24 +6,24 @@ const FONT = '"Palatino Linotype", "Book Antiqua", Palatino, serif'
 
 // Demo entries with real cities and warm notes
 const DEMO_ENTRIES = [
-  { city: 'Paris', emoji: '🥐', lat: 48.86, lng: 2.35, dates: 'Sep 12\u201318, 2024',
-    note: 'We watched the sunset from Montmartre and promised we\u2019d come back every year.',
-    gradient: 'linear-gradient(135deg, #e8a87c, #d4758b)' },
-  { city: 'Tokyo', emoji: '🗼', lat: 35.68, lng: 139.69, dates: 'Mar 28 \u2013 Apr 5, 2024',
-    note: 'Cherry blossoms everywhere. We sat under that one tree in Ueno Park for three hours and didn\u2019t say a word.',
-    gradient: 'linear-gradient(135deg, #f8b4c8, #c084c0)' },
-  { city: 'New York', emoji: '🗽', lat: 40.71, lng: -74.01, dates: 'Jan 3\u20138, 2023',
-    note: 'Our first apartment was tiny and perfect. We ate pizza on the fire escape at midnight.',
-    gradient: 'linear-gradient(135deg, #7eb5d6, #5a8fb0)' },
-  { city: 'Iceland', emoji: '🌌', lat: 64.15, lng: -21.94, dates: 'Nov 20\u201326, 2023',
-    note: 'The northern lights came out on our last night. We both cried a little, honestly.',
-    gradient: 'linear-gradient(135deg, #6dd5c0, #3daa98)' },
-  { city: 'Barcelona', emoji: '🎭', lat: 41.39, lng: 2.17, dates: 'Jun 14\u201320, 2024',
-    note: 'Anniversary trip. Got lost in the Gothic Quarter and found that tiny wine bar with the candles.',
-    gradient: 'linear-gradient(135deg, #f0c27f, #d4945a)' },
-  { city: 'Bali', emoji: '🏖️', lat: -8.41, lng: 115.19, dates: 'Aug 1\u201312, 2023',
-    note: 'Honeymoon. The rice terraces at sunrise, the temple at dusk. Everything glowed.',
-    gradient: 'linear-gradient(135deg, #a8e6a3, #68b898)' },
+  { city: 'Paris', emoji: '🥐', lat: 48.86, lng: 2.35, dates: 'Sep 12–18, 2024',
+    note: 'that restaurant by the river, the one with no sign. you found it. we went back three times.',
+    dwell: 3500, gradient: 'linear-gradient(135deg, #e8a87c, #d4758b)' },
+  { city: 'Tokyo', emoji: '🗼', lat: 35.68, lng: 139.69, dates: 'Mar 28 – Apr 5, 2024',
+    note: 'cherry blossom season. sat under that tree in ueno park for hours. neither of us wanted to leave.',
+    dwell: 4000, gradient: 'linear-gradient(135deg, #f8b4c8, #c084c0)' },
+  { city: 'New York', emoji: '🗽', lat: 40.71, lng: -74.01, dates: 'Jan 3–8, 2023',
+    note: 'tiny apartment, huge city. pizza on the fire escape. i think that was the happiest tuesday of my life.',
+    dwell: 2500, gradient: 'linear-gradient(135deg, #7eb5d6, #5a8fb0)' },
+  { city: 'Iceland', emoji: '🌌', lat: 64.15, lng: -21.94, dates: 'Nov 20–26, 2023',
+    note: 'the northern lights came out on our last night. we both cried. neither of us said why.',
+    dwell: 3800, gradient: 'linear-gradient(135deg, #6dd5c0, #3daa98)' },
+  { city: 'Barcelona', emoji: '🎭', lat: 41.39, lng: 2.17, dates: 'Jun 14–20, 2024',
+    note: 'anniversary. got lost in the gothic quarter. found a wine bar with exactly four candles. perfect.',
+    dwell: 3000, gradient: 'linear-gradient(135deg, #f0c27f, #d4945a)' },
+  { city: 'Bali', emoji: '🏖️', lat: -8.41, lng: 115.19, dates: 'Aug 1–12, 2023',
+    note: 'honeymoon. rice terraces at sunrise. temple bells at dusk. i kept thinking — this is real, this is ours.',
+    dwell: 4200, gradient: 'linear-gradient(135deg, #a8e6a3, #68b898)' },
 ]
 
 // Sample cities for the mini globe markers
@@ -402,7 +402,7 @@ function DemoExperience({ onClose, onSignUp }) {
     })
   }, [])
 
-  // Play Story auto-fly sequence
+  // Play Story auto-fly sequence with human-feeling timing
   const playStory = useCallback(async () => {
     if (playingRef.current) return
     playingRef.current = true
@@ -413,15 +413,33 @@ function DemoExperience({ onClose, onSignUp }) {
     let cancelled = false
     cancelStoryRef.current = () => { cancelled = true }
 
+    // Drift slowly for a moment before the first city (anticipation)
+    await new Promise(r => setTimeout(r, 1500))
+    if (cancelled) { playingRef.current = false; setIsPlaying(false); cancelStoryRef.current = null; return }
+
+    let prevLng = 0 // start from center
+
     for (let i = 0; i < DEMO_ENTRIES.length; i++) {
       if (cancelled) break
-      await flyTo(i, 1400)
+
+      // Vary fly duration based on longitude distance from previous city
+      const lngDist = Math.abs(DEMO_ENTRIES[i].lng - prevLng)
+      const flyDuration = lngDist > 80 ? 1800 : 1200
+      prevLng = DEMO_ENTRIES[i].lng
+
+      await flyTo(i, flyDuration)
       if (cancelled) break
+
       setActiveEntry(i)
-      await new Promise(r => setTimeout(r, 2800))
+      // Use per-city dwell time for a human feel
+      const dwell = DEMO_ENTRIES[i].dwell || 3000
+      await new Promise(r => setTimeout(r, dwell))
       if (cancelled) break
+
       if (i < DEMO_ENTRIES.length - 1) setActiveEntry(null)
-      await new Promise(r => setTimeout(r, 400))
+      // Random pause between cities (200-600ms)
+      const pause = 200 + Math.floor(Math.random() * 400)
+      await new Promise(r => setTimeout(r, pause))
     }
 
     playingRef.current = false
@@ -925,6 +943,22 @@ export default function LandingPage({ onSignIn, onSignUp }) {
         </div>
       </section>
 
+      {/* Testimonials */}
+      <section style={{ padding: "60px 24px", maxWidth: 900, margin: "0 auto" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 20 }}>
+          {[
+            { quote: "we've visited 14 countries together. watching them light up on our globe makes me cry every time.", who: "a couple from portland" },
+            { quote: "i hid a love letter on the globe in the city where we met. she found it on our anniversary.", who: "m." },
+            { quote: "my kids love spinning the family globe and finding all our vacation spots.", who: "parent of 3" },
+          ].map(t => (
+            <div key={t.who} style={{ padding: "22px 20px", borderRadius: 14, background: "rgba(232,224,208,0.03)", border: "1px solid rgba(200,170,110,0.1)" }}>
+              <p style={{ fontFamily: FONT, fontStyle: "italic", color: "#e8e0d0", fontSize: 14, lineHeight: 1.7, margin: 0 }}>"{t.quote}"</p>
+              <p style={{ fontSize: 11, color: "rgba(232,224,208,0.35)", margin: "12px 0 0" }}>— {t.who}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* World types showcase */}
       <section style={{
         position: 'relative', zIndex: 1,
@@ -961,6 +995,13 @@ export default function LandingPage({ onSignIn, onSignUp }) {
           ))}
         </div>
       </section>
+
+      {/* Trust bar */}
+      <div style={{ display: "flex", justifyContent: "center", gap: 32, padding: "20px 24px", flexWrap: "wrap" }}>
+        {["🔒 your memories are yours", "📦 export anytime", "💛 free forever, no ads"].map(t => (
+          <span key={t} style={{ fontSize: 11, color: "rgba(232,224,208,0.35)", letterSpacing: ".03em" }}>{t}</span>
+        ))}
+      </div>
 
       {/* Social proof / bottom CTA */}
       <section style={{
