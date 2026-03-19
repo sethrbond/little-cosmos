@@ -7,7 +7,7 @@
    - "On This Day" notifications: check on activate + periodic fetch
 */
 
-const CACHE_NAME = 'cosmos-v7';
+const CACHE_NAME = 'cosmos-v8';
 
 // Install — skip waiting to activate immediately
 self.addEventListener('install', () => self.skipWaiting());
