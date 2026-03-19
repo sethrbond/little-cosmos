@@ -6,22 +6,22 @@ const FONT = '"Palatino Linotype", "Book Antiqua", Palatino, serif'
 
 // Demo entries with real cities and warm notes
 const DEMO_ENTRIES = [
-  { city: 'Paris', lat: 48.86, lng: 2.35, dates: 'Sep 12\u201318, 2024', stars: 5,
+  { city: 'Paris', lat: 48.86, lng: 2.35, dates: 'Sep 12\u201318, 2024',
     note: 'We watched the sunset from Montmartre and promised we\u2019d come back every year.',
     gradient: 'linear-gradient(135deg, #e8a87c, #d4758b)' },
-  { city: 'Tokyo', lat: 35.68, lng: 139.69, dates: 'Mar 28 \u2013 Apr 5, 2024', stars: 5,
+  { city: 'Tokyo', lat: 35.68, lng: 139.69, dates: 'Mar 28 \u2013 Apr 5, 2024',
     note: 'Cherry blossoms everywhere. We sat under that one tree in Ueno Park for three hours and didn\u2019t say a word.',
     gradient: 'linear-gradient(135deg, #f8b4c8, #c084c0)' },
-  { city: 'New York', lat: 40.71, lng: -74.01, dates: 'Jan 3\u20138, 2023', stars: 4,
+  { city: 'New York', lat: 40.71, lng: -74.01, dates: 'Jan 3\u20138, 2023',
     note: 'Our first apartment was tiny and perfect. We ate pizza on the fire escape at midnight.',
     gradient: 'linear-gradient(135deg, #7eb5d6, #5a8fb0)' },
-  { city: 'Iceland', lat: 64.15, lng: -21.94, dates: 'Nov 20\u201326, 2023', stars: 5,
+  { city: 'Iceland', lat: 64.15, lng: -21.94, dates: 'Nov 20\u201326, 2023',
     note: 'The northern lights came out on our last night. We both cried a little, honestly.',
     gradient: 'linear-gradient(135deg, #6dd5c0, #3daa98)' },
-  { city: 'Barcelona', lat: 41.39, lng: 2.17, dates: 'Jun 14\u201320, 2024', stars: 4,
+  { city: 'Barcelona', lat: 41.39, lng: 2.17, dates: 'Jun 14\u201320, 2024',
     note: 'Anniversary trip. Got lost in the Gothic Quarter and found that tiny wine bar with the candles.',
     gradient: 'linear-gradient(135deg, #f0c27f, #d4945a)' },
-  { city: 'Bali', lat: -8.41, lng: 115.19, dates: 'Aug 1\u201312, 2023', stars: 5,
+  { city: 'Bali', lat: -8.41, lng: 115.19, dates: 'Aug 1\u201312, 2023',
     note: 'Honeymoon. The rice terraces at sunrise, the temple at dusk. Everything glowed.',
     gradient: 'linear-gradient(135deg, #a8e6a3, #68b898)' },
 ]
@@ -357,8 +357,8 @@ function DemoExperience({ onClose, onSignUp }) {
       if (!s) { resolve(); return }
       const { globe, wire } = s
       const entry = DEMO_ENTRIES[entryIndex]
-      const targetY = -(entry.lng + 180) * Math.PI / 180 + Math.PI
-      const targetX = -(entry.lat) * Math.PI / 180 * 0.3
+      const targetY = -entry.lng * Math.PI / 180
+      const targetX = entry.lat * Math.PI / 180 * 0.5
       const startY = globe.rotation.y, startX = globe.rotation.x
       let dy = targetY - startY
       dy = dy - Math.round(dy / (2 * Math.PI)) * 2 * Math.PI
@@ -425,7 +425,7 @@ function DemoExperience({ onClose, onSignUp }) {
         display: 'flex', gap: 10, zIndex: 10001,
         background: 'rgba(12,10,18,0.7)', backdropFilter: 'blur(12px)',
         borderRadius: 14, padding: '8px 12px',
-        border: '1px solid rgba(200,170,110,0.15)',
+        border: '1px solid #efe3d0',
       }}>
         {/* Add (disabled) */}
         <div style={{ position: 'relative' }}>
@@ -497,38 +497,23 @@ function DemoExperience({ onClose, onSignUp }) {
         }}>
           <div style={{
             borderRadius: 20, overflow: 'hidden',
-            background: 'rgba(18,14,28,0.92)', backdropFilter: 'blur(20px)',
-            border: '1px solid rgba(200,170,110,0.15)',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+            background: '#faf6ee', backdropFilter: 'blur(12px)',
+            border: '1px solid #efe3d0',
+            boxShadow: '0 8px 32px rgba(90,62,40,0.15)',
           }}>
-            {/* Gradient photo placeholder */}
-            <div style={{
-              height: 140, background: DEMO_ENTRIES[activeEntry].gradient,
-              display: 'flex', alignItems: 'flex-end', padding: 16, position: 'relative',
-            }}>
-              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(18,14,28,0.6), transparent)' }} />
-              <div style={{ position: 'relative', zIndex: 1 }}>
-                <div style={{ fontSize: 22, fontWeight: 600, color: '#fff', letterSpacing: 0.5, fontFamily: FONT }}>
-                  {DEMO_ENTRIES[activeEntry].city}
-                </div>
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 2, fontFamily: FONT }}>
-                  {DEMO_ENTRIES[activeEntry].dates}
-                </div>
+            <div style={{ padding: '20px 22px', textAlign: 'center' }}>
+              <div style={{ fontSize: 28, marginBottom: 8 }}>{DEMO_ENTRIES[activeEntry].emoji}</div>
+              <div style={{ fontSize: 18, fontWeight: 500, color: '#5a3e28', fontFamily: FONT, marginBottom: 4 }}>
+                {DEMO_ENTRIES[activeEntry].city}
               </div>
-            </div>
-            <div style={{ padding: '16px 20px 20px' }}>
-              <div style={{ marginBottom: 12, fontSize: 14, letterSpacing: 2 }}>
-                {Array.from({ length: 5 }, (_, i) => (
-                  <span key={i} style={{ color: i < DEMO_ENTRIES[activeEntry].stars ? '#c9a96e' : 'rgba(200,170,110,0.2)' }}>
-                    {'\u2605'}
-                  </span>
-                ))}
+              <div style={{ fontSize: 11, color: '#a08b74', fontFamily: FONT, marginBottom: 14 }}>
+                {DEMO_ENTRIES[activeEntry].dates}
               </div>
               <p style={{
-                fontSize: 14, lineHeight: 1.7, color: 'rgba(232,224,208,0.75)',
-                fontStyle: 'italic', margin: 0, fontFamily: FONT,
+                fontSize: 14, lineHeight: 1.8, color: '#6b5440',
+                fontStyle: 'italic', margin: 0, fontFamily: "'Georgia','Palatino Linotype',serif",
               }}>
-                &ldquo;{DEMO_ENTRIES[activeEntry].note}&rdquo;
+                \u201c{DEMO_ENTRIES[activeEntry].note}\u201d
               </p>
             </div>
           </div>
@@ -561,7 +546,7 @@ function DemoExperience({ onClose, onSignUp }) {
               fontSize: 24, fontWeight: 300, color: '#e8e0d0',
               fontFamily: FONT, letterSpacing: 1, marginBottom: 8,
             }}>
-              Imagine this with <em>your</em> memories.
+              This could be yours.
             </div>
             <p style={{ fontSize: 14, color: 'rgba(200,170,110,0.6)', marginBottom: 28, fontFamily: FONT }}>
               Every trip, every note, every place that matters.
@@ -860,7 +845,7 @@ export default function LandingPage({ onSignIn, onSignUp }) {
             }}>
               <div style={{
                 width: 56, height: 56, borderRadius: '50%', flexShrink: 0,
-                background: 'rgba(200,170,110,0.06)', border: '1px solid rgba(200,170,110,0.15)',
+                background: 'rgba(200,170,110,0.06)', border: '1px solid #efe3d0',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 24, zIndex: 1,
               }}>{step.icon}</div>
