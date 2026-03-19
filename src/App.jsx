@@ -1,18 +1,3 @@
-
-// Self-healing: detect stale module imports and auto-reload
-window.addEventListener('error', (e) => {
-  if (e.message && e.message.includes('module script failed')) {
-    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-      navigator.serviceWorker.controller.postMessage({ type: 'MODULE_LOAD_FAILED' });
-    }
-    setTimeout(() => window.location.reload(), 500);
-  }
-});
-if (navigator.serviceWorker) {
-  navigator.serviceWorker.addEventListener('message', (e) => {
-    if (e.data && e.data.type === 'RELOAD_REQUIRED') window.location.reload();
-  });
-}
 import { useState, useEffect, useCallback, useRef, Component, lazy, Suspense } from 'react'
 import { AuthProvider, useAuth } from './AuthContext.jsx'
 import { supabase } from './supabaseClient.js'
