@@ -98,30 +98,39 @@ export default function WorldToolbar({
         </TBtn>
       )}
 
-      {/* Category buttons — open horizontal menus */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        {entries.length > 0 && catBtn("explore", "🔍", "Explore")}
-        {allPhotos.length > 0 && catBtn("photos", "📸", "Photos")}
-        {entries.length > 1 && catBtn("play", "▶", "Play")}
-        {catBtn("tools", "🔧", "Tools")}
-      </div>
-
-      {/* Horizontal expandable menu */}
-      {menuOpen && activeItems.length > 0 && (
-        <div style={{
-          position: "absolute", left: 56, top: menuOpen === "explore" ? 110 : menuOpen === "photos" ? 150 : menuOpen === "play" ? 190 : 230,
-          display: "flex", flexDirection: "row", flexWrap: "wrap", gap: 5,
-          background: `${P.card || 'rgba(20,18,28,0.95)'}`, backdropFilter: "blur(16px)",
-          border: `1px solid ${(P.rose || '#c9a96e')}15`, borderRadius: 14,
-          padding: "8px 10px", maxWidth: 280,
-          boxShadow: `0 4px 20px rgba(0,0,0,0.3)`,
-          animation: "fadeIn .15s ease", zIndex: 35,
-        }}>
-          {activeItems.map((item, i) => (
-            <TBtn key={i} a={item.a} onClick={() => { item.onClick(); setMenuOpen(null); }} tip={item.tip}>{item.icon}</TBtn>
-          ))}
+      {/* Category buttons — expand items to the right */}
+      {entries.length > 0 && (
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 5 }}>
+          {catBtn("explore", "🔍", "Explore")}
+          {menuOpen === "explore" && <div style={{ display: "flex", flexWrap: "wrap", gap: 4, background: (P.card || 'rgba(20,18,28,0.95)'), backdropFilter: "blur(16px)", border: "1px solid " + (P.rose || '#c9a96e') + "15", borderRadius: 12, padding: "6px 8px", animation: "fadeIn .15s ease" }}>
+            {menuItems.explore.map((item, i) => <TBtn key={i} a={item.a} onClick={() => { item.onClick(); setMenuOpen(null); }} tip={item.tip}>{item.icon}</TBtn>)}
+          </div>}
         </div>
       )}
+      {allPhotos.length > 0 && (
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 5 }}>
+          {catBtn("photos", "📸", "Photos")}
+          {menuOpen === "photos" && <div style={{ display: "flex", flexWrap: "wrap", gap: 4, background: (P.card || 'rgba(20,18,28,0.95)'), backdropFilter: "blur(16px)", border: "1px solid " + (P.rose || '#c9a96e') + "15", borderRadius: 12, padding: "6px 8px", animation: "fadeIn .15s ease" }}>
+            {menuItems.photos.map((item, i) => <TBtn key={i} a={item.a} onClick={() => { item.onClick(); setMenuOpen(null); }} tip={item.tip}>{item.icon}</TBtn>)}
+          </div>}
+        </div>
+      )}
+      {entries.length > 1 && (
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 5 }}>
+          {catBtn("play", "▶", "Play")}
+          {menuOpen === "play" && <div style={{ display: "flex", flexWrap: "wrap", gap: 4, background: (P.card || 'rgba(20,18,28,0.95)'), backdropFilter: "blur(16px)", border: "1px solid " + (P.rose || '#c9a96e') + "15", borderRadius: 12, padding: "6px 8px", animation: "fadeIn .15s ease" }}>
+            {menuItems.play.map((item, i) => <TBtn key={i} a={item.a} onClick={() => { item.onClick(); setMenuOpen(null); }} tip={item.tip}>{item.icon}</TBtn>)}
+          </div>}
+        </div>
+      )}
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 5 }}>
+        {catBtn("tools", "🔧", "Tools")}
+        {menuOpen === "tools" && <div style={{ display: "flex", flexWrap: "wrap", gap: 4, background: (P.card || 'rgba(20,18,28,0.95)'), backdropFilter: "blur(16px)", border: "1px solid " + (P.rose || '#c9a96e') + "15", borderRadius: 12, padding: "6px 8px", animation: "fadeIn .15s ease" }}>
+          {menuItems.tools.map((item, i) => <TBtn key={i} a={item.a} onClick={() => { item.onClick(); setMenuOpen(null); }} tip={item.tip}>{item.icon}</TBtn>)}
+        </div>}
+      </div>
+
+
 
       {isSharedWorld && <NotificationCenter notifications={notifications} palette={P} onDismiss={onDismissNotification} onDismissAll={onDismissAllNotifications} onClickNotification={onClickNotification} />}
       {onSwitchWorld && <TBtn onClick={onSwitchWorld} tip="Switch World">🔄</TBtn>}
