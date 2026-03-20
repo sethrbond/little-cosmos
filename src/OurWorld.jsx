@@ -14,14 +14,19 @@ const TripCard = lazy(() => import("./TripCard.jsx"));
 const YearInReview = lazy(() => import("./YearInReview.jsx"));
 const KeyboardShortcuts = lazy(() => import("./KeyboardShortcuts.jsx"));
 const TripJournal = lazy(() => import("./TripJournal.jsx"));
-import SyncIndicator from "./SyncIndicator.jsx";
-import NotificationCenter from "./NotificationCenter.jsx";
+const SearchPanel = lazy(() => import("./SearchPanel.jsx"));
+const WorldToolbar = lazy(() => import("./WorldToolbar.jsx"));
+const CinemaOverlay = lazy(() => import("./CinemaOverlay.jsx"));
+const DreamPanel = lazy(() => import("./DreamPanel.jsx"));
+const GalleryPanel = lazy(() => import("./GalleryPanel.jsx"));
+const TimelineSlider = lazy(() => import("./TimelineSlider.jsx"));
+const LoveLetterOverlay = lazy(() => import("./LoveLetterOverlay.jsx"));
 import { EntryTemplates, saveTemplate } from "./EntryTemplates.jsx";
 import useRealtimeSync, { useRealtimePresence } from "./useRealtimeSync.js";
 import { supabase } from "./supabaseClient.js";
 import { geocodeSearch } from "./geocode.js";
-import { inputStyle, navStyle, imageNavBtn, renderList, StarRating, hasDraft, getDraftSummary, FONT_FAMILY } from "./formUtils.jsx";
-import { TBtn, TBtnGroup, Lbl, Fld } from "./uiPrimitives.jsx";
+import { inputStyle, navStyle, imageNavBtn, renderList, StarRating, FONT_FAMILY } from "./formUtils.jsx";
+import { Lbl, Fld } from "./uiPrimitives.jsx";
 import { QuickAddForm, DreamAddForm, DREAM_CATEGORIES, AddForm, EditForm, OverlayBoundary, useFocusTrap } from "./formComponents.jsx";
 import {
   OUR_WORLD_PALETTE, MY_WORLD_PALETTE,
@@ -1481,13 +1486,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [recapIdx, setRecapIdx] = useState(0);
   const [photoDeleteMode, setPhotoDeleteMode] = useState(false);
   const photoDragRef = useRef({ from: -1, to: -1 });
-  const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
-  const [searchHl, setSearchHl] = useState(-1); // keyboard highlight index in search results
-  const [searchDateFrom, setSearchDateFrom] = useState("");
-  const [searchDateTo, setSearchDateTo] = useState("");
-  const [searchTypeFilter, setSearchTypeFilter] = useState("all");
-  const [searchSort, setSearchSort] = useState("date-desc"); // date-desc, date-asc, alpha, country
   const [showLoveThread, setShowLoveThread] = useState(false);
   const [showConstellation, setShowConstellation] = useState(false);
   const [showRoutes, setShowRoutes] = useState(false);
@@ -1919,41 +1918,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     return { longestTrip, farthestApart, topCity, countryList: [...countryList], cityCount: citySet.size, longestApart, avgTripLength, years };
   }, [data.entries, togetherList, sorted, isPartnerWorld]);
 
-  // ---- SEARCH (with date range, type filter, sort) ----
-  const hasSearchFilters = searchQuery.length >= 2 || searchDateFrom || searchDateTo || searchTypeFilter !== "all";
-  const searchResults = useMemo(() => {
-    if (!hasSearchFilters) return [];
-    let results = data.entries;
-    // Text filter
-    if (searchQuery.length >= 2) {
-      const q = searchQuery.toLowerCase();
-      results = results.filter(e =>
-        (e.city || "").toLowerCase().includes(q) ||
-        (e.country || "").toLowerCase().includes(q) ||
-        (e.notes || "").toLowerCase().includes(q) ||
-        (e.highlights || []).some(h => h.toLowerCase().includes(q)) ||
-        (e.restaurants || []).some(r => r.toLowerCase().includes(q)) ||
-        (e.museums || []).some(m => m.toLowerCase().includes(q)) ||
-        (e.stops || []).some(s => (s.city || "").toLowerCase().includes(q))
-      );
-    }
-    // Date range filter
-    if (searchDateFrom) results = results.filter(e => (e.dateEnd || e.dateStart) >= searchDateFrom);
-    if (searchDateTo) results = results.filter(e => e.dateStart <= searchDateTo);
-    // Type filter
-    if (searchTypeFilter !== "all") results = results.filter(e => e.type === searchTypeFilter);
-    // Sort
-    if (searchSort === "date-asc") results = [...results].sort((a, b) => (a.dateStart || "").localeCompare(b.dateStart || ""));
-    else if (searchSort === "alpha") results = [...results].sort((a, b) => (a.city || "").localeCompare(b.city || ""));
-    else if (searchSort === "country") results = [...results].sort((a, b) => (a.country || "").localeCompare(b.country || "") || (a.city || "").localeCompare(b.city || ""));
-    else results = [...results].sort((a, b) => (b.dateStart || "").localeCompare(a.dateStart || ""));
-    return results;
-  }, [searchQuery, searchDateFrom, searchDateTo, searchTypeFilter, searchSort, data.entries, hasSearchFilters]);
-
-  // Sync search matches to ref for animation loop access
-  useEffect(() => {
-    searchMatchIdsRef.current = new Set(searchResults.map(e => e.id));
-  }, [searchResults]);
 
   // ---- FAVORITES ----
   const [heartBurst, setHeartBurst] = useState(false);
@@ -3807,112 +3771,79 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       </div>
 
       {/* TOOLBAR */}
-      <div role="toolbar" aria-label="World tools" style={{ position: "absolute", top: 22, left: 22, zIndex: 20, display: "flex", flexDirection: "column", gap: 7, opacity: introComplete ? 1 : 0, transition: "opacity .8s ease" }}>
-
-        {/* — Core actions — */}
-        {!isViewer && <TBtn onClick={() => setShowAdd(true)} accent tip="Add Entry">＋</TBtn>}
-        {!isViewer && <TBtn onClick={() => setQuickAddMode(true)} tip="Quick Add">⚡</TBtn>}
-
-        {/* — Draft indicator — */}
-        {!isViewer && (hasDraft(`cosmos-draft-add-${worldId || worldMode}`) || hasDraft(`cosmos-draft-quick-${worldId || worldMode}`)) && (
-          <TBtn onClick={() => {
-            if (hasDraft(`cosmos-draft-add-${worldId || worldMode}`)) setShowAdd(true);
-            else setQuickAddMode(true);
-          }} tip={(() => {
-            const d = getDraftSummary(`cosmos-draft-add-${worldId || worldMode}`) || getDraftSummary(`cosmos-draft-quick-${worldId || worldMode}`);
-            return d ? `Resume draft${d.city ? `: ${d.city}` : ""}` : "Resume draft";
-          })()}>
-            <span style={{ position: "relative" }}>📝<span style={{ position: "absolute", top: -4, right: -6, width: 7, height: 7, borderRadius: "50%", background: "#c9a96e", border: "1.5px solid rgba(255,255,255,.9)", animation: "pulse 2s infinite" }} /></span>
-          </TBtn>
-        )}
-
-        {!isViewer && <TBtn onClick={() => { setShowSettings(true); getMyLetters(userId).then(setMyLetters); }} tip="Settings">⚙️</TBtn>}
-
-        {/* — divider — */}
-        {data.entries.length > 0 && <div style={{ width: 20, height: 1, background: `${P.textFaint}18`, margin: "1px auto" }} />}
-
-        {/* — Explore — */}
-        {data.entries.length > 0 && <TBtn a={showSearch} onClick={() => setShowSearch(v => !v)} tip="Search Entries">🔍</TBtn>}
-        {data.entries.length > 0 && <TBtn a={showStats} onClick={() => setShowStats(v => !v)} tip="Stats & Insights">📊</TBtn>}
-
-        {/* — Discover group — */}
-        {data.entries.length > 0 && (
-          <TBtnGroup icon="✨" label="discover">
-            {data.entries.length > 2 && <TBtn a={showConstellation} onClick={() => setShowConstellation(v => !v)} tip="Constellation">⭐</TBtn>}
-            {sorted.length > 1 && <TBtn a={showRoutes} onClick={() => setShowRoutes(v => !v)} tip="Travel Routes">🛤</TBtn>}
-            {data.entries.length > 0 && <TBtn a={showMilestones} onClick={() => setShowMilestones(v => !v)} tip="Milestones">✨</TBtn>}
-            {data.entries.length > 2 && <TBtn a={showTravelStats} onClick={() => setShowTravelStats(v => !v)} tip="Travel Stats">📈</TBtn>}
-            {isPartnerWorld && togetherList.length > 1 && <TBtn a={showLoveThread} onClick={() => setShowLoveThread(v => !v)} tip="Love Thread">🧵</TBtn>}
-            <TBtn a={showDreams} onClick={() => setShowDreams(v => !v)} tip={isMyWorld ? "Bucket List" : isPartnerWorld ? "Dream Destinations" : "Wish List"}>{isMyWorld ? "🗺️" : "✦"}</TBtn>
-          </TBtnGroup>
-        )}
-
-        {/* — Photos group — */}
-        {allPhotos.length > 0 && (
-          <TBtnGroup icon="📸" label="scrapbook">
-            <TBtn a={showGallery} onClick={() => setShowGallery(v => !v)} tip="Scrapbook">📸</TBtn>
-            {allPhotos.length > 2 && <TBtn onClick={() => { setShowPhotoJourney(true); setPjIndex(0); }} tip="Photo Journey">🎞</TBtn>}
-            <TBtn a={showPhotoMap} onClick={() => setShowPhotoMap(v => !v)} tip="Photo Map">📍</TBtn>
-          </TBtnGroup>
-        )}
-
-        {/* — Play group — */}
-        {data.entries.length > 1 && (
-          <TBtnGroup icon="▶" label="play">
-            {(isPartnerWorld ? togetherList.length > 0 : sorted.length > 0) && !isPlaying && <TBtn onClick={playStory} tip={isPartnerWorld ? "Play Our Story" : "Play Story"}>▶</TBtn>}
-            {isPlaying && <TBtn onClick={stopPlay} a tip="Stop Playback">⏹</TBtn>}
-            <TBtn onClick={() => {
-              const pool = data.entries.filter(e => e.lat != null && e.lng != null);
-              if (!pool.length) return;
-              const pick = pool[Math.floor(Math.random() * pool.length)];
-              tZm.current = 4.5;
-              setTimeout(() => {
-                flyTo(pick.lat, pick.lng, 2.2);
-                setTimeout(() => { setSelected(pick); setPhotoIdx(0); setCardTab("overview"); }, 600);
-              }, 400);
-            }} tip="Surprise Me">🎲</TBtn>
-            {config.ambientMusicUrl && <TBtn a={ambientPlaying} onClick={() => {
-              const au = ambientRef.current;
-              if (!au) return;
-              if (ambientPlaying) { au.pause(); setAmbientPlaying(false); }
-              else { au.play().catch(() => {}); setAmbientPlaying(true); }
-            }} tip={ambientPlaying ? "Pause Ambient Music" : "Play Ambient Music"}>{ambientPlaying ? "🔊" : "🎵"}</TBtn>}
-          </TBtnGroup>
-        )}
-
-        {/* — divider — */}
-        <div style={{ width: 20, height: 1, background: `${P.textFaint}18`, margin: "1px auto" }} />
-
-        {/* — Undo/Redo — */}
-        {!isViewer && (data.undoStack?.length > 0 || data.redoStack?.length > 0) && <>
-          {data.undoStack?.length > 0 && <TBtn onClick={() => dispatch({ type: "UNDO" })} tip={`Undo (${data.undoStack.length})`}>↩</TBtn>}
-          {data.redoStack?.length > 0 && <TBtn onClick={() => dispatch({ type: "REDO" })} tip={`Redo (${data.redoStack.length})`}>↪</TBtn>}
-        </>}
-
-        {/* — System — */}
-        <TBtn onClick={saveGlobeScreenshot} tip="Save Globe Screenshot">📷</TBtn>
-        {!isViewer && <TBtn onClick={() => setShowTemplates(true)} tip="Entry Templates">📋</TBtn>}
-        {data.entries.length >= 2 && <TBtn onClick={() => setShowTripJournal(true)} tip="Trip Journal">📖</TBtn>}
-        {data.entries.length > 0 && <TBtn onClick={() => setShowExportHub(true)} tip="Export & Import">📤</TBtn>}
-        {data.entries.length > 0 && <TBtn onClick={() => setShowYearReview(true)} tip="Year in Review">🎬</TBtn>}
-        {recentlyDeleted.length > 0 && <TBtn onClick={() => setShowTrash(true)} tip={`Recently Deleted (${recentlyDeleted.length})`}>🗑</TBtn>}
-        {isSharedWorld && <NotificationCenter
-          notifications={notifications}
-          palette={P}
-          onDismiss={id => setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))}
-          onDismissAll={() => setNotifications(prev => prev.map(n => ({ ...n, read: true })))}
-          onClickNotification={n => {
-            if (n.entryId) {
-              const entry = data.entries.find(e => e.id === n.entryId);
-              if (entry) { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); flyTo(entry.lat, entry.lng, 2.5); }
-            }
-            setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, read: true } : x));
-          }}
-        />}
-        {onSwitchWorld && <TBtn onClick={() => { flushConfigSave(); onSwitchWorld(); }} tip="Switch World">🔄</TBtn>}
-        <SyncIndicator isConnected={realtimeConnected} lastSync={lastSync} pendingOffline={pendingOffline} palette={{ bg: SC.bg, text: P.text }} style={{ margin: '4px auto' }} />
-        <TBtn onClick={() => setConfirmModal({ message: "Sign out of My Cosmos?", onConfirm: () => signOut() })} tip="Sign Out">🚪</TBtn>
-      </div>
+      <Suspense fallback={null}><WorldToolbar
+        worldId={worldId} worldMode={worldMode} isViewer={isViewer}
+        isSharedWorld={isSharedWorld} isPartnerWorld={isPartnerWorld} isMyWorld={isMyWorld}
+        entries={data.entries} allPhotos={allPhotos} togetherList={togetherList}
+        sorted={sorted} recentlyDeleted={recentlyDeleted}
+        undoCount={data.undoStack?.length || 0} redoCount={data.redoStack?.length || 0}
+        notifications={notifications}
+        isPlaying={isPlaying} ambientPlaying={ambientPlaying}
+        ambientMusicUrl={config.ambientMusicUrl}
+        showSearch={showSearch} showStats={showStats}
+        showConstellation={showConstellation} showRoutes={showRoutes}
+        showMilestones={showMilestones} showTravelStats={showTravelStats}
+        showLoveThread={showLoveThread} showDreams={showDreams}
+        showGallery={showGallery} showPhotoMap={showPhotoMap}
+        onAdd={() => setShowAdd(true)}
+        onQuickAdd={() => setQuickAddMode(true)}
+        onResumeDraft={() => {
+          const dk = `cosmos-draft-add-${worldId || worldMode}`;
+          try { if (localStorage.getItem(dk) && JSON.parse(localStorage.getItem(dk)).city) { setShowAdd(true); return; } } catch {}
+          setQuickAddMode(true);
+        }}
+        onSettings={() => { setShowSettings(true); getMyLetters(userId).then(setMyLetters); }}
+        onToggleSearch={() => setShowSearch(v => !v)}
+        onToggleStats={() => setShowStats(v => !v)}
+        onToggleConstellation={() => setShowConstellation(v => !v)}
+        onToggleRoutes={() => setShowRoutes(v => !v)}
+        onToggleMilestones={() => setShowMilestones(v => !v)}
+        onToggleTravelStats={() => setShowTravelStats(v => !v)}
+        onToggleLoveThread={() => setShowLoveThread(v => !v)}
+        onToggleDreams={() => setShowDreams(v => !v)}
+        onToggleGallery={() => setShowGallery(v => !v)}
+        onPhotoJourney={() => { setShowPhotoJourney(true); setPjIndex(0); }}
+        onTogglePhotoMap={() => setShowPhotoMap(v => !v)}
+        onPlayStory={playStory}
+        onStopPlay={stopPlay}
+        onSurpriseMe={() => {
+          const pool = data.entries.filter(e => e.lat != null && e.lng != null);
+          if (!pool.length) return;
+          const pick = pool[Math.floor(Math.random() * pool.length)];
+          tZm.current = 4.5;
+          setTimeout(() => {
+            flyTo(pick.lat, pick.lng, 2.2);
+            setTimeout(() => { setSelected(pick); setPhotoIdx(0); setCardTab("overview"); }, 600);
+          }, 400);
+        }}
+        onToggleAmbient={() => {
+          const au = ambientRef.current;
+          if (!au) return;
+          if (ambientPlaying) { au.pause(); setAmbientPlaying(false); }
+          else { au.play().catch(() => {}); setAmbientPlaying(true); }
+        }}
+        onUndo={() => dispatch({ type: "UNDO" })}
+        onRedo={() => dispatch({ type: "REDO" })}
+        onScreenshot={saveGlobeScreenshot}
+        onTemplates={() => setShowTemplates(true)}
+        onTripJournal={() => setShowTripJournal(true)}
+        onExportHub={() => setShowExportHub(true)}
+        onYearReview={() => setShowYearReview(true)}
+        onTrash={() => setShowTrash(true)}
+        onDismissNotification={id => setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))}
+        onDismissAllNotifications={() => setNotifications(prev => prev.map(n => ({ ...n, read: true })))}
+        onClickNotification={n => {
+          if (n.entryId) {
+            const entry = data.entries.find(e => e.id === n.entryId);
+            if (entry) { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); flyTo(entry.lat, entry.lng, 2.5); }
+          }
+          setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, read: true } : x));
+        }}
+        onSwitchWorld={onSwitchWorld ? () => { flushConfigSave(); onSwitchWorld(); } : null}
+        onSignOut={() => setConfirmModal({ message: "Sign out of My Cosmos?", onConfirm: () => signOut() })}
+        syncProps={{ isConnected: realtimeConnected, lastSync, pendingOffline, palette: { bg: SC.bg, text: P.text } }}
+        introComplete={introComplete}
+      /></Suspense>
 
       {/* PRESENCE INDICATOR — who's exploring this world right now */}
       {isSharedWorld && otherOnlineUsers.length > 0 && (
@@ -3934,84 +3865,22 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
       {/* SEARCH PANEL */}
       {showSearch && (
-        <div style={{ position: "absolute", top: 22, left: 66, zIndex: 22, width: isMobile ? "calc(100% - 80px)" : 300, animation: "fadeIn .2s ease" }}>
-          <div style={{ position: "relative" }}>
-            <input autoFocus value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setSearchHl(-1); }}
-              onKeyDown={e => {
-                if (e.key === "ArrowDown") { e.preventDefault(); setSearchHl(h => Math.min(h + 1, searchResults.length - 1)); }
-                else if (e.key === "ArrowUp") { e.preventDefault(); setSearchHl(h => Math.max(h - 1, -1)); }
-                else if (e.key === "Enter" && searchHl >= 0 && searchHl < searchResults.length) {
-                  e.preventDefault();
-                  const se = searchResults[searchHl];
-                  setSelected(se); setPhotoIdx(0); setCardTab("overview"); setShowSearch(false); setSearchQuery(""); setSearchHl(-1);
-                  setSliderDate(se.dateStart); flyTo(se.lat, se.lng, 2.5);
-                }
-                else if (e.key === "Escape") { setShowSearch(false); setSearchQuery(""); setSearchHl(-1); setSearchDateFrom(""); setSearchDateTo(""); setSearchTypeFilter("all"); setSearchSort("date-desc"); }
-              }}
-              placeholder="Search cities, notes, highlights..."
-              style={{ width: "100%", padding: "9px 28px 9px 12px", border: `1px solid ${P.rose}25`, borderRadius: 10, fontSize: 11, fontFamily: "inherit", color: P.text, background: P.card, backdropFilter: "blur(16px)", boxShadow: "0 4px 16px rgba(0,0,0,.08)", outline: "none", boxSizing: "border-box" }}
-            />
-            {searchQuery.length > 0 && (
-              <button onClick={() => { setSearchQuery(""); setSearchHl(-1); }} style={{ position: "absolute", right: 2, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: P.textFaint, fontSize: 15, cursor: "pointer", padding: "6px 10px", lineHeight: 1 }}>×</button>
-            )}
-          </div>
-          {/* Filter row: date range, type, sort */}
-          <div style={{ marginTop: 4, display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
-            <input type="date" value={searchDateFrom} onChange={e => setSearchDateFrom(e.target.value)} title="From date"
-              style={{ flex: 1, minWidth: 90, padding: "5px 6px", border: `1px solid ${P.rose}20`, borderRadius: 7, fontSize: 9, fontFamily: "inherit", color: P.text, background: P.card, backdropFilter: "blur(12px)", outline: "none" }} />
-            <span style={{ fontSize: 9, color: P.textFaint }}>→</span>
-            <input type="date" value={searchDateTo} onChange={e => setSearchDateTo(e.target.value)} title="To date"
-              style={{ flex: 1, minWidth: 90, padding: "5px 6px", border: `1px solid ${P.rose}20`, borderRadius: 7, fontSize: 9, fontFamily: "inherit", color: P.text, background: P.card, backdropFilter: "blur(12px)", outline: "none" }} />
-            <select value={searchTypeFilter} onChange={e => setSearchTypeFilter(e.target.value)} title="Filter by type"
-              style={{ padding: "5px 4px", border: `1px solid ${P.rose}20`, borderRadius: 7, fontSize: 9, fontFamily: "inherit", color: P.text, background: P.card, outline: "none", maxWidth: 90 }}>
-              <option value="all">All types</option>
-              {Object.entries(TYPES).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
-            </select>
-            <select value={searchSort} onChange={e => setSearchSort(e.target.value)} title="Sort results"
-              style={{ padding: "5px 4px", border: `1px solid ${P.rose}20`, borderRadius: 7, fontSize: 9, fontFamily: "inherit", color: P.text, background: P.card, outline: "none", maxWidth: 80 }}>
-              <option value="date-desc">Newest</option>
-              <option value="date-asc">Oldest</option>
-              <option value="alpha">A→Z</option>
-              <option value="country">Country</option>
-            </select>
-            {(searchDateFrom || searchDateTo || searchTypeFilter !== "all") && (
-              <button onClick={() => { setSearchDateFrom(""); setSearchDateTo(""); setSearchTypeFilter("all"); setSearchSort("date-desc"); }}
-                style={{ background: "none", border: "none", color: P.rose, fontSize: 9, cursor: "pointer", padding: "2px 4px", fontFamily: "inherit" }}>Clear filters</button>
-            )}
-          </div>
-          {hasSearchFilters && (
-            <div style={{ marginTop: 4, background: P.card, backdropFilter: "blur(16px)", borderRadius: 10, maxHeight: 300, overflowY: "auto", boxShadow: "0 8px 28px rgba(61,53,82,.12)", border: `1px solid ${P.rose}10`, animation: "fadeIn .2s ease" }}>
-              {searchResults.length === 0 && (
-                <div style={{ padding: "14px 16px", fontSize: 10, color: P.textFaint, textAlign: "center" }}>{searchQuery.length >= 2 ? <>No matches for &ldquo;{searchQuery}&rdquo;</> : "No entries match these filters"}</div>
-              )}
-              {searchResults.length > 0 && (
-                <div style={{ padding: "6px 14px 2px", fontSize: 8, color: P.textFaint, letterSpacing: "0.5px" }}>{searchResults.length} {searchResults.length === 1 ? "result" : "results"}</div>
-              )}
-              {searchResults.slice(0, 50).map((e, ri) => {
-                const t = TYPES[e.type] || DEFAULT_TYPE;
-                const isHl = ri === searchHl;
-                return (
-                  <button key={e.id} onClick={() => {
-                    setSelected(e); setPhotoIdx(0); setCardTab("overview"); setShowSearch(false); setSearchQuery(""); setSearchHl(-1);
-                    setSliderDate(e.dateStart);
-                    flyTo(e.lat, e.lng, 2.5);
-                  }} style={{ display: "flex", width: "100%", alignItems: "center", gap: 8, padding: "9px 14px", border: "none", borderBottom: `1px solid ${P.parchment}`, background: isHl ? P.blush : "transparent", cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}
-                    onMouseEnter={ev => { ev.currentTarget.style.background = P.blush; setSearchHl(ri); }}
-                    onMouseLeave={ev => { if (ri !== searchHl) ev.currentTarget.style.background = "transparent"; }}
-                  >
-                    {(e.photos || []).length > 0
-                      ? <img loading="lazy" src={thumbnail(e.photos[0], 64)} alt="" style={{ width: 28, height: 28, borderRadius: 5, objectFit: "cover", flexShrink: 0 }} />
-                      : <span style={{ fontSize: 14, width: 28, textAlign: "center", flexShrink: 0 }}>{t.icon}</span>}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 11, color: P.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.city}{e.favorite ? " ♥" : ""}</div>
-                      <div style={{ fontSize: 8, color: P.textFaint }}>{fmtDate(e.dateStart)} · {e.country}{isSharedWorld && e.addedBy && memberNameMap[e.addedBy] ? ` · ${memberNameMap[e.addedBy]}` : ""}</div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
+        <Suspense fallback={null}>
+          <SearchPanel
+            entries={data.entries}
+            types={TYPES}
+            defaultType={DEFAULT_TYPE}
+            isMobile={isMobile}
+            searchMatchIdsRef={searchMatchIdsRef}
+            isSharedWorld={isSharedWorld}
+            memberNameMap={memberNameMap}
+            onSelectEntry={(e) => {
+              setSelected(e); setPhotoIdx(0); setCardTab("overview"); setShowSearch(false);
+              setSliderDate(e.dateStart); flyTo(e.lat, e.lng, 2.5);
+            }}
+            onClose={() => setShowSearch(false)}
+          />
+        </Suspense>
       )}
 
       {/* LOVE LETTER TRIGGERS — small ❀ markers in bottom-right (partner only) */}
@@ -4032,62 +3901,32 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       </>)}
 
       {/* SLIDER */}
-      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: P.glass, backdropFilter: "blur(16px)", borderTop: `1px solid ${P.rose}10`, zIndex: 15, display: "flex", flexDirection: "column", justifyContent: "center", padding: "12px 22px", paddingBottom: "max(20px, env(safe-area-inset-bottom, 20px))" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 6 }}>
-          <button onClick={() => jumpNext(-1)} disabled={isAnimating} style={navStyle()} title={isPartnerWorld ? "Previous together" : "Previous entry"}>{isPartnerWorld ? "💕◂" : "⏮"}</button>
-          <button onClick={() => stepDay(-1)} disabled={isAnimating} style={navStyle()}>◂</button>
-          <div style={{ minWidth: 150, textAlign: "center" }}>
-            <div style={{ fontSize: 15, color: P.text, fontWeight: 400 }}>{fmtDate(sliderDate)}</div>
-            <div style={{ fontSize: 9, color: isMyWorld ? P.textMid : (isPartnerWorld && areTogether ? P.heart : P.textFaint), letterSpacing: ".1em", marginTop: 1 }}>
-              {isMyWorld
-                ? (pos.seth?.entry?.city ? `📍 ${pos.seth.entry.city}` : "Add entries to begin")
-                : isPartnerWorld
-                ? (areTogether ? `✨ ${pos.together?.city || "Together"} ✨` : pos.seth && pos.rosie ? `${pos.seth.entry?.city || "?"} ↔ ${pos.rosie.entry?.city || "?"}` : "Add entries to begin")
-                : (data.entries.length > 0 ? `📍 ${data.entries[0]?.city || ""}` : "Add entries to begin")
-              }
-            </div>
-          </div>
-          <button onClick={() => stepDay(1)} disabled={isAnimating} style={navStyle()}>▸</button>
-          <button onClick={() => jumpNext(1)} disabled={isAnimating} style={navStyle()} title={isPartnerWorld ? "Next together" : "Next entry"}>{isPartnerWorld ? "▸💕" : "⏭"}</button>
-        </div>
-        <div style={{ position: "relative", width: "100%", height: 24, display: "flex", alignItems: "center" }}>
-          <input type="range" min={0} max={totalDays} value={clamp(sliderVal, 0, totalDays)}
-            onChange={e => { if (!isAnimating) setSliderDate(addDays(effectiveStartDate, parseInt(e.target.value))); }}
-            style={{ width: "100%", height: 4, appearance: "none", WebkitAppearance: "none", background: `linear-gradient(90deg,${P.sky},${P.rose})`, borderRadius: 2, outline: "none", cursor: "pointer", opacity: 0.5, touchAction: "manipulation" }} />
-          {sorted.map(e => {
-            const d = daysBetween(effectiveStartDate, e.dateStart);
-            const pct = totalDays > 0 ? (d / totalDays) * 100 : 0;
-            if (pct < 0 || pct > 100) return null;
-            const typeColor = (TYPES[e.type] || DEFAULT_TYPE).color;
-            const isBig = isMyWorld ? true : e.who === "both";
-            const isActive = selected?.id === e.id;
-            return <div key={e.id} onClick={() => {
-              setSelected(e); setPhotoIdx(0); setCardTab("overview"); setSliderDate(e.dateStart);
-              flyTo(e.lat, e.lng, 2.5);
-            }} title={`${e.city} · ${fmtDate(e.dateStart)}`} style={{ position: "absolute", left: `${pct}%`, top: isActive ? 2 : isBig ? 5 : 6, width: isActive ? 8 : isBig ? 5 : 3, height: isActive ? 8 : isBig ? 5 : 3, borderRadius: "50%", background: typeColor, transform: "translateX(-50%)", cursor: "pointer", boxShadow: isActive ? `0 0 8px ${typeColor}, 0 0 16px ${typeColor}60` : `0 0 4px ${typeColor}40`, opacity: isActive ? 1 : isBig ? 0.85 : 0.5, transition: "all .2s ease", zIndex: isActive ? 3 : 1, border: isActive ? "1.5px solid #fff" : "none" }} />;
-          })}
-          {milestones.map(m => (
-            <div key={m.days} style={{ position: "absolute", left: `${m.pct}%`, top: 2, transform: "translateX(-50%)", pointerEvents: "none", display: "flex", flexDirection: "column", alignItems: "center" }}>
-              <div style={{ width: 6, height: 6, background: P.gold, transform: "rotate(45deg)", boxShadow: `0 0 6px ${P.gold}60` }} />
-              <div style={{ fontSize: 6, color: P.goldWarm, marginTop: 2, whiteSpace: "nowrap", letterSpacing: ".05em" }}>{m.label}</div>
-            </div>
-          ))}
-          {(config.chapters || []).map((ch, i) => {
-            const cStart = daysBetween(effectiveStartDate, ch.startDate || effectiveStartDate);
-            const cEnd = daysBetween(effectiveStartDate, ch.endDate || todayStr());
-            const pctStart = totalDays > 0 ? (cStart / totalDays) * 100 : 0;
-            const pctEnd = totalDays > 0 ? (cEnd / totalDays) * 100 : 100;
-            if (pctStart > 100 || pctEnd < 0) return null;
-            return <div key={i} style={{ position: "absolute", left: `${clamp(pctStart, 0, 100)}%`, width: `${clamp(pctEnd - pctStart, 0, 100 - pctStart)}%`, top: -14, height: 12, background: `${[P.rose, P.sky, P.sage, P.gold, P.lavender][i % 5]}30`, borderRadius: 3, pointerEvents: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <span style={{ fontSize: 7, color: P.textMuted, letterSpacing: ".06em", fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%", padding: "0 2px" }}>{ch.label}</span>
-            </div>;
-          })}
-        </div>
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 7, color: P.textFaint, letterSpacing: ".1em", marginTop: 1 }}>
-          <span>{fmtDate(effectiveStartDate)}</span>
-          <span>today</span>
-        </div>
-      </div>
+      <Suspense fallback={null}><TimelineSlider
+        sliderDate={sliderDate}
+        sliderVal={sliderVal}
+        totalDays={totalDays}
+        effectiveStartDate={effectiveStartDate}
+        sorted={sorted}
+        milestones={milestones}
+        chapters={config.chapters}
+        selectedId={selected?.id}
+        isMyWorld={isMyWorld}
+        isPartnerWorld={isPartnerWorld}
+        isAnimating={isAnimating}
+        areTogether={areTogether}
+        pos={pos}
+        entryCount={data.entries.length}
+        firstEntryCity={data.entries[0]?.city}
+        TYPES={TYPES}
+        DEFAULT_TYPE={DEFAULT_TYPE}
+        onJumpNext={jumpNext}
+        onStepDay={stepDay}
+        onSliderChange={setSliderDate}
+        onSelectEntry={(e) => {
+          setSelected(e); setPhotoIdx(0); setCardTab("overview"); setSliderDate(e.dateStart);
+          flyTo(e.lat, e.lng, 2.5);
+        }}
+      /></Suspense>
 
       {/* LOCATION LIST — multiple chapters at same place */}
       {locationList && !selected && (
@@ -4768,125 +4607,58 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         </div>
       )}
 
-      {isPartnerWorld && showLetter && (() => {
-        const letter = (config.loveLetters || []).find(l => l.id === showLetter);
-        if (!letter) return null;
-        const isMyLetter = !letter.author || letter.author === userId;
-        if (letter.draft && !isMyLetter) return null;
-        return (
-        <div role="dialog" aria-modal="true" aria-label="Love letter" onClick={() => setShowLetter(null)} style={{ position: "absolute", inset: 0, zIndex: 50, background: `linear-gradient(135deg, rgba(22,16,40,.84), rgba(30,24,48,.90))`, backdropFilter: "blur(30px)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", animation: "fadeIn .8s ease" }}>
-          <div style={{ maxWidth: 460, padding: 36, textAlign: "center" }} onClick={e => e.stopPropagation()}>
-            {letter.draft && <div style={{ display: "inline-block", padding: "2px 10px", borderRadius: 10, background: `${P.gold}20`, color: P.gold, fontSize: 9, letterSpacing: ".08em", marginBottom: 10 }}>📝 Draft — only you can see this</div>}
-            <div style={{ fontSize: 30, marginBottom: 14 }}>💌</div>
-            {letter.city && <div style={{ fontSize: 9, color: "#a098b0", letterSpacing: ".12em", marginBottom: 8 }}>found near {letter.city}</div>}
-            <p style={{ fontSize: 14, lineHeight: 2, color: "#e8dcd0", whiteSpace: "pre-wrap", fontStyle: "italic" }}>{letter.text}</p>
-            <p style={{ fontSize: 10, color: "#a098b0", marginTop: 20, letterSpacing: ".15em" }}>— {config.youName || "You"}</p>
-            {isMyLetter && <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 14 }}>
-              <button onClick={() => { setLetterEditId(letter.id); setLetterDraft(letter.text); setLetterCity(letter.city || ""); setLetterLat(letter.lat?.toString() || ""); setLetterLng(letter.lng?.toString() || ""); setEditLetter(true); setShowLetter(null); }} style={{ background: "none", border: `1px solid ${P.rose}28`, borderRadius: 5, padding: "4px 12px", fontSize: 9, color: P.textMuted, cursor: "pointer", fontFamily: "inherit" }}>Edit</button>
-              {letter.draft && <button onClick={() => { setConfig({ loveLetters: (config.loveLetters || []).map(l => l.id === letter.id ? { ...l, draft: false } : l) }); setShowLetter(null); showToast("Letter sent! 💌", "💌", 2500); }} style={{ background: `${P.rose}20`, border: `1px solid ${P.rose}40`, borderRadius: 5, padding: "4px 12px", fontSize: 9, color: P.rose, cursor: "pointer", fontFamily: "inherit" }}>Send 💌</button>}
-              <button onClick={() => { setConfig({ loveLetters: (config.loveLetters || []).filter(l => l.id !== letter.id) }); setShowLetter(null); }} style={{ background: "none", border: `1px solid #c97a7a28`, borderRadius: 5, padding: "4px 12px", fontSize: 9, color: "#c97a7a", cursor: "pointer", fontFamily: "inherit" }}>Remove</button>
-            </div>}
-          </div>
-        </div>);
-      })()}
-
-      {isPartnerWorld && editLetter && (
-        <div role="dialog" aria-modal="true" aria-label="Edit love letter" onClick={() => setEditLetter(false)} style={{ position: "fixed", inset: 0, zIndex: 55, background: "rgba(22,16,40,.82)", backdropFilter: "blur(20px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .2s ease" }}>
-          <div onClick={e => e.stopPropagation()} style={{ width: 420, maxWidth: "92vw", padding: 28, background: P.card, borderRadius: 16, boxShadow: "0 14px 48px rgba(61,53,82,.1)" }}>
-            <h3 style={{ margin: "0 0 10px", fontSize: 16, fontWeight: 400 }}>💌 {letterEditId ? "Edit" : "New"} Love Letter</h3>
-            <p style={{ fontSize: 9, color: P.textMuted, marginBottom: 12, fontStyle: "italic" }}>Hidden as an easter egg ❀ on the globe — {config.partnerName || "your partner"} will discover it!</p>
-            <div style={{ marginBottom: 8, position: "relative" }}>
-              <label style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".13em", textTransform: "uppercase", display: "block", marginBottom: 2 }}>Place on globe near...</label>
-              <input value={letterCity} onChange={e => {
-                const v = e.target.value; setLetterCity(v);
-                if (v.length >= 2) { geocodeSearch(v, m => setLetterCitySugg(m)); } else setLetterCitySugg([]);
-              }} placeholder="Type a city..." style={inputStyle()} />
-              {letterCitySugg.length > 0 && (
-                <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: P.card, border: `1px solid ${P.textFaint}40`, borderRadius: 6, maxHeight: 120, overflowY: "auto", zIndex: 10, boxShadow: "0 6px 16px rgba(0,0,0,.1)" }}>
-                  {letterCitySugg.map((c, i) => (
-                    <button key={i} onClick={() => { setLetterCity(c[0]); setLetterLat(c[2].toString()); setLetterLng(c[3].toString()); setLetterCitySugg([]); }}
-                      style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", border: "none", borderBottom: `1px solid ${P.textFaint}15`, background: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: P.textMid }}
-                      onMouseEnter={e => e.currentTarget.style.background = P.blush} onMouseLeave={e => e.currentTarget.style.background = "none"}>
-                      <span style={{ fontWeight: 500 }}>{c[0]}</span> <span style={{ color: P.textFaint }}>{c[1]}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <textarea value={letterDraft} onChange={e => setLetterDraft(e.target.value)} rows={8} placeholder={`Dear ${config.partnerName || "Partner"}...`} style={{ ...inputStyle(), resize: "vertical", lineHeight: 1.8 }} />
-            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-              <button onClick={() => {
-                const lat = parseFloat(letterLat) || (20 + Math.random() * 40);
-                const lng = parseFloat(letterLng) || (-120 + Math.random() * 240);
-                const letterObj = { text: letterDraft, city: letterCity, lat, lng, author: userId, draft: false };
-                if (letterEditId) {
-                  setConfig({ loveLetters: (config.loveLetters || []).map(l => l.id === letterEditId ? { ...l, ...letterObj } : l) });
-                } else {
-                  setConfig({ loveLetters: [...(config.loveLetters || []), { id: `ll-${Date.now()}`, ...letterObj }] });
-                }
-                setEditLetter(false);
-                showToast(letterEditId ? "Letter updated 💌" : "Letter hidden on the globe ❀", "💌", 2500);
-              }} disabled={!letterDraft.trim()} style={{ flex: 1, padding: "10px", background: letterDraft.trim() ? `linear-gradient(135deg, ${P.rose}, ${P.sky})` : `${P.textFaint}60`, color: "#fff", border: "none", borderRadius: 12, cursor: letterDraft.trim() ? "pointer" : "default", fontSize: 11, fontFamily: "inherit", letterSpacing: ".04em", boxShadow: letterDraft.trim() ? `0 2px 8px ${P.rose}30` : "none", transition: "all .25s" }}>
-                {letterEditId ? "Update & Send" : "Hide on Globe"} 💌
-              </button>
-              <button onClick={() => {
-                const lat = parseFloat(letterLat) || (20 + Math.random() * 40);
-                const lng = parseFloat(letterLng) || (-120 + Math.random() * 240);
-                const letterObj = { text: letterDraft, city: letterCity, lat, lng, author: userId, draft: true };
-                if (letterEditId) {
-                  setConfig({ loveLetters: (config.loveLetters || []).map(l => l.id === letterEditId ? { ...l, ...letterObj } : l) });
-                } else {
-                  setConfig({ loveLetters: [...(config.loveLetters || []), { id: `ll-${Date.now()}`, ...letterObj }] });
-                }
-                setEditLetter(false);
-                showToast("Draft saved 📝", "📝", 2000);
-              }} disabled={!letterDraft.trim()} style={{ padding: "10px 14px", background: letterDraft.trim() ? `${P.textFaint}20` : `${P.textFaint}10`, color: letterDraft.trim() ? P.textMuted : P.textFaint, border: `1px solid ${P.textFaint}30`, borderRadius: 12, cursor: letterDraft.trim() ? "pointer" : "default", fontSize: 10, fontFamily: "inherit", transition: "all .2s" }}>
-                📝 Draft
-              </button>
-              <button onClick={() => setEditLetter(false)} style={{ padding: "10px 16px", background: "transparent", border: `1px solid ${P.textFaint}30`, borderRadius: 12, cursor: "pointer", fontSize: 11, fontFamily: "inherit", color: P.textMuted, transition: "all .2s" }}>Cancel</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {isPartnerWorld && (showLetter || editLetter) && <Suspense fallback={null}><LoveLetterOverlay
+        showLetterId={showLetter}
+        editLetter={editLetter}
+        letters={config.loveLetters || []}
+        config={config}
+        userId={userId}
+        letterEditId={letterEditId}
+        initialDraft={letterDraft}
+        initialCity={letterCity}
+        initialLat={letterLat}
+        initialLng={letterLng}
+        onCloseLetter={() => setShowLetter(null)}
+        onCloseEdit={() => setEditLetter(false)}
+        onEditLetter={(letter) => { setLetterEditId(letter.id); setLetterDraft(letter.text); setLetterCity(letter.city || ""); setLetterLat(letter.lat?.toString() || ""); setLetterLng(letter.lng?.toString() || ""); setEditLetter(true); setShowLetter(null); }}
+        onSendLetter={(letter) => { setConfig({ loveLetters: (config.loveLetters || []).map(l => l.id === letter.id ? { ...l, draft: false } : l) }); setShowLetter(null); showToast("Letter sent! 💌", "💌", 2500); }}
+        onRemoveLetter={(letter) => { setConfig({ loveLetters: (config.loveLetters || []).filter(l => l.id !== letter.id) }); setShowLetter(null); }}
+        onSaveLetter={(editId, letterObj) => {
+          if (editId) {
+            setConfig({ loveLetters: (config.loveLetters || []).map(l => l.id === editId ? { ...l, ...letterObj } : l) });
+          } else {
+            setConfig({ loveLetters: [...(config.loveLetters || []), { id: `ll-${Date.now()}`, ...letterObj }] });
+          }
+          setEditLetter(false);
+          showToast(editId ? "Letter updated 💌" : "Letter hidden on the globe ❀", "💌", 2500);
+        }}
+        onSaveDraft={(editId, letterObj) => {
+          if (editId) {
+            setConfig({ loveLetters: (config.loveLetters || []).map(l => l.id === editId ? { ...l, ...letterObj } : l) });
+          } else {
+            setConfig({ loveLetters: [...(config.loveLetters || []), { id: `ll-${Date.now()}`, ...letterObj }] });
+          }
+          setEditLetter(false);
+          showToast("Draft saved 📝", "📝", 2000);
+        }}
+      /></Suspense>}
 
       {/* GALLERY PANEL — slides out from left, not a full overlay */}
-      {showGallery && (
-        <div style={{ position: "absolute", top: 72, left: 22, zIndex: 22, background: P.card, backdropFilter: "blur(28px)", borderRadius: 18, width: 290, maxHeight: "calc(100vh - 200px)", boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 20px 48px rgba(61,53,82,.08)", border: `1px solid ${P.rose}08`, animation: "fadeIn .4s ease", overflow: "hidden", display: "flex", flexDirection: "column" }}>
-          <div style={{ padding: "12px 14px 8px", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0, borderBottom: `1px solid ${P.rose}08` }}>
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 400 }}>📸 Scrapbook</div>
-              <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".1em", marginTop: 1 }}>{allPhotos.length} memories</div>
-            </div>
-            <button aria-label="Close gallery" onClick={() => setShowGallery(false)} style={{ background: "none", border: "none", fontSize: 15, color: P.textFaint, cursor: "pointer" }}>×</button>
-          </div>
-          <div style={{ display: "flex", justifyContent: "flex-end", padding: "0 10px 4px" }}>
-            <button onClick={() => setPolaroidMode(v => !v)} style={{ background: polaroidMode ? `${P.goldWarm}18` : "none", border: `1px solid ${polaroidMode ? P.goldWarm + "30" : P.textFaint + "20"}`, borderRadius: 6, padding: "2px 8px", fontSize: 8, cursor: "pointer", fontFamily: "inherit", color: polaroidMode ? P.goldWarm : P.textFaint }}>{polaroidMode ? "📸 Polaroid" : "▦ Grid"}</button>
-          </div>
-          <div style={{ flex: 1, overflowY: "auto", padding: 8 }}>
-            <div style={{ display: "grid", gridTemplateColumns: polaroidMode ? "1fr 1fr" : "1fr 1fr 1fr", gap: polaroidMode ? 14 : 4, padding: polaroidMode ? "4px 6px" : 0 }}>
-              {allPhotos.map((ph, i) => (
-                <button key={i} onClick={() => {
-                  const entry = data.entries.find(e => e.id === ph.id);
-                  if (entry) {
-                    setSelected(entry); setPhotoIdx(0); setCardTab("overview"); setShowGallery(false);
-                    flyTo(entry.lat, entry.lng, 2.5);
-                    setSliderDate(entry.dateStart);
-                  }
-                }} style={polaroidMode ? { padding: "5px 5px 20px", background: "#fff", border: "none", cursor: "pointer", borderRadius: 2, boxShadow: "0 2px 8px rgba(0,0,0,.12), 0 1px 2px rgba(0,0,0,.06)", transform: `rotate(${(i % 5 - 2) * 2}deg)`, transition: "transform .2s", overflow: "hidden", position: "relative" } : { padding: 0, border: "none", background: "none", cursor: "pointer", borderRadius: 4, overflow: "hidden", aspectRatio: "1", position: "relative" }}>
-                  <img loading="lazy" src={thumbnail(ph.url, 160)} alt="Travel photo" style={polaroidMode ? { width: "100%", aspectRatio: "1", objectFit: "cover", display: "block" } : { width: "100%", height: "100%", objectFit: "cover", borderRadius: 4, transition: "transform .2s" }}
-                    onMouseEnter={e => { if (!polaroidMode) e.currentTarget.style.transform = "scale(1.05)"; else e.currentTarget.parentElement.style.transform = `rotate(0deg) scale(1.05)`; }}
-                    onMouseLeave={e => { if (!polaroidMode) e.currentTarget.style.transform = "scale(1)"; else e.currentTarget.parentElement.style.transform = `rotate(${(i % 5 - 2) * 2}deg)`; }} />
-                  <div style={polaroidMode ? { fontSize: 8, color: "#666", textAlign: "center", padding: "4px 3px 0", letterSpacing: ".03em", fontFamily: allPhotoCaptions[ph.url] ? "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif" : "inherit", fontStyle: allPhotoCaptions[ph.url] ? "italic" : "normal", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } : { position: "absolute", bottom: 0, left: 0, right: 0, padding: "10px 3px 2px", background: "linear-gradient(transparent, rgba(0,0,0,.5))", fontSize: 6, color: "#fff", textAlign: "center", letterSpacing: ".05em" }}>{polaroidMode && allPhotoCaptions[ph.url] ? allPhotoCaptions[ph.url] : ph.city}</div>
-                </button>
-              ))}
-            </div>
-            {allPhotos.length === 0 && <div style={{ textAlign: "center", padding: "32px 16px" }}>
-              <div style={{ fontSize: 28, marginBottom: 8, opacity: 0.3 }}>📸</div>
-              <div style={{ fontSize: 11, color: P.textFaint, lineHeight: 1.7, fontStyle: "italic", fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif" }}>Your scrapbook is empty.<br/>Add photos to your entries and they'll appear here.</div>
-            </div>}
-          </div>
-        </div>
-      )}
+      {showGallery && <Suspense fallback={null}><GalleryPanel
+        allPhotos={allPhotos}
+        allPhotoCaptions={allPhotoCaptions}
+        polaroidMode={polaroidMode}
+        onTogglePolaroid={() => setPolaroidMode(v => !v)}
+        onSelectPhoto={(ph) => {
+          const entry = data.entries.find(e => e.id === ph.id);
+          if (entry) {
+            setSelected(entry); setPhotoIdx(0); setCardTab("overview"); setShowGallery(false);
+            flyTo(entry.lat, entry.lng, 2.5);
+            setSliderDate(entry.dateStart);
+          }
+        }}
+        onClose={() => setShowGallery(false)}
+      /></Suspense>}
 
       {/* ON THIS DAY — memory from a previous year */}
       {onThisDayEntry && (() => {
@@ -4922,163 +4694,46 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       )}
 
       {/* CINEMA OVERLAY — Play Our Story */}
-      {isPlaying && cinemaEntry && (() => {
-        const ce = cinemaEntry;
-        const ct = TYPES[ce.type] || DEFAULT_TYPE;
-        const photos = ce.photos || [];
-        const hasPhotos = photos.length > 0;
-        return (
-          <div style={{ position: "absolute", inset: 0, zIndex: 12, pointerEvents: "none" }}>
-            {/* Top bar: title + progress */}
-            <div style={{ position: "absolute", top: 0, left: 0, right: 0, padding: "12px clamp(12px, 4vw, 24px) 10px", background: `linear-gradient(180deg, ${SC.bg || '#0c0a12'}cc, transparent)`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ fontSize: 8, letterSpacing: ".2em", color: P.goldWarm, textTransform: "uppercase", opacity: 0.7 }}>
-                  {isMyWorld ? "My Story" : isPartnerWorld ? "Our Story" : "Our Journey"}
-                </div>
-                <div style={{ fontSize: 9, color: P.textFaint }}>{cinemaIdx + 1} / {cinemaTotal}</div>
-              </div>
-              <button onClick={stopPlay} style={{ pointerEvents: "auto", background: P.glass, backdropFilter: "blur(12px)", border: `1px solid ${P.textFaint}20`, borderRadius: 16, padding: "4px 14px", fontSize: 9, color: P.textMid, cursor: "pointer", fontFamily: "inherit", transition: "all .2s" }}
-                onMouseEnter={e => e.currentTarget.style.borderColor = P.rose} onMouseLeave={e => e.currentTarget.style.borderColor = `${P.textFaint}20`}>
-                ⏹ Stop
-              </button>
-            </div>
-
-            {/* Progress bar */}
-            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `${P.textFaint}15`, zIndex: 2 }}>
-              <div style={{ height: "100%", background: `linear-gradient(90deg, ${P.goldWarm}, ${P.rose})`, width: `${cinemaProgress * 100}%`, transition: "width .8s ease", borderRadius: "0 1px 1px 0" }} />
-            </div>
-
-            {/* Bottom cinema card */}
-            <div style={{ position: "absolute", bottom: "max(24px, 5vh)", left: 0, right: 0, display: "flex", justifyContent: "center", padding: "0 4vw" }}>
-              <div style={{
-                maxWidth: "min(440px, 92vw)", width: "100%", borderRadius: 18, overflow: "hidden",
-                background: P.card, backdropFilter: "blur(20px)",
-                boxShadow: `0 8px 32px ${SC.bg || '#0c0a12'}50`,
-                border: `1px solid ${P.rose}08`,
-                opacity: cinemaPhase === 'show' ? 1 : cinemaPhase === 'fly' ? 0 : 0,
-                transform: cinemaPhase === 'show' ? 'translateY(0)' : 'translateY(20px)',
-                transition: "all .6s cubic-bezier(0.16,1,0.3,1)",
-              }}>
-                {/* Photo with crossfade */}
-                {hasPhotos && (
-                  <div style={{ position: "relative", height: "min(180px, 28vh)", overflow: "hidden" }}>
-                    {photos.map((url, i) => (
-                      <img key={url} src={url} alt="" style={{
-                        position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover",
-                        opacity: i === cinemaPhotoIdx ? 1 : 0,
-                        transition: "opacity 1s ease",
-                      }} />
-                    ))}
-                    {/* Photo gradient overlay */}
-                    <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 60, background: `linear-gradient(transparent, ${P.card})` }} />
-                    {photos.length > 1 && (
-                      <div style={{ position: "absolute", bottom: 8, right: 12, display: "flex", gap: 3, alignItems: "center" }}>
-                        {photos.slice(0, 8).map((_, i) => (
-                          <div key={i} style={{ width: 4, height: 4, borderRadius: 2, background: i === cinemaPhotoIdx ? P.goldWarm : `${P.textFaint}40`, transition: "background .4s" }} />
-                        ))}
-                        {photos.length > 8 && <div style={{ fontSize: 7, color: `${P.textFaint}60`, marginLeft: 1 }}>+{photos.length - 8}</div>}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Entry info */}
-                <div style={{ padding: hasPhotos ? "8px clamp(12px, 4vw, 20px) 14px" : "16px clamp(12px, 4vw, 20px) 14px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, minWidth: 0 }}>
-                    <span style={{ fontSize: "clamp(20px, 5vw, 26px)", filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.15))", flexShrink: 0 }}>{ct.icon}</span>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: "clamp(14px, 4vw, 18px)", fontWeight: 400, color: P.text, letterSpacing: ".02em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ce.city}</div>
-                      <div style={{ fontSize: "clamp(9px, 2.5vw, 10px)", color: P.textMuted, letterSpacing: ".03em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {fmtDate(ce.dateStart)}{ce.dateEnd && ce.dateEnd !== ce.dateStart ? ` → ${fmtDate(ce.dateEnd)}` : ""}{ce.country ? `  ·  ${ce.country}` : ""}
-                      </div>
-                    </div>
-                  </div>
-                  {ce.notes && <p style={{ fontSize: "clamp(10px, 2.8vw, 11px)", color: P.textMid, margin: "6px 0 0", lineHeight: 1.6, maxHeight: 36, overflow: "hidden", opacity: 0.85 }}>{ce.notes}</p>}
-                  {ce.loveNote && isPartnerWorld && <p style={{ fontSize: "clamp(9px, 2.5vw, 10px)", color: P.heart, margin: "4px 0 0", fontStyle: "italic", opacity: 0.8 }}>"{ce.loveNote}"</p>}
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
+      {isPlaying && cinemaEntry && <Suspense fallback={null}><CinemaOverlay
+        entry={cinemaEntry}
+        typeInfo={TYPES[cinemaEntry.type] || DEFAULT_TYPE}
+        photoIdx={cinemaPhotoIdx}
+        progress={cinemaProgress}
+        total={cinemaTotal}
+        currentIdx={cinemaIdx}
+        phase={cinemaPhase}
+        sceneColors={SC}
+        isMyWorld={isMyWorld}
+        isPartnerWorld={isPartnerWorld}
+        onStop={stopPlay}
+      /></Suspense>}
 
       {/* DREAM DESTINATIONS PANEL */}
-      {showDreams && (() => {
-        const dreams = config.dreamDestinations || [];
-        const visitedCount = config.dreamsVisited || 0;
-        const totalDreams = dreams.length + visitedCount;
-        const progressPct = totalDreams > 0 ? Math.round((visitedCount / totalDreams) * 100) : 0;
-        const catMap = {};
-        DREAM_CATEGORIES.forEach(c => { catMap[c.key] = c; });
-        return (
-        <div role="dialog" aria-modal="true" aria-label="Dream destinations" onClick={() => setShowDreams(false)} style={{ position: "absolute", inset: 0, zIndex: 45, background: `linear-gradient(135deg, rgba(22,16,40,.82), rgba(30,24,48,.88))`, backdropFilter: "blur(24px)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", animation: "fadeIn .4s ease" }}>
-          <div onClick={e => e.stopPropagation()} style={{ width: 440, maxWidth: "92vw", maxHeight: "85vh", overflowY: "auto", padding: 32, background: P.card, borderRadius: 22, boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 24px 64px rgba(61,53,82,.1)", cursor: "default" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
-              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 400, letterSpacing: ".08em" }}>{isMyWorld ? "🗺 Bucket List" : "✦ Dream Destinations"}</h2>
-              <button aria-label="Close dreams" onClick={() => setShowDreams(false)} style={{ background: "none", border: "none", fontSize: 18, color: P.textFaint, cursor: "pointer", transition: "color .2s" }}>×</button>
-            </div>
-
-            {/* Progress bar */}
-            {totalDreams > 0 && (
-              <div style={{ marginBottom: 14 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
-                  <span style={{ fontSize: 9, color: P.textFaint, fontStyle: "italic" }}>{visitedCount} of {totalDreams} dreams realized</span>
-                  <span style={{ fontSize: 10, color: P.goldWarm, fontWeight: 500 }}>{progressPct}%</span>
-                </div>
-                <div style={{ height: 4, background: `${P.textFaint}15`, borderRadius: 2, overflow: "hidden" }}>
-                  <div style={{ height: "100%", width: `${progressPct}%`, background: `linear-gradient(90deg, ${P.goldWarm}, ${P.rose})`, borderRadius: 2, transition: "width .6s ease" }} />
-                </div>
-              </div>
-            )}
-
-            <p style={{ fontSize: 10, color: P.textFaint, marginBottom: 14, fontStyle: "italic" }}>{isMyWorld ? "Places on your bucket list. They appear as golden ghost markers on the globe." : "Places you dream of visiting together. They appear as golden ghost markers on the globe."}</p>
-
-            {dreams.map((dream) => {
-              const cat = dream.category ? catMap[dream.category] : null;
-              const hasTarget = !!dream.targetDate;
-              const daysUntil = hasTarget ? Math.ceil((new Date(dream.targetDate) - new Date()) / 86400000) : null;
-              return (
-              <div key={dream.id} style={{ padding: "10px 12px", background: `${P.gold}08`, borderRadius: 10, marginBottom: 6, borderLeft: `3px solid ${P.goldWarm}40` }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontSize: 16 }}>{cat ? cat.icon : "✦"}</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12, fontWeight: 400 }}>{dream.city}</div>
-                    <div style={{ fontSize: 9, color: P.textFaint, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                      <span>{dream.country}</span>
-                      {cat && <span style={{ padding: "1px 5px", background: `${P.goldWarm}12`, borderRadius: 6, fontSize: 8 }}>{cat.label}</span>}
-                      {hasTarget && <span style={{ color: daysUntil > 0 ? P.textMuted : P.heart, fontSize: 8 }}>{daysUntil > 0 ? `${daysUntil}d away` : daysUntil === 0 ? "Today!" : "Past target"}</span>}
-                    </div>
-                    {dream.notes && <div style={{ fontSize: 9, color: P.textMuted, marginTop: 2, fontStyle: "italic" }}>{dream.notes}</div>}
-                  </div>
-                  {!isViewer && (<>
-                    <button onClick={() => {
-                      const defaultType = isMyWorld ? "adventure" : isPartnerWorld ? "together" : worldType === "friends" ? "group-trip" : worldType === "family" ? "family-trip" : "together";
-                      const defaultWho = isMyWorld ? "solo" : isPartnerWorld ? "both" : "group";
-                      const entry = { id: `e${Date.now()}`, city: dream.city, country: dream.country, lat: dream.lat, lng: dream.lng, dateStart: todayStr(), type: defaultType, who: defaultWho, notes: dream.notes || "", memories: [], museums: [], restaurants: [], highlights: [], photos: [], stops: [] };
-                      dispatch({ type: "ADD", entry });
-                      setConfig({ dreamDestinations: dreams.filter(d => d.id !== dream.id), dreamsVisited: visitedCount + 1 });
-                      showToast(`${dream.city} is now real! ✨`, "🎉", 3000);
-                      setShowDreams(false);
-                      flyTo(dream.lat, dream.lng, 2.5);
-                      setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400);
-                    }} style={{ background: P.rose, color: "#fff", border: "none", borderRadius: 5, padding: "3px 8px", fontSize: 8, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>✓ Visited!</button>
-                    <button onClick={() => setConfig({ dreamDestinations: dreams.filter(d => d.id !== dream.id) })} style={{ background: "none", border: "none", color: P.textFaint, cursor: "pointer", fontSize: 12 }}>×</button>
-                  </>)}
-                </div>
-              </div>
-              );
-            })}
-
-            {dreams.length === 0 && <div style={{ textAlign: "center", padding: "24px 0", color: P.textFaint, fontSize: 11 }}>{isMyWorld ? "No bucket list items yet" : "No dream destinations yet"}{visitedCount > 0 && <div style={{ marginTop: 6, fontSize: 10, color: P.goldWarm }}>🎉 All {visitedCount} dreams realized!</div>}</div>}
-
-            {!isViewer && <DreamAddForm isMyWorld={isMyWorld} onAdd={dream => {
-              setConfig({ dreamDestinations: [...dreams, { ...dream, id: `d${Date.now()}` }] });
-              showToast(isMyWorld ? `${dream.city} added to bucket list 🗺` : `${dream.city} added to dreams ✦`, "✦", 2000);
-            }} />}
-          </div>
-        </div>
-        );
-      })()}
+      {showDreams && <Suspense fallback={null}><DreamPanel
+        dreams={config.dreamDestinations || []}
+        visitedCount={config.dreamsVisited || 0}
+        isMyWorld={isMyWorld}
+        isPartnerWorld={isPartnerWorld}
+        worldType={worldType}
+        isViewer={isViewer}
+        onClose={() => setShowDreams(false)}
+        onMarkVisited={(dream) => {
+          const defaultType = isMyWorld ? "adventure" : isPartnerWorld ? "together" : worldType === "friends" ? "group-trip" : worldType === "family" ? "family-trip" : "together";
+          const defaultWho = isMyWorld ? "solo" : isPartnerWorld ? "both" : "group";
+          const entry = { id: `e${Date.now()}`, city: dream.city, country: dream.country, lat: dream.lat, lng: dream.lng, dateStart: todayStr(), type: defaultType, who: defaultWho, notes: dream.notes || "", memories: [], museums: [], restaurants: [], highlights: [], photos: [], stops: [] };
+          dispatch({ type: "ADD", entry });
+          setConfig({ dreamDestinations: (config.dreamDestinations || []).filter(d => d.id !== dream.id), dreamsVisited: (config.dreamsVisited || 0) + 1 });
+          showToast(`${dream.city} is now real! ✨`, "🎉", 3000);
+          setShowDreams(false);
+          flyTo(dream.lat, dream.lng, 2.5);
+          setTimeout(() => { setSelected(entry); setPhotoIdx(0); setCardTab("overview"); }, 400);
+        }}
+        onRemoveDream={(dream) => setConfig({ dreamDestinations: (config.dreamDestinations || []).filter(d => d.id !== dream.id) })}
+        onAddDream={(dream) => {
+          setConfig({ dreamDestinations: [...(config.dreamDestinations || []), { ...dream, id: `d${Date.now()}` }] });
+          showToast(isMyWorld ? `${dream.city} added to bucket list 🗺` : `${dream.city} added to dreams ✦`, "✦", 2000);
+        }}
+      /></Suspense>}
 
       {showSettings && !isViewer && (
         <div role="dialog" aria-modal="true" aria-label="Settings" onClick={() => { flushConfigSave(); setShowSettings(false); }} style={{ position: "absolute", inset: 0, zIndex: 45, background: `linear-gradient(135deg, rgba(22,16,40,.82), rgba(30,24,48,.88))`, backdropFilter: "blur(24px)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", animation: "fadeIn .3s ease" }}>
