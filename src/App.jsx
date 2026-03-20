@@ -9,6 +9,8 @@ const WorldSelector = lazy(() => import('./WorldSelector.jsx'))
 const OurWorld = lazy(() => import('./OurWorld.jsx'))
 const WelcomeLetterScreen = lazy(() => import('./WelcomeLetterScreen.jsx'))
 const CinematicOnboarding = lazy(() => import('./CinematicOnboarding.jsx'))
+const NotificationPrompt = lazy(() => import('./NotificationPrompt.jsx'))
+const ReunionToast = lazy(() => import('./ReunionToast.jsx'))
 import { getAllWelcomeLetters, markLetterRead } from './supabaseWelcomeLetters.js'
 import { loadMyWorlds, loadMyWorldSubtitle, acceptInvite, getInviteInfo, getPendingWorldInvites, getPendingWorldInvitesForLetter, ensurePersonalWorld, clearWorldCaches } from './supabaseWorlds.js'
 import { getPendingRequests, getMyConnections } from './supabaseConnections.js'
@@ -589,6 +591,12 @@ function AppInner() {
       <Suspense fallback={<LoadingScreen />}>
         {content}
       </Suspense>
+      {activeWorldId && userId && (
+        <Suspense fallback={null}>
+          <NotificationPrompt supabase={supabase} worldId={activeWorldId} />
+          <ReunionToast worldId={activeWorldId} userId={userId} displayName={userDisplayName} worldType={activeWorldType} />
+        </Suspense>
+      )}
       {transitioning && (
         <div aria-hidden="true" style={{
           position: 'fixed', inset: 0, zIndex: 9999, pointerEvents: 'none',

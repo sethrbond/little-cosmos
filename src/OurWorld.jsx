@@ -25,8 +25,6 @@ const GalleryPanel = lazy(() => import("./GalleryPanel.jsx"));
 const DetailCard = lazy(() => import("./DetailCard.jsx"));
 const TimelineSlider = lazy(() => import("./TimelineSlider.jsx"));
 const LoveLetterOverlay = lazy(() => import("./LoveLetterOverlay.jsx"));
-const NotificationPrompt = lazy(() => import("./NotificationPrompt.jsx"));
-const ReunionToast = lazy(() => import("./ReunionToast.jsx"));
 import { EntryTemplates, saveTemplate } from "./EntryTemplates.jsx";
 import useRealtimeSync, { useRealtimePresence } from "./useRealtimeSync.js";
 import { useGlobeInteraction } from "./useGlobeInteraction.js";
@@ -2751,12 +2749,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         }}
         onClose={() => setShowGallery(false)}
       /></Suspense>}
-
-      {/* NOTIFICATION PERMISSION PROMPT */}
-      <Suspense fallback={null}><NotificationPrompt entries={data.entries} showToast={showToast} P={P} /></Suspense>
-
-      {/* REUNION TOAST — fires when partners are together */}
-      {isPartnerWorld && <Suspense fallback={null}><ReunionToast areTogether={areTogether} worldId={worldId} showToast={showToast} isPartnerWorld={isPartnerWorld} /></Suspense>}
 
       {/* ON THIS DAY — memory from a previous year */}
       {onThisDayEntry && (() => {
