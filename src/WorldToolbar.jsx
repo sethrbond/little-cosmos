@@ -101,28 +101,28 @@ export default function WorldToolbar({
       {/* Category buttons — expand items to the right */}
       <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
           {catBtn("explore", "🔍", "Explore")}
-          {menuOpen === "explore" && <div style={{ display: "flex", flexWrap: "wrap", gap: 4, background: (P.card || 'rgba(40,36,55,0.95)'), backdropFilter: "blur(16px)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 12, padding: "6px 8px", animation: "fadeIn .15s ease" }}>
+          {menuOpen === "explore" && <div style={{ display: "flex", flexWrap: "wrap", gap: 4, background: 'rgba(30,26,42,0.97)', backdropFilter: "blur(16px)", border: "1px solid rgba(232,224,208,0.2)", borderRadius: 12, padding: "6px 8px", animation: "fadeIn .15s ease" }}>
             {menuItems.explore.map((item, i) => <TBtn key={i} a={item.a} onClick={() => { item.onClick(); setMenuOpen(null); }} tip={item.tip}>{item.icon}</TBtn>)}
           </div>}
         </div>
       )}
       <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
           {catBtn("photos", "📸", "Photos")}
-          {menuOpen === "photos" && <div style={{ display: "flex", flexWrap: "wrap", gap: 4, background: (P.card || 'rgba(40,36,55,0.95)'), backdropFilter: "blur(16px)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 12, padding: "6px 8px", animation: "fadeIn .15s ease" }}>
+          {menuOpen === "photos" && <div style={{ display: "flex", flexWrap: "wrap", gap: 4, background: 'rgba(30,26,42,0.97)', backdropFilter: "blur(16px)", border: "1px solid rgba(232,224,208,0.2)", borderRadius: 12, padding: "6px 8px", animation: "fadeIn .15s ease" }}>
             {menuItems.photos.map((item, i) => <TBtn key={i} a={item.a} onClick={() => { item.onClick(); setMenuOpen(null); }} tip={item.tip}>{item.icon}</TBtn>)}
           </div>}
         </div>
       )}
       <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
           {catBtn("play", "▶", "Play")}
-          {menuOpen === "play" && <div style={{ display: "flex", flexWrap: "wrap", gap: 4, background: (P.card || 'rgba(40,36,55,0.95)'), backdropFilter: "blur(16px)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 12, padding: "6px 8px", animation: "fadeIn .15s ease" }}>
+          {menuOpen === "play" && <div style={{ display: "flex", flexWrap: "wrap", gap: 4, background: 'rgba(30,26,42,0.97)', backdropFilter: "blur(16px)", border: "1px solid rgba(232,224,208,0.2)", borderRadius: 12, padding: "6px 8px", animation: "fadeIn .15s ease" }}>
             {menuItems.play.map((item, i) => <TBtn key={i} a={item.a} onClick={() => { item.onClick(); setMenuOpen(null); }} tip={item.tip}>{item.icon}</TBtn>)}
           </div>}
         </div>
       )}
       <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
         {catBtn("tools", "🔧", "Tools")}
-        {menuOpen === "tools" && <div style={{ display: "flex", flexWrap: "wrap", gap: 4, background: (P.card || 'rgba(40,36,55,0.95)'), backdropFilter: "blur(16px)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 12, padding: "6px 8px", animation: "fadeIn .15s ease" }}>
+        {menuOpen === "tools" && <div style={{ display: "flex", flexWrap: "wrap", gap: 4, background: 'rgba(30,26,42,0.97)', backdropFilter: "blur(16px)", border: "1px solid rgba(232,224,208,0.2)", borderRadius: 12, padding: "6px 8px", animation: "fadeIn .15s ease" }}>
           {menuItems.tools.map((item, i) => <TBtn key={i} a={item.a} onClick={() => { item.onClick(); setMenuOpen(null); }} tip={item.tip}>{item.icon}</TBtn>)}
         </div>}
       </div>
