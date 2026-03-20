@@ -1,3 +1,4 @@
+import useNotifications, { firePartnerNotification } from "./useNotifications.js";
 import { usePlayStory } from "./usePlayStory.js";
 import { useToasts } from "./useToasts.js";
 import { reducer, getFirstBadges } from "./entryReducer.js";
@@ -842,7 +843,7 @@ class OurWorldErrorBoundary extends Component {
 // ================================================================
 // MAIN
 // ================================================================
-function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, worldRole = null, worldType = null, onSwitchWorld }) {
+function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, worldRole = null, worldType = null, onSwitchWorld, notifState = {}, firePartnerNotification }) {
   // ---- AUTH ----
   const { user, userId, signOut } = useAuth();
   const userDisplayName = user?.user_metadata?.display_name || "";
@@ -1264,6 +1265,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     onInsert: useCallback((entry) => {
       _dispatch({ type: 'ADD', entry, _skipSave: true });
       showToast(`New entry added: ${entry.city || 'somewhere new'}`, "✨", 4000);
+      if (entry.user_id !== userId && firePartnerNotification) { const name = worldMembers.find(m => m.user_id === entry.user_id)?.display_name || 'Someone'; firePartnerNotification(name, entry.city || 'a new place'); }
       setNotifications(prev => [{ id: `n-${Date.now()}`, type: 'entry_added', message: `New entry: ${entry.city || 'somewhere new'}`, timestamp: new Date().toISOString(), entryId: entry.id, read: false }, ...prev].slice(0, 100));
     }, []),
     onUpdate: useCallback((entry) => { _dispatch({ type: 'UPDATE', id: entry.id, data: entry, _skipSave: true }); }, []),
@@ -3163,6 +3165,14 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       />}
 
       {/* TOAST NOTIFICATIONS (stacked) */}
+      {/* Notification permission prompt */}
+      {notifState.showNotifPrompt && (
+        <div style={{ position: "fixed", bottom: 20, left: "50%", transform: "translateX(-50%)", zIndex: 50, display: "flex", alignItems: "center", gap: 12, padding: "12px 20px", borderRadius: 14, background: P.card || "rgba(20,18,28,0.95)", backdropFilter: "blur(12px)", border: `1px solid ${P.rose}15`, boxShadow: "0 4px 24px rgba(0,0,0,0.3)", fontSize: 13, color: P.text, fontFamily: "inherit" }}>
+          <span>🔔 Get reminders of your memories?</span>
+          <button onClick={notifState.dismissNotifPrompt} style={{ background: "none", border: `1px solid ${P.textFaint}20`, borderRadius: 8, padding: "6px 12px", color: P.textFaint, fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Not now</button>
+          <button onClick={notifState.acceptNotifications} style={{ background: `${P.rose}15`, border: `1px solid ${P.rose}30`, borderRadius: 8, padding: "6px 12px", color: P.rose, fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>Yes, remind me</button>
+        </div>
+      )}
       <div aria-live="polite" role="status" style={{ position: "absolute", bottom: 120, left: "50%", transform: "translateX(-50%)", zIndex: 55, display: toasts.length > 0 ? "flex" : "none", flexDirection: "column-reverse", gap: 6, alignItems: "center", maxHeight: "30vh", overflow: "hidden", maxWidth: "90vw" }}>
           {toasts.map((t, i) => (
             <div key={t.key} style={{ pointerEvents: t.undoAction ? "auto" : "none", animation: t.exiting ? undefined : "fadeIn .3s ease", opacity: t.exiting ? 0 : (i < toasts.length - 1 ? 0.7 : 1), transform: `scale(${t.exiting ? 0.9 : (i < toasts.length - 1 ? 0.95 : 1)})${t.exiting ? " translateY(8px)" : ""}`, transition: "opacity .3s, transform .3s" }}>
@@ -3534,5 +3544,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
 // ---- WRAPPED EXPORT WITH ERROR BOUNDARY ----
 export default function OurWorld({ worldMode, worldId, worldName, worldRole, worldType, onSwitchWorld }) {
-  return <OurWorldErrorBoundary><OurWorldInner worldMode={worldMode} worldId={worldId} worldName={worldName} worldRole={worldRole} worldType={worldType} onSwitchWorld={onSwitchWorld} /></OurWorldErrorBoundary>;
+  // Notifications hook lives here (thin wrapper) — NOT in OurWorldInner (avoids TDZ)
+  const notif = useNotifications({ entries: [], worldId });
+  return <OurWorldErrorBoundary><OurWorldInner worldMode={worldMode} worldId={worldId} worldName={worldName} worldRole={worldRole} worldType={worldType} onSwitchWorld={onSwitchWorld} notifState={notif} firePartnerNotification={firePartnerNotification} /></OurWorldErrorBoundary>;
 }
