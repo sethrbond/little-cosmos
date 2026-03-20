@@ -153,7 +153,7 @@ export default function DetailCard({
                 const result = await db.savePhotos(cid, merged);
                 dispatch({ type: "ADD_PHOTOS", id: cid, urls });
                 if (result.ok) showToast(`${urls.length} photo${urls.length > 1 ? "s" : ""} added (${merged.length} total)`, "\u2705", 3000);
-                else showToast(`Photo save failed: ${result.error}`, "\u26a0\ufe0f", 8000);
+                else showToast("Couldn't save photos — try again in a moment", "\u26a0\ufe0f", 5000);
               }
               setUploading(false);
             }).catch(err => { console.error('[dragDrop] queue error:', err); setUploading(false); });
@@ -238,7 +238,7 @@ export default function DetailCard({
               const result = await db.savePhotos(cid, merged);
               dispatch({ type: "ADD_PHOTOS", id: cid, urls });
               if (result.ok) showToast(`${urls.length} photo${urls.length > 1 ? "s" : ""} saved (${merged.length} total)`, "\u2705", 3000);
-              else showToast(`Photo save failed: ${result.error}`, "\u26a0\ufe0f", 8000);
+              else showToast("Couldn't save photos — try again in a moment", "\u26a0\ufe0f", 5000);
             }
             setUploading(false);
           }).catch(err => { console.error('[dragDrop] queue error:', err); setUploading(false); });
@@ -270,7 +270,7 @@ export default function DetailCard({
                   setShareMenu(null);
                   const result = await shareEntryToWorld(cur, w.id, userId);
                   if (result.ok) showToast(`Shared to ${w.name}`, "\u2197", 3000);
-                  else showToast(`Failed: ${result.error}`, "\u26a0\ufe0f", 5000);
+                  else showToast("Couldn't share this memory — try again", "\u26a0\ufe0f", 5000);
                 }} style={{ display: "block", width: "100%", padding: "5px 8px", border: "none", background: "none", cursor: "pointer", fontSize: 10, fontFamily: "inherit", color: P.text, textAlign: "left", borderRadius: 4, transition: "background .15s" }}
                   onMouseEnter={e => e.target.style.background = `${P.sky}12`}
                   onMouseLeave={e => e.target.style.background = "none"}>

@@ -240,6 +240,7 @@ function DemoExperience({ onClose, onSignUp }) {
   const sceneRef = useRef(null)
   const playingRef = useRef(false)
   const cancelStoryRef = useRef(null)
+  const storyFinishedRef = useRef(false)
 
   useEffect(() => {
     const el = ref.current
@@ -337,7 +338,7 @@ function DemoExperience({ onClose, onSignUp }) {
     let raf
     const animate = () => {
       const t = Date.now() * 0.001
-      if (!isDragging && !playingRef.current) {
+      if (!isDragging && !playingRef.current && !storyFinishedRef.current) {
         if (Math.abs(dragVelocity) > 0.0001) { globe.rotation.y += dragVelocity; dragVelocity *= 0.96 }
         else { globe.rotation.y += 0.04 * 0.016 }
       }
@@ -444,7 +445,7 @@ function DemoExperience({ onClose, onSignUp }) {
 
     playingRef.current = false
     setIsPlaying(false)
-    if (!cancelled) { setActiveEntry(null); setStoryFinished(true) }
+    if (!cancelled) { setActiveEntry(null); setStoryFinished(true); storyFinishedRef.current = true }
     cancelStoryRef.current = null
   }, [flyTo])
 
@@ -609,7 +610,7 @@ function DemoExperience({ onClose, onSignUp }) {
             onMouseLeave={e => { e.target.style.transform = 'translateY(0)'; e.target.style.boxShadow = '0 4px 24px rgba(200,170,110,0.3)' }}>
               Start Your Cosmos &rarr;
             </button>
-            <button onClick={() => setStoryFinished(false)} style={{
+            <button onClick={() => { setStoryFinished(false); storyFinishedRef.current = false }} style={{
               display: 'block', margin: '14px auto 0', background: 'none',
               border: 'none', color: 'rgba(200,170,110,0.5)', fontSize: 13,
               fontFamily: FONT, cursor: 'pointer',
