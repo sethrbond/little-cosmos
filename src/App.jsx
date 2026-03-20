@@ -593,7 +593,7 @@ function AppInner() {
       </Suspense>
       {activeWorldId && userId && (
         <Suspense fallback={null}>
-          <NotificationPrompt supabase={supabase} worldId={activeWorldId} />
+          <NotificationPrompt supabase={supabase} worldId={activeWorldId} userId={userId} />
           <ReunionToast worldId={activeWorldId} userId={userId} displayName={userDisplayName} worldType={activeWorldType} />
         </Suspense>
       )}

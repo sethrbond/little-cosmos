@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { subscribeToPush } from "./pushSubscription.js";
 
 const PERM_KEY = "cosmos_notif_permission";
 const ASKED_KEY = "cosmos_notif_asked";
@@ -8,7 +9,7 @@ const FONT = "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif";
  * Self-contained notification permission prompt.
  * Rendered from App.jsx — queries entry count via Supabase, no OurWorld dependency.
  */
-export default function NotificationPrompt({ supabase, worldId }) {
+export default function NotificationPrompt({ supabase, worldId, userId }) {
   const [show, setShow] = useState(false);
 
   // Check entry count and whether to show prompt
@@ -67,8 +68,11 @@ export default function NotificationPrompt({ supabase, worldId }) {
     const result = await Notification.requestPermission();
     localStorage.setItem(PERM_KEY, result);
     localStorage.setItem(ASKED_KEY, "1");
+    if (result === "granted" && userId) {
+      subscribeToPush(userId).catch(() => {});
+    }
     setShow(false);
-  }, []);
+  }, [userId]);
 
   const dismiss = useCallback(() => {
     localStorage.setItem(ASKED_KEY, "1");

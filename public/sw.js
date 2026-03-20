@@ -85,6 +85,24 @@ self.addEventListener('message', e => {
   }
 });
 
+// ---- Web Push — handle server-sent push notifications ----
+self.addEventListener('push', e => {
+  if (!e.data) return;
+  let payload;
+  try { payload = e.data.json(); } catch { payload = { title: 'Little Cosmos', body: e.data.text() }; }
+
+  const title = payload.title || 'Little Cosmos';
+  const options = {
+    body: payload.body || '',
+    icon: payload.icon || '/icons/icon.svg',
+    badge: '/icons/icon.svg',
+    tag: payload.tag || 'cosmos-push',
+    data: payload.data || {},
+  };
+
+  e.waitUntil(self.registration.showNotification(title, options));
+});
+
 // Handle notification clicks — focus or open the app and navigate to entry
 self.addEventListener('notificationclick', e => {
   e.notification.close();
