@@ -33,6 +33,9 @@
     <link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
     <style>
+      button:focus-visible,[role="button"]:focus-visible{outline:2px solid #c9a96e;outline-offset:2px}
+      input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid #c9a96e;outline-offset:2px}
+      input:focus:not(:focus-visible),textarea:focus:not(:focus-visible){outline:none}
       * { margin: 0; padding: 0; box-sizing: border-box; }
       body { overflow: hidden; }
     </style>
