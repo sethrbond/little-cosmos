@@ -1,135 +1,131 @@
 import { useState } from "react";
-import { TBtn, TBtnGroup } from "./uiPrimitives.jsx";
+import { TBtn } from "./uiPrimitives.jsx";
 import { hasDraft, getDraftSummary } from "./formUtils.jsx";
 import { getP } from "./cosmosGetP.js";
 import SyncIndicator from "./SyncIndicator.jsx";
 import NotificationCenter from "./NotificationCenter.jsx";
 
-/* ================================================================
-   WorldToolbar — extracted from OurWorld.jsx
-   4 always-visible buttons: Add, Settings, More (toggle), Exit
-   Everything else lives inside the More menu.
-   ================================================================ */
-
 export default function WorldToolbar({
-  // Identity / mode
   worldId, worldMode, isViewer, isSharedWorld, isPartnerWorld, isMyWorld,
-  // Data
   entries, allPhotos, togetherList, sorted, recentlyDeleted,
-  undoCount, redoCount,
-  notifications,
-  // Playback
+  undoCount, redoCount, notifications,
   isPlaying, ambientPlaying, ambientMusicUrl,
-  // Overlay visibility flags (active states)
   showSearch, showStats, showConstellation, showRoutes,
   showMilestones, showTravelStats, showLoveThread, showDreams, showGallery, showPhotoMap,
-  // Actions
   onAdd, onQuickAdd, onResumeDraft, onSettings,
   onToggleSearch, onToggleStats,
   onToggleConstellation, onToggleRoutes, onToggleMilestones,
   onToggleTravelStats, onToggleLoveThread, onToggleDreams,
   onToggleGallery, onPhotoJourney, onTogglePhotoMap,
-  onPlayStory, onStopPlay, onSurpriseMe,
-  onToggleAmbient,
+  onPlayStory, onStopPlay, onSurpriseMe, onToggleAmbient,
   onUndo, onRedo,
   onScreenshot, onTemplates, onTripJournal, onExportHub, onYearReview, onTrash,
   onDismissNotification, onDismissAllNotifications, onClickNotification,
-  onSwitchWorld, onSignOut,
-  // Sync indicator
-  syncProps,
-  // Animation
-  introComplete,
+  onSwitchWorld, onSignOut, syncProps, introComplete,
 }) {
   const P = getP();
+  const [menuOpen, setMenuOpen] = useState(null); // null | "explore" | "photos" | "play" | "tools"
 
   const draftKeyAdd = `cosmos-draft-add-${worldId || worldMode}`;
   const draftKeyQuick = `cosmos-draft-quick-${worldId || worldMode}`;
   const hasDraftEntry = !isViewer && (hasDraft(draftKeyAdd) || hasDraft(draftKeyQuick));
-
   const draftTip = (() => {
     const d = getDraftSummary(draftKeyAdd) || getDraftSummary(draftKeyQuick);
     return d ? `Resume draft${d.city ? `: ${d.city}` : ""}` : "Resume draft";
   })();
 
+  const toggle = (cat) => setMenuOpen(v => v === cat ? null : cat);
+
+  // Category button style
+  const catBtn = (cat, icon, label) => (
+    <button onClick={() => toggle(cat)} style={{
+      padding: "6px 12px", borderRadius: 10, fontSize: 11, cursor: "pointer",
+      fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5,
+      background: menuOpen === cat ? `${P.rose || '#c9a96e'}15` : "transparent",
+      border: `1px solid ${menuOpen === cat ? (P.rose || '#c9a96e') + '30' : (P.textFaint || '#888') + '15'}`,
+      color: menuOpen === cat ? (P.rose || '#c9a96e') : (P.textMid || '#aaa'),
+      transition: "all .2s",
+    }}>{icon} {label}</button>
+  );
+
+  // Horizontal menu items
+  const menuItems = {
+    explore: [
+      !isViewer && { icon: "⚡", tip: "Quick Add", onClick: onQuickAdd },
+      entries.length > 0 && { icon: "🔍", tip: "Search", onClick: onToggleSearch, a: showSearch },
+      entries.length > 0 && { icon: "📊", tip: "Stats", onClick: onToggleStats, a: showStats },
+      entries.length > 2 && { icon: "⭐", tip: "Constellation", onClick: onToggleConstellation, a: showConstellation },
+      sorted.length > 1 && { icon: "🛤", tip: "Routes", onClick: onToggleRoutes, a: showRoutes },
+      entries.length > 0 && { icon: "✨", tip: "Milestones", onClick: onToggleMilestones, a: showMilestones },
+      entries.length > 2 && { icon: "📈", tip: "Travel Stats", onClick: onToggleTravelStats, a: showTravelStats },
+      isPartnerWorld && togetherList.length > 1 && { icon: "🧵", tip: "Love Thread", onClick: onToggleLoveThread, a: showLoveThread },
+      { icon: isMyWorld ? "🗺️" : "✦", tip: isMyWorld ? "Bucket List" : "Dreams", onClick: onToggleDreams, a: showDreams },
+    ].filter(Boolean),
+    photos: [
+      allPhotos.length > 0 && { icon: "📸", tip: "Scrapbook", onClick: onToggleGallery, a: showGallery },
+      allPhotos.length > 2 && { icon: "🎞", tip: "Photo Journey", onClick: onPhotoJourney },
+      allPhotos.length > 0 && { icon: "📍", tip: "Photo Map", onClick: onTogglePhotoMap, a: showPhotoMap },
+    ].filter(Boolean),
+    play: [
+      (isPartnerWorld ? togetherList.length > 0 : sorted.length > 0) && !isPlaying && { icon: "▶", tip: "Play Story", onClick: onPlayStory },
+      isPlaying && { icon: "⏹", tip: "Stop", onClick: onStopPlay, a: true },
+      { icon: "🎲", tip: "Surprise Me", onClick: onSurpriseMe },
+      ambientMusicUrl && { icon: ambientPlaying ? "🔊" : "🎵", tip: "Music", onClick: onToggleAmbient, a: ambientPlaying },
+    ].filter(Boolean),
+    tools: [
+      undoCount > 0 && { icon: "↩", tip: `Undo (${undoCount})`, onClick: onUndo },
+      redoCount > 0 && { icon: "↪", tip: `Redo (${redoCount})`, onClick: onRedo },
+      { icon: "📷", tip: "Screenshot", onClick: onScreenshot },
+      !isViewer && { icon: "📋", tip: "Templates", onClick: onTemplates },
+      entries.length >= 2 && { icon: "📖", tip: "Journal", onClick: onTripJournal },
+      entries.length > 0 && { icon: "📤", tip: "Export", onClick: onExportHub },
+      entries.length > 0 && { icon: "🎬", tip: "Year Review", onClick: onYearReview },
+      recentlyDeleted.length > 0 && { icon: "🗑", tip: `Trash (${recentlyDeleted.length})`, onClick: onTrash },
+    ].filter(Boolean),
+  };
+
+  const activeItems = menuOpen ? menuItems[menuOpen] : [];
+
   return (
     <div role="toolbar" aria-label="World tools" style={{ position: "absolute", top: 22, left: 22, zIndex: 20, display: "flex", flexDirection: "column", gap: 7, opacity: introComplete ? 1 : 0, transition: "opacity .8s ease" }}>
 
-      {/* — Always visible: Add — */}
       {!isViewer && <TBtn onClick={onAdd} accent tip="Add Entry">＋</TBtn>}
-
-      {/* — Always visible: Settings — */}
       {!isViewer && <TBtn onClick={onSettings} tip="Settings">⚙️</TBtn>}
 
-      {/* — Draft indicator (always visible when draft exists) — */}
       {hasDraftEntry && (
         <TBtn onClick={onResumeDraft} tip={draftTip}>
           <span style={{ position: "relative" }}>📝<span style={{ position: "absolute", top: -4, right: -6, width: 7, height: 7, borderRadius: "50%", background: "#c9a96e", border: "1.5px solid rgba(255,255,255,.9)", animation: "pulse 2s infinite" }} /></span>
         </TBtn>
       )}
 
-      {/* — Always visible: More toggle — */}
-      <TBtnGroup icon="⋯" label="more">
-        {/* Quick Add */}
-        {!isViewer && <TBtn onClick={onQuickAdd} tip="Quick Add">⚡</TBtn>}
+      {/* Category buttons — open horizontal menus */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        {entries.length > 0 && catBtn("explore", "🔍", "Explore")}
+        {allPhotos.length > 0 && catBtn("photos", "📸", "Photos")}
+        {entries.length > 1 && catBtn("play", "▶", "Play")}
+        {catBtn("tools", "🔧", "Tools")}
+      </div>
 
-        {/* Explore */}
-        {entries.length > 0 && <TBtn a={showSearch} onClick={onToggleSearch} tip="Search Entries">🔍</TBtn>}
-        {entries.length > 0 && <TBtn a={showStats} onClick={onToggleStats} tip="Stats & Insights">📊</TBtn>}
+      {/* Horizontal expandable menu */}
+      {menuOpen && activeItems.length > 0 && (
+        <div style={{
+          position: "absolute", left: 56, top: menuOpen === "explore" ? 110 : menuOpen === "photos" ? 150 : menuOpen === "play" ? 190 : 230,
+          display: "flex", flexDirection: "row", flexWrap: "wrap", gap: 5,
+          background: `${P.card || 'rgba(20,18,28,0.95)'}`, backdropFilter: "blur(16px)",
+          border: `1px solid ${(P.rose || '#c9a96e')}15`, borderRadius: 14,
+          padding: "8px 10px", maxWidth: 280,
+          boxShadow: `0 4px 20px rgba(0,0,0,0.3)`,
+          animation: "fadeIn .15s ease", zIndex: 35,
+        }}>
+          {activeItems.map((item, i) => (
+            <TBtn key={i} a={item.a} onClick={() => { item.onClick(); setMenuOpen(null); }} tip={item.tip}>{item.icon}</TBtn>
+          ))}
+        </div>
+      )}
 
-        {/* Discover */}
-        {entries.length > 2 && <TBtn a={showConstellation} onClick={onToggleConstellation} tip="Constellation">⭐</TBtn>}
-        {sorted.length > 1 && <TBtn a={showRoutes} onClick={onToggleRoutes} tip="Travel Routes">🛤</TBtn>}
-        {entries.length > 0 && <TBtn a={showMilestones} onClick={onToggleMilestones} tip="Milestones">✨</TBtn>}
-        {entries.length > 2 && <TBtn a={showTravelStats} onClick={onToggleTravelStats} tip="Travel Stats">📈</TBtn>}
-        {isPartnerWorld && togetherList.length > 1 && <TBtn a={showLoveThread} onClick={onToggleLoveThread} tip="Love Thread">🧵</TBtn>}
-        <TBtn a={showDreams} onClick={onToggleDreams} tip={isMyWorld ? "Bucket List" : isPartnerWorld ? "Dream Destinations" : "Wish List"}>{isMyWorld ? "🗺️" : "✦"}</TBtn>
-
-        {/* Photos */}
-        {allPhotos.length > 0 && <>
-          <TBtn a={showGallery} onClick={onToggleGallery} tip="Scrapbook">📸</TBtn>
-          {allPhotos.length > 2 && <TBtn onClick={onPhotoJourney} tip="Photo Journey">🎞</TBtn>}
-          <TBtn a={showPhotoMap} onClick={onTogglePhotoMap} tip="Photo Map">📍</TBtn>
-        </>}
-
-        {/* Play */}
-        {entries.length > 1 && <>
-          {(isPartnerWorld ? togetherList.length > 0 : sorted.length > 0) && !isPlaying && <TBtn onClick={onPlayStory} tip={isPartnerWorld ? "Play Our Story" : "Play Story"}>▶</TBtn>}
-          {isPlaying && <TBtn onClick={onStopPlay} a tip="Stop Playback">⏹</TBtn>}
-          <TBtn onClick={onSurpriseMe} tip="Surprise Me">🎲</TBtn>
-          {ambientMusicUrl && <TBtn a={ambientPlaying} onClick={onToggleAmbient} tip={ambientPlaying ? "Pause Ambient Music" : "Play Ambient Music"}>{ambientPlaying ? "🔊" : "🎵"}</TBtn>}
-        </>}
-
-        {/* Undo/Redo */}
-        {!isViewer && (undoCount > 0 || redoCount > 0) && <>
-          {undoCount > 0 && <TBtn onClick={onUndo} tip={`Undo (${undoCount})`}>↩</TBtn>}
-          {redoCount > 0 && <TBtn onClick={onRedo} tip={`Redo (${redoCount})`}>↪</TBtn>}
-        </>}
-
-        {/* System */}
-        <TBtn onClick={onScreenshot} tip="Save Globe Screenshot">📷</TBtn>
-        {!isViewer && <TBtn onClick={onTemplates} tip="Entry Templates">📋</TBtn>}
-        {entries.length >= 2 && <TBtn onClick={onTripJournal} tip="Trip Journal">📖</TBtn>}
-        {entries.length > 0 && <TBtn onClick={onExportHub} tip="Export & Import">📤</TBtn>}
-        {entries.length > 0 && <TBtn onClick={onYearReview} tip="Year in Review">🎬</TBtn>}
-        {recentlyDeleted.length > 0 && <TBtn onClick={onTrash} tip={`Recently Deleted (${recentlyDeleted.length})`}>🗑</TBtn>}
-      </TBtnGroup>
-
-      {/* Notifications (shared worlds only) */}
-      {isSharedWorld && <NotificationCenter
-        notifications={notifications}
-        palette={P}
-        onDismiss={onDismissNotification}
-        onDismissAll={onDismissAllNotifications}
-        onClickNotification={onClickNotification}
-      />}
-
-      {/* Switch World */}
+      {isSharedWorld && <NotificationCenter notifications={notifications} palette={P} onDismiss={onDismissNotification} onDismissAll={onDismissAllNotifications} onClickNotification={onClickNotification} />}
       {onSwitchWorld && <TBtn onClick={onSwitchWorld} tip="Switch World">🔄</TBtn>}
-
-      {/* Sync */}
       <SyncIndicator {...syncProps} style={{ margin: '4px auto' }} />
-
-      {/* — Always visible: Exit / Sign Out — */}
       <TBtn onClick={onSignOut} tip="Sign Out">🚪</TBtn>
     </div>
   );
