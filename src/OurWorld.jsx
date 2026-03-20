@@ -843,6 +843,11 @@ class OurWorldErrorBoundary extends Component {
 // ================================================================
 // MAIN
 // ================================================================
+// Reunion detection — module-level to avoid adding hooks
+let _prevAreTogether = undefined;
+let _overlapChecked = {};
+let _prevAreTogetherWorldId = null;
+
 function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, worldRole = null, worldType = null, onSwitchWorld, notifState = {}, firePartnerNotification }) {
   // ---- AUTH ----
   const { user, userId, signOut } = useAuth();
@@ -1558,6 +1563,39 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
   const pos = useMemo(() => getPositions(sliderDate), [sliderDate, getPositions]);
   const areTogether = !!pos.together;
+  // Reunion detection (no hook — uses module-level var)
+  if (_prevAreTogetherWorldId !== worldId) { _prevAreTogether = undefined; _prevAreTogetherWorldId = worldId; }
+  if (_prevAreTogether === false && areTogether === true && isPartnerWorld && introComplete) {
+    const city = pos.together?.city || "the same place";
+    showToast(`You reunited in ${city}! 🫂`, "💕", 5000);
+  }
+  _prevAreTogether = areTogether;
+
+  // Partner overlap detection (no hooks — module-level tracking)
+  if (isPartnerWorld && data.entries.length > 0 && !_overlapChecked[worldId]) {
+    _overlapChecked[worldId] = true;
+    const dismissed = JSON.parse(localStorage.getItem("cosmos-overlap-dismissed-" + worldId) || "[]");
+    const byUser = {};
+    data.entries.forEach(e => { if (e.who && e.who !== "both") { (byUser[e.who] = byUser[e.who] || []).push(e); } });
+    const users = Object.keys(byUser);
+    if (users.length >= 2) {
+      const a = byUser[users[0]], b = byUser[users[1]];
+      let found = 0;
+      for (const ea of a) {
+        if (found >= 3) break;
+        for (const eb of b) {
+          if (found >= 3) break;
+          const pairKey = [ea.id, eb.id].sort().join("-");
+          if (dismissed.includes(pairKey)) continue;
+          const dateOverlap = ea.dateStart <= (eb.dateEnd || eb.dateStart) && eb.dateStart <= (ea.dateEnd || ea.dateStart);
+          if (dateOverlap && haversine(ea.lat, ea.lng, eb.lat, eb.lng) < 50) {
+            found++;
+            showToast("You were both in " + (ea.city || eb.city) + ". Together? \u{1F495}", "\u{1F4AB}", 8000);
+          }
+        }
+      }
+    }
+  }
   const dist = useMemo(() => {
     if (areTogether) return 0;
     if (pos.seth && pos.rosie) return haversine(pos.seth.lat, pos.seth.lng, pos.rosie.lat, pos.rosie.lng);
