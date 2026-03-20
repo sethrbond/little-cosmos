@@ -1,3 +1,6 @@
+import { usePlayStory } from "./usePlayStory.js";
+import { useToasts } from "./useToasts.js";
+import { reducer, getFirstBadges } from "./entryReducer.js";
 import { useState, useEffect, useRef, useCallback, useMemo, useReducer, Component, lazy, Suspense } from "react";
 import * as THREE from "three";
 import { createOurWorldDB, createSharedWorldDB } from "./supabase.js";
@@ -812,119 +815,6 @@ const COAST_DATA = [
 ];
 // Location search powered by OpenStreetMap Nominatim — see geocode.js
 // ---- REDUCER (with Supabase persistence + undo history) ----
-function reducer(st, a) {
-  let next = st;
-  // DB functions passed via a.db from dispatch wrapper
-  const _saveEntry = a.db?.saveEntry;
-  const _deleteEntry = a.db?.deleteEntry;
-  const _deletePhoto = a.db?.deletePhoto;
-  const _savePhotos = a.db?.savePhotos;
-  const pushUndo = (inverse) => {
-    if (!a._skipSave && !a._skipUndo) {
-      next = { ...next, undoStack: [...(next.undoStack || []).slice(-29), inverse], redoStack: [] };
-    }
-  };
-  switch (a.type) {
-    case "LOAD": return { ...st, entries: a.entries, undoStack: st.undoStack || [], redoStack: st.redoStack || [] };
-    case "UNDO": {
-      const stack = [...(st.undoStack || [])];
-      if (stack.length === 0) return st;
-      const action = stack.pop();
-      // Apply the inverse action
-      if (action.type === "ADD") {
-        next = { ...st, entries: [...st.entries, action.entry], undoStack: stack, redoStack: [...(st.redoStack || []), { type: "DELETE", id: action.entry.id }] };
-        if (_saveEntry) _saveEntry(action.entry).catch(() => {});
-      } else if (action.type === "DELETE") {
-        const doomed = st.entries.find(e => e.id === action.id);
-        next = { ...st, entries: st.entries.filter(e => e.id !== action.id), undoStack: stack, redoStack: [...(st.redoStack || []), { type: "ADD", entry: doomed }] };
-        if (_deleteEntry) _deleteEntry(action.id);
-      } else if (action.type === "UPDATE") {
-        const prev = st.entries.find(e => e.id === action.id);
-        next = { ...st, entries: st.entries.map(e => e.id === action.id ? { ...e, ...action.data } : e), undoStack: stack, redoStack: [...(st.redoStack || []), { type: "UPDATE", id: action.id, data: prev ? { ...prev } : {} }] };
-        const updated = next.entries.find(e => e.id === action.id);
-        if (_saveEntry && updated) _saveEntry(updated).catch(() => {});
-      }
-      return next;
-    }
-    case "REDO": {
-      const stack = [...(st.redoStack || [])];
-      if (stack.length === 0) return st;
-      const action = stack.pop();
-      if (action.type === "ADD") {
-        next = { ...st, entries: [...st.entries, action.entry], redoStack: stack, undoStack: [...(st.undoStack || []), { type: "DELETE", id: action.entry.id }] };
-        if (_saveEntry) _saveEntry(action.entry).catch(() => {});
-      } else if (action.type === "DELETE") {
-        const doomed = st.entries.find(e => e.id === action.id);
-        next = { ...st, entries: st.entries.filter(e => e.id !== action.id), redoStack: stack, undoStack: [...(st.undoStack || []), { type: "ADD", entry: doomed }] };
-        if (_deleteEntry) _deleteEntry(action.id);
-      } else if (action.type === "UPDATE") {
-        const prev = st.entries.find(e => e.id === action.id);
-        next = { ...st, entries: st.entries.map(e => e.id === action.id ? { ...e, ...action.data } : e), redoStack: stack, undoStack: [...(st.undoStack || []), { type: "UPDATE", id: action.id, data: prev ? { ...prev } : {} }] };
-        const updated = next.entries.find(e => e.id === action.id);
-        if (_saveEntry && updated) _saveEntry(updated).catch(() => {});
-      }
-      return next;
-    }
-    case "ADD":
-      next = { ...st, entries: [...st.entries, a.entry] };
-      pushUndo({ type: "DELETE", id: a.entry.id });
-      if (_saveEntry && !a._skipSave) _saveEntry(a.entry).catch(() => {
-        window.dispatchEvent(new CustomEvent('cosmos-save-error', { detail: { city: a.entry?.city } }))
-      });
-      break;
-    case "UPDATE":
-      { const prev = st.entries.find(e => e.id === a.id);
-        if (prev) pushUndo({ type: "UPDATE", id: a.id, data: { ...prev } });
-      }
-      next = { ...next, entries: (next.entries || st.entries).map(e => e.id === a.id ? { ...e, ...a.data } : e) };
-      if (_saveEntry && !a._skipSave) { const updated = next.entries.find(e => e.id === a.id); if (updated) _saveEntry(updated).catch(() => {
-        window.dispatchEvent(new CustomEvent('cosmos-save-error', { detail: { city: updated?.city } }))
-      }); }
-      break;
-    case "DELETE":
-      { const doomed = st.entries.find(e => e.id === a.id);
-        if (doomed) pushUndo({ type: "ADD", entry: { ...doomed } });
-        if (_deletePhoto && !a._skipSave && doomed?.photos?.length) doomed.photos.forEach(url => _deletePhoto(url));
-      }
-      next = { ...next, entries: (next.entries || st.entries).filter(e => e.id !== a.id) };
-      if (_deleteEntry && !a._skipSave) _deleteEntry(a.id);
-      break;
-    case "ADD_PHOTOS":
-      next = { ...st, entries: st.entries.map(e => e.id === a.id ? { ...e, photos: [...(e.photos || []), ...a.urls] } : e) };
-      break;
-    case "REMOVE_PHOTO":
-      { const photoUrl = (st.entries.find(e => e.id === a.id)?.photos || [])[a.photoIndex];
-        if (photoUrl) _deletePhoto(photoUrl); }
-      next = { ...st, entries: st.entries.map(e => e.id === a.id ? { ...e, photos: (e.photos || []).filter((_, i) => i !== a.photoIndex) } : e) };
-      { const remaining = next.entries.find(e => e.id === a.id);
-        if (remaining) _savePhotos(a.id, remaining.photos || []); }
-      break;
-    default: return st;
-  }
-  return next;
-}
-
-// ---- FIRST BADGES ----
-function getFirstBadges(entries) {
-  const badges = {};
-  const together = entries.filter(e => e.who === "both").sort((a, b) => (a.dateStart || "").localeCompare(b.dateStart || ""));
-  if (together.length > 0) badges[together[0].id] = "First time together";
-  const countries = {};
-  together.forEach(e => {
-    if (e.country && !countries[e.country]) { countries[e.country] = e.id; }
-    (e.stops || []).forEach(s => { if (s.country && !countries[s.country]) countries[s.country] = e.id; });
-  });
-  const international = together.find(e => e.country && e.country !== "USA");
-  if (international) badges[international.id] = badges[international.id] || "First trip abroad together";
-  // First Christmas
-  together.forEach(e => {
-    const ds = e.dateStart;
-    if (ds && ds.slice(5) >= "12-20" && ds.slice(5) <= "12-31" && !Object.values(badges).includes("First Christmas together")) {
-      badges[e.id] = "First Christmas together";
-    }
-  });
-  return badges;
-}
 
 // ---- ERROR BOUNDARY ----
 class OurWorldErrorBoundary extends Component {
@@ -1424,6 +1314,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [pjAutoPlay, setPjAutoPlay] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState(null);
+  const { toasts, showToast, dismissToast, handleUndo } = useToasts();
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIdx, setLightboxIdx] = useState(0);
   const [showLetter, setShowLetter] = useState(null); // letter id to show, or null
@@ -1451,8 +1342,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [markerFilter, setMarkerFilter] = useState("all"); // "all", "together", "special", "home-seth", "home-rosie", "seth-solo", "rosie-solo"
   const [listRenderLimit, setListRenderLimit] = useState(100);
   const [showFilter, setShowFilter] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [toasts, setToasts] = useState([]);
   const [showStats, setShowStats] = useState(false);
   const [showRecap, setShowRecap] = useState(false);
   const [recapYear, setRecapYear] = useState(null);
@@ -1506,7 +1395,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
   // Theme colors (always light mode)
   const lastTapRef = useRef(0); // for double-tap to zoom
-  const playRef = useRef(null);
   const animRef = useRef(null);
   const surpriseTimers = useRef([]);
 
@@ -1533,6 +1421,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   // Entries listed individually; stops shown inside each entry's detail card
 
   const togetherList = useMemo(() => sorted.filter(e => e.who === "both"), [sorted]);
+  const { isPlaying, cinemaEntry, cinemaPhotoIdx, cinemaProgress, cinemaTotal, cinemaIdx, cinemaPhase, stopPlay, playStory, playRef, photoTimerRef } = usePlayStory({ sorted, togetherList, isPartnerWorld, flyTo, tSpinSpd, showToast, setSelected, setShowGallery: (v) => setShowGallery(v), setPhotoIdx: () => {}, setCardTab: () => {}, setSliderDate, tZm });
   const firstBadges = useMemo(() => isPartnerWorld ? getFirstBadges(data.entries) : {}, [data.entries, isPartnerWorld]);
   const memberNameMap = useMemo(() => Object.fromEntries(worldMembers.map(m => [m.user_id, m.display_name || "Member"])), [worldMembers]);
   const season = useMemo(() => getSeasonalHue(sliderDate, isMyWorld), [sliderDate, isMyWorld]);
@@ -1688,34 +1577,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const settingsTrapRef = useFocusTrap(showSettings);
 
   // ---- TOAST SYSTEM (queue/stack with undo support) ----
-  const showToast = useCallback((message, icon = "✓", duration = 2500, undoAction = null) => {
-    const t = { message, icon, duration, key: Date.now(), undoAction };
-    setToasts(prev => [...prev.slice(-4), t]); // keep max 5
-  }, []);
-  const dismissTimers = useRef([]);
-  const dismissToast = useCallback((key) => {
-    setToasts(prev => prev.map(t => t.key === key ? { ...t, exiting: true } : t));
-    const t = setTimeout(() => setToasts(prev => prev.filter(t => t.key !== key)), 300);
-    dismissTimers.current.push(t);
-  }, []);
-  const handleUndo = useCallback((toast) => {
-    if (toast?.undoAction) toast.undoAction();
-    dismissToast(toast.key);
-  }, [dismissToast]);
-  const toastTimerKeys = useRef(new Set());
-  useEffect(() => {
-    if (toasts.length === 0) return;
-    const newTimers = [];
-    toasts.forEach(t => {
-      if (toastTimerKeys.current.has(t.key)) return;
-      toastTimerKeys.current.add(t.key);
-      newTimers.push(setTimeout(() => {
-        dismissToast(t.key);
-        toastTimerKeys.current.delete(t.key);
-      }, t.duration || 2500));
-    });
-    return () => newTimers.forEach(clearTimeout);
-  }, [toasts, dismissToast]);
 
   // ---- SAVE ERROR NOTIFICATION ----
   useEffect(() => {
@@ -2029,103 +1890,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
   // ---- PLAY OUR STORY ----
   // Cinema state for Play Story overlay
-  const [cinemaEntry, setCinemaEntry] = useState(null); // currently showing entry
-  const [cinemaPhotoIdx, setCinemaPhotoIdx] = useState(0); // cycle through photos
-  const [cinemaProgress, setCinemaProgress] = useState(0); // 0-1 progress
-  const [cinemaTotal, setCinemaTotal] = useState(0);
-  const [cinemaIdx, setCinemaIdx] = useState(0);
-  const [cinemaPhase, setCinemaPhase] = useState('fly'); // 'fly' | 'show' | 'transition'
-
-  const photoTimerRef = useRef(null);
-
-  const stopPlay = useCallback(() => {
-    setIsPlaying(false);
-    setCinemaEntry(null);
-    setCinemaPhase('fly');
-    if (playRef.current) { clearTimeout(playRef.current); playRef.current = null; }
-    if (photoTimerRef.current) { clearInterval(photoTimerRef.current); photoTimerRef.current = null; }
-    tSpinSpd.current = 0.001;
-  }, []);
-
-  const playStory = useCallback(() => {
-    const playList = isPartnerWorld ? togetherList : sorted;
-    if (playList.length === 0 || isPlaying) return;
-    setIsPlaying(true);
-    setSelected(null);
-    setShowGallery(false);
-    setCinemaTotal(playList.length);
-    let idx = 0;
-
-    const clearPlay = () => { if (playRef.current) { clearTimeout(playRef.current); playRef.current = null; } };
-    const clearPhotoTimer = () => { if (photoTimerRef.current) { clearInterval(photoTimerRef.current); photoTimerRef.current = null; } };
-
-    const step = () => {
-      if (idx >= playList.length) { stopPlay(); showToast("Story complete", "✨", 3000); return; }
-      const entry = playList[idx];
-      setCinemaIdx(idx);
-      setCinemaProgress(idx / playList.length);
-      setCinemaPhase('fly');
-      setCinemaEntry(entry);
-      setCinemaPhotoIdx(0);
-      setSliderDate(entry.dateStart);
-      flyTo(entry.lat, entry.lng, 2.4);
-
-      // After fly-to settles, show the full cinema card
-      clearPlay();
-      playRef.current = setTimeout(() => {
-        setCinemaPhase('show');
-        setSelected(entry);
-       
-       
-
-        // Cycle through photos during display
-        const photos = entry.photos || [];
-        if (photos.length > 1) {
-          let pIdx = 0;
-          clearPhotoTimer();
-          photoTimerRef.current = setInterval(() => {
-            pIdx = (pIdx + 1) % photos.length;
-            setCinemaPhotoIdx(pIdx);
-          }, 2000);
-          clearPlay();
-          playRef.current = setTimeout(() => {
-            clearPhotoTimer();
-            setCinemaPhase('transition');
-            setSelected(null);
-            idx++;
-            if (idx < playList.length) {
-              tSpinSpd.current = 0.015;
-              tZm.current = 3.0;
-              clearPlay();
-              playRef.current = setTimeout(step, 1000);
-            } else {
-              setCinemaProgress(1);
-              clearPlay();
-              playRef.current = setTimeout(() => { stopPlay(); showToast("Story complete", "✨", 3000); }, 800);
-            }
-          }, Math.min(5000, 2000 + photos.length * 1200));
-        } else {
-          clearPlay();
-          playRef.current = setTimeout(() => {
-            setCinemaPhase('transition');
-            setSelected(null);
-            idx++;
-            if (idx < playList.length) {
-              tSpinSpd.current = 0.015;
-              tZm.current = 3.0;
-              clearPlay();
-              playRef.current = setTimeout(step, 1000);
-            } else {
-              setCinemaProgress(1);
-              clearPlay();
-              playRef.current = setTimeout(() => { stopPlay(); showToast("Story complete", "✨", 3000); }, 800);
-            }
-          }, 4000);
-        }
-      }, 1600);
-    };
-    step();
-  }, [togetherList, sorted, isPartnerWorld, isPlaying, stopPlay, showToast]);
 
   // Keyboard shortcuts (must be after stopPlay/playStory declarations)
   useEffect(() => {
