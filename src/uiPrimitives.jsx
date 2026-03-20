@@ -5,6 +5,7 @@ import { inputStyle } from "./formUtils.jsx";
 // ---- UI COMPONENTS ----
 
 export function TBtn({ a, onClick, children, accent, tip }) {
+  injectFocusCSS();
   const P = getP();
   const [showTip, setShowTip] = useState(false);
   const [hov, setHov] = useState(false);

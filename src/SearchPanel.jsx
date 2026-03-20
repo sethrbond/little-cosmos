@@ -101,7 +101,7 @@ export default function SearchPanel({ entries, types, defaultType, isMobile, onS
             <div style={{ padding: "14px 16px", fontSize: 10, color: P.textFaint, textAlign: "center" }}>{searchQuery.length >= 2 ? <>No matches for &ldquo;{searchQuery}&rdquo;</> : "No entries match these filters"}</div>
           )}
           {searchResults.length > 0 && (
-            <div style={{ padding: "6px 14px 2px", fontSize: 8, color: P.textFaint, letterSpacing: "0.5px" }}>{searchResults.length} {searchResults.length === 1 ? "result" : "results"}</div>
+            <div style={{ padding: "6px 14px 2px", fontSize: 10, color: P.textFaint, letterSpacing: "0.5px" }}>{searchResults.length} {searchResults.length === 1 ? "result" : "results"}</div>
           )}
           {searchResults.slice(0, 50).map((e, ri) => {
             const t = types[e.type] || defaultType;
@@ -116,7 +116,7 @@ export default function SearchPanel({ entries, types, defaultType, isMobile, onS
                   : <span style={{ fontSize: 14, width: 28, textAlign: "center", flexShrink: 0 }}>{t.icon}</span>}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 11, color: P.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.city}{e.favorite ? " ♥" : ""}</div>
-                  <div style={{ fontSize: 8, color: P.textFaint }}>{fmtDate(e.dateStart)} · {e.country}{isSharedWorld && e.addedBy && memberNameMap[e.addedBy] ? ` · ${memberNameMap[e.addedBy]}` : ""}</div>
+                  <div style={{ fontSize: 10, color: P.textFaint }}>{fmtDate(e.dateStart)} · {e.country}{isSharedWorld && e.addedBy && memberNameMap[e.addedBy] ? ` · ${memberNameMap[e.addedBy]}` : ""}</div>
                 </div>
               </button>
             );

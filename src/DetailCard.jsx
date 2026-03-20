@@ -161,9 +161,9 @@ export default function DetailCard({
           style={{ position: "relative", width: "100%", background: P.parchment, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", minHeight: 120, maxHeight: 220, ...(dragOver ? { outline: `2px dashed ${P.sky}`, outlineOffset: -2 } : {}) }}>
           <img loading="lazy" src={cur.photos[photoIdx % cur.photos.length]} alt={`Photo from ${cur.city || "trip"}`} onClick={() => { setLightboxIdx(photoIdx % cur.photos.length); setLightboxOpen(true); }} style={{ maxWidth: "100%", maxHeight: 220, objectFit: "contain", display: "block", transition: "all .3s", cursor: "zoom-in", ...(polaroidMode ? { border: "6px solid #fff", borderBottom: "28px solid #fff", boxShadow: "0 4px 16px rgba(0,0,0,.15)", borderRadius: 1, transform: `rotate(${(photoIdx % 3 - 1) * 1.5}deg)` } : {}) }} />
           {cur.photos.length > 1 && (<><button aria-label="Previous photo" onClick={() => setPhotoIdx(i => (i - 1 + cur.photos.length) % cur.photos.length)} style={imageNavBtn("left")}>{"\u2039"}</button><button aria-label="Next photo" onClick={() => setPhotoIdx(i => (i + 1) % cur.photos.length)} style={imageNavBtn("right")}>{"\u203a"}</button>
-            <div style={{ position: "absolute", bottom: 6, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 4, alignItems: "center" }}>{cur.photos.slice(0, 12).map((_, i) => <div key={i} style={{ width: 6, height: 6, borderRadius: "50%", background: i === photoIdx % cur.photos.length ? "#fff" : "rgba(255,255,255,.35)", transition: "background .2s" }} />)}{cur.photos.length > 12 && <div style={{ fontSize: 8, color: "rgba(255,255,255,.5)", marginLeft: 2 }}>+{cur.photos.length - 12}</div>}</div></>)}
+            <div style={{ position: "absolute", bottom: 6, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 4, alignItems: "center" }}>{cur.photos.slice(0, 12).map((_, i) => <div key={i} style={{ width: 6, height: 6, borderRadius: "50%", background: i === photoIdx % cur.photos.length ? "#fff" : "rgba(255,255,255,.35)", transition: "background .2s" }} />)}{cur.photos.length > 12 && <div style={{ fontSize: 10, color: "rgba(255,255,255,.5)", marginLeft: 2 }}>+{cur.photos.length - 12}</div>}</div></>)}
           <button onClick={() => setCardGallery(true)} style={{ position: "absolute", top: 6, right: 6, background: "rgba(255,255,255,.85)", border: "none", borderRadius: 5, padding: "2px 8px", fontSize: 9, cursor: "pointer", fontFamily: "inherit", color: P.textMid }}>{"\ud83d\udcf8"} {cur.photos.length}</button>
-          <button onClick={() => setPolaroidMode(v => !v)} style={{ position: "absolute", bottom: 6, right: 6, background: polaroidMode ? P.goldWarm : "rgba(255,255,255,.7)", border: "none", borderRadius: 5, padding: "2px 7px", fontSize: 8, cursor: "pointer", fontFamily: "inherit", color: polaroidMode ? "#fff" : P.textFaint }} title="Polaroid mode">{"\ud83d\udcf8"}</button>
+          <button onClick={() => setPolaroidMode(v => !v)} style={{ position: "absolute", bottom: 6, right: 6, background: polaroidMode ? P.goldWarm : "rgba(255,255,255,.7)", border: "none", borderRadius: 5, padding: "2px 7px", fontSize: 10, cursor: "pointer", fontFamily: "inherit", color: polaroidMode ? "#fff" : P.textFaint }} title="Polaroid mode">{"\ud83d\udcf8"}</button>
           {polaroidMode && cur.photos.length >= 3 && (
             <div style={{ position: "absolute", top: -28, left: 8, right: 8, height: 28, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
               {cur.photos.slice(0, 5).map((url, i) => {
@@ -186,7 +186,7 @@ export default function DetailCard({
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, padding: "0 4px" }}>
             <span style={{ fontSize: 9, color: P.textMid, letterSpacing: ".1em" }}>{"\ud83d\udcf8"} {cur.photos.length} photos</span>
             <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-              {<button onClick={() => setPhotoDeleteMode(v => !v)} style={{ background: photoDeleteMode ? "#c07070" : "none", border: `1px solid ${photoDeleteMode ? "#c07070" : P.textFaint}40`, borderRadius: 4, padding: "1px 6px", fontSize: 8, cursor: "pointer", color: photoDeleteMode ? "#fff" : P.textFaint, fontFamily: "inherit" }}>{photoDeleteMode ? "Done" : "\ud83d\uddd1"}</button>}
+              {<button onClick={() => setPhotoDeleteMode(v => !v)} style={{ background: photoDeleteMode ? "#c07070" : "none", border: `1px solid ${photoDeleteMode ? "#c07070" : P.textFaint}40`, borderRadius: 4, padding: "1px 6px", fontSize: 10, cursor: "pointer", color: photoDeleteMode ? "#fff" : P.textFaint, fontFamily: "inherit" }}>{photoDeleteMode ? "Done" : "\ud83d\uddd1"}</button>}
               <button aria-label="Close photo grid" onClick={() => { setCardGallery(false); setPhotoDeleteMode(false); }} style={{ background: "none", border: "none", fontSize: 12, color: P.textFaint, cursor: "pointer" }}>{"\u00d7"}</button>
             </div>
           </div>
@@ -262,7 +262,7 @@ export default function DetailCard({
           }} style={{ background: "none", border: "none", fontSize: 12, cursor: "pointer", color: shareMenu === cur.id ? P.sky : P.textFaint, transition: "color .2s" }} title="Share to another world">{"\u2197"}</button>
           {shareMenu === cur.id && shareWorlds && (
             <div style={{ position: "absolute", top: 24, right: isMobile ? "auto" : 0, left: isMobile ? 0 : "auto", background: P.parchment, border: `1px solid ${P.rose}20`, borderRadius: 8, padding: 6, zIndex: 20, minWidth: 160, maxWidth: "70vw", boxShadow: "0 4px 16px rgba(0,0,0,.15)", animation: "fadeIn .15s ease" }}>
-              <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase", padding: "2px 6px 4px", borderBottom: `1px solid ${P.rose}10`, marginBottom: 4 }}>Share to world</div>
+              <div style={{ fontSize: 10, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase", padding: "2px 6px 4px", borderBottom: `1px solid ${P.rose}10`, marginBottom: 4 }}>Share to world</div>
               {shareWorlds.filter(w => w.id !== worldId && w.id !== cur.worldId).length === 0
                 ? <div style={{ fontSize: 9, color: P.textMuted, padding: "6px" }}>No other worlds</div>
                 : shareWorlds.filter(w => w.id !== worldId && w.id !== cur.worldId).map(w => (
@@ -285,16 +285,16 @@ export default function DetailCard({
               {cur.favorite ? "\u2665" : "\u2661"}
             </button>
             {heartBurst && [0,1,2,3,4].map(i => (
-              <span key={i} style={{ position: "absolute", left: "50%", top: "50%", fontSize: 8, pointerEvents: "none", color: P.heart, animation: `heartFloat${i} .7s ease-out forwards`, opacity: 0 }}>{"\u2665"}</span>
+              <span key={i} style={{ position: "absolute", left: "50%", top: "50%", fontSize: 10, pointerEvents: "none", color: P.heart, animation: `heartFloat${i} .7s ease-out forwards`, opacity: 0 }}>{"\u2665"}</span>
             ))}
           </div>
           <button aria-label="Close detail card" onClick={onClose} style={{ background: "none", border: "none", fontSize: 16, color: P.textFaint, cursor: "pointer", marginLeft: 2 }}>{"\u00d7"}</button>
         </div>
 
-        {firstBadges[cur.id] && <div style={{ fontSize: 8, color: P.gold, letterSpacing: ".12em", marginBottom: 4 }}>{"\ud83c\udfc5"} {firstBadges[cur.id]}</div>}
-        {isPartnerWorld && togetherIndex(cur.id) && <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".1em", marginBottom: 4 }}>Trip #{togetherIndex(cur.id)}</div>}
+        {firstBadges[cur.id] && <div style={{ fontSize: 10, color: P.gold, letterSpacing: ".12em", marginBottom: 4 }}>{"\ud83c\udfc5"} {firstBadges[cur.id]}</div>}
+        {isPartnerWorld && togetherIndex(cur.id) && <div style={{ fontSize: 10, color: P.textFaint, letterSpacing: ".1em", marginBottom: 4 }}>Trip #{togetherIndex(cur.id)}</div>}
 
-        <div style={{ display: "inline-block", padding: "2px 7px", borderRadius: 14, fontSize: 7, letterSpacing: ".08em", color: (TYPES[cur.type] || DEFAULT_TYPE).color, border: `1px solid ${(TYPES[cur.type] || DEFAULT_TYPE).color}28`, marginBottom: 5 }}>
+        <div style={{ display: "inline-block", padding: "2px 7px", borderRadius: 14, fontSize: 10, letterSpacing: ".08em", color: (TYPES[cur.type] || DEFAULT_TYPE).color, border: `1px solid ${(TYPES[cur.type] || DEFAULT_TYPE).color}28`, marginBottom: 5 }}>
           {(TYPES[cur.type] || DEFAULT_TYPE).icon} {(TYPES[cur.type] || DEFAULT_TYPE).label}
         </div>
 
@@ -304,7 +304,7 @@ export default function DetailCard({
           <span style={{ fontSize: 10, color: P.textMid }}>{"\ud83d\udcc5"} {fmtDate(cur.dateStart)}{cur.dateEnd && cur.dateEnd !== cur.dateStart ? ` \u2192 ${fmtDate(cur.dateEnd)}` : ""}</span>
           {cur.dateEnd && cur.dateEnd !== cur.dateStart && (() => {
             const days = daysBetween(cur.dateStart, cur.dateEnd) + 1;
-            return <span style={{ fontSize: 8, padding: "1px 6px", background: `${P.rose}10`, borderRadius: 8, color: P.textFaint, letterSpacing: ".04em" }}>{days} day{days !== 1 ? "s" : ""}</span>;
+            return <span style={{ fontSize: 10, padding: "1px 6px", background: `${P.rose}10`, borderRadius: 8, color: P.textFaint, letterSpacing: ".04em" }}>{days} day{days !== 1 ? "s" : ""}</span>;
           })()}
         </div>
         {entryStickers.length > 0 && (
@@ -324,7 +324,7 @@ export default function DetailCard({
         )}
         {isSharedWorld && cur.addedBy && memberNameMap[cur.addedBy] && (
           <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5 }}>
-            <div style={{ width: 18, height: 18, borderRadius: "50%", background: `linear-gradient(135deg, ${P.rose}40, ${P.sky}40)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 600, color: P.text, flexShrink: 0 }}>
+            <div style={{ width: 18, height: 18, borderRadius: "50%", background: `linear-gradient(135deg, ${P.rose}40, ${P.sky}40)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 600, color: P.text, flexShrink: 0 }}>
               {memberNameMap[cur.addedBy].charAt(0).toUpperCase()}
             </div>
             <span style={{ fontSize: 9, color: P.textFaint, letterSpacing: ".04em" }}>Added by {memberNameMap[cur.addedBy]}</span>
@@ -367,7 +367,7 @@ export default function DetailCard({
               </div>
             ) : null}
             {(cur.stops || []).length > 0 && (<div style={{ marginTop: 8 }}>
-              <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".16em", textTransform: "uppercase", marginBottom: 6 }}>Trip Route</div>
+              <div style={{ fontSize: 10, color: P.textFaint, letterSpacing: ".16em", textTransform: "uppercase", marginBottom: 6 }}>Trip Route</div>
               {cur.stops.map((s, si) => (
                 <div key={s.sid} style={{ display: "flex", gap: 8, marginBottom: 2 }}>
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 12, flexShrink: 0 }}>
@@ -382,15 +382,15 @@ export default function DetailCard({
                 </div>
               ))}
             </div>)}
-            {cur.musicUrl && <div style={{ marginTop: 8, padding: "6px 8px", background: `${P.lavender}0a`, borderRadius: 6 }}><div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 3 }}>{isPartnerWorld ? "Our Song" : "Music"}</div><audio ref={musicRef} controls src={cur.musicUrl} style={{ width: "100%", height: 26 }} /></div>}
+            {cur.musicUrl && <div style={{ marginTop: 8, padding: "6px 8px", background: `${P.lavender}0a`, borderRadius: 6 }}><div style={{ fontSize: 10, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 3 }}>{isPartnerWorld ? "Our Song" : "Music"}</div><audio ref={musicRef} controls src={cur.musicUrl} style={{ width: "100%", height: 26 }} /></div>}
             {/* Love Note — partner worlds only */}
             {isPartnerWorld && <div style={{ marginTop: 10, padding: "10px 12px", background: `${P.heart}06`, borderRadius: 8, borderLeft: `2px solid ${P.heart}20` }}>
-              <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 4 }}>{"\ud83d\udc8c"} Love Note</div>
+              <div style={{ fontSize: 10, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 4 }}>{"\ud83d\udc8c"} Love Note</div>
               {cur.loveNote ? <p style={{ fontSize: 11, lineHeight: 1.6, color: P.textMid, margin: 0, fontStyle: "italic" }}>{cur.loveNote}</p>
               : !isViewer ? <input placeholder="Write a note about this memory..." onBlur={e => { if (e.target.value.trim()) dispatch({ type: "UPDATE", id: cur.id, data: { loveNote: e.target.value.trim() } }); }}
                   style={{ width: "100%", border: "none", background: "none", fontSize: 10, fontFamily: "inherit", color: P.textMid, fontStyle: "italic", outline: "none", padding: 0 }} />
               : <div style={{ fontSize: 9, color: P.textFaint, fontStyle: "italic" }}>No note yet</div>}
-              {cur.loveNote && !isViewer && <button onClick={() => dispatch({ type: "UPDATE", id: cur.id, data: { loveNote: "" } })} style={{ marginTop: 4, background: "none", border: "none", fontSize: 8, color: P.textFaint, cursor: "pointer", padding: 0 }}>Clear</button>}
+              {cur.loveNote && !isViewer && <button onClick={() => dispatch({ type: "UPDATE", id: cur.id, data: { loveNote: "" } })} style={{ marginTop: 4, background: "none", border: "none", fontSize: 10, color: P.textFaint, cursor: "pointer", padding: 0 }}>Clear</button>}
             </div>}
             {/* Entry Connections — linked related entries */}
             {(() => {
@@ -398,7 +398,7 @@ export default function DetailCard({
               const linked = links.map(lid => data.entries.find(e => e.id === lid)).filter(Boolean);
               return (linked.length > 0 || !isViewer) ? (
                 <div style={{ marginTop: 10 }}>
-                  <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 4 }}>{"\ud83d\udd17"} Related Trips</div>
+                  <div style={{ fontSize: 10, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 4 }}>{"\ud83d\udd17"} Related Trips</div>
                   {linked.map(le => (
                     <button key={le.id} onClick={() => { onSelectEntry(le); flyTo(le.lat, le.lng, 2.5); }}
                       style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", padding: "5px 8px", marginBottom: 3, background: `${P.rose}06`, border: `1px solid ${P.rose}12`, borderRadius: 8, cursor: "pointer", fontFamily: "inherit", textAlign: "left", transition: "background .15s" }}
@@ -407,7 +407,7 @@ export default function DetailCard({
                       <span style={{ fontSize: 12 }}>{(TYPES[le.type] || DEFAULT_TYPE).icon}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 10, color: P.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{le.city}</div>
-                        <div style={{ fontSize: 8, color: P.textFaint }}>{fmtDate(le.dateStart)}</div>
+                        <div style={{ fontSize: 10, color: P.textFaint }}>{fmtDate(le.dateStart)}</div>
                       </div>
                       {!isViewer && <button onClick={e => { e.stopPropagation(); dispatch({ type: "UPDATE", id: cur.id, data: { linkedEntries: links.filter(l => l !== le.id) } }); }} style={{ background: "none", border: "none", color: P.textFaint, fontSize: 12, cursor: "pointer", padding: 0 }}>{"\u00d7"}</button>}
                     </button>
@@ -424,7 +424,7 @@ export default function DetailCard({
                           onMouseLeave={e => e.currentTarget.style.background = "none"}>
                           <span style={{ fontSize: 11 }}>{(TYPES[e.type] || DEFAULT_TYPE).icon}</span>
                           <span>{e.city}</span>
-                          <span style={{ fontSize: 8, color: P.textFaint, marginLeft: "auto" }}>{fmtDate(e.dateStart)}</span>
+                          <span style={{ fontSize: 10, color: P.textFaint, marginLeft: "auto" }}>{fmtDate(e.dateStart)}</span>
                         </button>
                       ))}
                       <button onClick={() => setShowLinkPicker(false)} style={{ width: "100%", padding: "4px", background: "none", border: "none", fontSize: 9, color: P.textFaint, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
@@ -526,7 +526,7 @@ export default function DetailCard({
 
           {cardTab === "photos" && (<>
             <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 6 }}>
-              <button onClick={() => setPolaroidMode(v => !v)} style={{ background: polaroidMode ? `${P.goldWarm}18` : "none", border: `1px solid ${polaroidMode ? P.goldWarm + "30" : P.textFaint + "20"}`, borderRadius: 6, padding: "2px 8px", fontSize: 8, cursor: "pointer", fontFamily: "inherit", color: polaroidMode ? P.goldWarm : P.textFaint, letterSpacing: ".04em" }}>{polaroidMode ? "\ud83d\udcf8 Polaroid" : "\u25a6 Grid"}</button>
+              <button onClick={() => setPolaroidMode(v => !v)} style={{ background: polaroidMode ? `${P.goldWarm}18` : "none", border: `1px solid ${polaroidMode ? P.goldWarm + "30" : P.textFaint + "20"}`, borderRadius: 6, padding: "2px 8px", fontSize: 10, cursor: "pointer", fontFamily: "inherit", color: polaroidMode ? P.goldWarm : P.textFaint, letterSpacing: ".04em" }}>{polaroidMode ? "\ud83d\udcf8 Polaroid" : "\u25a6 Grid"}</button>
             </div>
             {(cur.photos || []).length > 0 ? (<>
               {polaroidMode && cur.photos.length >= 3 && (
@@ -561,7 +561,7 @@ export default function DetailCard({
               {polaroidMode && cur.photos.length >= 3 && (
                 <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "0 0 10px", opacity: 0.35 }}>
                   <div style={{ flex: 1, height: 1, background: P.textFaint }} />
-                  <span style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", fontFamily: "inherit" }}>{cur.photos.length} photos</span>
+                  <span style={{ fontSize: 10, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", fontFamily: "inherit" }}>{cur.photos.length} photos</span>
                   <div style={{ flex: 1, height: 1, background: P.textFaint }} />
                 </div>
               )}
@@ -635,7 +635,7 @@ export default function DetailCard({
                     try {
                       await toggleReaction(worldId, cur.id, userId, rt.type);
                       loadAllWorldReactions(worldId).then(setWorldReactions).catch(() => {});
-                    } catch { showToast("Failed to react", "\u26a0\ufe0f", 2000); }
+                    } catch { showToast("Couldn't react", "\u26a0\ufe0f", 2000); }
                   }} style={{
                     padding: "3px 8px", borderRadius: 12, border: myReaction ? `1px solid ${P.rose}40` : `1px solid ${P.rose}15`,
                     background: myReaction ? `${P.rose}12` : "transparent", cursor: "pointer", fontSize: 11,
@@ -652,7 +652,7 @@ export default function DetailCard({
         {/* Comments — shared worlds only */}
         {isSharedWorld && (
           <div style={{ marginTop: 10, borderTop: `1px solid ${P.rose}10`, paddingTop: 8 }}>
-            <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 6 }}>
+            <div style={{ fontSize: 10, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 6 }}>
               Comments {entryComments.length > 0 && `(${entryComments.length})`}
             </div>
             {entryComments.map(c => (
@@ -660,13 +660,13 @@ export default function DetailCard({
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span style={{ fontSize: 9, fontWeight: 600, color: P.textMid }}>{c.user_name || "Someone"}</span>
                   <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                    <span style={{ fontSize: 7, color: P.textFaint }}>{new Date(c.created_at).toLocaleDateString()}</span>
+                    <span style={{ fontSize: 10, color: P.textFaint }}>{new Date(c.created_at).toLocaleDateString()}</span>
                     {c.user_id === userId && <button onClick={async () => {
                       try {
                         await deleteComment(c.id);
                         loadComments(worldId, cur.id).then(setEntryComments).catch(() => {});
-                      } catch { showToast("Failed to delete comment", "\u26a0\ufe0f", 2000); }
-                    }} style={{ background: "none", border: "none", fontSize: 8, color: P.textFaint, cursor: "pointer", padding: 0 }}>{"\u2715"}</button>}
+                      } catch { showToast("Couldn't delete comment", "\u26a0\ufe0f", 2000); }
+                    }} style={{ background: "none", border: "none", fontSize: 10, color: P.textFaint, cursor: "pointer", padding: 0 }}>{"\u2715"}</button>}
                   </div>
                 </div>
                 <p style={{ fontSize: 10, color: P.text, margin: "2px 0 0", lineHeight: 1.5 }}>{c.comment_text}</p>
@@ -679,10 +679,10 @@ export default function DetailCard({
                 setCommentText("");
                 addComment(worldId, cur.id, userId, userDisplayName, text)
                   .then(result => {
-                    if (!result) { showToast("Failed to post comment", "\u26a0\ufe0f", 2000); return; }
+                    if (!result) { showToast("Couldn't post comment", "\u26a0\ufe0f", 2000); return; }
                     loadComments(worldId, cur.id).then(setEntryComments).catch(() => {});
                   })
-                  .catch(() => showToast("Failed to post comment", "\u26a0\ufe0f", 2000));
+                  .catch(() => showToast("Couldn't post comment", "\u26a0\ufe0f", 2000));
               };
               return (
                 <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
@@ -708,7 +708,7 @@ export default function DetailCard({
                 style={{ background: "none", border: "none", fontSize: 9, color: prev ? P.textMid : P.textFaint, cursor: prev ? "pointer" : "default", fontFamily: "inherit", opacity: prev ? 1 : 0.3, padding: "2px 6px" }}>
                 {"\u25c2"} {prev ? prev.city : ""}
               </button>
-              <span style={{ fontSize: 7, color: P.textFaint }}>{idx + 1} / {sorted.length}</span>
+              <span style={{ fontSize: 10, color: P.textFaint }}>{idx + 1} / {sorted.length}</span>
               <button disabled={!next} onClick={() => { if (next) { onSelectEntry(next); setSliderDate(next.dateStart); flyTo(next.lat, next.lng); } }}
                 style={{ background: "none", border: "none", fontSize: 9, color: next ? P.textMid : P.textFaint, cursor: next ? "pointer" : "default", fontFamily: "inherit", opacity: next ? 1 : 0.3, padding: "2px 6px" }}>
                 {next ? next.city : ""} {"\u25b8"}
