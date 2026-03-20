@@ -1,3 +1,5 @@
+import useNotifications, { firePartnerNotification } from "./useNotifications.js";
+import { useCelebrations } from "./useCelebrations.js";
 import { usePlayStory } from "./usePlayStory.js";
 import { useToasts } from "./useToasts.js";
 import { reducer, getFirstBadges } from "./entryReducer.js";
@@ -1263,6 +1265,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     worldId: isSharedWorld ? worldId : undefined,
     onInsert: useCallback((entry) => {
       _dispatch({ type: 'ADD', entry, _skipSave: true });
+      if (entry.user_id !== userId) { const name = worldMembers.find(m => m.user_id === entry.user_id)?.display_name || "Someone"; firePartnerNotification(name, entry.city || "a new place"); }
       showToast(`New entry added: ${entry.city || 'somewhere new'}`, "✨", 4000);
       setNotifications(prev => [{ id: `n-${Date.now()}`, type: 'entry_added', message: `New entry: ${entry.city || 'somewhere new'}`, timestamp: new Date().toISOString(), entryId: entry.id, read: false }, ...prev].slice(0, 100));
     }, []),
@@ -1307,8 +1310,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const onboardKey = isSharedWorld ? `v3_cosmos_onboarded_${worldId}` : isMyWorld ? `v3_cosmos_onboarded_my_${userId}` : `v3_cosmos_onboarded_${userId}`;
   const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem(onboardKey));
   const [onboardStep, setOnboardStep] = useState(0);
-  const [showCelebration, setShowCelebration] = useState(false);
-  const [celebrationData, setCelebrationData] = useState(null); // { type: 'first'|'anniversary'|'milestone', message, sub }
   const [showPhotoJourney, setShowPhotoJourney] = useState(false);
   const [pjIndex, setPjIndex] = useState(0);
   const [pjAutoPlay, setPjAutoPlay] = useState(false);
@@ -1374,9 +1375,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   });
   const [showTrash, setShowTrash] = useState(false);
   const [confirmModal, setConfirmModal] = useState(null); // { message, onConfirm }
-  const [dismissOnThisDay, setDismissOnThisDay] = useState(false);
   // Reset On This Day dismissal when deselecting an entry
-  useEffect(() => { if (!selected) setDismissOnThisDay(false); }, [selected]);
   const [showTripJournal, setShowTripJournal] = useState(false);
   const [handwrittenMode, setHandwrittenMode] = useState(() => { try { return localStorage.getItem("cosmos_handwritten") === "1"; } catch { return false; } });
   const [linkedEntryId, setLinkedEntryId] = useState(null); // entry id being linked
@@ -1421,6 +1420,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   // Entries listed individually; stops shown inside each entry's detail card
 
   const togetherList = useMemo(() => sorted.filter(e => e.who === "both"), [sorted]);
+  const { showCelebration, celebrationData, setShowCelebration, setCelebrationData, onThisDayEntry, setOnThisDayEntry, onThisDay, dismissOnThisDay, setDismissOnThisDay, milestoneRef, isAnniversary } = useCelebrations({ introComplete, isPartnerWorld, config, sliderDate, worldId, userId, stats, data, TYPES, DEFAULT_TYPE, showToast });
+  const { showNotifPrompt, acceptNotifications, dismissNotifPrompt } = useNotifications({ entries: data.entries, worldId, introComplete });
   const { isPlaying, cinemaEntry, cinemaPhotoIdx, cinemaProgress, cinemaTotal, cinemaIdx, cinemaPhase, stopPlay, playStory, playRef, photoTimerRef } = usePlayStory({ sorted, togetherList, isPartnerWorld, flyTo, tSpinSpd, showToast, setSelected, setShowGallery: (v) => setShowGallery(v), setPhotoIdx: () => {}, setCardTab: () => {}, setSliderDate, tZm });
   const firstBadges = useMemo(() => isPartnerWorld ? getFirstBadges(data.entries) : {}, [data.entries, isPartnerWorld]);
   const memberNameMap = useMemo(() => Object.fromEntries(worldMembers.map(m => [m.user_id, m.display_name || "Member"])), [worldMembers]);
@@ -1450,180 +1451,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     });
     return { daysTog, countries: countries.size, trips: statList.length, totalMiles, photos: data.entries.reduce((s, e) => s + (e.photos || []).length, 0) };
   }, [data.entries, togetherList, sorted, isPartnerWorld]);
-
-  // Anniversary check
-  const isAnniversary = useMemo(() => {
-    if (!config.startDate) return false;
-    const sd = config.startDate.slice(5);
-    const today = sliderDate.slice(5);
-    return sd === today && sliderDate !== config.startDate;
-  }, [sliderDate, config.startDate]);
-
-  // Auto-trigger anniversary/milestone celebration (once per session per world)
-  useEffect(() => {
-    if (!introComplete || !isAnniversary || !isPartnerWorld) return;
-    const annivKey = `v2_anniv_${worldId || userId}_${todayStr()}`;
-    if (localStorage.getItem(annivKey)) return;
-    localStorage.setItem(annivKey, '1');
-    const years = Math.floor(daysBetween(config.startDate, todayStr()) / 365);
-    setCelebrationData({
-      type: 'anniversary',
-      message: years === 1 ? '1 Year Together' : `${years} Years Together`,
-      sub: `${stats.trips} adventures, ${stats.countries} countries, ${Math.round(stats.totalMiles).toLocaleString()} miles`,
-    });
-    setShowCelebration(true);
-    const t = setTimeout(() => setShowCelebration(false), 8000);
-    return () => clearTimeout(t);
-  }, [introComplete, isAnniversary, isPartnerWorld, config.startDate, worldId, userId, stats.trips, stats.countries, stats.totalMiles]);
-
-  // Milestone celebrations — celebrate round-number moments
-  const milestoneRef = useRef(null);
-  useEffect(() => {
-    if (!introComplete || data.entries.length < 2) return;
-    const n = data.entries.length;
-    const c = stats.countries;
-    const m = Math.round(stats.totalMiles);
-    const milestones = [
-      { check: n === 5, msg: "5 Adventures!", sub: "Your globe is coming alive", icon: "🎯" },
-      { check: n === 10, msg: "10 Adventures!", sub: "Double digits — you're on a roll", icon: "🌟" },
-      { check: n === 25, msg: "25 Adventures!", sub: "A seasoned traveler", icon: "✨" },
-      { check: n === 50, msg: "50 Adventures!", sub: "Half a century of adventures", icon: "👑" },
-      { check: n === 100, msg: "100 Adventures!", sub: "Your globe is legendary", icon: "💎" },
-      { check: c === 5, msg: "5 Countries!", sub: "Your world is expanding", icon: "🗺" },
-      { check: c === 10, msg: "10 Countries!", sub: "A true globetrotter", icon: "✈️" },
-      { check: c === 25, msg: "25 Countries!", sub: "World explorer status", icon: "🌐" },
-      { check: m >= 1000 && milestoneRef.current !== '1000mi', msg: "1,000 Miles!", sub: "Your adventures span a thousand miles", icon: "🛤" },
-      { check: m >= 10000 && milestoneRef.current !== '10000mi', msg: "10,000 Miles!", sub: "You've circled a good chunk of the Earth", icon: "🚀" },
-      { check: m >= 25000 && milestoneRef.current !== '25000mi', msg: "25,000 Miles!", sub: "Nearly around the world", icon: "🌎" },
-    ];
-    const hit = milestones.find(ms => ms.check);
-    if (!hit) return;
-    const key = `v2_milestone_${worldId || userId}_${hit.msg}`;
-    if (localStorage.getItem(key)) return;
-    localStorage.setItem(key, '1');
-    if (m >= 25000) milestoneRef.current = '25000mi';
-    else if (m >= 10000) milestoneRef.current = '10000mi';
-    else if (m >= 1000) milestoneRef.current = '1000mi';
-    setCelebrationData({ type: 'milestone', message: hit.msg, sub: hit.sub });
-    setShowCelebration(true);
-    const t = setTimeout(() => setShowCelebration(false), 5000);
-    return () => clearTimeout(t);
-  }, [introComplete, data.entries.length, stats.countries, stats.totalMiles, worldId, userId]);
-
-  // "On This Day" — surface memories from the same date in previous years
-  const [onThisDayEntry, setOnThisDayEntry] = useState(null);
-  useEffect(() => {
-    if (!introComplete || data.entries.length < 2) return;
-    const today = todayStr();
-    const md = today.slice(5); // "MM-DD"
-    const thisYear = today.slice(0, 4);
-    const matches = data.entries.filter(e => {
-      if (!e.dateStart) return false;
-      const eYear = e.dateStart.slice(0, 4);
-      if (eYear === thisYear) return false; // only past years
-      // Check if today falls within the entry's date range
-      const eMd = e.dateStart.slice(5);
-      if (eMd === md) return true;
-      if (e.dateEnd) {
-        const endMd = e.dateEnd.slice(5);
-        if (eMd <= md && endMd >= md) return true;
-      }
-      return false;
-    });
-    if (matches.length === 0) return;
-    const otdKey = `otd_${worldId || userId}_${today}`;
-    if (localStorage.getItem(otdKey)) return;
-    localStorage.setItem(otdKey, '1');
-    const pick = matches[Math.floor(Math.random() * matches.length)];
-    setOnThisDayEntry(pick);
-    const t = setTimeout(() => setOnThisDayEntry(null), 12000);
-    return () => clearTimeout(t);
-  }, [introComplete, data.entries, worldId, userId]);
-
-  // Positions on slider date
-  const getPositions = useCallback(date => {
-    let seth = null, rosie = null, tog = null;
-    for (let i = sorted.length - 1; i >= 0; i--) {
-      const e = sorted[i];
-      if (e.dateStart > date) continue;
-      if (e.dateEnd && e.dateEnd < date) continue;
-      if ((e.who === "seth" || e.who === "both") && !seth) { seth = { lat: e.lat, lng: e.lng, entry: e }; if (e.who === "both") tog = e; }
-      if ((e.who === "rosie" || e.who === "both") && !rosie) { rosie = { lat: e.lat, lng: e.lng, entry: e }; if (e.who === "both") tog = e; }
-      if (seth && rosie) break;
-    }
-    return { seth, rosie, together: tog };
-  }, [sorted]);
-
-  const pos = useMemo(() => getPositions(sliderDate), [sliderDate, getPositions]);
-  const areTogether = !!pos.together;
-  const dist = useMemo(() => {
-    if (areTogether) return 0;
-    if (pos.seth && pos.rosie) return haversine(pos.seth.lat, pos.seth.lng, pos.rosie.lat, pos.rosie.lng);
-    return null;
-  }, [pos, areTogether]);
-
-  // Next together entry (for countdown)
-  const nextTogether = useMemo(() => {
-    return togetherList.find(e => e.dateStart > todayStr());
-  }, [togetherList]);
-
-  // Together entry count
-  const togetherIndex = useCallback(id => {
-    const idx = togetherList.findIndex(e => e.id === id);
-    return idx >= 0 ? idx + 1 : null;
-  }, [togetherList]);
-
-  // ---- FOCUS TRAP (settings modal) ----
-  const settingsTrapRef = useFocusTrap(showSettings);
-
-  // ---- TOAST SYSTEM (queue/stack with undo support) ----
-
-  // ---- SAVE ERROR NOTIFICATION ----
-  useEffect(() => {
-    const handler = (e) => showToast(`Failed to save ${e.detail?.city || 'entry'} — check your connection`, '⚠️', 8000)
-    window.addEventListener('cosmos-save-error', handler)
-    return () => window.removeEventListener('cosmos-save-error', handler)
-  }, [showToast])
-
-  // ---- OFFLINE AWARENESS ----
-  const [isOffline, setIsOffline] = useState(!navigator.onLine);
-  useEffect(() => {
-    const goOffline = () => { setIsOffline(true); showToast("You're offline — changes won't save", "⚠️", 5000); };
-    const goOnline = () => { setIsOffline(false); showToast("Back online", "✅", 2000); };
-    window.addEventListener("offline", goOffline);
-    window.addEventListener("online", goOnline);
-    return () => { window.removeEventListener("offline", goOffline); window.removeEventListener("online", goOnline); };
-  }, [showToast]);
-
-  // ---- "ON THIS DAY" MEMORIES ----
-  const onThisDay = useMemo(() => {
-    const today = todayStr();
-    const md = today.slice(5); // "MM-DD"
-    return data.entries.filter(e => {
-      if (!e.dateStart) return false;
-      const eMd = e.dateStart.slice(5);
-      const eYear = parseInt(e.dateStart.slice(0, 4));
-      const thisYear = parseInt(today.slice(0, 4));
-      return eMd === md && eYear < thisYear;
-    }).map(e => ({
-      ...e,
-      yearsAgo: parseInt(today.slice(0, 4)) - parseInt(e.dateStart.slice(0, 4))
-    }));
-  }, [data.entries]);
-
-  // Show "On This Day" toast on load (once per session)
-  // Note: TYPES/DEFAULT_TYPE are stable per world session (derived from worldType prop)
-  const onThisDayShownRef = useRef(false);
-  useEffect(() => {
-    if (onThisDayShownRef.current) return;
-    if (onThisDay.length > 0 && introComplete) {
-      onThisDayShownRef.current = true;
-      const mem = onThisDay[0];
-      const label = mem.yearsAgo === 1 ? "1 year ago today" : `${mem.yearsAgo} years ago today`;
-      const icon = (TYPES[mem.type] || DEFAULT_TYPE).icon;
-      showToast(`${label}: ${mem.city} ${icon}`, "💫", 5000);
-    }
-  }, [onThisDay, introComplete, showToast]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- CONFIG LOAD ERROR NOTIFICATION ----
   useEffect(() => {
@@ -3163,6 +2990,14 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       />}
 
       {/* TOAST NOTIFICATIONS (stacked) */}
+      {/* Notification permission prompt */}
+      {showNotifPrompt && (
+        <div style={{ position: "fixed", bottom: 20, left: "50%", transform: "translateX(-50%)", zIndex: 50, display: "flex", alignItems: "center", gap: 12, padding: "12px 20px", borderRadius: 14, background: "rgba(20,18,28,0.95)", backdropFilter: "blur(12px)", border: "1px solid rgba(200,170,110,0.15)", boxShadow: "0 4px 24px rgba(0,0,0,0.3)", fontSize: 13, color: "#e8e0d0", fontFamily: "inherit" }}>
+          <span>🔔 Get reminders of your memories?</span>
+          <button onClick={dismissNotifPrompt} style={{ background: "none", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "6px 12px", color: "rgba(232,224,208,0.5)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Not now</button>
+          <button onClick={acceptNotifications} style={{ background: "rgba(200,170,110,0.15)", border: "1px solid rgba(200,170,110,0.3)", borderRadius: 8, padding: "6px 12px", color: "#c9a96e", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>Yes, remind me</button>
+        </div>
+      )}
       <div aria-live="polite" role="status" style={{ position: "absolute", bottom: 120, left: "50%", transform: "translateX(-50%)", zIndex: 55, display: toasts.length > 0 ? "flex" : "none", flexDirection: "column-reverse", gap: 6, alignItems: "center", maxHeight: "30vh", overflow: "hidden", maxWidth: "90vw" }}>
           {toasts.map((t, i) => (
             <div key={t.key} style={{ pointerEvents: t.undoAction ? "auto" : "none", animation: t.exiting ? undefined : "fadeIn .3s ease", opacity: t.exiting ? 0 : (i < toasts.length - 1 ? 0.7 : 1), transform: `scale(${t.exiting ? 0.9 : (i < toasts.length - 1 ? 0.95 : 1)})${t.exiting ? " translateY(8px)" : ""}`, transition: "opacity .3s, transform .3s" }}>
