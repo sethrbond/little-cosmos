@@ -131,13 +131,13 @@ export default function NotificationCenter({
         role="dialog"
         aria-label="Notifications"
         style={{
-          position: "absolute", top: "calc(100% + 8px)", right: 0,
+          position: "absolute", bottom: "calc(100% + 8px)", left: 0,
           width: 320, maxHeight: 420,
           background: bg, backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
           borderRadius: 14, border: `1px solid ${accent}20`,
           boxShadow: "0 8px 32px rgba(0,0,0,0.45)",
           opacity: open ? 1 : 0,
-          transform: open ? "translateY(0) scale(1)" : "translateY(-8px) scale(0.97)",
+          transform: open ? "translateY(0) scale(1)" : "translateY(8px) scale(0.97)",
           pointerEvents: open ? "auto" : "none",
           transition: "opacity 0.2s ease, transform 0.2s ease",
           zIndex: 9999, overflow: "hidden",
