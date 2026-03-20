@@ -39,12 +39,13 @@ export default function WorldToolbar({
   // Category button style
   const catBtn = (cat, icon, label) => (
     <button onClick={() => toggle(cat)} style={{
-      padding: "6px 12px", borderRadius: 10, fontSize: 11, cursor: "pointer",
-      fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5,
-      background: menuOpen === cat ? `${P.rose || '#c9a96e'}15` : "transparent",
-      border: `1px solid ${menuOpen === cat ? (P.rose || '#c9a96e') + '30' : (P.textFaint || '#888') + '15'}`,
-      color: menuOpen === cat ? (P.rose || '#c9a96e') : (P.textMid || '#aaa'),
+      padding: "8px 14px", borderRadius: 12, fontSize: 12, cursor: "pointer",
+      fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6, fontWeight: 500,
+      background: P.glass || "rgba(255,255,255,0.08)",
+      border: menuOpen === cat ? `2px solid ${P.rose || '#c9a96e'}` : `1px solid ${(P.textFaint || '#888')}30`,
+      color: menuOpen === cat ? (P.rose || '#c9a96e') : (P.text || '#e8e0d0'),
       transition: "all .2s", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
+      boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
     }}>{icon} {label}</button>
   );
 
