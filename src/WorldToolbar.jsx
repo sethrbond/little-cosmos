@@ -44,7 +44,7 @@ export default function WorldToolbar({
       background: menuOpen === cat ? `${P.rose || '#c9a96e'}15` : "transparent",
       border: `1px solid ${menuOpen === cat ? (P.rose || '#c9a96e') + '30' : (P.textFaint || '#888') + '15'}`,
       color: menuOpen === cat ? (P.rose || '#c9a96e') : (P.textMid || '#aaa'),
-      transition: "all .2s",
+      transition: "all .2s", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
     }}>{icon} {label}</button>
   );
 
