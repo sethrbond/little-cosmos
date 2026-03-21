@@ -12,6 +12,9 @@ const CinematicOnboarding = lazy(() => import('./CinematicOnboarding.jsx'))
 import { getAllWelcomeLetters, markLetterRead } from './supabaseWelcomeLetters.js'
 import { loadMyWorlds, loadMyWorldSubtitle, acceptInvite, getInviteInfo, getPendingWorldInvites, getPendingWorldInvitesForLetter, ensurePersonalWorld, clearWorldCaches } from './supabaseWorlds.js'
 import { getPendingRequests, getMyConnections } from './supabaseConnections.js'
+import { useRealtimePresence } from "./useRealtimeSync.js"
+const NotificationPrompt = lazy(() => import("./NotificationPrompt.jsx"))
+const ReunionToast = lazy(() => import("./ReunionToast.jsx"))
 
 // Bump this to reset all onboarding/tour flags for every user
 const ONBOARD_VERSION = 'v3'
@@ -243,6 +246,15 @@ function AppInner() {
 
   // Check for welcome letter on login
   useEffect(() => {
+
+  // Presence tracking for reunion detection
+  const isPartnerWorld = activeWorldType === "our" || activeWorldType === "partner"
+  const { onlineUsers } = useRealtimePresence({
+    worldId: isPartnerWorld ? activeWorldId : undefined,
+    userId,
+    displayName: userDisplayName || "Traveler",
+    enabled: isPartnerWorld && !!activeWorldId,
+  })
     if (!user?.email) { setLetterChecked(true); return }
     getAllWelcomeLetters(user.email).then(letters => {
       setWelcomeLetters(letters)
@@ -589,6 +601,12 @@ function AppInner() {
       <Suspense fallback={<LoadingScreen />}>
         {content}
       </Suspense>
+      {activeWorldId && userId && (
+        <Suspense fallback={null}>
+          <NotificationPrompt supabase={supabase} worldId={activeWorldId} />
+          <ReunionToast onlineUsers={onlineUsers} worldId={activeWorldId} userId={userId} isPartnerWorld={isPartnerWorld} />
+        </Suspense>
+      )}
       {transitioning && (
         <div aria-hidden="true" style={{
           position: 'fixed', inset: 0, zIndex: 9999, pointerEvents: 'none',

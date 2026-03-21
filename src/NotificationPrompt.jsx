@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { subscribeToPush } from "./pushSubscription.js";
 
 const PERM_KEY = "cosmos_notif_permission";
 const ASKED_KEY = "cosmos_notif_asked";
@@ -69,7 +68,7 @@ export default function NotificationPrompt({ supabase, worldId, userId }) {
     localStorage.setItem(PERM_KEY, result);
     localStorage.setItem(ASKED_KEY, "1");
     if (result === "granted" && userId) {
-      subscribeToPush(userId).catch(() => {});
+      
     }
     setShow(false);
   }, [userId]);
