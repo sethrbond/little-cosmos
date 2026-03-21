@@ -12,6 +12,9 @@ const CinematicOnboarding = lazy(() => import('./CinematicOnboarding.jsx'))
 import { getAllWelcomeLetters, markLetterRead } from './supabaseWelcomeLetters.js'
 import { loadMyWorlds, loadMyWorldSubtitle, acceptInvite, getInviteInfo, getPendingWorldInvites, getPendingWorldInvitesForLetter, ensurePersonalWorld, clearWorldCaches } from './supabaseWorlds.js'
 import { getPendingRequests, getMyConnections } from './supabaseConnections.js'
+import { useRealtimePresence } from './useRealtimeSync.js'
+const NotificationPrompt = lazy(() => import('./NotificationPrompt.jsx'))
+const ReunionToast = lazy(() => import('./ReunionToast.jsx'))
 
 // Bump this to reset all onboarding/tour flags for every user
 const ONBOARD_VERSION = 'v3'
@@ -38,6 +41,10 @@ function LoadingScreen() {
 }
 
 class ScreenErrorBoundary extends Component {
+  static getDerivedStateFromProps(props, state) {
+    if (state.error && state._key !== props.resetKey) return { error: null, _key: props.resetKey };
+    return { _key: props.resetKey };
+  }
   state = { error: null }
   static getDerivedStateFromError(error) { return { error } }
   componentDidCatch(err, info) { console.error('[ScreenErrorBoundary]', err, info) }
@@ -240,6 +247,14 @@ function AppInner() {
 
   // User's display name from auth metadata
   const userDisplayName = user?.user_metadata?.display_name || ''
+
+  const isPartnerWorld = activeWorldType === "our" || activeWorldType === "partner"
+  const { onlineUsers } = useRealtimePresence({
+    worldId: isPartnerWorld && userId ? activeWorldId : undefined,
+    userId: userId || undefined,
+    displayName: userDisplayName || "Traveler",
+    enabled: isPartnerWorld && !!activeWorldId && !!userId,
+  })
 
   // Check for welcome letter on login
   useEffect(() => {
@@ -529,7 +544,7 @@ function AppInner() {
   } else if (showCinematic) {
     // Cinematic onboarding for brand-new users — lands on cosmos screen after
     content = (
-      <ScreenErrorBoundary>
+      <ScreenErrorBoundary resetKey={worldMode || 'cosmos'}>
         <CinematicOnboarding
           userId={userId}
           personalWorldId={personalWorldId}
@@ -543,7 +558,7 @@ function AppInner() {
   } else if (!worldMode) {
     content = (
       <>
-        <ScreenErrorBoundary>
+        <ScreenErrorBoundary resetKey={worldMode || 'cosmos'}>
           <WorldSelector
             onSelect={selectWorld}
             onSignOut={handleSignOut}

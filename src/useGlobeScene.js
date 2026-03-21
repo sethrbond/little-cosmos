@@ -745,6 +745,7 @@ export function useGlobeScene(mountRef, deps) {
         }
       });
       if (el.contains(rend.domElement)) el.removeChild(rend.domElement);
+      rend.forceContextLoss();
       rend.dispose();
       // Null out all refs so no stale references to disposed objects remain
       rendRef.current = null;
