@@ -820,16 +820,22 @@ const COAST_DATA = [
 class OurWorldErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { hasError: false, error: null }; }
   static getDerivedStateFromError(error) { return { hasError: true, error }; }
+  static getDerivedStateFromProps(props, state) {
+    // Reset error state when world changes (e.g. switching between worlds)
+    if (state.hasError && state._worldId !== props.children?.props?.worldId) {
+      return { hasError: false, error: null, _worldId: props.children?.props?.worldId };
+    }
+    return { _worldId: props.children?.props?.worldId };
+  }
   componentDidCatch(err, info) { console.error("OurWorld error:", err, info); }
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ width: "100%", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#faf8f4", fontFamily: "Georgia,serif", textAlign: "center", padding: 40 }}>
+        <div style={{ width: "100%", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0c0a12", fontFamily: '"Palatino Linotype", Georgia, serif', textAlign: "center", padding: 40 }}>
           <div>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>🌍</div>
-            <h2 style={{ fontSize: 18, fontWeight: 400, color: "#3d3552", marginBottom: 8 }}>Something went wrong</h2>
+            <h2 style={{ fontSize: 18, fontWeight: 400, color: "#e8e0d0", marginBottom: 8 }}>Something went wrong</h2>
             <p style={{ fontSize: 12, color: "#958ba8", marginBottom: 16 }}>Your data is safe — try refreshing the page.</p>
-            <button onClick={() => window.location.reload()} style={{ padding: "8px 24px", background: "#d4a0b9", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 12, fontFamily: "inherit" }}>Refresh</button>
+            <button onClick={() => window.location.reload()} style={{ padding: "8px 24px", background: "rgba(200,170,110,0.15)", border: "1px solid rgba(200,170,110,0.3)", color: "#e8e0d0", borderRadius: 8, cursor: "pointer", fontSize: 12, fontFamily: "inherit" }}>Refresh</button>
             <p style={{ fontSize: 9, color: "#c4bbd4", marginTop: 12 }}>{String(this.state.error)}</p>
           </div>
         </div>

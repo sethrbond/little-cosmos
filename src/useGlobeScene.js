@@ -746,6 +746,19 @@ export function useGlobeScene(mountRef, deps) {
       });
       if (el.contains(rend.domElement)) el.removeChild(rend.domElement);
       rend.dispose();
+      // Null out all refs so no stale references to disposed objects remain
+      rendRef.current = null;
+      scnRef.current = null;
+      camRef.current = null;
+      globeRef.current = null;
+      heartRef.current = null;
+      glowLayersRef.current = [];
+      particlesRef.current = null;
+      particles2Ref.current = null;
+      starsRef.current = null;
+      shootingStarsRef.current = [];
+      auroraRef.current = null;
+      nightShadowRef.current = null;
       // Clear symbol texture cache
       Object.keys(_symbolCache).forEach(k => { if (_symbolCache[k]?.dispose) _symbolCache[k].dispose(); delete _symbolCache[k]; });
     };

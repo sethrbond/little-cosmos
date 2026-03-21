@@ -276,8 +276,11 @@ export function useRealtimePresence({
       config: { presence: { key: userId } },
     })
 
+    let destroyed = false
+
     channel
       .on('presence', { event: 'sync' }, () => {
+        if (destroyed) return
         const state = channel.presenceState()
         if (!state) return
         const users = []
@@ -296,23 +299,30 @@ export function useRealtimePresence({
         setOnlineUsers(users)
       })
       .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await channel.track({
-            user_id: userId,
-            name: displayName || 'Traveler',
-            online_at: new Date().toISOString(),
-          })
+        if (status === 'SUBSCRIBED' && !destroyed) {
+          try {
+            await channel.track({
+              user_id: userId,
+              name: displayName || 'Traveler',
+              online_at: new Date().toISOString(),
+            })
+          } catch (err) {
+            // Channel may have been removed during track() — safe to ignore
+            if (!destroyed) console.warn('[presence] track error:', err)
+          }
         }
       })
 
     channelRef.current = channel
 
     return () => {
+      destroyed = true
       if (channelRef.current) {
-        channelRef.current.untrack()
+        channelRef.current.untrack().catch(() => {})
         supabase.removeChannel(channelRef.current)
         channelRef.current = null
       }
+      setOnlineUsers([])
     }
   }, [worldId, userId, displayName, enabled])
 
