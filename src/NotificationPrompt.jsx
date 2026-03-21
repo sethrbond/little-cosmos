@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { subscribeToPush } from "./pushSubscription.js";
 
 const PERM_KEY = "cosmos_notif_permission";
 const ASKED_KEY = "cosmos_notif_asked";
@@ -6,14 +7,9 @@ const FONT = "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif";
 
 /**
  * Self-contained notification permission prompt.
- * Rendered from App.jsx. Receives supabase client as prop to avoid
- * importing supabaseClient.js (which would cause Rollup to re-chunk
- * OurWorld and trigger TDZ).
- *
- * CRITICAL: This file must NOT import from supabaseClient.js, supabase.js,
- * useRealtimeSync.js, or any module that OurWorld.jsx also imports.
+ * Rendered from App.jsx — queries entry count via Supabase, no OurWorld dependency.
  */
-export default function NotificationPrompt({ supabase, worldId }) {
+export default function NotificationPrompt({ supabase, worldId, userId }) {
   const [show, setShow] = useState(false);
 
   // Check entry count and whether to show prompt
@@ -72,8 +68,11 @@ export default function NotificationPrompt({ supabase, worldId }) {
     const result = await Notification.requestPermission();
     localStorage.setItem(PERM_KEY, result);
     localStorage.setItem(ASKED_KEY, "1");
+    if (result === "granted" && userId) {
+      subscribeToPush(userId).catch(() => {});
+    }
     setShow(false);
-  }, []);
+  }, [userId]);
 
   const dismiss = useCallback(() => {
     localStorage.setItem(ASKED_KEY, "1");
@@ -90,7 +89,7 @@ export default function NotificationPrompt({ supabase, worldId }) {
       padding: "14px 16px", boxShadow: "0 4px 24px rgba(0,0,0,.25)",
       animation: "cosmosToastIn .5s ease both", fontFamily: FONT,
     }}>
-      <button onClick={dismiss} style={{ position: "absolute", top: 8, right: 10, background: "none", border: "none", color: "rgba(200,170,110,0.4)", cursor: "pointer", fontSize: 14, padding: "2px 4px", lineHeight: 1, fontFamily: "inherit" }} aria-label="Dismiss">{"\u00D7"}</button>
+      <button onClick={dismiss} style={{ position: "absolute", top: 8, right: 10, background: "none", border: "none", color: "rgba(200,170,110,0.4)", cursor: "pointer", fontSize: 14, padding: "2px 4px", lineHeight: 1, fontFamily: "inherit" }} aria-label="Dismiss">×</button>
       <div style={{ fontSize: 10, fontVariant: "all-small-caps", letterSpacing: ".12em", color: "rgba(200,170,110,0.8)", marginBottom: 6 }}>
         {"\uD83D\uDD14"} Memory Notifications
       </div>
