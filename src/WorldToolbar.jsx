@@ -1,9 +1,67 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { TBtn } from "./uiPrimitives.jsx";
 import { hasDraft, getDraftSummary } from "./formUtils.jsx";
 import { getP } from "./cosmosGetP.js";
 import SyncIndicator from "./SyncIndicator.jsx";
 import NotificationCenter from "./NotificationCenter.jsx";
+
+/* ---- Category button with hover state ---- */
+function CatBtn({ cat, icon, label, isOpen, onToggle, P }) {
+  const [hov, setHov] = useState(false);
+  const active = isOpen;
+  return (
+    <button
+      onClick={() => onToggle(cat)}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      onTouchStart={e => { e.currentTarget.style.opacity = '0.6'; setTimeout(() => { if (e.currentTarget) e.currentTarget.style.opacity = '1'; }, 150); }}
+      aria-label={`${label} menu`}
+      aria-expanded={active}
+      style={{
+        width: 44, height: 44, borderRadius: 12,
+        padding: 0, cursor: "pointer",
+        fontFamily: "inherit",
+        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1,
+        background: active ? (P.card || "rgba(252,249,246,0.96)") : (P.glass || "rgba(248,244,240,0.92)"),
+        border: `1px solid ${active ? (P.rose || '#c48aa8') + "50" : (P.textFaint || '#b8aec8') + "20"}`,
+        color: active ? (P.rose || '#c48aa8') : (P.text || '#2e2440'),
+        backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
+        transition: "all .3s ease",
+        boxShadow: hov
+          ? `0 4px 16px ${(P.text || '#2e2440')}12, 0 1px 3px ${(P.text || '#2e2440')}08`
+          : `0 1px 4px ${(P.text || '#2e2440')}06`,
+        transform: hov ? "translateY(-1px)" : "none",
+      }}
+    >
+      <span style={{ fontSize: 14, lineHeight: 1 }}>{icon}</span>
+      <span style={{ fontSize: 8, fontWeight: 600, letterSpacing: ".04em", lineHeight: 1, opacity: 0.7 }}>{label}</span>
+    </button>
+  );
+}
+
+/* ---- Flyout panel for category sub-items ---- */
+function CatFlyout({ items, onSelect, P }) {
+  return (
+    <div style={{
+      display: "flex", flexWrap: "wrap", gap: 4,
+      background: P.card || "rgba(252,249,246,0.96)",
+      backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
+      border: `1px solid ${(P.textFaint || '#b8aec8')}20`,
+      borderRadius: 12, padding: "6px 8px",
+      animation: "fadeIn .15s ease",
+      boxShadow: `0 4px 20px ${(P.text || '#2e2440')}10, 0 1px 4px ${(P.text || '#2e2440')}06`,
+    }}>
+      {items.map((item, i) => (
+        <TBtn key={i} a={item.a} onClick={() => { item.onClick(); onSelect(); }} tip={item.tip}>{item.icon}</TBtn>
+      ))}
+    </div>
+  );
+}
+
+/* ---- Thin separator line ---- */
+function ToolbarSep({ P }) {
+  return <div style={{ width: 28, height: 1, background: (P.textFaint || '#b8aec8') + "18", margin: "2px auto", borderRadius: 1 }} />;
+}
 
 export default function WorldToolbar({
   worldId, worldMode, isViewer, isSharedWorld, isPartnerWorld, isMyWorld,
@@ -25,6 +83,15 @@ export default function WorldToolbar({
 }) {
   const P = getP();
   const [menuOpen, setMenuOpen] = useState(null); // null | "explore" | "photos" | "play" | "tools"
+  const toolbarRef = useRef(null);
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handler = e => { if (toolbarRef.current && !toolbarRef.current.contains(e.target)) setMenuOpen(null); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [menuOpen]);
 
   const draftKeyAdd = `cosmos-draft-add-${worldId || worldMode}`;
   const draftKeyQuick = `cosmos-draft-quick-${worldId || worldMode}`;
@@ -35,21 +102,9 @@ export default function WorldToolbar({
   })();
 
   const toggle = (cat) => setMenuOpen(v => v === cat ? null : cat);
+  const closeMenu = () => setMenuOpen(null);
 
-  // Category button style
-  const catBtn = (cat, icon, label) => (
-    <button onClick={() => toggle(cat)} style={{
-      padding: "8px 14px", borderRadius: 12, fontSize: 12, cursor: "pointer",
-      fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6, fontWeight: 500,
-      background: P.glass || "rgba(255,255,255,0.08)",
-      border: menuOpen === cat ? `2px solid ${P.rose || '#c9a96e'}` : `1px solid ${(P.textFaint || '#888')}30`,
-      color: menuOpen === cat ? (P.rose || '#c9a96e') : (P.text || '#e8e0d0'),
-      transition: "all .2s", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
-      boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
-    }}>{icon} {label}</button>
-  );
-
-  // Horizontal menu items
+  // Menu items
   const menuItems = {
     explore: [
       !isViewer && { icon: "⚡", tip: "Quick Add", onClick: onQuickAdd },
@@ -85,51 +140,46 @@ export default function WorldToolbar({
     ].filter(Boolean),
   };
 
-  const activeItems = menuOpen ? menuItems[menuOpen] : [];
-
   return (
-    <div role="toolbar" aria-label="World tools" style={{ position: "absolute", top: 22, left: 22, zIndex: 20, display: "flex", flexDirection: "column", gap: 7, opacity: introComplete ? 1 : 0, transition: "opacity .8s ease" }}>
+    <div ref={toolbarRef} role="toolbar" aria-label="World tools" style={{
+      position: "absolute", top: 22, left: 22, zIndex: 20,
+      display: "flex", flexDirection: "column", gap: 6,
+      opacity: introComplete ? 1 : 0, transition: "opacity .8s ease",
+    }}>
 
+      {/* Primary actions */}
       {!isViewer && <TBtn onClick={onAdd} accent tip="Add Entry">＋</TBtn>}
       {!isViewer && <TBtn onClick={onSettings} tip="Settings">⚙️</TBtn>}
 
       {hasDraftEntry && (
         <TBtn onClick={onResumeDraft} tip={draftTip}>
-          <span style={{ position: "relative" }}>📝<span style={{ position: "absolute", top: -4, right: -6, width: 7, height: 7, borderRadius: "50%", background: "#c9a96e", border: "1.5px solid rgba(255,255,255,.9)", animation: "pulse 2s infinite" }} /></span>
+          <span style={{ position: "relative" }}>📝<span style={{ position: "absolute", top: -4, right: -6, width: 7, height: 7, borderRadius: "50%", background: P.gold || "#c8a060", border: "1.5px solid rgba(255,255,255,.9)", animation: "pulse 2s infinite" }} /></span>
         </TBtn>
       )}
 
-      {/* Category buttons — expand items to the right */}
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-          {catBtn("explore", "🔍", "Explore")}
-          {menuOpen === "explore" && <div style={{ display: "flex", flexWrap: "wrap", gap: 4, background: 'rgba(30,26,42,0.97)', backdropFilter: "blur(16px)", border: "1px solid rgba(232,224,208,0.2)", borderRadius: 12, padding: "6px 8px", animation: "fadeIn .15s ease" }}>
-            {menuItems.explore.map((item, i) => <TBtn key={i} a={item.a} onClick={() => { item.onClick(); setMenuOpen(null); }} tip={item.tip}>{item.icon}</TBtn>)}
-          </div>}
-        </div>
-      )}
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-          {catBtn("photos", "📸", "Photos")}
-          {menuOpen === "photos" && <div style={{ display: "flex", flexWrap: "wrap", gap: 4, background: 'rgba(30,26,42,0.97)', backdropFilter: "blur(16px)", border: "1px solid rgba(232,224,208,0.2)", borderRadius: 12, padding: "6px 8px", animation: "fadeIn .15s ease" }}>
-            {menuItems.photos.map((item, i) => <TBtn key={i} a={item.a} onClick={() => { item.onClick(); setMenuOpen(null); }} tip={item.tip}>{item.icon}</TBtn>)}
-          </div>}
-        </div>
-      )}
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-          {catBtn("play", "▶", "Play")}
-          {menuOpen === "play" && <div style={{ display: "flex", flexWrap: "wrap", gap: 4, background: 'rgba(30,26,42,0.97)', backdropFilter: "blur(16px)", border: "1px solid rgba(232,224,208,0.2)", borderRadius: 12, padding: "6px 8px", animation: "fadeIn .15s ease" }}>
-            {menuItems.play.map((item, i) => <TBtn key={i} a={item.a} onClick={() => { item.onClick(); setMenuOpen(null); }} tip={item.tip}>{item.icon}</TBtn>)}
-          </div>}
-        </div>
-      )}
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-        {catBtn("tools", "🔧", "Tools")}
-        {menuOpen === "tools" && <div style={{ display: "flex", flexWrap: "wrap", gap: 4, background: 'rgba(30,26,42,0.97)', backdropFilter: "blur(16px)", border: "1px solid rgba(232,224,208,0.2)", borderRadius: 12, padding: "6px 8px", animation: "fadeIn .15s ease" }}>
-          {menuItems.tools.map((item, i) => <TBtn key={i} a={item.a} onClick={() => { item.onClick(); setMenuOpen(null); }} tip={item.tip}>{item.icon}</TBtn>)}
-        </div>}
+      <ToolbarSep P={P} />
+
+      {/* Category buttons with flyout panels */}
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+        <CatBtn cat="explore" icon="🔍" label="Explore" isOpen={menuOpen === "explore"} onToggle={toggle} P={P} />
+        {menuOpen === "explore" && <CatFlyout items={menuItems.explore} onSelect={closeMenu} P={P} />}
+      </div>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+        <CatBtn cat="photos" icon="📸" label="Photos" isOpen={menuOpen === "photos"} onToggle={toggle} P={P} />
+        {menuOpen === "photos" && <CatFlyout items={menuItems.photos} onSelect={closeMenu} P={P} />}
+      </div>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+        <CatBtn cat="play" icon="▶" label="Play" isOpen={menuOpen === "play"} onToggle={toggle} P={P} />
+        {menuOpen === "play" && <CatFlyout items={menuItems.play} onSelect={closeMenu} P={P} />}
+      </div>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+        <CatBtn cat="tools" icon="🔧" label="Tools" isOpen={menuOpen === "tools"} onToggle={toggle} P={P} />
+        {menuOpen === "tools" && <CatFlyout items={menuItems.tools} onSelect={closeMenu} P={P} />}
       </div>
 
+      <ToolbarSep P={P} />
 
-
+      {/* Utility buttons */}
       {isSharedWorld && <NotificationCenter notifications={notifications} palette={P} onDismiss={onDismissNotification} onDismissAll={onDismissAllNotifications} onClickNotification={onClickNotification} />}
       {onSwitchWorld && <TBtn onClick={onSwitchWorld} tip="Switch World">🔄</TBtn>}
       <SyncIndicator {...syncProps} style={{ margin: '4px auto' }} />
