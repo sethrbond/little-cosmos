@@ -1090,6 +1090,11 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const ambientRef = useRef(null);
   const [ambientPlaying, setAmbientPlaying] = useState(false);
 
+  // Mutable container for flyTo — breaks circular dependency between
+  // usePlayStory → flyTo → useGlobeInteraction → locationGroups → useGlobeMarkers → isPlaying → usePlayStory
+  // Filled after useGlobeInteraction runs; safe because consumers only call it from callbacks/effects (after render).
+  const _flyTo = useRef(null);
+
   const dragR = useRef(false);
   const prevR = useRef({ x: 0, y: 0 });
   const rot = useRef({ x: 0.25, y: -1.8 });
@@ -1122,6 +1127,118 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     const t = setTimeout(() => { if (musicRef.current) musicRef.current.play().catch(() => {}); }, 600);
     return () => clearTimeout(t);
   }, [selected?.id, selected?.musicUrl]);
+
+  // zoom tracked via zmR ref (used in animation loop directly)
+  const [ready, setReady] = useState(false);
+  const [introComplete, setIntroComplete] = useState(false);
+  const onboardKey = isSharedWorld ? `v3_cosmos_onboarded_${worldId}` : isMyWorld ? `v3_cosmos_onboarded_my_${userId}` : `v3_cosmos_onboarded_${userId}`;
+  const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem(onboardKey));
+  const [onboardStep, setOnboardStep] = useState(0);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [celebrationData, setCelebrationData] = useState(null); // { type: 'first'|'anniversary'|'milestone', message, sub }
+  const [showPhotoJourney, setShowPhotoJourney] = useState(false);
+  const [pjIndex, setPjIndex] = useState(0);
+  const [pjAutoPlay, setPjAutoPlay] = useState(false);
+  const [showAdd, setShowAdd] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const { toasts, showToast, dismissToast, handleUndo } = useToasts();
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIdx, setLightboxIdx] = useState(0);
+  const [showLetter, setShowLetter] = useState(null); // letter id to show, or null
+  const [editLetter, setEditLetter] = useState(false); // show letter editor
+  const [letterDraft, setLetterDraft] = useState("");
+  const [letterEditId, setLetterEditId] = useState(null); // null = new letter
+  const [letterCity, setLetterCity] = useState("");
+  const [letterCitySugg, setLetterCitySugg] = useState([]);
+  const [letterLat, setLetterLat] = useState("");
+  const [letterLng, setLetterLng] = useState("");
+  const [showSettings, setShowSettings] = useState(false);
+  const [wlEmail, setWlEmail] = useState("");
+  const [wlText, setWlText] = useState("");
+  const [wlSending, setWlSending] = useState(false);
+  const [wlSent, setWlSent] = useState(false);
+  const [myLetters, setMyLetters] = useState([]);
+  const [worldMembers, setWorldMembers] = useState([]);
+  const [sliderDate, setSliderDate] = useState(todayStr());
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [showGallery, setShowGallery] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 });
+  const uploadLockRef = useRef(Promise.resolve()); // sequential photo upload queue
+  const [markerFilter, setMarkerFilter] = useState("all"); // "all", "together", "special", "home-seth", "home-rosie", "seth-solo", "rosie-solo"
+  const [listRenderLimit, setListRenderLimit] = useState(100);
+  const [showFilter, setShowFilter] = useState(false);
+  const [showStats, setShowStats] = useState(false);
+  const [showRecap, setShowRecap] = useState(false);
+  const [recapYear, setRecapYear] = useState(null);
+  const [recapIdx, setRecapIdx] = useState(0);
+  const [showSearch, setShowSearch] = useState(false);
+  const [showLoveThread, setShowLoveThread] = useState(false);
+  const [showConstellation, setShowConstellation] = useState(false);
+  const [showRoutes, setShowRoutes] = useState(false);
+  const [showDreams, setShowDreams] = useState(false);
+  const [locationList, setLocationList] = useState(null); // for multi-entry popup
+  // Comments & Reactions (shared/viewer worlds)
+  const [entryComments, setEntryComments] = useState([]);
+  const [worldReactions, setWorldReactions] = useState([]);
+  const [showZoomHint, setShowZoomHint] = useState(true);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  // Share entry to another world
+  const [shareWorlds, setShareWorlds] = useState(null); // loaded on first open
+  const [monthlyPromptShown, setMonthlyPromptShown] = useState(false);
+  const [quickAddMode, setQuickAddMode] = useState(false);
+  const [showPhotoMap, setShowPhotoMap] = useState(false);
+  const [showMilestones, setShowMilestones] = useState(false);
+  const [showTravelStats, setShowTravelStats] = useState(false);
+  const [showExportHub, setShowExportHub] = useState(false);
+  const [tripCardEntry, setTripCardEntry] = useState(null);
+  const [showYearReview, setShowYearReview] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [recentlyDeleted, setRecentlyDeleted] = useState(() => {
+    try { const raw = localStorage.getItem(`cosmos_trash_${worldId || worldMode}`); return raw ? JSON.parse(raw).filter(t => Date.now() - t.deletedAt < 30 * 24 * 60 * 60 * 1000) : []; } catch { return []; }
+  });
+  const [showTrash, setShowTrash] = useState(false);
+  const [confirmModal, setConfirmModal] = useState(null); // { message, onConfirm }
+  const [dismissOnThisDay, setDismissOnThisDay] = useState(false);
+  // Reset On This Day dismissal when deselecting an entry
+  useEffect(() => { if (!selected) setDismissOnThisDay(false); }, [selected]);
+  const [showTripJournal, setShowTripJournal] = useState(false);
+  const [handwrittenMode, setHandwrittenMode] = useState(() => { try { return localStorage.getItem("cosmos_handwritten") === "1"; } catch { return false; } });
+  const [linkedEntryId, setLinkedEntryId] = useState(null); // entry id being linked
+  const [showLinkPicker, setShowLinkPicker] = useState(false);
+  const loveThreadRef = useRef([]);
+  const constellationRef = useRef([]);
+  const routesRef = useRef([]);
+  const pulseRingsRef = useRef([]);
+  const atmosphereRef = useRef({ targetHue: null, intensity: 0, particleBoost: 0 });
+  const searchMatchIdsRef = useRef(new Set());
+  const hoverThrottleRef = useRef(0);
+  const longPressRef = useRef(null); // timer for touch long-press tooltip
+  const cometRef = useRef(null); // active comet animation
+  const prevEntryCountRef = useRef(0);
+  const mouseRef = useRef({ x: 0, y: 0 });
+
+  // Theme colors (always light mode)
+  const lastTapRef = useRef(0); // for double-tap to zoom
+  const animRef = useRef(null);
+  const surpriseTimers = useRef([]);
+
+  const RAD = 1; const MIN_Z = 1.15; const MAX_Z = 6;
+
+  // ---- THREE SETUP (extracted to useGlobeScene) ----
+  const {
+    sceneReady, rendRef, scnRef, camRef, globeRef, heartRef,
+    glowLayersRef, particlesRef, particles2Ref,
+    starsRef, shootingStarsRef, auroraRef, nightShadowRef,
+  } = useGlobeScene(mountRef, {
+    loading, SC, P, isPartnerWorld, isSharedWorld,
+    frameRef, spinSpd, tSpinSpd, dragR, selectedRef,
+    rot, tRot, zmR, tZm,
+    easterEggRef, searchMatchIdsRef, mkRef, routesRef,
+    mouseRef, atmosphereRef, pulseRingsRef, cometRef,
+  });
 
   // Atmosphere pulse — visual response when selecting an entry
   useEffect(() => {
@@ -1301,105 +1418,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     return () => { supabase.removeChannel(channel); };
   }, [isSharedWorld, worldId]);
 
-  // zoom tracked via zmR ref (used in animation loop directly)
-  const [ready, setReady] = useState(false);
-  const [introComplete, setIntroComplete] = useState(false);
-  const onboardKey = isSharedWorld ? `v3_cosmos_onboarded_${worldId}` : isMyWorld ? `v3_cosmos_onboarded_my_${userId}` : `v3_cosmos_onboarded_${userId}`;
-  const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem(onboardKey));
-  const [onboardStep, setOnboardStep] = useState(0);
-  const [showCelebration, setShowCelebration] = useState(false);
-  const [celebrationData, setCelebrationData] = useState(null); // { type: 'first'|'anniversary'|'milestone', message, sub }
-  const [showPhotoJourney, setShowPhotoJourney] = useState(false);
-  const [pjIndex, setPjIndex] = useState(0);
-  const [pjAutoPlay, setPjAutoPlay] = useState(false);
-  const [showAdd, setShowAdd] = useState(false);
-  const [editing, setEditing] = useState(null);
-  const { toasts, showToast, dismissToast, handleUndo } = useToasts();
-  const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [lightboxIdx, setLightboxIdx] = useState(0);
-  const [showLetter, setShowLetter] = useState(null); // letter id to show, or null
-  const [editLetter, setEditLetter] = useState(false); // show letter editor
-  const [letterDraft, setLetterDraft] = useState("");
-  const [letterEditId, setLetterEditId] = useState(null); // null = new letter
-  const [letterCity, setLetterCity] = useState("");
-  const [letterCitySugg, setLetterCitySugg] = useState([]);
-  const [letterLat, setLetterLat] = useState("");
-  const [letterLng, setLetterLng] = useState("");
-  const [showSettings, setShowSettings] = useState(false);
-  const [wlEmail, setWlEmail] = useState("");
-  const [wlText, setWlText] = useState("");
-  const [wlSending, setWlSending] = useState(false);
-  const [wlSent, setWlSent] = useState(false);
-  const [myLetters, setMyLetters] = useState([]);
-  const [worldMembers, setWorldMembers] = useState([]);
-  const [sliderDate, setSliderDate] = useState(todayStr());
-  const [isAnimating, setIsAnimating] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(null);
-  const [showGallery, setShowGallery] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 });
-  const uploadLockRef = useRef(Promise.resolve()); // sequential photo upload queue
-  const [markerFilter, setMarkerFilter] = useState("all"); // "all", "together", "special", "home-seth", "home-rosie", "seth-solo", "rosie-solo"
-  const [listRenderLimit, setListRenderLimit] = useState(100);
-  const [showFilter, setShowFilter] = useState(false);
-  const [showStats, setShowStats] = useState(false);
-  const [showRecap, setShowRecap] = useState(false);
-  const [recapYear, setRecapYear] = useState(null);
-  const [recapIdx, setRecapIdx] = useState(0);
-  const [showSearch, setShowSearch] = useState(false);
-  const [showLoveThread, setShowLoveThread] = useState(false);
-  const [showConstellation, setShowConstellation] = useState(false);
-  const [showRoutes, setShowRoutes] = useState(false);
-  const [showDreams, setShowDreams] = useState(false);
-  const [locationList, setLocationList] = useState(null); // for multi-entry popup
-  // Comments & Reactions (shared/viewer worlds)
-  const [entryComments, setEntryComments] = useState([]);
-  const [worldReactions, setWorldReactions] = useState([]);
-  const [showZoomHint, setShowZoomHint] = useState(true);
-  const [showShortcuts, setShowShortcuts] = useState(false);
-  // Share entry to another world
-  const [shareWorlds, setShareWorlds] = useState(null); // loaded on first open
-  const [monthlyPromptShown, setMonthlyPromptShown] = useState(false);
-  const [quickAddMode, setQuickAddMode] = useState(false);
-  const [showPhotoMap, setShowPhotoMap] = useState(false);
-  const [showMilestones, setShowMilestones] = useState(false);
-  const [showTravelStats, setShowTravelStats] = useState(false);
-  const [showExportHub, setShowExportHub] = useState(false);
-  const [tripCardEntry, setTripCardEntry] = useState(null);
-  const [showYearReview, setShowYearReview] = useState(false);
-  const [showTemplates, setShowTemplates] = useState(false);
-  const [notifications, setNotifications] = useState([]);
-  const [recentlyDeleted, setRecentlyDeleted] = useState(() => {
-    try { const raw = localStorage.getItem(`cosmos_trash_${worldId || worldMode}`); return raw ? JSON.parse(raw).filter(t => Date.now() - t.deletedAt < 30 * 24 * 60 * 60 * 1000) : []; } catch { return []; }
-  });
-  const [showTrash, setShowTrash] = useState(false);
-  const [confirmModal, setConfirmModal] = useState(null); // { message, onConfirm }
-  const [dismissOnThisDay, setDismissOnThisDay] = useState(false);
-  // Reset On This Day dismissal when deselecting an entry
-  useEffect(() => { if (!selected) setDismissOnThisDay(false); }, [selected]);
-  const [showTripJournal, setShowTripJournal] = useState(false);
-  const [handwrittenMode, setHandwrittenMode] = useState(() => { try { return localStorage.getItem("cosmos_handwritten") === "1"; } catch { return false; } });
-  const [linkedEntryId, setLinkedEntryId] = useState(null); // entry id being linked
-  const [showLinkPicker, setShowLinkPicker] = useState(false);
-  const loveThreadRef = useRef([]);
-  const constellationRef = useRef([]);
-  const routesRef = useRef([]);
-  const pulseRingsRef = useRef([]);
-  const atmosphereRef = useRef({ targetHue: null, intensity: 0, particleBoost: 0 });
-  const searchMatchIdsRef = useRef(new Set());
-  const hoverThrottleRef = useRef(0);
-  const longPressRef = useRef(null); // timer for touch long-press tooltip
-  const cometRef = useRef(null); // active comet animation
-  const prevEntryCountRef = useRef(0);
-  const mouseRef = useRef({ x: 0, y: 0 });
-
-  // Theme colors (always light mode)
-  const lastTapRef = useRef(0); // for double-tap to zoom
-  const animRef = useRef(null);
-  const surpriseTimers = useRef([]);
-
-  const RAD = 1; const MIN_Z = 1.15; const MAX_Z = 6;
-
 
   // ---- DERIVED ----
   const sorted = useMemo(() => [...data.entries].sort((a, b) => (a.dateStart || "").localeCompare(b.dateStart || "")), [data.entries]);
@@ -1421,7 +1439,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   // Entries listed individually; stops shown inside each entry's detail card
 
   const togetherList = useMemo(() => sorted.filter(e => e.who === "both"), [sorted]);
-  const { isPlaying, cinemaEntry, cinemaPhotoIdx, cinemaProgress, cinemaTotal, cinemaIdx, cinemaPhase, stopPlay, playStory, playRef, photoTimerRef } = usePlayStory({ sorted, togetherList, isPartnerWorld, flyTo, tSpinSpd, showToast, setSelected, setShowGallery: (v) => setShowGallery(v), setPhotoIdx: () => {}, setCardTab: () => {}, setSliderDate, tZm });
+  const { isPlaying, cinemaEntry, cinemaPhotoIdx, cinemaProgress, cinemaTotal, cinemaIdx, cinemaPhase, stopPlay, playStory, playRef, photoTimerRef } = usePlayStory({ sorted, togetherList, isPartnerWorld, flyTo: (...a) => _flyTo.current?.(...a), tSpinSpd, showToast, setSelected, setShowGallery: (v) => setShowGallery(v), setPhotoIdx: () => {}, setCardTab: () => {}, setSliderDate, tZm });
   const firstBadges = useMemo(() => isPartnerWorld ? getFirstBadges(data.entries) : {}, [data.entries, isPartnerWorld]);
   const memberNameMap = useMemo(() => Object.fromEntries(worldMembers.map(m => [m.user_id, m.display_name || "Member"])), [worldMembers]);
   const season = useMemo(() => getSeasonalHue(sliderDate, isMyWorld), [sliderDate, isMyWorld]);
@@ -1458,6 +1476,18 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     const today = sliderDate.slice(5);
     return sd === today && sliderDate !== config.startDate;
   }, [sliderDate, config.startDate]);
+
+  // Seasonal tinting (must be after season + isAnniversary declarations)
+  useEffect(() => {
+    if (!glowLayersRef.current.length) return;
+    const s = season;
+    glowLayersRef.current.forEach((mesh, i) => {
+      mesh.material.color.set(i < 2 ? s.glow : P.cream);
+    });
+    if (particlesRef.current) particlesRef.current.material.color.set(isPartnerWorld && isAnniversary ? P.heart : s.particle);
+    if (isPartnerWorld && isAnniversary && particlesRef.current) particlesRef.current.material.opacity = 0.35;
+    else if (particlesRef.current) particlesRef.current.material.opacity = 0.18;
+  }, [season, isAnniversary]);
 
   // Auto-trigger anniversary/milestone celebration (once per session per world)
   useEffect(() => {
@@ -1643,7 +1673,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     if (home) {
       setTimeout(() => flyTo(home.lat, home.lng, 2.8), 800);
     }
-  }, [introComplete, data.entries, flyTo, isSharedWorld, isMyWorld, worldId, userId]);
+  }, [introComplete, data.entries, isSharedWorld, isMyWorld, worldId, userId]); // flyTo via _flyTo ref (stable)
 
   // ---- GUIDED FIRST VISIT TOASTS ----
   useEffect(() => {
@@ -1886,7 +1916,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       }
     };
     animRef.current = requestAnimationFrame(anim);
-  }, [sliderDate, togetherList, sorted, isPartnerWorld, isAnimating, flyTo]);
+  }, [sliderDate, togetherList, sorted, isPartnerWorld, isAnimating]); // flyTo via _flyTo ref (stable)
 
   // ---- PLAY OUR STORY ----
   // Cinema state for Play Story overlay
@@ -1898,7 +1928,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       if (inInput && e.key !== "Escape") return;
       if (e.key === "ArrowLeft") { e.preventDefault(); stepDay(-1); }
       if (e.key === "ArrowRight") { e.preventDefault(); stepDay(1); }
-      if (e.key === "Escape") { flushConfigSave(); setSelected(null); setEditing(null); setShowAdd(false); setQuickAddMode(false); setShowLetter(null); setShowSettings(false); setShowGallery(false); setShowFilter(false); setMarkerFilter("all"); setLocationList(null); setShowStats(false); setShowRecap(false); setShowSearch(false); setSearchQuery(""); setSearchHl(-1); setSearchDateFrom(""); setSearchDateTo(""); setSearchTypeFilter("all"); setSearchSort("date-desc"); setShowDreams(false); setConfirmDelete(null); setLightboxOpen(false); setShowShortcuts(false); setShowPhotoJourney(false); setShowCelebration(false); setShowOnboarding(false); setConfirmModal(null); setShowConstellation(false); setShowRoutes(false); setShowMilestones(false); setShowTravelStats(false); setShowLoveThread(false); setShowExportHub(false); setShowYearReview(false); setShowPhotoMap(false); setEditLetter(false); setTripCardEntry(null); setShowTemplates(false); setShowTrash(false); setShowTripJournal(false); setShowLinkPicker(false); localStorage.setItem(onboardKey, "1"); tSpinSpd.current = 0.002; if (isPlaying) stopPlay(); }
+      if (e.key === "Escape") { flushConfigSave(); setSelected(null); setEditing(null); setShowAdd(false); setQuickAddMode(false); setShowLetter(null); setShowSettings(false); setShowGallery(false); setShowFilter(false); setMarkerFilter("all"); setLocationList(null); setShowStats(false); setShowRecap(false); setShowSearch(false); setShowDreams(false); setConfirmDelete(null); setLightboxOpen(false); setShowShortcuts(false); setShowPhotoJourney(false); setShowCelebration(false); setShowOnboarding(false); setConfirmModal(null); setShowConstellation(false); setShowRoutes(false); setShowMilestones(false); setShowTravelStats(false); setShowLoveThread(false); setShowExportHub(false); setShowYearReview(false); setShowPhotoMap(false); setEditLetter(false); setTripCardEntry(null); setShowTemplates(false); setShowTrash(false); setShowTripJournal(false); setShowLinkPicker(false); localStorage.setItem(onboardKey, "1"); tSpinSpd.current = 0.002; if (isPlaying) stopPlay(); }
       if (e.key === "z" && (e.metaKey || e.ctrlKey) && !e.shiftKey && !showAdd && !editing) { e.preventDefault(); dispatch({ type: "UNDO" }); showToast("Undone", "↩", 1500); }
       if (e.key === "z" && (e.metaKey || e.ctrlKey) && e.shiftKey && !showAdd && !editing) { e.preventDefault(); dispatch({ type: "REDO" }); showToast("Redone", "↪", 1500); }
       if (e.key === "?" && !showAdd && !editing && !showSettings) setShowShortcuts(v => !v);
@@ -1996,7 +2026,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       else { const next = recapIdx + 1; setRecapIdx(next); const e = recapEntries[next]; if (e) { setSliderDate(e.dateStart); flyTo(e.lat, e.lng, 2.4); } }
     }, 4500);
     return () => clearTimeout(t);
-  }, [recapAutoPlay, showRecap, recapPhase, recapIdx, recapEntries, flyTo]);
+  }, [recapAutoPlay, showRecap, recapPhase, recapIdx, recapEntries]); // flyTo via _flyTo ref (stable)
 
   // ---- GALLERY DATA ----
   const allPhotos = useMemo(() => {
@@ -2061,31 +2091,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
 
 
-  // ---- THREE SETUP (extracted to useGlobeScene) ----
-  const {
-    sceneReady, rendRef, scnRef, camRef, globeRef, heartRef,
-    glowLayersRef, particlesRef, particles2Ref,
-    starsRef, shootingStarsRef, auroraRef, nightShadowRef,
-  } = useGlobeScene(mountRef, {
-    loading, SC, P, isPartnerWorld, isSharedWorld,
-    frameRef, spinSpd, tSpinSpd, dragR, selectedRef,
-    rot, tRot, zmR, tZm,
-    easterEggRef, searchMatchIdsRef, mkRef, routesRef,
-    mouseRef, atmosphereRef, pulseRingsRef, cometRef,
-  });
-
-  // Seasonal tinting
-  useEffect(() => {
-    if (!glowLayersRef.current.length) return;
-    const s = season;
-    glowLayersRef.current.forEach((mesh, i) => {
-      mesh.material.color.set(i < 2 ? s.glow : P.cream);
-    });
-    if (particlesRef.current) particlesRef.current.material.color.set(isPartnerWorld && isAnniversary ? P.heart : s.particle);
-    if (isPartnerWorld && isAnniversary && particlesRef.current) particlesRef.current.material.opacity = 0.35;
-    else if (particlesRef.current) particlesRef.current.material.opacity = 0.18;
-  }, [season, isAnniversary]);
-
   // ---- MARKERS (extracted to useGlobeMarkers hook) ----
   const { locationGroups } = useGlobeMarkers({
     data, TYPES,
@@ -2099,6 +2104,16 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     config, selected,
   });
 
+  // ---- Globe interaction (pointer, touch, zoom, hover, flyTo, screenshot) ----
+  const { flyTo, hoverLabel, setHoverLabel, saveGlobeScreenshot, onDown, onMove, onUp } = useGlobeInteraction({
+    mountRef, camRef, rendRef, scnRef, mkRef,
+    dragR, prevR, rot, tRot, tZm, spinSpd, tSpinSpd,
+    mouseRef, hoverThrottleRef, longPressRef, lastTapRef, clickSR, tDistR,
+    entries: data.entries, locationGroups, config, sceneReady,
+    isMyWorld, isPartnerWorld, worldType, showToast,
+    setSelected, setLocationList, setSliderDate, setShowLetter, setShowZoomHint,
+  });
+  _flyTo.current = flyTo;
 
   const fileInputRef = useRef(null);
   const photoEntryIdRef = useRef(null);
@@ -2121,15 +2136,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       const files = Array.from(input.files);
       const id = photoEntryIdRef.current;
 
-  // ---- Globe interaction (pointer, touch, zoom, hover, flyTo, screenshot) ----
-  const { flyTo, hoverLabel, setHoverLabel, saveGlobeScreenshot, onDown, onMove, onUp } = useGlobeInteraction({
-    mountRef, camRef, rendRef, scnRef, mkRef,
-    dragR, prevR, rot, tRot, tZm, spinSpd, tSpinSpd,
-    mouseRef, hoverThrottleRef, longPressRef, lastTapRef, clickSR, tDistR,
-    entries: data.entries, locationGroups, config, sceneReady,
-    isMyWorld, isPartnerWorld, worldType, showToast,
-    setSelected, setLocationList, setSliderDate, setShowLetter, setShowZoomHint,
-  });
       if (files.length === 0 || !id) return;
       // Queue upload behind any in-progress upload to prevent read/merge/write race
       uploadLockRef.current = uploadLockRef.current.then(async () => {
@@ -2737,8 +2743,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       {showGallery && <Suspense fallback={null}><GalleryPanel
         allPhotos={allPhotos}
         allPhotoCaptions={allPhotoCaptions}
-        polaroidMode={polaroidMode}
-        onTogglePolaroid={() => setPolaroidMode(v => !v)}
+        polaroidMode={false}
+        onTogglePolaroid={() => {}}
         onSelectPhoto={(ph) => {
           const entry = data.entries.find(e => e.id === ph.id);
           if (entry) {
@@ -3154,7 +3160,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
       {/* YEAR-IN-REVIEW RECAP — Full-screen cinematic */}
       {showRecap && recapEntries.length > 0 && recapYearStats && <RecapOverlay
-        P={P} SC={SC} TYPES={TYPES} DEFAULT_TYPE={DEFAULT_TYPE} thumbnail={thumbnail} fmtDate={fmtDate} navSt={navSt}
+        P={P} SC={SC} TYPES={TYPES} DEFAULT_TYPE={DEFAULT_TYPE} thumbnail={thumbnail} fmtDate={fmtDate} navSt={navStyle}
         recapYear={recapYear} recapYearStats={recapYearStats} recapEntries={recapEntries}
         recapPhase={recapPhase} recapIdx={recapIdx} recapStatIdx={recapStatIdx} recapAutoPlay={recapAutoPlay}
         setRecapPhase={setRecapPhase} setRecapIdx={setRecapIdx} setRecapStatIdx={setRecapStatIdx} setRecapAutoPlay={setRecapAutoPlay}
