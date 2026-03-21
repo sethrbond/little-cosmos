@@ -1,8 +1,28 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useReducer } from "react";
+
+export const modalReducer = (state, action) => {
+  switch (action.type) {
+    case 'OPEN': return { ...state, [action.name]: true };
+    case 'CLOSE': return { ...state, [action.name]: false };
+    case 'TOGGLE': return { ...state, [action.name]: !state[action.name] };
+    case 'CLOSE_ALL': return Object.fromEntries(Object.keys(state).map(k => [k, false]));
+    default: return state;
+  }
+};
+
+const INITIAL_MODALS = {
+  showAdd: false, showSettings: false, showGallery: false, showFilter: false,
+  showStats: false, showRecap: false, showSearch: false, showLoveThread: false,
+  showConstellation: false, showRoutes: false, showDreams: false, showShortcuts: false,
+  showPhotoJourney: false, showPhotoMap: false, showMilestones: false, showTravelStats: false,
+  showExportHub: false, showYearReview: false, showTemplates: false, showTrash: false,
+  showTripJournal: false, showLinkPicker: false, showCelebration: false, quickAddMode: false,
+};
 
 let _toastId = 0;
 export function useToasts() {
   const [toasts, setToasts] = useState([]);
+  const [modals, modalDispatch] = useReducer(modalReducer, INITIAL_MODALS);
   const dismissTimers = useRef([]);
   const toastTimerKeys = useRef(new Set());
 
@@ -41,5 +61,5 @@ export function useToasts() {
   // Cleanup on unmount
   useEffect(() => () => dismissTimers.current.forEach(clearTimeout), []);
 
-  return { toasts, showToast, dismissToast, handleUndo };
+  return { toasts, showToast, dismissToast, handleUndo, modals, modalDispatch };
 }

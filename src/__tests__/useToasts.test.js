@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { modalReducer } from '../useToasts'
 
 // useToasts is a React hook — we replicate its core logic here
 // to test without needing a React rendering environment.
@@ -140,5 +141,49 @@ describe('useToasts logic', () => {
     it('handles null toast gracefully', () => {
       expect(() => handleUndo(null)).not.toThrow()
     })
+  })
+})
+
+describe('modalReducer', () => {
+  const initial = { showAdd: false, showSettings: false, showGallery: false }
+
+  it('OPEN sets a modal to true', () => {
+    const result = modalReducer(initial, { type: 'OPEN', name: 'showAdd' })
+    expect(result.showAdd).toBe(true)
+    expect(result.showSettings).toBe(false)
+  })
+
+  it('CLOSE sets a modal to false', () => {
+    const opened = { ...initial, showAdd: true }
+    const result = modalReducer(opened, { type: 'CLOSE', name: 'showAdd' })
+    expect(result.showAdd).toBe(false)
+  })
+
+  it('TOGGLE flips a modal value', () => {
+    const r1 = modalReducer(initial, { type: 'TOGGLE', name: 'showGallery' })
+    expect(r1.showGallery).toBe(true)
+    const r2 = modalReducer(r1, { type: 'TOGGLE', name: 'showGallery' })
+    expect(r2.showGallery).toBe(false)
+  })
+
+  it('CLOSE_ALL sets all modals to false', () => {
+    const allOpen = { showAdd: true, showSettings: true, showGallery: true }
+    const result = modalReducer(allOpen, { type: 'CLOSE_ALL' })
+    expect(result.showAdd).toBe(false)
+    expect(result.showSettings).toBe(false)
+    expect(result.showGallery).toBe(false)
+  })
+
+  it('unknown action returns state unchanged', () => {
+    const result = modalReducer(initial, { type: 'UNKNOWN' })
+    expect(result).toBe(initial)
+  })
+
+  it('OPEN does not affect other modals', () => {
+    const state = { showAdd: false, showSettings: true, showGallery: false }
+    const result = modalReducer(state, { type: 'OPEN', name: 'showAdd' })
+    expect(result.showAdd).toBe(true)
+    expect(result.showSettings).toBe(true)
+    expect(result.showGallery).toBe(false)
   })
 })
