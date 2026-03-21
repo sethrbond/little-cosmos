@@ -2714,21 +2714,23 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         </div>
       )}
 
-      {isPartnerWorld && (showLetter || modals.editLetter) && <Suspense fallback={null}><LoveLetterOverlay
+      {(showLetter || modals.editLetter) && <Suspense fallback={null}><LoveLetterOverlay
         showLetterId={showLetter}
         editLetter={modals.editLetter}
         letters={config.loveLetters || []}
-        config={config}
+        config={{...config, worldName}}
         userId={userId}
         letterEditId={letterEditId}
         initialDraft={letterDraft}
         initialCity={letterCity}
         initialLat={letterLat}
         initialLng={letterLng}
+        worldType={worldType}
+        isMyWorld={isMyWorld}
         onCloseLetter={() => setShowLetter(null)}
         onCloseEdit={() => modalDispatch({ type: 'CLOSE', name: 'editLetter' })}
         onEditLetter={(letter) => { setLetterEditId(letter.id); setLetterDraft(letter.text); setLetterCity(letter.city || ""); setLetterLat(letter.lat?.toString() || ""); setLetterLng(letter.lng?.toString() || ""); modalDispatch({ type: 'OPEN', name: 'editLetter' }); setShowLetter(null); }}
-        onSendLetter={(letter) => { setConfig({ loveLetters: (config.loveLetters || []).map(l => l.id === letter.id ? { ...l, draft: false } : l) }); setShowLetter(null); showToast("Letter sent! 💌", "💌", 2500); }}
+        onSendLetter={(letter) => { setConfig({ loveLetters: (config.loveLetters || []).map(l => l.id === letter.id ? { ...l, draft: false } : l) }); setShowLetter(null); showToast(isPartnerWorld ? "Letter sent! 💌" : "Note sent! ✉️", isPartnerWorld ? "💌" : "✉️", 2500); }}
         onRemoveLetter={(letter) => { setConfig({ loveLetters: (config.loveLetters || []).filter(l => l.id !== letter.id) }); setShowLetter(null); }}
         onSaveLetter={(editId, letterObj) => {
           if (editId) {
@@ -2737,7 +2739,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             setConfig({ loveLetters: [...(config.loveLetters || []), { id: `ll-${Date.now()}`, ...letterObj }] });
           }
           modalDispatch({ type: 'CLOSE', name: 'editLetter' });
-          showToast(editId ? "Letter updated 💌" : "Letter hidden on the globe ❀", "💌", 2500);
+          const _mi = isMyWorld || worldType === "personal" ? "✦" : worldType === "friends" ? "✧" : worldType === "family" ? "♥" : "❀";
+          const _ei = isPartnerWorld ? "💌" : "✉️";
+          showToast(editId ? `Updated ${_ei}` : `Hidden on the globe ${_mi}`, _ei, 2500);
         }}
         onSaveDraft={(editId, letterObj) => {
           if (editId) {
