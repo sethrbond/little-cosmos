@@ -12,7 +12,6 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        hoistTransitiveImports: false,
         manualChunks: {
           three: ['three'],
           supabase: ['@supabase/supabase-js'],

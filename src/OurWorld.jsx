@@ -1898,7 +1898,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       if (inInput && e.key !== "Escape") return;
       if (e.key === "ArrowLeft") { e.preventDefault(); stepDay(-1); }
       if (e.key === "ArrowRight") { e.preventDefault(); stepDay(1); }
-      if (e.key === "Escape") { flushConfigSave(); setSelected(null); setEditing(null); setShowAdd(false); setQuickAddMode(false); setShowLetter(null); setShowSettings(false); setShowGallery(false); setShowFilter(false); setMarkerFilter("all"); setLocationList(null); setShowStats(false); setShowRecap(false); setShowSearch(false); setShowDreams(false); setConfirmDelete(null); setLightboxOpen(false); setShowShortcuts(false); setShowPhotoJourney(false); setShowCelebration(false); setShowOnboarding(false); setConfirmModal(null); setShowConstellation(false); setShowRoutes(false); setShowMilestones(false); setShowTravelStats(false); setShowLoveThread(false); setShowExportHub(false); setShowYearReview(false); setShowPhotoMap(false); setEditLetter(false); setTripCardEntry(null); setShowTemplates(false); setShowTrash(false); setShowTripJournal(false); setShowLinkPicker(false); localStorage.setItem(onboardKey, "1"); tSpinSpd.current = 0.002; if (isPlaying) stopPlay(); }
+      if (e.key === "Escape") { flushConfigSave(); setSelected(null); setEditing(null); setShowAdd(false); setQuickAddMode(false); setShowLetter(null); setShowSettings(false); setShowGallery(false); setShowFilter(false); setMarkerFilter("all"); setLocationList(null); setShowStats(false); setShowRecap(false); setShowSearch(false); setSearchQuery(""); setSearchHl(-1); setSearchDateFrom(""); setSearchDateTo(""); setSearchTypeFilter("all"); setSearchSort("date-desc"); setShowDreams(false); setConfirmDelete(null); setLightboxOpen(false); setShowShortcuts(false); setShowPhotoJourney(false); setShowCelebration(false); setShowOnboarding(false); setConfirmModal(null); setShowConstellation(false); setShowRoutes(false); setShowMilestones(false); setShowTravelStats(false); setShowLoveThread(false); setShowExportHub(false); setShowYearReview(false); setShowPhotoMap(false); setEditLetter(false); setTripCardEntry(null); setShowTemplates(false); setShowTrash(false); setShowTripJournal(false); setShowLinkPicker(false); localStorage.setItem(onboardKey, "1"); tSpinSpd.current = 0.002; if (isPlaying) stopPlay(); }
       if (e.key === "z" && (e.metaKey || e.ctrlKey) && !e.shiftKey && !showAdd && !editing) { e.preventDefault(); dispatch({ type: "UNDO" }); showToast("Undone", "↩", 1500); }
       if (e.key === "z" && (e.metaKey || e.ctrlKey) && e.shiftKey && !showAdd && !editing) { e.preventDefault(); dispatch({ type: "REDO" }); showToast("Redone", "↪", 1500); }
       if (e.key === "?" && !showAdd && !editing && !showSettings) setShowShortcuts(v => !v);
@@ -2099,15 +2099,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     config, selected,
   });
 
-  // ---- Globe interaction (pointer, touch, zoom, hover, flyTo, screenshot) ----
-  const { flyTo, hoverLabel, setHoverLabel, saveGlobeScreenshot, onDown, onMove, onUp } = useGlobeInteraction({
-    mountRef, camRef, rendRef, scnRef, mkRef,
-    dragR, prevR, rot, tRot, tZm, spinSpd, tSpinSpd,
-    mouseRef, hoverThrottleRef, longPressRef, lastTapRef, clickSR, tDistR,
-    entries: data.entries, locationGroups, config, sceneReady,
-    isMyWorld, isPartnerWorld, worldType, showToast,
-    setSelected, setLocationList, setSliderDate, setShowLetter, setShowZoomHint,
-  });
 
   const fileInputRef = useRef(null);
   const photoEntryIdRef = useRef(null);
@@ -2129,6 +2120,16 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     const handler = () => {
       const files = Array.from(input.files);
       const id = photoEntryIdRef.current;
+
+  // ---- Globe interaction (pointer, touch, zoom, hover, flyTo, screenshot) ----
+  const { flyTo, hoverLabel, setHoverLabel, saveGlobeScreenshot, onDown, onMove, onUp } = useGlobeInteraction({
+    mountRef, camRef, rendRef, scnRef, mkRef,
+    dragR, prevR, rot, tRot, tZm, spinSpd, tSpinSpd,
+    mouseRef, hoverThrottleRef, longPressRef, lastTapRef, clickSR, tDistR,
+    entries: data.entries, locationGroups, config, sceneReady,
+    isMyWorld, isPartnerWorld, worldType, showToast,
+    setSelected, setLocationList, setSliderDate, setShowLetter, setShowZoomHint,
+  });
       if (files.length === 0 || !id) return;
       // Queue upload behind any in-progress upload to prevent read/merge/write race
       uploadLockRef.current = uploadLockRef.current.then(async () => {
@@ -2736,8 +2737,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       {showGallery && <Suspense fallback={null}><GalleryPanel
         allPhotos={allPhotos}
         allPhotoCaptions={allPhotoCaptions}
-        polaroidMode={false}
-        onTogglePolaroid={() => {}}
+        polaroidMode={polaroidMode}
+        onTogglePolaroid={() => setPolaroidMode(v => !v)}
         onSelectPhoto={(ph) => {
           const entry = data.entries.find(e => e.id === ph.id);
           if (entry) {
@@ -3153,7 +3154,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
       {/* YEAR-IN-REVIEW RECAP — Full-screen cinematic */}
       {showRecap && recapEntries.length > 0 && recapYearStats && <RecapOverlay
-        P={P} SC={SC} TYPES={TYPES} DEFAULT_TYPE={DEFAULT_TYPE} thumbnail={thumbnail} fmtDate={fmtDate} navSt={navStyle}
+        P={P} SC={SC} TYPES={TYPES} DEFAULT_TYPE={DEFAULT_TYPE} thumbnail={thumbnail} fmtDate={fmtDate} navSt={navSt}
         recapYear={recapYear} recapYearStats={recapYearStats} recapEntries={recapEntries}
         recapPhase={recapPhase} recapIdx={recapIdx} recapStatIdx={recapStatIdx} recapAutoPlay={recapAutoPlay}
         setRecapPhase={setRecapPhase} setRecapIdx={setRecapIdx} setRecapStatIdx={setRecapStatIdx} setRecapAutoPlay={setRecapAutoPlay}
