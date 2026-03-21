@@ -12,6 +12,10 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
+        // Prevent Rollup from renaming internal exports when merging modules
+        // into chunks — this reordering causes TDZ ("Cannot access 'X' before
+        // initialization") in the OurWorld mega-component with 208 hooks.
+        minifyInternalExports: false,
         manualChunks: {
           three: ['three'],
           supabase: ['@supabase/supabase-js'],
