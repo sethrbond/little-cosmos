@@ -588,14 +588,16 @@ function AppInner() {
     content = null
   } else {
     content = (
-      <OurWorld
-        worldMode={worldMode}
-        worldId={activeWorldId}
-        worldName={activeWorldName}
-        worldRole={activeWorldRole}
-        worldType={activeWorldType}
-        onSwitchWorld={switchWorld}
-      />
+      <ScreenErrorBoundary resetKey={activeWorldId || worldMode || 'world'}>
+        <OurWorld
+          worldMode={worldMode}
+          worldId={activeWorldId}
+          worldName={activeWorldName}
+          worldRole={activeWorldRole}
+          worldType={activeWorldType}
+          onSwitchWorld={switchWorld}
+        />
+      </ScreenErrorBoundary>
     )
   }
 

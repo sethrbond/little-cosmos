@@ -1221,6 +1221,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     rot, tRot, zmR, tZm,
     easterEggRef, searchMatchIdsRef, mkRef, routesRef,
     mouseRef, atmosphereRef, pulseRingsRef, cometRef,
+    animRef, surpriseTimers,
   });
 
   // Atmosphere pulse — visual response when selecting an entry

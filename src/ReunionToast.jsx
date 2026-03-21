@@ -1,23 +1,14 @@
 import { useRef, useEffect } from "react";
-import { useRealtimePresence } from "./useRealtimeSync.js";
 
 const FONT = "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif";
 const REUNION_KEY = "cosmos_reunion_shown_";
 
 /**
- * Self-contained reunion detection.
- * Rendered from App.jsx — uses useRealtimePresence directly, no OurWorld dependency.
+ * Reunion detection toast.
+ * Rendered from App.jsx — receives onlineUsers as a prop (presence is managed in App).
  * Shows a fixed toast when 2+ users are online in the same world.
  */
-export default function ReunionToast({ worldId, userId, displayName, worldType }) {
-  const isPartnerWorld = worldType === "our" || worldType === "partner";
-  const { onlineUsers } = useRealtimePresence({
-    worldId: isPartnerWorld ? worldId : undefined,
-    userId,
-    displayName: displayName || "Traveler",
-    enabled: isPartnerWorld,
-  });
-
+export default function ReunionToast({ onlineUsers, worldId, userId, isPartnerWorld }) {
   const prevCountRef = useRef(null);
   const toastRef = useRef(null);
 

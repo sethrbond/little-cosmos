@@ -729,12 +729,12 @@ export function useGlobeScene(mountRef, deps) {
       clearTimeout(flyInT1); clearTimeout(flyInT2);
       clearTimeout(introT1); clearTimeout(introT2);
       cancelAnimationFrame(frameRef.current);
-      if (animRef.current) cancelAnimationFrame(animRef.current);
-      if (playRef.current) clearTimeout(playRef.current);
-      if (photoTimerRef.current) clearInterval(photoTimerRef.current);
-      clearTimeout(stepDayTimer.current);
-      surpriseTimers.current.forEach(clearTimeout);
-      dismissTimers.current.forEach(clearTimeout);
+      if (animRef?.current) cancelAnimationFrame(animRef.current);
+      if (playRef?.current) clearTimeout(playRef.current);
+      if (photoTimerRef?.current) clearInterval(photoTimerRef.current);
+      if (stepDayTimer?.current) clearTimeout(stepDayTimer.current);
+      if (surpriseTimers?.current) surpriseTimers.current.forEach(clearTimeout);
+      if (dismissTimers?.current) dismissTimers.current.forEach(clearTimeout);
       window.removeEventListener("resize", onR);
       // Dispose all Three.js objects to prevent GPU memory leaks
       scene.traverse(obj => {

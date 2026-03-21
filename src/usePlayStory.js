@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 
 export function usePlayStory({ sorted, togetherList, isPartnerWorld, flyTo, tSpinSpd, showToast, setSelected, setShowGallery, setPhotoIdx, setCardTab, setSliderDate, tZm }) {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -67,6 +67,14 @@ export function usePlayStory({ sorted, togetherList, isPartnerWorld, flyTo, tSpi
     };
     step();
   }, [togetherList, sorted, isPartnerWorld, isPlaying, stopPlay, showToast, flyTo, tSpinSpd, tZm, setSelected, setShowGallery, setPhotoIdx, setCardTab, setSliderDate]);
+
+  // Cleanup timers on unmount to prevent firing on unmounted component
+  useEffect(() => {
+    return () => {
+      if (playRef.current) { clearTimeout(playRef.current); playRef.current = null; }
+      if (photoTimerRef.current) { clearInterval(photoTimerRef.current); photoTimerRef.current = null; }
+    };
+  }, []);
 
   return { isPlaying, cinemaEntry, cinemaPhotoIdx, cinemaProgress, cinemaTotal, cinemaIdx, cinemaPhase, stopPlay, playStory, playRef, photoTimerRef };
 }
