@@ -10,6 +10,11 @@ export default defineConfig({
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
   build: {
+    minify: 'terser',
+    terserOptions: {
+      mangle: false,
+      compress: true,
+    },
     rollupOptions: {
       output: {
         manualChunks: {
