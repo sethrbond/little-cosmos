@@ -44,7 +44,7 @@ import {
   FRIENDS_TYPES, FRIENDS_FIELDS, FRIENDS_DEFAULT_CONFIG,
   FAMILY_TYPES, FAMILY_FIELDS, FAMILY_DEFAULT_CONFIG,
   getSeasonalHue, resolveTypes, getSharedWorldConfig,
-  WORLD_THEMES,
+  WORLD_THEMES, getMilestoneConfig,
 } from "./worldConfigs.js";
 import { sendWelcomeLetter, getMyLetters, deleteWelcomeLetter } from "./supabaseWelcomeLetters.js";
 import { loadComments, addComment, deleteComment, loadAllWorldReactions, toggleReaction, getWorldMembers, removeWorldMember, updateMemberRole, deleteWorld, leaveWorld, updateWorld, loadMyWorlds, shareEntryToWorld, getPersonalWorldId } from "./supabaseWorlds.js";
@@ -1467,47 +1467,68 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     glowLayersRef.current.forEach((mesh, i) => {
       mesh.material.color.set(i < 2 ? s.glow : P.cream);
     });
-    if (particlesRef.current) particlesRef.current.material.color.set(isPartnerWorld && isAnniversary ? P.heart : s.particle);
-    if (isPartnerWorld && isAnniversary && particlesRef.current) particlesRef.current.material.opacity = 0.35;
+    if (particlesRef.current) particlesRef.current.material.color.set(isAnniversary ? P.heart : s.particle);
+    if (isAnniversary && particlesRef.current) particlesRef.current.material.opacity = 0.35;
     else if (particlesRef.current) particlesRef.current.material.opacity = 0.18;
   }, [season, isAnniversary]);
 
   // Auto-trigger anniversary/milestone celebration (once per session per world)
   useEffect(() => {
-    if (!introComplete || !isAnniversary || !isPartnerWorld) return;
+    if (!introComplete || !isAnniversary) return;
     const annivKey = `v2_anniv_${worldId || userId}_${todayStr()}`;
     if (localStorage.getItem(annivKey)) return;
     localStorage.setItem(annivKey, '1');
     const years = Math.floor(daysBetween(config.startDate, todayStr()) / 365);
+    // Personalize anniversary message per world type
+    let annivLabel;
+    if (isPartnerWorld && config.youName && config.partnerName) {
+      annivLabel = years === 1 ? `${config.youName} & ${config.partnerName}'s 1st Year` : `${config.youName} & ${config.partnerName} — ${years} Years`;
+    } else if (isPartnerWorld) {
+      annivLabel = years === 1 ? '1 Year Together' : `${years} Years Together`;
+    } else if (worldType === "friends") {
+      annivLabel = years === 1 ? `${worldName || "The Crew"}'s 1st Year` : `${worldName || "The Crew"} — ${years} Years`;
+    } else if (worldType === "family") {
+      annivLabel = years === 1 ? `${worldName || "Family"}'s 1st Year` : `${worldName || "Family"} — ${years} Years`;
+    } else if (isMyWorld) {
+      annivLabel = years === 1 ? 'Your 1st Year of Adventures' : `${years} Years of Adventures`;
+    } else {
+      annivLabel = years === 1 ? '1 Year Together' : `${years} Years Together`;
+    }
     setCelebrationData({
       type: 'anniversary',
-      message: years === 1 ? '1 Year Together' : `${years} Years Together`,
+      message: annivLabel,
       sub: `${stats.trips} adventures, ${stats.countries} countries, ${Math.round(stats.totalMiles).toLocaleString()} miles`,
     });
     modalDispatch({ type: 'OPEN', name: 'showCelebration' });
     const t = setTimeout(() => modalDispatch({ type: 'CLOSE', name: 'showCelebration' }), 8000);
     return () => clearTimeout(t);
-  }, [introComplete, isAnniversary, isPartnerWorld, config.startDate, worldId, userId, stats.trips, stats.countries, stats.totalMiles]);
+  }, [introComplete, isAnniversary, config.startDate, worldId, userId, stats.trips, stats.countries, stats.totalMiles]);
 
-  // Milestone celebrations — celebrate round-number moments
+  // Milestone celebrations — celebrate round-number moments (all world types)
   const milestoneRef = useRef(null);
   useEffect(() => {
     if (!introComplete || data.entries.length < 2) return;
     const n = data.entries.length;
     const c = stats.countries;
     const m = Math.round(stats.totalMiles);
+    const msConfig = getMilestoneConfig(worldType, isMyWorld);
+
+    // Build personalized name prefix for milestone messages
+    let namePrefix = "";
+    if (isPartnerWorld && config.youName && config.partnerName) {
+      namePrefix = `${config.youName} & ${config.partnerName}'s `;
+    } else if (worldType === "friends" && worldName) {
+      namePrefix = `${worldName}'s `;
+    } else if (worldType === "family" && worldName) {
+      namePrefix = `${worldName}'s `;
+    } else if (isMyWorld) {
+      namePrefix = "Your ";
+    }
+
     const milestones = [
-      { check: n === 5, msg: "5 Adventures!", sub: "Your globe is coming alive", icon: "🎯" },
-      { check: n === 10, msg: "10 Adventures!", sub: "Double digits — you're on a roll", icon: "🌟" },
-      { check: n === 25, msg: "25 Adventures!", sub: "A seasoned traveler", icon: "✨" },
-      { check: n === 50, msg: "50 Adventures!", sub: "Half a century of adventures", icon: "👑" },
-      { check: n === 100, msg: "100 Adventures!", sub: "Your globe is legendary", icon: "💎" },
-      { check: c === 5, msg: "5 Countries!", sub: "Your world is expanding", icon: "🗺" },
-      { check: c === 10, msg: "10 Countries!", sub: "A true globetrotter", icon: "✈️" },
-      { check: c === 25, msg: "25 Countries!", sub: "World explorer status", icon: "🌐" },
-      { check: m >= 1000 && milestoneRef.current !== '1000mi', msg: "1,000 Miles!", sub: "Your adventures span a thousand miles", icon: "🛤" },
-      { check: m >= 10000 && milestoneRef.current !== '10000mi', msg: "10,000 Miles!", sub: "You've circled a good chunk of the Earth", icon: "🚀" },
-      { check: m >= 25000 && milestoneRef.current !== '25000mi', msg: "25,000 Miles!", sub: "Nearly around the world", icon: "🌎" },
+      ...msConfig.entries.map(ms => ({ check: n === ms.count, msg: namePrefix ? `${namePrefix}${ms.msg}` : ms.msg, sub: ms.sub, icon: ms.icon })),
+      ...msConfig.countries.map(ms => ({ check: c === ms.count, msg: namePrefix ? `${namePrefix}${ms.msg}` : ms.msg, sub: ms.sub, icon: ms.icon })),
+      ...msConfig.distance.map(ms => ({ check: m >= ms.miles && milestoneRef.current !== `${ms.miles}mi`, msg: namePrefix ? `${namePrefix}${ms.msg}` : ms.msg, sub: ms.sub, icon: ms.icon })),
     ];
     const hit = milestones.find(ms => ms.check);
     if (!hit) return;
@@ -2256,7 +2277,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       <div style={{ position: "absolute", top: 22, left: 0, right: 0, textAlign: "center", zIndex: 10, pointerEvents: "none", opacity: ready ? 1 : 0, transform: ready ? "none" : "translateY(-12px)", transition: "all 1.8s cubic-bezier(.23,1,.32,1)" }}>
         <h1 style={{ fontSize: 28, fontWeight: 400, margin: 0, letterSpacing: ".2em", textTransform: "uppercase", color: "#f0e8d8", textShadow: "0 1px 12px rgba(0,0,0,0.5), 0 0 40px rgba(255,255,255,0.12)" }}>{config.title}</h1>
         <p style={{ fontSize: 12, color: "#d8cebb", marginTop: 3, letterSpacing: ".3em", fontStyle: "italic", textShadow: "0 1px 8px rgba(0,0,0,0.5)" }}>{config.subtitle}</p>
-        {isPartnerWorld && isAnniversary && <div style={{ fontSize: 11, color: P.heart, marginTop: 6, letterSpacing: ".15em", animation: "heartPulse 2s ease infinite" }}>✨ Happy Anniversary ✨</div>}
+        {isAnniversary && <div style={{ fontSize: 11, color: P.heart, marginTop: 6, letterSpacing: ".15em", animation: "heartPulse 2s ease infinite" }}>✨ Happy Anniversary ✨</div>}
       </div>
 
       {/* MOBILE ZOOM BUTTONS */}
@@ -2644,10 +2665,10 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       )}
 
       {/* ADD / EDIT / SETTINGS / LETTER overlays */}
-      {modals.showAdd && <div role="dialog" aria-modal="true" aria-label="Add entry" onClick={() => modalDispatch({ type: 'CLOSE', name: 'showAdd' })} style={{ position: "fixed", inset: 0, zIndex: 39 }}><div onClick={e => e.stopPropagation()}><AddForm types={TYPES} defaultType={isMyWorld ? "adventure" : "together"} defaultWho={isMyWorld ? "solo" : "both"} fieldLabels={FIELD_LABELS} isMyWorld={isMyWorld} worldName={worldName} draftKey={`cosmos-draft-add-${worldId || worldMode}`} onAdd={entry => { const isFirst = data.entries.length === 0; dispatch({ type: "ADD", entry }); modalDispatch({ type: 'CLOSE', name: 'showAdd' }); if (isFirst) { setCelebrationData({ type: 'first', message: 'Your First Entry!', sub: isMyWorld ? 'Your world has its first marker. Keep adding adventures to light up your globe.' : 'Your shared world has its first marker. This is where your story begins.' }); modalDispatch({ type: 'OPEN', name: 'showCelebration' }); setTimeout(() => modalDispatch({ type: 'CLOSE', name: 'showCelebration' }), 6000); } showToast(`${entry.city} added to your world`, "🌍", 2500); flyTo(entry.lat, entry.lng, 2.6); setTimeout(() => { setSelected(entry); }, 400); }} onClose={() => modalDispatch({ type: 'CLOSE', name: 'showAdd' })} /></div></div>}
+      {modals.showAdd && <div role="dialog" aria-modal="true" aria-label="Add entry" onClick={() => modalDispatch({ type: 'CLOSE', name: 'showAdd' })} style={{ position: "fixed", inset: 0, zIndex: 39 }}><div onClick={e => e.stopPropagation()}><AddForm types={TYPES} defaultType={isMyWorld ? "adventure" : "together"} defaultWho={isMyWorld ? "solo" : "both"} fieldLabels={FIELD_LABELS} isMyWorld={isMyWorld} worldName={worldName} worldType={worldType} draftKey={`cosmos-draft-add-${worldId || worldMode}`} onAdd={entry => { const isFirst = data.entries.length === 0; dispatch({ type: "ADD", entry }); modalDispatch({ type: 'CLOSE', name: 'showAdd' }); if (isFirst) { setCelebrationData({ type: 'first', message: 'Your First Entry!', sub: isMyWorld ? 'Your world has its first marker. Keep adding adventures to light up your globe.' : 'Your shared world has its first marker. This is where your story begins.' }); modalDispatch({ type: 'OPEN', name: 'showCelebration' }); setTimeout(() => modalDispatch({ type: 'CLOSE', name: 'showCelebration' }), 6000); } showToast(`${entry.city} added to your world`, "🌍", 2500); flyTo(entry.lat, entry.lng, 2.6); setTimeout(() => { setSelected(entry); }, 400); }} onClose={() => modalDispatch({ type: 'CLOSE', name: 'showAdd' })} /></div></div>}
       {modals.quickAddMode && <div role="dialog" aria-modal="true" aria-label="Quick add entry" onClick={() => modalDispatch({ type: 'CLOSE', name: 'quickAddMode' })} style={{ position: "fixed", inset: 0, zIndex: 39 }}><div onClick={e => e.stopPropagation()}><QuickAddForm types={TYPES} draftKey={`cosmos-draft-quick-${worldId || worldMode}`} onAdd={entry => { const isFirst = data.entries.length === 0; dispatch({ type: "ADD", entry }); modalDispatch({ type: 'CLOSE', name: 'quickAddMode' }); if (isFirst) { setCelebrationData({ type: 'first', message: 'Your First Entry!', sub: isMyWorld ? 'Your world has its first marker. Keep adding adventures to light up your globe.' : 'Your shared world has its first marker. This is where your story begins.' }); modalDispatch({ type: 'OPEN', name: 'showCelebration' }); setTimeout(() => modalDispatch({ type: 'CLOSE', name: 'showCelebration' }), 6000); } showToast(`${entry.city} added to your world ⚡`, "⚡", 2500); flyTo(entry.lat, entry.lng, 2.6); setTimeout(() => { setSelected(entry); }, 400); }} onClose={() => modalDispatch({ type: 'CLOSE', name: 'quickAddMode' })} /></div></div>}
 
-      {editing && <div role="dialog" aria-modal="true" aria-label="Edit entry" onClick={() => setEditing(null)} style={{ position: "fixed", inset: 0, zIndex: 29 }}><div onClick={e => e.stopPropagation()}><EditForm entry={editing} types={TYPES} fieldLabels={FIELD_LABELS} onChange={setEditing}
+      {editing && <div role="dialog" aria-modal="true" aria-label="Edit entry" onClick={() => setEditing(null)} style={{ position: "fixed", inset: 0, zIndex: 29 }}><div onClick={e => e.stopPropagation()}><EditForm entry={editing} types={TYPES} fieldLabels={FIELD_LABELS} worldType={worldType} isMyWorld={isMyWorld} onChange={setEditing}
         onSave={() => { dispatch({ type: "UPDATE", id: editing.id, data: editing }); setSelected(editing); setEditing(null); showToast("Entry saved", "✓", 2000); }}
         onClose={() => setEditing(null)}
         onDelete={() => setConfirmDelete(editing.id)}

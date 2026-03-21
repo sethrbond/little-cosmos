@@ -17,7 +17,8 @@ async function reverseGeocode(lat, lng) {
 }
 
 // ---- MEMORY PROMPTS ----
-const MEMORY_PROMPTS = {
+// Entry-type prompts (used as fallback when no world-type-specific prompt exists)
+const ENTRY_TYPE_PROMPTS = {
   together: ["What made you both laugh?", "A moment you want to relive?", "Something that surprised you?", "What did you talk about?", "A little detail you never want to forget?"],
   special: ["Why was this moment special?", "How did it make you feel?", "What would you tell your future selves?"],
   adventure: ["What took your breath away?", "The best unexpected moment?", "What would you do differently?"],
@@ -26,8 +27,44 @@ const MEMORY_PROMPTS = {
   "road-trip": ["Best song on the drive?", "Funniest roadside stop?", "The view you'll never forget?"],
   default: ["What's the first thing that comes to mind?", "A tiny detail you want to remember?", "What made this special?", "Something funny that happened?", "What would you tell someone about this place?"]
 };
-function useMemoryPrompt(type) {
-  const prompts = MEMORY_PROMPTS[type] || MEMORY_PROMPTS.default;
+
+// World-type prompts — emotionally tuned to who you're remembering with
+const WORLD_TYPE_PROMPTS = {
+  partner: [
+    "What made you both laugh?",
+    "A moment you want to relive?",
+    "A little detail you never want to forget?",
+    "What did the light look like?",
+    "Something only the two of you would understand?"
+  ],
+  friends: [
+    "Who had the best story that night?",
+    "The thing everyone still talks about?",
+    "What would the group chat caption be?",
+    "The inside joke that was born here?",
+    "Who got lost? Who found the best spot?"
+  ],
+  family: [
+    "What will the kids remember most?",
+    "A tradition worth keeping?",
+    "What did grandma/grandpa say?",
+    "The moment everyone was laughing?",
+    "Something you want the next generation to know?"
+  ],
+  personal: [
+    "What surprised you?",
+    "Would you go back?",
+    "The smell, the sound, the feeling?",
+    "What did you learn about yourself?",
+    "The thing you almost didn't do?"
+  ]
+};
+
+function useMemoryPrompt(entryType, worldType) {
+  // Pick world-type prompts first, fall back to entry-type, then default
+  const prompts = (worldType && WORLD_TYPE_PROMPTS[worldType])
+    || ENTRY_TYPE_PROMPTS[entryType]
+    || ENTRY_TYPE_PROMPTS.default;
   const [idx] = useState(() => Math.floor(Math.random() * prompts.length));
   return prompts[idx % prompts.length];
 }
@@ -272,7 +309,7 @@ export function DreamAddForm({ onAdd, isMyWorld }) {
 
 // ---- ADD FORM ----
 
-export function AddForm({ types, defaultType = "together", defaultWho = "both", fieldLabels, isMyWorld, worldName, onAdd, onClose, draftKey }) {
+export function AddForm({ types, defaultType = "together", defaultWho = "both", fieldLabels, isMyWorld, worldName, worldType, onAdd, onClose, draftKey }) {
   const P = getP();
   const trapRef = useFocusTrap(true);
   const initialForm = { city: "", country: "", lat: "", lng: "", dateStart: "", dateEnd: "", type: defaultType, who: defaultWho, zoomLevel: 1, notes: "", museums: "", restaurants: "", highlights: "", memories: "", musicUrl: "", rating: null, stops: [] };
@@ -285,7 +322,7 @@ export function AddForm({ types, defaultType = "together", defaultWho = "both", 
   const [showAdvanced, setShowAdvanced] = useState(false);
   const dateEndRef = useRef(null);
   const notesRef = useRef(null);
-  const memoryPrompt = useMemoryPrompt(f.type);
+  const memoryPrompt = useMemoryPrompt(f.type, isMyWorld ? "personal" : worldType);
 
   // Reverse geocode when lat/lng manually changed
   useEffect(() => {
@@ -441,10 +478,10 @@ export function AddForm({ types, defaultType = "together", defaultWho = "both", 
 
 // ---- EDIT FORM ----
 
-export function EditForm({ entry, types, fieldLabels, onChange, onSave, onClose, onDelete, onAddStop, onSaveTemplate }) {
+export function EditForm({ entry, types, fieldLabels, onChange, onSave, onClose, onDelete, onAddStop, onSaveTemplate, worldType, isMyWorld }) {
   const P = getP();
   const trapRef = useFocusTrap(true);
-  const memoryPrompt = useMemoryPrompt(entry.type);
+  const memoryPrompt = useMemoryPrompt(entry.type, isMyWorld ? "personal" : worldType);
   const [ns, setNs] = useState({ city: "", lat: "", lng: "", notes: "", dateStart: "", dateEnd: "" });
   const [stopSugg, setStopSugg] = useState([]);
   const [showStopSugg, setShowStopSugg] = useState(false);
