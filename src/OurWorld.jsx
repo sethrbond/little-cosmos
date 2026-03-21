@@ -1155,6 +1155,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [letterCitySugg, setLetterCitySugg] = useState([]);
   const [letterLat, setLetterLat] = useState("");
   const [letterLng, setLetterLng] = useState("");
+  const [showCapsule, setShowCapsule] = useState(null); // capsule id to show, or null
+  const [showCreateCapsule, setShowCreateCapsule] = useState(false);
   const [wlEmail, setWlEmail] = useState("");
   const [wlText, setWlText] = useState("");
   const [wlSending, setWlSending] = useState(false);
@@ -1661,6 +1663,26 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     }
   }, [onThisDay, introComplete, showToast]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ---- TIME CAPSULE OPEN DETECTION ----
+  const capsuleOpenCheckedRef = useRef(false);
+  useEffect(() => {
+    if (capsuleOpenCheckedRef.current || !introComplete) return;
+    const capsules = config.timeCapsules || [];
+    if (capsules.length === 0) return;
+    capsuleOpenCheckedRef.current = true;
+    const today = new Date().toISOString().slice(0, 10);
+    const sessionKey = `cosmos_capsule_opened_${worldId || userId}_${today}`;
+    if (localStorage.getItem(sessionKey)) return;
+    const justOpened = capsules.filter(c => c.unlockDate === today || (c.unlockDate <= today && !c._notified));
+    if (justOpened.length > 0) {
+      localStorage.setItem(sessionKey, "1");
+      const c = justOpened[0];
+      setTimeout(() => {
+        showToast(`A time capsule just opened! 💫 ${c.city || ""}`, "🔮", 6000);
+      }, 3000);
+    }
+  }, [introComplete, config.timeCapsules, worldId, userId, showToast]);
+
   // ---- CONFIG LOAD ERROR NOTIFICATION ----
   useEffect(() => {
     if (!introComplete || !loadErrorRef.current) return;
@@ -1934,7 +1956,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       if (inInput && e.key !== "Escape") return;
       if (e.key === "ArrowLeft") { e.preventDefault(); stepDay(-1); }
       if (e.key === "ArrowRight") { e.preventDefault(); stepDay(1); }
-      if (e.key === "Escape") { flushConfigSave(); setSelected(null); setEditing(null); modalDispatch({ type: 'CLOSE_ALL' }); setShowLetter(null); setMarkerFilter("all"); setLocationList(null); setConfirmDelete(null); setLightboxOpen(false); setShowOnboarding(false); setConfirmModal(null); setTripCardEntry(null); localStorage.setItem(onboardKey, "1"); tSpinSpd.current = 0.002; if (isPlaying) stopPlay(); }
+      if (e.key === "Escape") { flushConfigSave(); setSelected(null); setEditing(null); modalDispatch({ type: 'CLOSE_ALL' }); setShowLetter(null); setShowCapsule(null); setShowCreateCapsule(false); setMarkerFilter("all"); setLocationList(null); setConfirmDelete(null); setLightboxOpen(false); setShowOnboarding(false); setConfirmModal(null); setTripCardEntry(null); localStorage.setItem(onboardKey, "1"); tSpinSpd.current = 0.002; if (isPlaying) stopPlay(); }
       if (e.key === "z" && (e.metaKey || e.ctrlKey) && !e.shiftKey && !modals.showAdd && !editing) { e.preventDefault(); dispatch({ type: "UNDO" }); showToast("Undone", "↩", 1500); }
       if (e.key === "z" && (e.metaKey || e.ctrlKey) && e.shiftKey && !modals.showAdd && !editing) { e.preventDefault(); dispatch({ type: "REDO" }); showToast("Redone", "↪", 1500); }
       if (e.key === "?" && !modals.showAdd && !editing && !modals.showSettings) modalDispatch({ type: 'TOGGLE', name: 'showShortcuts' });
@@ -2117,7 +2139,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     mouseRef, hoverThrottleRef, longPressRef, lastTapRef, clickSR, tDistR,
     entries: data.entries, locationGroups, config, sceneReady,
     isMyWorld, isPartnerWorld, worldType, showToast,
-    setSelected, setLocationList, setSliderDate, setShowLetter, setShowZoomHint,
+    setSelected, setLocationList, setSliderDate, setShowLetter, setShowCapsule, setShowZoomHint,
   });
   _flyTo.current = flyTo;
 
@@ -2468,6 +2490,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         onExportHub={() => modalDispatch({ type: 'OPEN', name: 'showExportHub' })}
         onYearReview={() => modalDispatch({ type: 'OPEN', name: 'showYearReview' })}
         onTrash={() => modalDispatch({ type: 'OPEN', name: 'showTrash' })}
+        onTimeCapsule={() => setShowCreateCapsule(true)}
         onDismissNotification={id => setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))}
         onDismissAllNotifications={() => setNotifications(prev => prev.map(n => ({ ...n, read: true })))}
         onClickNotification={n => {
@@ -2541,6 +2564,33 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               <div style={{ position: "absolute", bottom: 138, right: (config.loveLetters || []).length > 0 ? 50 : 22, zIndex: 12, fontSize: 8, color: P.gold, letterSpacing: ".06em" }}>📝 {(config.loveLetters || []).filter(l => l.draft && l.author === userId).length} draft{(config.loveLetters || []).filter(l => l.draft && l.author === userId).length > 1 ? "s" : ""}</div>
             )}
           </>)}
+        </>;
+      })()}
+
+      {/* TIME CAPSULE TRIGGERS — bottom-right, below love letters */}
+      {(() => {
+        const capsules = config.timeCapsules || [];
+        const today = new Date().toISOString().slice(0, 10);
+        const letterCount = (config.loveLetters || []).length;
+        const capsuleBottom = letterCount > 0 ? 90 : 118;
+        return <>
+          {capsules.length > 0 && (
+            <div style={{ position: "absolute", bottom: capsuleBottom, right: 22, zIndex: 12, display: "flex", flexDirection: "column", gap: 4 }}>
+              {capsules.map((c) => {
+                const isSealed = c.unlockDate > today;
+                return (
+                  <button key={c.id} onClick={() => setShowCapsule(c.id)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, opacity: 0.28, transition: "opacity .5s", padding: 2, filter: isSealed ? "none" : "saturate(1.5)" }}
+                    onMouseEnter={e => e.currentTarget.style.opacity = 0.6} onMouseLeave={e => e.currentTarget.style.opacity = 0.28}
+                    title={`${c.city || "Time Capsule"} — ${isSealed ? `sealed until ${c.unlockDate}` : "opened!"}`}>
+                    {isSealed ? "🔒" : "🔮"}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {!isViewer && (
+            <button onClick={() => setShowCreateCapsule(true)} style={{ position: "absolute", bottom: capsuleBottom, right: capsules.length > 0 ? 50 : 22, zIndex: 12, background: P.glass, border: `1px dashed rgba(200,168,96,.35)`, borderRadius: 7, cursor: "pointer", fontSize: 9, color: P.textMuted, padding: "3px 9px", fontFamily: "inherit", transition: "right .3s" }}>+ Capsule</button>
+          )}
         </>;
       })()}
 
@@ -2752,6 +2802,29 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           }
           modalDispatch({ type: 'CLOSE', name: 'editLetter' });
           showToast("Draft saved 📝", "📝", 2000);
+        }}
+      /></Suspense>}
+
+      {/* TIME CAPSULE OVERLAY */}
+      {(showCapsule || showCreateCapsule) && <Suspense fallback={null}><TimeCapsuleOverlay
+        showCapsuleId={showCapsule}
+        showCreate={showCreateCapsule}
+        capsules={config.timeCapsules || []}
+        config={config}
+        isViewer={isViewer}
+        worldType={worldType}
+        isMyWorld={isMyWorld}
+        onCloseView={() => setShowCapsule(null)}
+        onCloseCreate={() => setShowCreateCapsule(false)}
+        onSaveCapsule={(capsule) => {
+          setConfig({ timeCapsules: [...(config.timeCapsules || []), capsule] });
+          setShowCreateCapsule(false);
+          showToast("Time capsule sealed! 🔮", "🔮", 3000);
+        }}
+        onRemoveCapsule={(capsule) => {
+          setConfig({ timeCapsules: (config.timeCapsules || []).filter(c => c.id !== capsule.id) });
+          setShowCapsule(null);
+          showToast("Time capsule removed", "🗑", 2000);
         }}
       /></Suspense>}
 

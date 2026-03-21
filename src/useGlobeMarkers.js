@@ -188,6 +188,35 @@ function makeSymbolTexture(type, color) {
     ctx.fillRect(cx - 10, cy - 2, 20, 15);
     ctx.fillStyle = "#161028"; ctx.globalAlpha = 0.5;
     ctx.fillRect(cx - 3, cy + 3, 6, 10);
+  } else if (type === "capsule-sealed") {
+    // Golden pulsing hourglass/capsule shape for sealed time capsules
+    ctx.globalAlpha = 0.9;
+    // Outer glow ring
+    ctx.strokeStyle = color; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(cx, cy, 14, 0, Math.PI * 2); ctx.stroke();
+    // Lock body
+    ctx.fillStyle = color; ctx.globalAlpha = 0.85;
+    ctx.fillRect(cx - 7, cy - 2, 14, 12);
+    ctx.beginPath(); ctx.arc(cx, cy - 2, 7, Math.PI, 0); ctx.fill();
+    // Lock shackle
+    ctx.strokeStyle = color; ctx.lineWidth = 2.5; ctx.globalAlpha = 0.7;
+    ctx.beginPath(); ctx.arc(cx, cy - 6, 5, Math.PI, 0); ctx.stroke();
+    // Keyhole
+    ctx.fillStyle = "#161028"; ctx.globalAlpha = 0.5;
+    ctx.beginPath(); ctx.arc(cx, cy + 2, 2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillRect(cx - 0.8, cy + 3, 1.6, 3);
+  } else if (type === "capsule-opened") {
+    // Opened time capsule — star burst
+    ctx.globalAlpha = 0.9;
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const a = (i * Math.PI) / 5 - Math.PI / 2;
+      const r = i % 2 === 0 ? 16 : 7;
+      ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+    }
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#fff8e8"; ctx.globalAlpha = 0.5;
+    ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI * 2); ctx.fill();
   } else {
     ctx.beginPath(); ctx.arc(cx, cy, 10, 0, Math.PI * 2); ctx.fill();
   }
@@ -387,7 +416,16 @@ export function useGlobeMarkers(deps) {
         mkRef.current.push(makeDot(g, letter.lat, letter.lng, "#e8a878", 0.018, `love-${letter.id}`, false, "love-letter"));
       });
     }
-  }, [sliderDate, getPositions, areTogether, locationGroups, sceneReady, showLoveThread, loveThreadData, showConstellation, constellationData, showRoutes, isPlaying, routeData, config.dreamDestinations, config.loveLetters, isPartnerWorld, isMyWorld]);
+
+    // ---- TIME CAPSULES — golden sealed/opened markers ----
+    const today = new Date().toISOString().slice(0, 10);
+    (config.timeCapsules || []).forEach(capsule => {
+      const isSealed = capsule.unlockDate > today;
+      const color = isSealed ? "#c8a860" : "#d4b870";
+      const symbol = isSealed ? "capsule-sealed" : "capsule-opened";
+      mkRef.current.push(makeDot(g, capsule.lat, capsule.lng, color, 0.020, `capsule-${capsule.id}`, false, symbol));
+    });
+  }, [sliderDate, getPositions, areTogether, locationGroups, sceneReady, showLoveThread, loveThreadData, showConstellation, constellationData, showRoutes, isPlaying, routeData, config.dreamDestinations, config.loveLetters, config.timeCapsules, isPartnerWorld, isMyWorld]);
 
   // ---- TRIP ROUTE for selected entry (separate effect to avoid full marker rebuild on click) ----
   const tripRouteRef = useRef([]);

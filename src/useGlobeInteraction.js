@@ -24,7 +24,7 @@ export function useGlobeInteraction(deps) {
     mouseRef, hoverThrottleRef, longPressRef, lastTapRef, clickSR, tDistR,
     entries, locationGroups, config, sceneReady,
     isMyWorld, isPartnerWorld, worldType, showToast,
-    setSelected, setLocationList, setSliderDate, setShowLetter, setShowZoomHint,
+    setSelected, setLocationList, setSliderDate, setShowLetter, setShowCapsule, setShowZoomHint,
 
   } = deps;
 
@@ -89,6 +89,14 @@ export function useGlobeInteraction(deps) {
         const dreamId = id.replace("dream-", "");
         const dream = (config.dreamDestinations || config.bucketList || []).find(d => d.id === dreamId);
         if (dream) label = { city: dream.city || dream.name, date: "dream destination", x: e.clientX, y: e.clientY };
+      } else if (id.startsWith("capsule-")) {
+        const capsuleId = id.replace("capsule-", "");
+        const capsule = (config.timeCapsules || []).find(c => c.id === capsuleId);
+        if (capsule) {
+          const today = new Date().toISOString().slice(0, 10);
+          const isSealed = capsule.unlockDate > today;
+          label = { city: capsule.city || "Time Capsule", date: isSealed ? `🔒 Sealed until ${capsule.unlockDate}` : "🎉 Opened!", x: e.clientX, y: e.clientY };
+        }
       } else {
         const entry = entries.find(en => en.id === id);
         if (entry) {
@@ -134,6 +142,9 @@ export function useGlobeInteraction(deps) {
           } else if (id.startsWith("love-")) {
             const letterId = id.replace("love-", "");
             setShowLetter(letterId);
+          } else if (id.startsWith("capsule-")) {
+            const capsuleId = id.replace("capsule-", "");
+            if (setShowCapsule) setShowCapsule(capsuleId);
           }
         }
       } else { setSelected(null); setLocationList(null); tSpinSpd.current = 0.002; }
@@ -190,7 +201,7 @@ export function useGlobeInteraction(deps) {
                 const groupPhoto = group.entries.find(en => en.photos?.length)?.photos[0] || null;
                 label = { city: group.city, date: `${group.entries.length} entries`, x: tx, y: ty, photo: groupPhoto };
               }
-            } else if (!id.startsWith("dream-") && !id.startsWith("love-")) {
+            } else if (!id.startsWith("dream-") && !id.startsWith("love-") && !id.startsWith("capsule-")) {
               const entry = entries.find(en => en.id === id);
               if (entry) {
                 const d = entry.dateStart ? new Date(entry.dateStart + "T00:00:00").toLocaleDateString("en-US", { month: "short", year: "numeric" }) : "";

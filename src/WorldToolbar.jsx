@@ -78,6 +78,7 @@ export default function WorldToolbar({
   onPlayStory, onStopPlay, onSurpriseMe, onToggleAmbient,
   onUndo, onRedo,
   onScreenshot, onTemplates, onTripJournal, onExportHub, onYearReview, onTrash,
+  onTimeCapsule,
   onDismissNotification, onDismissAllNotifications, onClickNotification,
   onSwitchWorld, onSignOut, syncProps, introComplete,
 }) {
@@ -116,6 +117,7 @@ export default function WorldToolbar({
       entries.length > 2 && { icon: "📈", tip: "Travel Stats", onClick: onToggleTravelStats, a: showTravelStats },
       isPartnerWorld && togetherList.length > 1 && { icon: "🧵", tip: "Love Thread", onClick: onToggleLoveThread, a: showLoveThread },
       { icon: isMyWorld ? "🗺️" : "✦", tip: isMyWorld ? "Bucket List" : "Dreams", onClick: onToggleDreams, a: showDreams },
+      !isViewer && onTimeCapsule && { icon: "🔮", tip: "Time Capsule", onClick: onTimeCapsule },
     ].filter(Boolean),
     photos: [
       allPhotos.length > 0 && { icon: "📸", tip: "Scrapbook", onClick: onToggleGallery, a: showGallery },
