@@ -1233,7 +1233,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     glowLayersRef, particlesRef, particles2Ref,
     starsRef, shootingStarsRef, auroraRef, nightShadowRef,
   } = useGlobeScene(mountRef, {
-    loading, SC, P, isPartnerWorld, isSharedWorld,
+    loading, SC, RAD, P, LAND, COAST_DATA,
+    isPartnerWorld, isSharedWorld,
+    setReady, setIntroComplete,
     frameRef, spinSpd, tSpinSpd, dragR, selectedRef,
     rot, tRot, zmR, tZm,
     easterEggRef, searchMatchIdsRef, mkRef, routesRef,
