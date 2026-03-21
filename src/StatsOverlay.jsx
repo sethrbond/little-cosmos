@@ -1,18 +1,18 @@
 /* StatsOverlay.jsx — Stats dashboard modal extracted from OurWorld.jsx */
 
-export default function StatsOverlay({ P, stats, expandedStats, reunionStats, milestones, isMyWorld, isPartnerWorld, fmtDate, startRecap, onClose, setTripCardEntry }) {
+export default function StatsOverlay({ P, stats, expandedStats, reunionStats, milestones, isMyWorld, isPartnerWorld, fmtDate, startRecap, onClose, setTripCardEntry, config = {}, worldName, worldType }) {
   const prefersReducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   return (
     <div role="dialog" aria-modal="true" aria-label="Travel stats" onClick={onClose} style={{ position: "absolute", inset: 0, zIndex: 45, background: `linear-gradient(135deg, rgba(22,16,40,.82), rgba(30,24,48,.88))`, backdropFilter: "blur(24px)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", animation: prefersReducedMotion ? "none" : "fadeIn .4s ease" }}>
       <div onClick={e => e.stopPropagation()} style={{ width: 440, maxWidth: "92vw", maxHeight: "85vh", overflowY: "auto", padding: 32, background: P.card, borderRadius: 22, boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 24px 64px rgba(61,53,82,.1)", cursor: "default" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 400, letterSpacing: ".08em" }}>{isMyWorld ? "📊 My Travel Stats" : "📊 Our Story in Numbers"}</h2>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 400, letterSpacing: ".08em" }}>{isMyWorld ? "📊 My Travel Stats" : isPartnerWorld && config.youName && config.partnerName ? `📊 ${config.youName} & ${config.partnerName}'s Story` : worldName ? `📊 ${worldName}'s Story` : "📊 Our Story in Numbers"}</h2>
           <button aria-label="Close stats" onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, color: P.textFaint, cursor: "pointer", transition: prefersReducedMotion ? "none" : "color .2s" }}>×</button>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 18 }}>
           {[
-            isPartnerWorld ? { label: "Days Together", value: stats.daysTog, icon: "💕" } : { label: "Days Exploring", value: stats.daysTog, icon: "🧭" },
+            isPartnerWorld ? { label: config.youName && config.partnerName ? `Days ${config.youName} & ${config.partnerName}` : "Days Together", value: stats.daysTog, icon: "💕" } : { label: "Days Exploring", value: stats.daysTog, icon: "🧭" },
             { label: "Trips", value: stats.trips, icon: "🗺" },
             { label: "Countries", value: stats.countries, icon: "🌍" },
             { label: "Photos", value: stats.photos, icon: "📸" },
@@ -33,12 +33,12 @@ export default function StatsOverlay({ P, stats, expandedStats, reunionStats, mi
         {isPartnerWorld && <div style={{ padding: "14px 18px", background: `linear-gradient(135deg,${P.blush},${P.lavMist})`, borderRadius: 14, marginBottom: 16, textAlign: "center", boxShadow: `0 1px 4px ${P.text}04` }}>
           <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 6 }}>The Scoreboard</div>
           <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 12 }}>
-            <div><span style={{ fontSize: 16, color: P.heart }}>💕</span><div style={{ fontSize: 18, fontWeight: 400 }}>{reunionStats.daysTogether}</div><div style={{ fontSize: 7, color: P.textFaint }}>days together</div></div>
+            <div><span style={{ fontSize: 16, color: P.heart }}>💕</span><div style={{ fontSize: 18, fontWeight: 400 }}>{reunionStats.daysTogether}</div><div style={{ fontSize: 7, color: P.textFaint }}>{config.youName && config.partnerName ? `days ${config.youName} & ${config.partnerName}` : "days together"}</div></div>
             <div style={{ fontSize: 11, color: reunionStats.togetherWinning ? P.heart : P.textFaint, fontStyle: "italic" }}>vs</div>
             <div><span style={{ fontSize: 16 }}>🌍</span><div style={{ fontSize: 18, fontWeight: 400 }}>{reunionStats.daysApart}</div><div style={{ fontSize: 7, color: P.textFaint }}>days apart</div></div>
           </div>
           <div style={{ fontSize: 10, color: reunionStats.togetherWinning ? P.heart : P.sky, marginTop: 6, fontStyle: "italic" }}>
-            {reunionStats.togetherWinning ? "Together is winning 💕" : "Distance makes the heart grow fonder 💙"}
+            {reunionStats.togetherWinning ? (config.youName && config.partnerName ? `${config.youName} & ${config.partnerName} are winning 💕` : "Together is winning 💕") : "Distance makes the heart grow fonder 💙"}
           </div>
         </div>}
 
@@ -50,7 +50,7 @@ export default function StatsOverlay({ P, stats, expandedStats, reunionStats, mi
             <div style={{ padding: "12px 14px", background: `linear-gradient(135deg, ${P.together}06, ${P.together}03)`, borderRadius: 12, borderLeft: `3px solid ${P.together}`, transition: prefersReducedMotion ? "none" : "transform .2s" }}
               onMouseEnter={e => e.currentTarget.style.transform = "translateX(2px)"}
               onMouseLeave={e => e.currentTarget.style.transform = "none"}>
-              <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>{isPartnerWorld ? "Longest Trip Together" : "Longest Trip"}</div>
+              <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>{isPartnerWorld ? (config.youName && config.partnerName ? `Longest ${config.youName} & ${config.partnerName} Trip` : "Longest Trip Together") : "Longest Trip"}</div>
               <div style={{ fontSize: 13, marginTop: 2 }}>{expandedStats.longestTrip.entry.city} — {expandedStats.longestTrip.days} days</div>
             </div>
           )}
@@ -66,7 +66,7 @@ export default function StatsOverlay({ P, stats, expandedStats, reunionStats, mi
             <div style={{ padding: "12px 14px", background: `linear-gradient(135deg, ${P.rose}06, ${P.rose}03)`, borderRadius: 12, borderLeft: `3px solid ${P.rose}`, transition: prefersReducedMotion ? "none" : "transform .2s" }}
               onMouseEnter={e => e.currentTarget.style.transform = "translateX(2px)"}
               onMouseLeave={e => e.currentTarget.style.transform = "none"}>
-              <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>{isPartnerWorld ? "Most Visited Together" : "Most Visited"}</div>
+              <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>{isPartnerWorld ? (config.youName && config.partnerName ? `${config.youName} & ${config.partnerName}'s Favorite` : "Most Visited Together") : "Most Visited"}</div>
               <div style={{ fontSize: 13, marginTop: 2 }}>{expandedStats.topCity[0]} — {expandedStats.topCity[1]} times</div>
             </div>
           )}

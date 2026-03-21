@@ -25,6 +25,7 @@ const GalleryPanel = lazy(() => import("./GalleryPanel.jsx"));
 const DetailCard = lazy(() => import("./DetailCard.jsx"));
 const TimelineSlider = lazy(() => import("./TimelineSlider.jsx"));
 const LoveLetterOverlay = lazy(() => import("./LoveLetterOverlay.jsx"));
+const TimeCapsuleOverlay = lazy(() => import("./TimeCapsuleOverlay.jsx"));
 import { EntryTemplates, saveTemplate } from "./EntryTemplates.jsx";
 import useRealtimeSync, { useRealtimePresence } from "./useRealtimeSync.js";
 import { useGlobeInteraction } from "./useGlobeInteraction.js";
@@ -2309,7 +2310,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       <div style={{ position: "absolute", top: isMobile ? 14 : 22, right: isMobile ? 12 : 22, zIndex: 10, textAlign: "right", opacity: introComplete ? .8 : 0, transition: "opacity 1s ease", maxWidth: isMobile ? 130 : 180 }}>
         {isPartnerWorld && dist !== null && (
           <div style={{ marginBottom: 4 }}>
-            {areTogether ? <div style={{ fontSize: 16, color: P.heart, animation: "heartPulse 1.5s ease infinite" }}>💕 Together</div>
+            {areTogether ? <div style={{ fontSize: 16, color: P.heart, animation: "heartPulse 1.5s ease infinite" }}>💕 {config.youName && config.partnerName ? `${config.youName} & ${config.partnerName}` : "Together"}</div>
               : <div style={{ fontSize: 13, color: P.textMid }}><span style={{ color: P.rose }}>♥</span> {dist.toLocaleString()} mi apart{dist > 3000 ? <div style={{ fontSize: 9, color: P.rose, opacity: 0.7, marginTop: 2, fontStyle: "italic" }}>across the world</div> : dist > 500 ? <div style={{ fontSize: 9, color: P.rose, opacity: 0.7, marginTop: 2, fontStyle: "italic" }}>missing you</div> : null}</div>}
           </div>
         )}
@@ -2322,8 +2323,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           {isMyWorld
             ? <>{data.entries.length} trips · {stats.countries} countries<br />{stats.totalMiles.toLocaleString()} miles explored</>
             : isPartnerWorld
-            ? <>{stats.daysTog} days together<br />{stats.trips} adventures · {stats.countries} countries<br />{stats.totalMiles.toLocaleString()} miles traveled</>
-            : <>{data.entries.length} trips · {stats.countries} countries<br />{stats.totalMiles.toLocaleString()} miles traveled</>
+            ? <>{stats.daysTog} days {config.youName && config.partnerName ? `${config.youName} & ${config.partnerName}` : "together"}<br />{stats.trips} adventures · {stats.countries} countries<br />{stats.totalMiles.toLocaleString()} miles traveled</>
+            : <>{data.entries.length} {worldName ? `${worldName} ` : ""}trips · {stats.countries} countries<br />{stats.totalMiles.toLocaleString()} miles traveled</>
           }
         </div>}
         {/* Entry type filter + scrollable entry list */}
@@ -3171,7 +3172,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       })()}
 
       {/* STATS DASHBOARD */}
-      {modals.showStats && <StatsOverlay P={P} stats={stats} expandedStats={expandedStats} reunionStats={reunionStats} milestones={milestones} isMyWorld={isMyWorld} isPartnerWorld={isPartnerWorld} fmtDate={fmtDate} startRecap={startRecap} onClose={() => modalDispatch({ type: 'CLOSE', name: 'showStats' })} setTripCardEntry={setTripCardEntry} />}
+      {modals.showStats && <StatsOverlay P={P} stats={stats} expandedStats={expandedStats} reunionStats={reunionStats} milestones={milestones} isMyWorld={isMyWorld} isPartnerWorld={isPartnerWorld} fmtDate={fmtDate} startRecap={startRecap} onClose={() => modalDispatch({ type: 'CLOSE', name: 'showStats' })} setTripCardEntry={setTripCardEntry} config={config} worldName={worldName} worldType={worldType} />}
 
       {/* YEAR-IN-REVIEW RECAP — Full-screen cinematic */}
       {modals.showRecap && recapEntries.length > 0 && recapYearStats && <RecapOverlay
