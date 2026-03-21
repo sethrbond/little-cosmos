@@ -16,6 +16,7 @@ export default defineConfig({
           three: ['three'],
           supabase: ['@supabase/supabase-js'],
         },
+        hoistTransitiveImports: false,
       },
     },
   },
