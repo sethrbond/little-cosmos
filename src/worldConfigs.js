@@ -411,3 +411,98 @@ export const WORLD_THEMES = {
   },
 };
 
+// ============================================================
+//  CELEBRATION MILESTONES per world type
+// ============================================================
+
+export const PARTNER_MILESTONES = {
+  entries: [
+    { count: 5, msg: "5 Adventures Together!", sub: "Your globe is coming alive", icon: "🎯" },
+    { count: 10, msg: "10 Adventures!", sub: "A whole chapter of memories", icon: "🌟" },
+    { count: 25, msg: "25 Adventures!", sub: "A seasoned duo", icon: "✨" },
+    { count: 50, msg: "50 Adventures!", sub: "Half a century of adventures together", icon: "👑" },
+    { count: 100, msg: "100 Adventures!", sub: "Your globe is legendary", icon: "💎" },
+  ],
+  countries: [
+    { count: 5, msg: "5 Countries!", sub: "Your world is expanding", icon: "🗺" },
+    { count: 10, msg: "10 Countries!", sub: "A true globetrotting couple", icon: "✈️" },
+    { count: 25, msg: "25 Countries!", sub: "World explorer status", icon: "🌐" },
+  ],
+  distance: [
+    { miles: 1000, msg: "1,000 Miles!", sub: "Your adventures span a thousand miles", icon: "🛤" },
+    { miles: 10000, msg: "10,000 Miles!", sub: "You've circled a good chunk of the Earth", icon: "🚀" },
+    { miles: 25000, msg: "25,000 Miles!", sub: "Nearly around the world together", icon: "🌎" },
+  ],
+};
+
+export const FRIENDS_MILESTONES = {
+  entries: [
+    { count: 5, msg: "5 Hangouts!", sub: "The crew is building something", icon: "🎯" },
+    { count: 10, msg: "10 Adventures as a Crew!", sub: "This friend group is legendary", icon: "🌟" },
+    { count: 25, msg: "25 Memories!", sub: "More than most friend groups ever make", icon: "✨" },
+    { count: 50, msg: "50 Adventures!", sub: "Half a century of chaos and love", icon: "👑" },
+    { count: 100, msg: "The 100th!", sub: "This is a friendship for the ages", icon: "💎" },
+  ],
+  countries: [
+    { count: 5, msg: "5 Countries!", sub: "The crew goes international", icon: "🗺" },
+    { count: 10, msg: "10 Countries!", sub: "Passport stamps for everyone", icon: "✈️" },
+    { count: 25, msg: "25 Countries!", sub: "The most well-traveled friend group alive", icon: "🌐" },
+  ],
+  distance: [
+    { miles: 1000, msg: "1,000 Miles!", sub: "The squad has covered serious ground", icon: "🛤" },
+    { miles: 10000, msg: "10,000 Miles!", sub: "You've adventured across continents", icon: "🚀" },
+    { miles: 25000, msg: "25,000 Miles!", sub: "Nearly around the world as a crew", icon: "🌎" },
+  ],
+};
+
+export const FAMILY_MILESTONES = {
+  entries: [
+    { count: 5, msg: "5 Family Memories!", sub: "The family album is growing", icon: "🎯" },
+    { count: 10, msg: "10 Family Adventures!", sub: "A tradition is forming", icon: "🌟" },
+    { count: 25, msg: "25 Memories!", sub: "Three cheers for family", icon: "✨" },
+    { count: 50, msg: "50 Family Moments!", sub: "Generations of love on one globe", icon: "👑" },
+    { count: 100, msg: "100 Family Memories!", sub: "This is a legacy", icon: "💎" },
+  ],
+  countries: [
+    { count: 5, msg: "5 Countries!", sub: "The family goes global", icon: "🗺" },
+    { count: 10, msg: "10 Countries!", sub: "A well-traveled family", icon: "✈️" },
+    { count: 25, msg: "25 Countries!", sub: "Family world explorers", icon: "🌐" },
+  ],
+  distance: [
+    { miles: 1000, msg: "1,000 Miles!", sub: "Your family adventures span a thousand miles", icon: "🛤" },
+    { miles: 10000, msg: "10,000 Miles!", sub: "The family has circled a good chunk of the Earth", icon: "🚀" },
+    { miles: 25000, msg: "25,000 Miles!", sub: "Nearly around the world as a family", icon: "🌎" },
+  ],
+};
+
+export const PERSONAL_MILESTONES = {
+  entries: [
+    { count: 5, msg: "5 Adventures!", sub: "Your story is taking shape", icon: "🎯" },
+    { count: 10, msg: "10 Places!", sub: "The world is opening up", icon: "🌟" },
+    { count: 25, msg: "25 Adventures!", sub: "You've seen more than most", icon: "✨" },
+    { count: 50, msg: "50 Destinations!", sub: "Half the world explored", icon: "👑" },
+    { count: 100, msg: "100 Memories!", sub: "Your globe is a masterpiece", icon: "💎" },
+  ],
+  countries: [
+    { count: 5, msg: "5 Countries!", sub: "Your world is expanding", icon: "🗺" },
+    { count: 10, msg: "10 Countries!", sub: "A true globetrotter", icon: "✈️" },
+    { count: 25, msg: "25 Countries!", sub: "World explorer status", icon: "🌐" },
+  ],
+  distance: [
+    { miles: 1000, msg: "1,000 Miles!", sub: "Your adventures span a thousand miles", icon: "🛤" },
+    { miles: 10000, msg: "10,000 Miles!", sub: "You've circled a good chunk of the Earth", icon: "🚀" },
+    { miles: 25000, msg: "25,000 Miles!", sub: "Nearly around the world", icon: "🌎" },
+  ],
+};
+
+// Helper: get milestone config for a world type
+export function getMilestoneConfig(worldType, isMyWorld) {
+  if (isMyWorld) return PERSONAL_MILESTONES;
+  switch (worldType) {
+    case "friends": return FRIENDS_MILESTONES;
+    case "family":  return FAMILY_MILESTONES;
+    case "partner":
+    default:        return PARTNER_MILESTONES;
+  }
+}
+
