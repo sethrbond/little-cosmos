@@ -1,12 +1,13 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 
+let _toastId = 0;
 export function useToasts() {
   const [toasts, setToasts] = useState([]);
   const dismissTimers = useRef([]);
   const toastTimerKeys = useRef(new Set());
 
   const showToast = useCallback((message, icon = "✓", duration = 2500, undoAction = null) => {
-    const t = { message, icon, duration, key: Date.now(), undoAction };
+    const t = { message, icon, duration, key: ++_toastId, undoAction };
     setToasts(prev => [...prev.slice(-4), t]);
   }, []);
 
@@ -17,7 +18,8 @@ export function useToasts() {
   }, []);
 
   const handleUndo = useCallback((toast) => {
-    if (toast?.undoAction) toast.undoAction();
+    if (!toast) return;
+    if (toast.undoAction) toast.undoAction();
     dismissToast(toast.key);
   }, [dismissToast]);
 
