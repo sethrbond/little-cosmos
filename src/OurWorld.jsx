@@ -1369,6 +1369,10 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       _dispatch({ type: 'ADD', entry, _skipSave: true });
       showToast(`New entry added: ${entry.city || 'somewhere new'}`, "✨", 4000);
       setNotifications(prev => [{ id: `n-${Date.now()}`, type: 'entry_added', message: `New entry: ${entry.city || 'somewhere new'}`, timestamp: new Date().toISOString(), entryId: entry.id, read: false }, ...prev].slice(0, 100));
+      // Browser notification when someone else adds an entry
+      if (entry.addedBy && entry.addedBy !== userId && typeof Notification !== "undefined" && Notification.permission === "granted") {
+        new Notification("New memory added", { body: (entry.city || "somewhere new") + " \u{1F495}", icon: "/icons/icon.svg" });
+      }
     }, []),
     onUpdate: useCallback((entry) => { _dispatch({ type: 'UPDATE', id: entry.id, data: entry, _skipSave: true }); }, []),
     onDelete: useCallback(({ id }) => { _dispatch({ type: 'DELETE', id, _skipSave: true }); }, []),
