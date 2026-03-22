@@ -100,7 +100,7 @@ export function useGlobeScene(mountRef, deps) {
     // Main sphere — themed per world mode
     globe.add(new THREE.Mesh(
       new THREE.SphereGeometry(RAD, 96, 96),
-      new THREE.MeshPhongMaterial({ color: SC.sphereColor, emissive: SC.sphereEmissive, emissiveIntensity: 0.35, shininess: 2, transparent: false })
+      new THREE.MeshLambertMaterial({ color: SC.sphereColor, emissive: SC.sphereEmissive, emissiveIntensity: 0.35, transparent: false })
     ));
     // Inner bloom removed — was rendering as visible yellow blob on light-themed worlds
 
