@@ -594,6 +594,9 @@ function AppInner() {
       <Suspense fallback={<LoadingScreen />}>
         {content}
       </Suspense>
+      <Suspense fallback={null}>
+        <NotificationPrompt supabase={supabase} worldId={activeWorldId} userId={userId} />
+      </Suspense>
       {!emailVerified && !verifyBannerDismissed && !showCinematic && (
         <div style={{
           position: 'fixed', bottom: 16, left: '50%', transform: 'translateX(-50%)',

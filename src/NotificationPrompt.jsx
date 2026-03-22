@@ -3,12 +3,26 @@ import { useState, useEffect, useCallback } from "react";
 const PERM_KEY = "cosmos_notif_permission";
 const ASKED_KEY = "cosmos_notif_asked";
 const FONT = "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif";
+const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+
+// Helper: convert URL-safe base64 to Uint8Array for applicationServerKey
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
 
 /**
  * Self-contained notification permission prompt.
  * Rendered from App.jsx — queries entry count via Supabase, no OurWorld dependency.
+ * Also subscribes to Web Push when permission is granted and VAPID key is configured.
  */
-export default function NotificationPrompt({ supabase, worldId }) {
+export default function NotificationPrompt({ supabase, worldId, userId }) {
   const [show, setShow] = useState(false);
 
   // Check entry count and whether to show prompt
@@ -68,7 +82,34 @@ export default function NotificationPrompt({ supabase, worldId }) {
     localStorage.setItem(PERM_KEY, result);
     localStorage.setItem(ASKED_KEY, "1");
     setShow(false);
-  }, []);
+
+    // Subscribe to Web Push when permission granted and VAPID key is configured
+    if (result === "granted" && VAPID_PUBLIC_KEY && userId) {
+      try {
+        if ("serviceWorker" in navigator && "PushManager" in window) {
+          const registration = await navigator.serviceWorker.ready;
+          let subscription = await registration.pushManager.getSubscription();
+          if (!subscription) {
+            subscription = await registration.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+            });
+          }
+          const subJSON = subscription.toJSON();
+          const { error } = await supabase.from("push_subscriptions").upsert({
+            user_id: userId,
+            endpoint: subJSON.endpoint,
+            keys_p256dh: subJSON.keys.p256dh,
+            keys_auth: subJSON.keys.auth,
+          }, { onConflict: "user_id,endpoint" });
+          if (error) console.error("[push] Failed to store subscription:", error);
+          else console.log("[push] Subscribed to Web Push");
+        }
+      } catch (err) {
+        console.error("[push] Push subscription failed:", err);
+      }
+    }
+  }, [supabase, userId]);
 
   const dismiss = useCallback(() => {
     localStorage.setItem(ASKED_KEY, "1");
