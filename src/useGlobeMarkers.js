@@ -458,12 +458,10 @@ export function useGlobeMarkers(deps) {
       mkRef.current.push(makeDot(g, dream.lat, dream.lng, P.goldWarm, 0.016, `dream-${dream.id}`, true, "dream"));
     });
 
-    // ---- LOVE LETTERS — hidden flower markers scattered on globe ---- (partner only)
-    if (isPartnerWorld) {
-      (config.loveLetters || []).forEach(letter => {
-        mkRef.current.push(makeDot(g, letter.lat, letter.lng, "#e8a878", 0.018, `love-${letter.id}`, false, "love-letter"));
-      });
-    }
+    // ---- LOVE LETTERS / NOTES — hidden markers scattered on globe (all world types) ----
+    (config.loveLetters || []).forEach(letter => {
+      mkRef.current.push(makeDot(g, letter.lat, letter.lng, "#e8a878", 0.018, `love-${letter.id}`, false, "love-letter"));
+    });
 
     // ---- TIME CAPSULES — golden sealed/opened markers ----
     const today = new Date().toISOString().slice(0, 10);

@@ -17,6 +17,7 @@ const INITIAL_MODALS = {
   showPhotoJourney: false, showPhotoMap: false, showMilestones: false, showTravelStats: false,
   showExportHub: false, showYearReview: false, showTemplates: false, showTrash: false,
   showTripJournal: false, showLinkPicker: false, showCelebration: false, quickAddMode: false,
+  editLetter: false,
 };
 
 let _toastId = 0;
