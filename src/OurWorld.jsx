@@ -28,6 +28,7 @@ const LoveLetterOverlay = lazy(() => import("./LoveLetterOverlay.jsx"));
 const TimeCapsuleOverlay = lazy(() => import("./TimeCapsuleOverlay.jsx"));
 import { EntryTemplates, saveTemplate } from "./EntryTemplates.jsx";
 import useRealtimeSync, { useRealtimePresence } from "./useRealtimeSync.js";
+import { shareGlobeCard } from "./ShareCard.js";
 import { useGlobeInteraction } from "./useGlobeInteraction.js";
 import { useGlobeMarkers } from "./useGlobeMarkers.js";
 import { useGlobeScene } from "./useGlobeScene.js";
@@ -2151,6 +2152,34 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   });
   _flyTo.current = flyTo;
 
+  // ---- Share card (generate + download/share a styled globe image) ----
+  const handleShareCard = useCallback(async () => {
+    const rend = rendRef.current, scn = scnRef.current, cam = camRef.current;
+    if (!rend) { showToast("Globe not ready yet", "\u26A0\uFE0F", 3000); return; }
+    try {
+      const displayName = config.title
+        || (isPartnerWorld && config.youName && config.partnerName
+          ? `${config.youName} & ${config.partnerName}'s Cosmos`
+          : isMyWorld ? "My World"
+          : worldName || "Our World");
+      const result = await shareGlobeCard({
+        rendererCanvas: rend.domElement,
+        renderer: rend, scene: scn, camera: cam,
+        worldName: displayName,
+        entryCount: stats.trips,
+        countryCount: stats.countries,
+        totalMiles: stats.totalMiles,
+        startDate: config.startDate,
+        isPartnerWorld,
+      });
+      if (result.shared) showToast("Shared!", "\u{1F30D}", 2500);
+      else if (result.downloaded) showToast("Image saved to downloads", "\u{1F4F7}", 2500);
+    } catch (err) {
+      console.error("[share-card]", err);
+      showToast("Couldn't generate share image", "\u26A0\uFE0F", 3000);
+    }
+  }, [config.title, config.youName, config.partnerName, config.startDate, isMyWorld, isPartnerWorld, worldName, stats, showToast]);
+
   const fileInputRef = useRef(null);
   const photoEntryIdRef = useRef(null);
   const dbRef = useRef(db);
@@ -2493,6 +2522,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         onUndo={() => dispatch({ type: "UNDO" })}
         onRedo={() => dispatch({ type: "REDO" })}
         onScreenshot={saveGlobeScreenshot}
+        onShare={handleShareCard}
         onTemplates={() => modalDispatch({ type: 'OPEN', name: 'showTemplates' })}
         onTripJournal={() => modalDispatch({ type: 'OPEN', name: 'showTripJournal' })}
         onExportHub={() => modalDispatch({ type: 'OPEN', name: 'showExportHub' })}
