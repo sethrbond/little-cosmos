@@ -31,6 +31,7 @@ export function useGlobeInteraction(deps) {
   // Raycaster + mouse vector (owned by this hook)
   const rayRef = useRef(new THREE.Raycaster());
   const mRef = useRef(new THREE.Vector2());
+  const isTouchDevice = useRef("ontouchstart" in window || navigator.maxTouchPoints > 0);
 
   const [hoverLabel, setHoverLabel] = useState(null);
 
@@ -72,8 +73,10 @@ export function useGlobeInteraction(deps) {
     mRef.current.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
     mRef.current.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
     rayRef.current.setFromCamera(mRef.current, camRef.current);
-    const dots = mkRef.current.map(m => m.dot).filter(Boolean);
-    const hits = rayRef.current.intersectObjects(dots);
+    const targets = isTouchDevice.current
+      ? mkRef.current.map(m => m.hitArea || m.dot).filter(Boolean)
+      : mkRef.current.map(m => m.dot).filter(Boolean);
+    const hits = rayRef.current.intersectObjects(targets);
     if (hits.length > 0) {
       const id = hits[0].object.userData.entryId;
       let label = null;
@@ -121,9 +124,14 @@ export function useGlobeInteraction(deps) {
       mRef.current.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       mRef.current.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
       rayRef.current.setFromCamera(mRef.current, camRef.current);
-      const hits = rayRef.current.intersectObjects(mkRef.current.map(m => m.dot).filter(Boolean));
+      const clickTargets = isTouchDevice.current
+        ? mkRef.current.map(m => m.hitArea || m.dot).filter(Boolean)
+        : mkRef.current.map(m => m.dot).filter(Boolean);
+      const hits = rayRef.current.intersectObjects(clickTargets);
       if (hits.length > 0) {
         const id = hits[0].object.userData.entryId;
+        // Haptic feedback on touch devices
+        if (isTouchDevice.current) navigator.vibrate?.([15]);
         if (id.startsWith("group-")) {
           const parts = id.replace("group-", "").split("-");
           const glat = parseFloat(parts[0]), glng = parseFloat(parts.slice(1).join("-"));
@@ -188,8 +196,8 @@ export function useGlobeInteraction(deps) {
           mRef.current.x = ((tx - rect.left) / rect.width) * 2 - 1;
           mRef.current.y = -((ty - rect.top) / rect.height) * 2 + 1;
           rayRef.current.setFromCamera(mRef.current, camRef.current);
-          const dots = mkRef.current.map(m => m.dot).filter(Boolean);
-          const hits = rayRef.current.intersectObjects(dots);
+          const touchTargets = mkRef.current.map(m => m.hitArea || m.dot).filter(Boolean);
+          const hits = rayRef.current.intersectObjects(touchTargets);
           if (hits.length > 0) {
             const id = hits[0].object.userData.entryId;
             let label = null;

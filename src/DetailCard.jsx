@@ -45,6 +45,7 @@ export default function DetailCard({
   setShareWorlds,
   // layout
   isMobile,
+  isLandscape,
   // callbacks
   flyTo,
   showToast,
@@ -129,8 +130,10 @@ export default function DetailCard({
   if (!cur) return null;
 
   return (
-    <div style={isMobile
+    <div style={isMobile && !isLandscape
       ? { position: "absolute", bottom: 105, left: 0, right: 0, zIndex: 25, background: P.card, backdropFilter: "blur(24px)", borderRadius: "18px 18px 0 0", maxHeight: "55vh", boxShadow: "0 -2px 8px rgba(61,53,82,.04), 0 -8px 32px rgba(61,53,82,.08)", border: `1px solid ${P.rose}08`, animation: "fadeIn .3s ease", overflow: "hidden", display: "flex", flexDirection: "column" }
+      : isMobile && isLandscape
+      ? { position: "absolute", top: "env(safe-area-inset-top, 8px)", right: "env(safe-area-inset-right, 8px)", bottom: "env(safe-area-inset-bottom, 8px)", width: 300, zIndex: 25, background: P.card, backdropFilter: "blur(24px)", borderRadius: 18, boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 20px 60px rgba(61,53,82,.08)", border: `1px solid ${P.rose}08`, animation: "cardIn .3s ease", overflow: "hidden", display: "flex", flexDirection: "column" }
       : { position: "absolute", top: "42%", right: 18, transform: "translateY(-50%)", zIndex: 25, background: P.card, backdropFilter: "blur(24px)", borderRadius: 18, maxWidth: 350, minWidth: 270, maxHeight: "65vh", boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 20px 60px rgba(61,53,82,.08)", border: `1px solid ${P.rose}08`, animation: "cardIn .5s ease", overflow: "hidden", display: "flex", flexDirection: "column" }
     }>
       {(cur.photos || []).length > 0 && !cardGallery && (

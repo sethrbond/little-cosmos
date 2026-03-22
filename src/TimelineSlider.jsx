@@ -10,7 +10,7 @@ const todayStr = () => new Date().toISOString().slice(0, 10);
 export default function TimelineSlider({
   sliderDate, sliderVal, totalDays, effectiveStartDate, sorted, milestones, chapters,
   selectedId, isMyWorld, isPartnerWorld, isAnimating, areTogether, pos, entryCount, firstEntryCity,
-  TYPES, DEFAULT_TYPE,
+  TYPES, DEFAULT_TYPE, isMobile,
   onJumpNext, onStepDay, onSliderChange, onSelectEntry,
 }) {
   const P = getP();
@@ -33,10 +33,15 @@ export default function TimelineSlider({
         <button onClick={() => onStepDay(1)} disabled={isAnimating} style={navStyle()}>▸</button>
         <button onClick={() => onJumpNext(1)} disabled={isAnimating} style={navStyle()} title={isPartnerWorld ? "Next together" : "Next entry"}>{isPartnerWorld ? "▸💕" : "⏭"}</button>
       </div>
-      <div style={{ position: "relative", width: "100%", height: 24, display: "flex", alignItems: "center" }}>
+      {isMobile && <style>{`
+        .cosmos-timeline-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:28px;height:28px;border-radius:50%;background:white;border:2px solid rgba(200,160,120,.5);box-shadow:0 1px 6px rgba(0,0,0,.2);cursor:pointer}
+        .cosmos-timeline-slider::-moz-range-thumb{width:28px;height:28px;border-radius:50%;background:white;border:2px solid rgba(200,160,120,.5);box-shadow:0 1px 6px rgba(0,0,0,.2);cursor:pointer}
+      `}</style>}
+      <div style={{ position: "relative", width: "100%", height: isMobile ? 32 : 24, display: "flex", alignItems: "center" }}>
         <input type="range" min={0} max={totalDays} value={clamp(sliderVal, 0, totalDays)}
+          className={isMobile ? "cosmos-timeline-slider" : undefined}
           onChange={e => { if (!isAnimating) onSliderChange(addDays(effectiveStartDate, parseInt(e.target.value))); }}
-          style={{ width: "100%", height: 4, appearance: "none", WebkitAppearance: "none", background: `linear-gradient(90deg,${P.sky},${P.rose})`, borderRadius: 2, outline: "none", cursor: "pointer", opacity: 0.5, touchAction: "manipulation" }} />
+          style={{ width: "100%", height: isMobile ? 8 : 4, appearance: "none", WebkitAppearance: "none", background: `linear-gradient(90deg,${P.sky},${P.rose})`, borderRadius: isMobile ? 4 : 2, outline: "none", cursor: "pointer", opacity: 0.5, touchAction: "manipulation" }} />
         {sorted.map(e => {
           const d = daysBetween(effectiveStartDate, e.dateStart);
           const pct = totalDays > 0 ? (d / totalDays) * 100 : 0;

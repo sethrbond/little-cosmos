@@ -963,10 +963,14 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     })();
   }, [db]);
 
-  // Mobile detection
+  // Mobile detection + landscape
   const [isMobile, setIsMobile] = useState(window.innerWidth < 600);
+  const [isLandscape, setIsLandscape] = useState(window.innerHeight < window.innerWidth && window.innerHeight < 500);
   useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 600);
+    const check = () => {
+      setIsMobile(window.innerWidth < 600);
+      setIsLandscape(window.innerHeight < window.innerWidth && window.innerHeight < 500);
+    };
     window.addEventListener("resize", check);
     return () => window.removeEventListener("resize", check);
   }, []);
@@ -2302,7 +2306,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       )}
 
       {/* TITLE */}
-      <div style={{ position: "absolute", top: 22, left: 0, right: 0, textAlign: "center", zIndex: 10, pointerEvents: "none", opacity: ready ? 1 : 0, transform: ready ? "none" : "translateY(-12px)", transition: "all 1.8s cubic-bezier(.23,1,.32,1)" }}>
+      <div style={{ position: "absolute", top: "max(22px, env(safe-area-inset-top, 22px))", left: 0, right: 0, textAlign: "center", zIndex: 10, pointerEvents: "none", opacity: ready ? 1 : 0, transform: ready ? "none" : "translateY(-12px)", transition: "all 1.8s cubic-bezier(.23,1,.32,1)" }}>
         <h1 style={{ fontSize: 28, fontWeight: 400, margin: 0, letterSpacing: ".2em", textTransform: "uppercase", color: "#f0e8d8", textShadow: "0 1px 12px rgba(0,0,0,0.5), 0 0 40px rgba(255,255,255,0.12)" }}>{config.title}</h1>
         <p style={{ fontSize: 12, color: "#d8cebb", marginTop: 3, letterSpacing: ".3em", fontStyle: "italic", textShadow: "0 1px 8px rgba(0,0,0,0.5)" }}>{config.subtitle}</p>
         {isAnniversary && <div style={{ fontSize: 11, color: P.heart, marginTop: 6, letterSpacing: ".15em", animation: "heartPulse 2s ease infinite" }}>✨ Happy Anniversary ✨</div>}
@@ -2310,7 +2314,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
       {/* MOBILE ZOOM BUTTONS */}
       {isMobile && introComplete && (
-        <div style={{ position: "absolute", bottom: 130, right: 14, zIndex: 20, display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ position: "absolute", bottom: 130, right: "max(14px, env(safe-area-inset-right, 14px))", zIndex: 20, display: "flex", flexDirection: "column", gap: 10 }}>
           <button aria-label="Zoom in" onClick={() => { tZm.current = clamp(tZm.current - 0.4, MIN_Z, MAX_Z); }} style={{ width: 44, height: 44, borderRadius: 12, border: `1px solid ${P.textFaint}25`, background: P.glass, backdropFilter: "blur(12px)", fontSize: 20, color: P.text, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: `0 2px 8px ${P.text}10` }}>+</button>
           <button aria-label="Zoom out" onClick={() => { tZm.current = clamp(tZm.current + 0.4, MIN_Z, MAX_Z); }} style={{ width: 44, height: 44, borderRadius: 12, border: `1px solid ${P.textFaint}25`, background: P.glass, backdropFilter: "blur(12px)", fontSize: 20, color: P.text, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: `0 2px 8px ${P.text}10` }}>−</button>
         </div>
@@ -2333,7 +2337,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       )}
 
       {/* RIGHT PANEL — distance + stats */}
-      <div style={{ position: "absolute", top: isMobile ? 14 : 22, right: isMobile ? 12 : 22, zIndex: 10, textAlign: "right", opacity: introComplete ? .8 : 0, transition: "opacity 1s ease", maxWidth: isMobile ? 130 : 180 }}>
+      <div style={{ position: "absolute", top: `max(${isMobile ? 14 : 22}px, env(safe-area-inset-top, ${isMobile ? 14 : 22}px))`, right: `max(${isMobile ? 12 : 22}px, env(safe-area-inset-right, ${isMobile ? 12 : 22}px))`, zIndex: 10, textAlign: "right", opacity: introComplete ? .8 : 0, transition: "opacity 1s ease", maxWidth: isMobile ? 130 : 180 }}>
         {isPartnerWorld && dist !== null && (
           <div style={{ marginBottom: 4 }}>
             {areTogether ? <div style={{ fontSize: 16, color: P.heart, animation: "heartPulse 1.5s ease infinite" }}>💕 {config.youName && config.partnerName ? `${config.youName} & ${config.partnerName}` : "Together"}</div>
@@ -2617,6 +2621,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         firstEntryCity={data.entries[0]?.city}
         TYPES={TYPES}
         DEFAULT_TYPE={DEFAULT_TYPE}
+        isMobile={isMobile}
         onJumpNext={jumpNext}
         onStepDay={stepDay}
         onSliderChange={setSliderDate}
@@ -2628,8 +2633,10 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
       {/* LOCATION LIST — multiple chapters at same place */}
       {locationList && !selected && (
-        <div style={isMobile
+        <div style={isMobile && !isLandscape
           ? { position: "absolute", bottom: 105, left: 0, right: 0, zIndex: 25, background: P.card, backdropFilter: "blur(24px)", borderRadius: "16px 16px 0 0", maxHeight: "45vh", boxShadow: "0 -8px 32px rgba(61,53,82,.1)", border: `1px solid ${P.rose}10`, animation: "fadeIn .3s ease", overflow: "hidden", display: "flex", flexDirection: "column" }
+          : isMobile && isLandscape
+          ? { position: "absolute", top: "env(safe-area-inset-top, 8px)", right: "env(safe-area-inset-right, 8px)", bottom: "env(safe-area-inset-bottom, 8px)", width: 280, zIndex: 25, background: P.card, backdropFilter: "blur(24px)", borderRadius: 16, boxShadow: "0 12px 44px rgba(61,53,82,.1)", border: `1px solid ${P.rose}10`, animation: "cardIn .3s ease", overflow: "hidden", display: "flex", flexDirection: "column" }
           : { position: "absolute", top: "42%", right: 18, transform: "translateY(-50%)", zIndex: 25, background: P.card, backdropFilter: "blur(24px)", borderRadius: 16, maxWidth: 300, minWidth: 220, boxShadow: "0 12px 44px rgba(61,53,82,.1)", border: `1px solid ${P.rose}10`, animation: "cardIn .5s ease", overflow: "hidden", display: "flex", flexDirection: "column" }
         }>
           <div style={{ padding: "14px 18px 10px" }}>
@@ -2692,6 +2699,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           shareWorlds={shareWorlds}
           setShareWorlds={setShareWorlds}
           isMobile={isMobile}
+          isLandscape={isLandscape}
           flyTo={flyTo}
           showToast={showToast}
           onClose={() => { setSelected(null); setLightboxOpen(false); tSpinSpd.current = 0.002; }}
