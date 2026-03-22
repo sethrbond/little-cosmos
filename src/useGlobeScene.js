@@ -145,7 +145,7 @@ export function useGlobeScene(mountRef, deps) {
 
     // Glow layers — 12-layer deep halo for ethereal radiance
     const glowRadii = [1.01, 1.025, 1.045, 1.07, 1.10, 1.14, 1.20, 1.28, 1.40, 1.55, 1.75, 2.0];
-    const glowOpacities = [0.40, 0.34, 0.28, 0.23, 0.18, 0.14, 0.10, 0.07, 0.05, 0.035, 0.02, 0.012];
+    const glowOpacities = [0.12, 0.10, 0.09, 0.08, 0.07, 0.06, 0.05, 0.04, 0.03, 0.025, 0.015, 0.008];
     const glows = glowRadii.map((r, i) => ({ r, color: SC.glowColors[i] || SC.glowColors[0], op: glowOpacities[i] })).map(({ r, color, op }) => {
       const m = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: op, side: THREE.BackSide });
       const mesh = new THREE.Mesh(new THREE.SphereGeometry(RAD * r, 48, 48), m);
