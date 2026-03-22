@@ -617,8 +617,8 @@ export default function DetailCard({
           <button onClick={() => onTripCard(cur)} style={{ padding: "7px 10px", background: `linear-gradient(135deg,${P.parchment},${P.blush})`, border: `1px solid ${P.rose}15`, borderRadius: 7, cursor: "pointer", fontSize: 9, color: P.textMuted, fontFamily: "inherit" }} title="Share card">{"\ud83c\udccf"}</button>
         </div>}
 
-        {/* Reactions — shared worlds only */}
-        {isSharedWorld && (() => {
+        {/* Reactions — shared worlds only (viewers cannot react) */}
+        {isSharedWorld && !isViewer && (() => {
           const entryReactions = worldReactions.filter(r => r.entry_id === cur.id && !r.photo_url);
           const reactionTypes = [
             { type: "heart", icon: "\u2764\ufe0f" },
@@ -652,8 +652,8 @@ export default function DetailCard({
           );
         })()}
 
-        {/* Comments — shared worlds only */}
-        {isSharedWorld && (
+        {/* Comments — shared worlds only (viewers cannot comment) */}
+        {isSharedWorld && !isViewer && (
           <div style={{ marginTop: 10, borderTop: `1px solid ${P.rose}10`, paddingTop: 8 }}>
             <div style={{ fontSize: 10, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 6 }}>
               Comments {entryComments.length > 0 && `(${entryComments.length})`}

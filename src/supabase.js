@@ -163,6 +163,7 @@ export function createOurWorldDB(userId) {
         if (data.metadata.customPalette && typeof data.metadata.customPalette === 'object') cfg.customPalette = data.metadata.customPalette
         if (data.metadata.customScene && typeof data.metadata.customScene === 'object') cfg.customScene = data.metadata.customScene
         if (data.metadata.ambientMusicUrl) cfg.ambientMusicUrl = data.metadata.ambientMusicUrl
+        if (Array.isArray(data.metadata.timeCapsules)) cfg.timeCapsules = data.metadata.timeCapsules
       }
       return cfg
     },
@@ -182,6 +183,7 @@ export function createOurWorldDB(userId) {
           customPalette: config.customPalette || {},
           customScene: config.customScene || {},
           ambientMusicUrl: config.ambientMusicUrl || '',
+          timeCapsules: config.timeCapsules || [],
         },
       }
       const { error } = await supabase.from('config').upsert(row, { onConflict: 'id' })
@@ -313,6 +315,7 @@ export function createSharedWorldDB(worldId, userId) {
         if (data.metadata.customPalette && typeof data.metadata.customPalette === 'object') cfg.customPalette = data.metadata.customPalette
         if (data.metadata.customScene && typeof data.metadata.customScene === 'object') cfg.customScene = data.metadata.customScene
         if (data.metadata.ambientMusicUrl) cfg.ambientMusicUrl = data.metadata.ambientMusicUrl
+        if (Array.isArray(data.metadata.timeCapsules)) cfg.timeCapsules = data.metadata.timeCapsules
       }
       return cfg
     },
@@ -334,6 +337,7 @@ export function createSharedWorldDB(worldId, userId) {
             customPalette: config.customPalette || {},
             customScene: config.customScene || {},
             ambientMusicUrl: config.ambientMusicUrl || '',
+            timeCapsules: config.timeCapsules || [],
           },
         }
         const { error } = await supabase.from('config').upsert(row, { onConflict: 'id' })

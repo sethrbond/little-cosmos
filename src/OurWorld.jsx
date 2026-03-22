@@ -1380,7 +1380,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       }
     }, []),
     onUpdate: useCallback((entry) => { _dispatch({ type: 'UPDATE', id: entry.id, data: entry, _skipSave: true }); }, []),
-    onDelete: useCallback(({ id }) => { _dispatch({ type: 'DELETE', id, _skipSave: true }); }, []),
+    onDelete: useCallback(({ id }) => { _dispatch({ type: 'DELETE', id, _skipSave: true }); setSelected(prev => prev?.id === id ? null : prev); }, []),
   });
 
   // Real-time presence — show who's online in shared worlds
@@ -1635,7 +1635,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   // ---- OFFLINE AWARENESS ----
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   useEffect(() => {
-    const goOffline = () => { setIsOffline(true); showToast("You're offline — changes won't save", "⚠️", 5000); };
+    const goOffline = () => { setIsOffline(true); showToast("You're offline — changes will sync when you reconnect", "⚠️", 5000); };
     const goOnline = () => { setIsOffline(false); showToast("Back online", "✅", 2000); };
     window.addEventListener("offline", goOffline);
     window.addEventListener("online", goOnline);
@@ -2352,7 +2352,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       {/* OFFLINE INDICATOR */}
       {isOffline && introComplete && (
         <div style={{ position: "absolute", top: isMobile ? 70 : 80, left: "50%", transform: "translateX(-50%)", zIndex: 15, pointerEvents: "none", animation: "fadeIn .4s ease" }}>
-          <div style={{ fontSize: 10, color: "#e8c070", letterSpacing: ".1em", background: "rgba(40,30,20,0.75)", backdropFilter: "blur(8px)", borderRadius: 12, padding: "4px 14px", border: "1px solid rgba(200,170,110,0.2)" }}>Offline — changes won't save</div>
+          <div style={{ fontSize: 10, color: "#e8c070", letterSpacing: ".1em", background: "rgba(40,30,20,0.75)", backdropFilter: "blur(8px)", borderRadius: 12, padding: "4px 14px", border: "1px solid rgba(200,170,110,0.2)" }}>Offline — changes will sync when you reconnect</div>
         </div>
       )}
 
@@ -2829,7 +2829,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           if (editId) {
             setConfig({ loveLetters: (config.loveLetters || []).map(l => l.id === editId ? { ...l, ...letterObj } : l) });
           } else {
-            setConfig({ loveLetters: [...(config.loveLetters || []), { id: `ll-${Date.now()}`, ...letterObj }] });
+            setConfig({ loveLetters: [...(config.loveLetters || []), { id: `ll-${Date.now()}`, author: userId, ...letterObj }] });
           }
           modalDispatch({ type: 'CLOSE', name: 'editLetter' });
           const _mi = isMyWorld || worldType === "personal" ? "✦" : worldType === "friends" ? "✧" : worldType === "family" ? "♥" : "❀";
@@ -2840,7 +2840,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           if (editId) {
             setConfig({ loveLetters: (config.loveLetters || []).map(l => l.id === editId ? { ...l, ...letterObj } : l) });
           } else {
-            setConfig({ loveLetters: [...(config.loveLetters || []), { id: `ll-${Date.now()}`, ...letterObj }] });
+            setConfig({ loveLetters: [...(config.loveLetters || []), { id: `ll-${Date.now()}`, author: userId, ...letterObj }] });
           }
           modalDispatch({ type: 'CLOSE', name: 'editLetter' });
           showToast("Draft saved 📝", "📝", 2000);
@@ -3578,7 +3578,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                   count++;
                 });
                 showToast(`Imported ${count} entries`, "📥", 4000);
-                modalDispatch({ type: 'CLOSE', name: 'showExportHub' });
               } : undefined} /></Suspense></OverlayBoundary>}
       {tripCardEntry && <OverlayBoundary onClose={() => setTripCardEntry(null)}><Suspense fallback={<div style={{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(8,6,18,0.7)",backdropFilter:"blur(8px)"}}><div style={{color:"rgba(255,255,255,0.4)",fontSize:14,fontFamily:"'Palatino Linotype',Georgia,serif",letterSpacing:".05em"}}>Loading…</div></div>}><TripCard entry={tripCardEntry} palette={P} onClose={() => setTripCardEntry(null)} worldMode={worldMode} /></Suspense></OverlayBoundary>}
       {modals.showYearReview && <OverlayBoundary onClose={() => modalDispatch({ type: 'CLOSE', name: 'showYearReview' })}><Suspense fallback={<div style={{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(8,6,18,0.7)",backdropFilter:"blur(8px)"}}><div style={{color:"rgba(255,255,255,0.4)",fontSize:14,fontFamily:"'Palatino Linotype',Georgia,serif",letterSpacing:".05em"}}>Loading…</div></div>}><YearInReview entries={data.entries} stats={stats} palette={P} onClose={() => modalDispatch({ type: 'CLOSE', name: 'showYearReview' })} worldMode={worldMode} config={config} /></Suspense></OverlayBoundary>}

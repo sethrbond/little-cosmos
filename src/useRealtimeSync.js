@@ -31,6 +31,7 @@ function rowToEntry(row) {
     musicUrl: row.music_url || null,
     favorite: row.favorite || false,
     loveNote: row.love_note || '',
+    photoCaptions: row.photo_captions || {},
     addedBy: row.user_id || null,
   }
 }
