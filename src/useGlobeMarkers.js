@@ -412,47 +412,6 @@ export function useGlobeMarkers(deps) {
       });
     }
 
-    // ---- CLUSTER HALOS — soft glow spheres where entries cluster together ----
-    {
-      const clusterThreshold = 5; // degrees lat/lng
-      const clusters = [];
-      locationGroups.forEach(loc => {
-        const existing = clusters.find(c =>
-          Math.abs(c.lat - loc.lat) < clusterThreshold &&
-          Math.abs(c.lng - loc.lng) < clusterThreshold
-        );
-        if (existing) {
-          existing.locs.push(loc);
-          existing.lat = existing.locs.reduce((s, l) => s + l.lat, 0) / existing.locs.length;
-          existing.lng = existing.locs.reduce((s, l) => s + l.lng, 0) / existing.locs.length;
-        } else {
-          clusters.push({ lat: loc.lat, lng: loc.lng, locs: [loc] });
-        }
-      });
-      clusters.filter(c => c.locs.length >= 2).forEach(cluster => {
-        const entryCount = cluster.locs.reduce((s, l) => s + l.entries.length, 0);
-        const typeColors = cluster.locs.map(l => {
-          const t = l.entries[0]?.type;
-          const info = TYPES[t];
-          return info ? (P[info.color] || info.color || P.textFaint) : P.textFaint;
-        });
-        const avgColor = typeColors[0] || P.textFaint;
-        const size = 0.04 + Math.min(entryCount, 10) * 0.008;
-        const opacity = 0.08 + Math.min(entryCount, 10) * 0.007;
-        const pos = ll2v(cluster.lat, cluster.lng, RAD * 1.01);
-        const haloGeo = new THREE.SphereGeometry(size, 16, 16);
-        const haloMat = new THREE.MeshBasicMaterial({
-          color: avgColor, transparent: true, opacity: Math.min(opacity, 0.08),
-          side: THREE.FrontSide, depthTest: true,
-        });
-        const haloMesh = new THREE.Mesh(haloGeo, haloMat);
-        haloMesh.position.copy(pos);
-        haloMesh.renderOrder = -1;
-        g.add(haloMesh);
-        mkRef.current.push({ entryId: `cluster-halo-${cluster.lat.toFixed(1)}-${cluster.lng.toFixed(1)}`, dot: haloMesh, glow: null, ring: null, entryType: 'cluster' });
-      });
-    }
-
     // ---- DREAM DESTINATIONS — ethereal ghost markers ----
     (config.dreamDestinations || []).forEach(dream => {
       mkRef.current.push(makeDot(g, dream.lat, dream.lng, P.goldWarm, 0.016, `dream-${dream.id}`, true, "dream"));
