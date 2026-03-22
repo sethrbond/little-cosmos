@@ -227,16 +227,23 @@ function makeSymbolTexture(type, color) {
   return tex;
 }
 
+// Minimum touch hit-area radius (48px equivalent in 3D space)
+const TOUCH_HIT_RADIUS = 0.045;
+
 // ---- MARKER HELPER ----
 function makeDot(group, lat, lng, color, size, id, faint = false, symbolType = null) {
   const P = window.__cosmosP;
   const p = ll2v(lat, lng, RAD * 1.012);
+  // Invisible larger hit-area mesh for touch devices
+  const hitSize = Math.max(size * 3, TOUCH_HIT_RADIUS);
+  const hitArea = new THREE.Mesh(new THREE.CircleGeometry(hitSize, 12), new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide, depthTest: true }));
+  hitArea.position.copy(p); hitArea.lookAt(p.clone().multiplyScalar(2)); hitArea.userData = { entryId: id }; hitArea.renderOrder = -1; group.add(hitArea);
   if (symbolType) {
     const tex = makeSymbolTexture(symbolType, color);
     const sz = size * 7;
     const dot = new THREE.Mesh(new THREE.PlaneGeometry(sz, sz), new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.02, side: THREE.DoubleSide, depthTest: true }));
     dot.position.copy(p); dot.lookAt(p.clone().multiplyScalar(2)); dot.userData = { entryId: id }; dot.renderOrder = 2; group.add(dot);
-    return { entryId: id, dot, ring: null, glow: null };
+    return { entryId: id, dot, ring: null, glow: null, hitArea };
   }
   const dotOp = faint ? 0.28 : 0.85;
   const dot = new THREE.Mesh(new THREE.CircleGeometry(size, 20), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: dotOp, side: THREE.DoubleSide, depthTest: true }));
@@ -246,7 +253,7 @@ function makeDot(group, lat, lng, color, size, id, faint = false, symbolType = n
   const glow = new THREE.Mesh(new THREE.CircleGeometry(size * (faint ? 1.4 : 2.0), 24), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: glowOp, side: THREE.DoubleSide, depthTest: true }));
   glow.material._baseOpacity = glowOp;
   glow.position.copy(p); glow.lookAt(p.clone().multiplyScalar(2)); glow.renderOrder = 0; group.add(glow);
-  return { entryId: id, dot, ring: null, glow };
+  return { entryId: id, dot, ring: null, glow, hitArea };
 }
 
 /**
@@ -402,6 +409,47 @@ export function useGlobeMarkers(deps) {
         glowLine.renderOrder = 1;
         g.add(glowLine);
         routesRef.current.push({ line, glow: glowLine, idx, dist });
+      });
+    }
+
+    // ---- CLUSTER HALOS — soft glow spheres where entries cluster together ----
+    {
+      const clusterThreshold = 5; // degrees lat/lng
+      const clusters = [];
+      locationGroups.forEach(loc => {
+        const existing = clusters.find(c =>
+          Math.abs(c.lat - loc.lat) < clusterThreshold &&
+          Math.abs(c.lng - loc.lng) < clusterThreshold
+        );
+        if (existing) {
+          existing.locs.push(loc);
+          existing.lat = existing.locs.reduce((s, l) => s + l.lat, 0) / existing.locs.length;
+          existing.lng = existing.locs.reduce((s, l) => s + l.lng, 0) / existing.locs.length;
+        } else {
+          clusters.push({ lat: loc.lat, lng: loc.lng, locs: [loc] });
+        }
+      });
+      clusters.filter(c => c.locs.length >= 2).forEach(cluster => {
+        const entryCount = cluster.locs.reduce((s, l) => s + l.entries.length, 0);
+        const typeColors = cluster.locs.map(l => {
+          const t = l.entries[0]?.type;
+          const info = TYPES[t];
+          return info ? (P[info.color] || info.color || P.textFaint) : P.textFaint;
+        });
+        const avgColor = typeColors[0] || P.textFaint;
+        const size = 0.04 + Math.min(entryCount, 10) * 0.008;
+        const opacity = 0.08 + Math.min(entryCount, 10) * 0.007;
+        const pos = ll2v(cluster.lat, cluster.lng, RAD * 1.01);
+        const haloGeo = new THREE.SphereGeometry(size, 16, 16);
+        const haloMat = new THREE.MeshBasicMaterial({
+          color: avgColor, transparent: true, opacity: Math.min(opacity, 0.15),
+          side: THREE.FrontSide, depthTest: true, blending: THREE.AdditiveBlending,
+        });
+        const haloMesh = new THREE.Mesh(haloGeo, haloMat);
+        haloMesh.position.copy(pos);
+        haloMesh.renderOrder = -1;
+        g.add(haloMesh);
+        mkRef.current.push({ entryId: `cluster-halo-${cluster.lat.toFixed(1)}-${cluster.lng.toFixed(1)}`, dot: haloMesh, glow: null, ring: null, entryType: 'cluster' });
       });
     }
 

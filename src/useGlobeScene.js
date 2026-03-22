@@ -224,7 +224,7 @@ export function useGlobeScene(mountRef, deps) {
     particlesRef.current = particles;
 
     // Second particle layer — lavender stardust
-    const p2N = 260;
+    const p2N = 460;
     const p2G = new THREE.BufferGeometry();
     const p2P = new Float32Array(p2N * 3);
     for (let i = 0; i < p2N; i++) { p2P[i * 3] = (Math.random() - 0.5) * 13; p2P[i * 3 + 1] = (Math.random() - 0.5) * 13; p2P[i * 3 + 2] = (Math.random() - 0.5) * 13; }
@@ -316,7 +316,7 @@ export function useGlobeScene(mountRef, deps) {
     }
     auroraG.setAttribute("position", new THREE.BufferAttribute(auroraP, 3));
     auroraG.setAttribute("color", new THREE.BufferAttribute(auroraC, 3));
-    const auroraMat = new THREE.PointsMaterial({ size: 0.18, transparent: true, opacity: 0.045, vertexColors: true, sizeAttenuation: true, blending: THREE.AdditiveBlending });
+    const auroraMat = new THREE.PointsMaterial({ size: 0.24, transparent: true, opacity: 0.07, vertexColors: true, sizeAttenuation: true, blending: THREE.AdditiveBlending });
     const auroraMesh = new THREE.Points(auroraG, auroraMat);
     scene.add(auroraMesh);
     auroraRef.current = { mesh: auroraMesh, positions: auroraP, geometry: auroraG };
@@ -407,13 +407,14 @@ export function useGlobeScene(mountRef, deps) {
       particles2.rotation.y -= 0.00008;
       particles2.rotation.x += 0.00003;
 
-      // Star twinkling — per-star size/opacity oscillation
+      // Star twinkling — per-star size/opacity oscillation (2x faster when entry selected)
       if (starsRef.current) {
         const sr = starsRef.current;
         const sizes = sr.geometry.attributes.size;
         const now = Date.now() * 0.001;
+        const twinkleMultiplier = atmosphereRef.current.targetHue ? 2.0 : 1.0;
         for (let i = 0; i < sr.phases.length; i++) {
-          const twinkle = 0.6 + 0.4 * Math.sin(now * sr.speeds[i] + sr.phases[i]);
+          const twinkle = 0.6 + 0.4 * Math.sin(now * sr.speeds[i] * twinkleMultiplier + sr.phases[i]);
           sizes.array[i] = sr.sizes[i] * twinkle;
         }
         sizes.needsUpdate = true;
@@ -542,7 +543,7 @@ export function useGlobeScene(mountRef, deps) {
 
         // Aurora brightness boost on selection
         if (auroraRef.current.mesh) {
-          const targetOp = atm.targetHue ? 0.08 : 0.045;
+          const targetOp = atm.targetHue ? 0.12 : 0.07;
           auroraRef.current.mesh.material.opacity = lerp(auroraRef.current.mesh.material.opacity, targetOp, 0.03);
         }
       }
@@ -722,12 +723,113 @@ export function useGlobeScene(mountRef, deps) {
     const introT2 = setTimeout(() => setIntroComplete(true), 2500);
     setSceneReady(true);
 
+    // ---- Comet shower on first load — 3-5 bright streaks arc from sky to globe surface ----
+    const showerCount = 3 + Math.floor(Math.random() * 3); // 3-5 comets
+    const showerTimers = [];
+    for (let si = 0; si < showerCount; si++) {
+      const delay = 400 + si * 350 + Math.random() * 200; // stagger over ~2s
+      const timer = setTimeout(() => {
+        if (!scnRef.current || !globeRef.current) return;
+        // Random target on globe surface
+        const tLat = (Math.random() - 0.5) * 140; // -70 to 70
+        const tLng = (Math.random() - 0.5) * 360; // -180 to 180
+        const targetLocal = ll2v(tLat, tLng, RAD * 1.015);
+        // Origin: upper atmosphere, random position
+        const oTheta = Math.random() * Math.PI * 2;
+        const origin = new THREE.Vector3(
+          Math.cos(oTheta) * (2 + Math.random() * 2),
+          2.5 + Math.random() * 3,
+          Math.sin(oTheta) * (1 + Math.random() * 2)
+        );
+        // Colors: warm palette for visual variety
+        const showerColors = ["#ffd8e8", "#ffe8c8", "#d8e8ff", "#ffeedd", "#e8d8ff"];
+        const color = showerColors[si % showerColors.length];
+        // Head
+        const headGeo = new THREE.SphereGeometry(0.030, 12, 12);
+        const headMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85 });
+        const head = new THREE.Mesh(headGeo, headMat);
+        head.position.copy(origin);
+        head.renderOrder = 15;
+        scene.add(head);
+        // Head halo
+        const haloGeo = new THREE.SphereGeometry(0.08, 12, 12);
+        const haloMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.12, side: THREE.BackSide });
+        const halo = new THREE.Mesh(haloGeo, haloMat);
+        head.add(halo);
+        // Trail (10-segment line)
+        const TRAIL_LEN = 10;
+        const trailPos = new Float32Array(TRAIL_LEN * 3);
+        for (let ti = 0; ti < TRAIL_LEN * 3; ti++) trailPos[ti] = origin.x;
+        const trailGeo = new THREE.BufferGeometry();
+        trailGeo.setAttribute("position", new THREE.BufferAttribute(trailPos, 3));
+        const trailMat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.5 });
+        const trail = new THREE.Line(trailGeo, trailMat);
+        trail.renderOrder = 14;
+        scene.add(trail);
+        // Animate via a self-contained loop using the existing animation frame
+        let progress = 0;
+        const history = [];
+        const _showerTarget = new THREE.Vector3();
+        const animateShower = () => {
+          if (!scnRef.current || !globeRef.current) { cleanup(); return; }
+          const target = _showerTarget.copy(targetLocal).applyEuler(globeRef.current.rotation);
+          progress += 0.012 + progress * 0.02;
+          if (progress >= 1) {
+            // Impact flash
+            const flashGeo = new THREE.SphereGeometry(0.15, 16, 16);
+            const flashMat = new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.5 });
+            const flash = new THREE.Mesh(flashGeo, flashMat);
+            flash.position.copy(target);
+            flash.renderOrder = 16;
+            scene.add(flash);
+            let flashAge = 0;
+            const fadeFlash = () => {
+              flashAge += 0.04;
+              flash.scale.setScalar(0.3 + flashAge * 2);
+              flash.material.opacity = Math.max(0, 0.5 * (1 - flashAge));
+              if (flashAge < 1 && scnRef.current) requestAnimationFrame(fadeFlash);
+              else { scene.remove(flash); flashGeo.dispose(); flashMat.dispose(); }
+            };
+            requestAnimationFrame(fadeFlash);
+            cleanup();
+            return;
+          }
+          // Bezier arc from origin to target
+          const mid = origin.clone().add(target).multiplyScalar(0.5);
+          mid.y += 1.2;
+          const curve = new THREE.QuadraticBezierCurve3(origin, mid, target);
+          const eased = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+          const pos = curve.getPoint(eased);
+          head.position.copy(pos);
+          history.unshift(pos.clone());
+          if (history.length > TRAIL_LEN) history.length = TRAIL_LEN;
+          for (let ti = 0; ti < TRAIL_LEN; ti++) {
+            const hp = history[Math.min(ti, history.length - 1)];
+            trailPos[ti * 3] = hp.x; trailPos[ti * 3 + 1] = hp.y; trailPos[ti * 3 + 2] = hp.z;
+          }
+          trailGeo.attributes.position.needsUpdate = true;
+          trailMat.opacity = 0.3 + progress * 0.4;
+          headMat.opacity = 0.7 + Math.sin(progress * Math.PI) * 0.3;
+          requestAnimationFrame(animateShower);
+        };
+        const cleanup = () => {
+          scene.remove(head); scene.remove(trail);
+          headGeo.dispose(); headMat.dispose();
+          haloGeo.dispose(); haloMat.dispose();
+          trailGeo.dispose(); trailMat.dispose();
+        };
+        requestAnimationFrame(animateShower);
+      }, delay);
+      showerTimers.push(timer);
+    }
+
     const onR = () => { const nw = el.clientWidth, nh = el.clientHeight; cam.aspect = nw / nh; cam.updateProjectionMatrix(); rend.setSize(nw, nh); };
     window.addEventListener("resize", onR);
 
     return () => {
       clearTimeout(flyInT1); clearTimeout(flyInT2);
       clearTimeout(introT1); clearTimeout(introT2);
+      showerTimers.forEach(clearTimeout);
       cancelAnimationFrame(frameRef.current);
       if (animRef?.current) cancelAnimationFrame(animRef.current);
       if (playRef?.current) clearTimeout(playRef.current);
