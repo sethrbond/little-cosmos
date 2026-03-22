@@ -163,7 +163,7 @@ export function useGlobeScene(mountRef, deps) {
       });
       const _dummy = new THREE.Object3D();
       Object.values(colorGroups).forEach(({ color, items }) => {
-        const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.40, side: THREE.DoubleSide });
+        const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.18, side: THREE.DoubleSide });
         const inst = new THREE.InstancedMesh(landGeo, mat, items.length);
         items.forEach((item, i) => {
           const p = ll2v(item.lat, item.lng, RAD * 1.002);
