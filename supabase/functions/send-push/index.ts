@@ -8,10 +8,13 @@
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import webpush from "https://esm.sh/web-push@3.6.7";
 
 const VAPID_PUBLIC_KEY = Deno.env.get("VAPID_PUBLIC_KEY")!;
 const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY")!;
 const VAPID_SUBJECT = Deno.env.get("VAPID_SUBJECT") || "mailto:hello@littlecosmos.app";
+
+webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
 serve(async (req) => {
   try {
@@ -39,21 +42,20 @@ serve(async (req) => {
 
     for (const sub of subs) {
       try {
-        // Web Push protocol — sign with VAPID, encrypt payload
-        const pushResult = await sendWebPush(
-          { endpoint: sub.endpoint, keys: { p256dh: sub.keys_p256dh, auth: sub.keys_auth } },
-          payload,
-          { vapidPublicKey: VAPID_PUBLIC_KEY, vapidPrivateKey: VAPID_PRIVATE_KEY, vapidSubject: VAPID_SUBJECT }
+        await webpush.sendNotification(
+          {
+            endpoint: sub.endpoint,
+            keys: { p256dh: sub.keys_p256dh, auth: sub.keys_auth },
+          },
+          payload
         );
-
-        if (pushResult.status === 201) {
-          sent++;
-        } else if (pushResult.status === 410 || pushResult.status === 404) {
-          // Subscription expired or invalid — mark for cleanup
+        sent++;
+      } catch (err: any) {
+        if (err.statusCode === 410 || err.statusCode === 404) {
           stale.push(sub.endpoint);
+        } else {
+          console.error("[send-push] Failed for endpoint:", sub.endpoint, err.statusCode || err.message);
         }
-      } catch (err) {
-        console.error("[send-push] Failed for endpoint:", sub.endpoint, err);
       }
     }
 
@@ -64,32 +66,6 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({ sent, cleaned: stale.length }), { status: 200 });
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+    return new Response(JSON.stringify({ error: (err as Error).message }), { status: 500 });
   }
 });
-
-// Minimal Web Push sender using Deno crypto
-// For production, consider using a full Web Push library
-async function sendWebPush(
-  subscription: { endpoint: string; keys: { p256dh: string; auth: string } },
-  payload: string,
-  vapid: { vapidPublicKey: string; vapidPrivateKey: string; vapidSubject: string }
-): Promise<Response> {
-  // NOTE: Full Web Push encryption requires:
-  // 1. ECDH key agreement with subscriber's p256dh key
-  // 2. HKDF key derivation
-  // 3. AES-128-GCM content encryption
-  // 4. VAPID JWT signing
-  //
-  // For now, this is a placeholder. In production, use:
-  // - npm: web-push (generate VAPID + send)
-  // - Or call a push service like OneSignal, Firebase FCM, or Pushover
-  //
-  // The simplest production approach:
-  // Deploy a small Node.js worker alongside this edge function that uses
-  // the `web-push` npm package, OR use Supabase's built-in push support
-  // when it becomes available.
-
-  console.log(`[send-push] Would send to ${subscription.endpoint}: ${payload}`);
-  return new Response("", { status: 201 });
-}
