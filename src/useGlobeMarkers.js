@@ -442,8 +442,8 @@ export function useGlobeMarkers(deps) {
         const pos = ll2v(cluster.lat, cluster.lng, RAD * 1.01);
         const haloGeo = new THREE.SphereGeometry(size, 16, 16);
         const haloMat = new THREE.MeshBasicMaterial({
-          color: avgColor, transparent: true, opacity: Math.min(opacity, 0.15),
-          side: THREE.FrontSide, depthTest: true, blending: THREE.AdditiveBlending,
+          color: avgColor, transparent: true, opacity: Math.min(opacity, 0.08),
+          side: THREE.FrontSide, depthTest: true,
         });
         const haloMesh = new THREE.Mesh(haloGeo, haloMat);
         haloMesh.position.copy(pos);
