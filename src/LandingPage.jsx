@@ -4,26 +4,74 @@ import * as THREE from 'three'
 
 const FONT = '"Palatino Linotype", "Book Antiqua", Palatino, serif'
 
-// Demo entries with real cities and warm notes
-const DEMO_ENTRIES = [
-  { city: 'Paris', emoji: '🥐', lat: 48.86, lng: 2.35, dates: 'Sep 12–18, 2024',
-    note: 'that restaurant by the river, the one with no sign. you found it. we went back three times.',
-    dwell: 3500, gradient: 'linear-gradient(135deg, #e8a87c, #d4758b)' },
-  { city: 'Tokyo', emoji: '🗼', lat: 35.68, lng: 139.69, dates: 'Mar 28 – Apr 5, 2024',
-    note: 'cherry blossom season. sat under that tree in ueno park for hours. neither of us wanted to leave.',
-    dwell: 4000, gradient: 'linear-gradient(135deg, #f8b4c8, #c084c0)' },
-  { city: 'New York', emoji: '🗽', lat: 40.71, lng: -74.01, dates: 'Jan 3–8, 2023',
-    note: 'tiny apartment, huge city. pizza on the fire escape. i think that was the happiest tuesday of my life.',
-    dwell: 2500, gradient: 'linear-gradient(135deg, #7eb5d6, #5a8fb0)' },
-  { city: 'Iceland', emoji: '🌌', lat: 64.15, lng: -21.94, dates: 'Nov 20–26, 2023',
-    note: 'the northern lights came out on our last night. we both cried. neither of us said why.',
-    dwell: 3800, gradient: 'linear-gradient(135deg, #6dd5c0, #3daa98)' },
-  { city: 'Barcelona', emoji: '🎭', lat: 41.39, lng: 2.17, dates: 'Jun 14–20, 2024',
-    note: 'anniversary. got lost in the gothic quarter. found a wine bar with exactly four candles. perfect.',
-    dwell: 3000, gradient: 'linear-gradient(135deg, #f0c27f, #d4945a)' },
-  { city: 'Bali', emoji: '🏖️', lat: -8.41, lng: 115.19, dates: 'Aug 1–12, 2023',
-    note: 'honeymoon. rice terraces at sunrise. temple bells at dusk. i kept thinking — this is real, this is ours.',
-    dwell: 4200, gradient: 'linear-gradient(135deg, #a8e6a3, #68b898)' },
+// Demo story sets — visitors can pick which vibe to preview
+const DEMO_STORIES = {
+  couple: [
+    { city: 'Paris', emoji: '\u{1F950}', lat: 48.86, lng: 2.35, dates: 'Sep 12\u201318, 2024',
+      note: 'that restaurant by the river, the one with no sign. you found it. we went back three times.',
+      dwell: 3500, gradient: 'linear-gradient(135deg, #e8a87c, #d4758b)' },
+    { city: 'Tokyo', emoji: '\u{1F5FC}', lat: 35.68, lng: 139.69, dates: 'Mar 28 \u2013 Apr 5, 2024',
+      note: 'cherry blossom season. sat under that tree in ueno park for hours. neither of us wanted to leave.',
+      dwell: 4000, gradient: 'linear-gradient(135deg, #f8b4c8, #c084c0)' },
+    { city: 'New York', emoji: '\u{1F5FD}', lat: 40.71, lng: -74.01, dates: 'Jan 3\u20138, 2023',
+      note: 'tiny apartment, huge city. pizza on the fire escape. i think that was the happiest tuesday of my life.',
+      dwell: 2500, gradient: 'linear-gradient(135deg, #7eb5d6, #5a8fb0)' },
+    { city: 'Iceland', emoji: '\u{1F30C}', lat: 64.15, lng: -21.94, dates: 'Nov 20\u201326, 2023',
+      note: 'the northern lights came out on our last night. we both cried. neither of us said why.',
+      dwell: 3800, gradient: 'linear-gradient(135deg, #6dd5c0, #3daa98)' },
+    { city: 'Barcelona', emoji: '\u{1F3AD}', lat: 41.39, lng: 2.17, dates: 'Jun 14\u201320, 2024',
+      note: 'anniversary. got lost in the gothic quarter. found a wine bar with exactly four candles. perfect.',
+      dwell: 3000, gradient: 'linear-gradient(135deg, #f0c27f, #d4945a)' },
+    { city: 'Bali', emoji: '\u{1F3D6}\uFE0F', lat: -8.41, lng: 115.19, dates: 'Aug 1\u201312, 2023',
+      note: 'honeymoon. rice terraces at sunrise. temple bells at dusk. i kept thinking \u2014 this is real, this is ours.',
+      dwell: 4200, gradient: 'linear-gradient(135deg, #a8e6a3, #68b898)' },
+  ],
+  friends: [
+    { city: 'Ibiza', emoji: '\u{1F3B6}', lat: 38.91, lng: 1.43, dates: 'Jul 8\u201315, 2024',
+      note: 'the sunset boat. marcus fell in. we have it on video from four different angles.',
+      dwell: 3200, gradient: 'linear-gradient(135deg, #e8a87c, #d4758b)' },
+    { city: 'Amsterdam', emoji: '\u{1F6B2}', lat: 52.37, lng: 4.90, dates: 'Apr 18\u201322, 2024',
+      note: 'rented bikes, got lost immediately. found the best falafel spot in europe by accident.',
+      dwell: 3000, gradient: 'linear-gradient(135deg, #7eb5d6, #5a8fb0)' },
+    { city: 'Lisbon', emoji: '\u{1F1F5}\u{1F1F9}', lat: 38.72, lng: -9.14, dates: 'Oct 3\u20139, 2023',
+      note: 'tram 28. egg tarts. that rooftop bar where we stayed until 4am talking about nothing.',
+      dwell: 3500, gradient: 'linear-gradient(135deg, #f0c27f, #d4945a)' },
+    { city: 'Cancun', emoji: '\u{1F334}', lat: 21.16, lng: -86.85, dates: 'Mar 10\u201317, 2023',
+      note: 'spring break round two. except now we\u2019re 30 and in bed by midnight. still perfect.',
+      dwell: 2800, gradient: 'linear-gradient(135deg, #6dd5c0, #3daa98)' },
+    { city: 'Berlin', emoji: '\u{1F3A4}', lat: 52.52, lng: 13.41, dates: 'Dec 28, 2023 \u2013 Jan 2, 2024',
+      note: 'new year\u2019s at the gate. fireworks everywhere. group photo where everyone\u2019s eyes are closed.',
+      dwell: 3600, gradient: 'linear-gradient(135deg, #f8b4c8, #c084c0)' },
+    { city: 'Bangkok', emoji: '\u{1F962}', lat: 13.76, lng: 100.50, dates: 'Feb 5\u201314, 2024',
+      note: 'street food challenge. jay tried the scorpion. the rest of us just watched and laughed for ten minutes.',
+      dwell: 3400, gradient: 'linear-gradient(135deg, #a8e6a3, #68b898)' },
+  ],
+  family: [
+    { city: 'Lake Como', emoji: '\u26F5', lat: 45.99, lng: 9.27, dates: 'Jun 20\u201328, 2024',
+      note: 'grandpa rented the boat. the kids jumped off the dock all day. mom said it reminded her of when she was little.',
+      dwell: 3800, gradient: 'linear-gradient(135deg, #7eb5d6, #5a8fb0)' },
+    { city: 'Disney World', emoji: '\u{1F3F0}', lat: 28.39, lng: -81.56, dates: 'Dec 22\u201329, 2023',
+      note: 'ella met her favorite princess and froze. just stood there. the photo is the best thing we own.',
+      dwell: 3200, gradient: 'linear-gradient(135deg, #f8b4c8, #c084c0)' },
+    { city: 'Yellowstone', emoji: '\u{1F43B}', lat: 44.43, lng: -110.59, dates: 'Aug 5\u201312, 2023',
+      note: 'saw a bison from the car. dad whispered \u201cdon\u2019t move\u201d even though we were inside. classic dad.',
+      dwell: 3500, gradient: 'linear-gradient(135deg, #a8e6a3, #68b898)' },
+    { city: 'London', emoji: '\u{1F4C2}', lat: 51.51, lng: -0.13, dates: 'Apr 2\u20139, 2024',
+      note: 'the kids did the guard thing. stood perfectly still for thirty seconds then collapsed laughing. nana has it on film.',
+      dwell: 3000, gradient: 'linear-gradient(135deg, #e8a87c, #d4758b)' },
+    { city: 'Cape Town', emoji: '\u{1F1FF}\u{1F1E6}', lat: -33.93, lng: 18.42, dates: 'Nov 15\u201324, 2023',
+      note: 'table mountain at sunset. three generations, one photo. it\u2019s the wallpaper on everyone\u2019s phone now.',
+      dwell: 4000, gradient: 'linear-gradient(135deg, #f0c27f, #d4945a)' },
+    { city: 'Kyoto', emoji: '\u26E9\uFE0F', lat: 35.01, lng: 135.77, dates: 'Oct 10\u201318, 2024',
+      note: 'the bamboo forest. the kids went quiet for the first time all trip. we just walked together.',
+      dwell: 3600, gradient: 'linear-gradient(135deg, #6dd5c0, #3daa98)' },
+  ],
+}
+
+const STORY_OPTIONS = [
+  { key: 'couple', label: "A Couple's Story" },
+  { key: 'friends', label: 'Friends Trip' },
+  { key: 'family', label: 'Family Memories' },
 ]
 
 // Sample cities for the mini globe markers
@@ -142,7 +190,7 @@ function MiniGlobe() {
     const w = 320, h = 320
     const { scene, camera, renderer, globe, wire } = buildGlobeScene(el, w, h)
 
-    let isDragging = false, prevX = 0, dragVelocity = 0, autoRotateSpeed = 0.08
+    let isDragging = false, prevX = 0, prevY = 0, dragVelocity = 0, autoRotateSpeed = 0.08
 
     const markerGeo = new THREE.SphereGeometry(0.018, 8, 8)
     const markers = SAMPLE_CITIES.map(({ lat, lng }) => {
@@ -175,14 +223,16 @@ function MiniGlobe() {
       globe.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(20)), arcMat))
     }
 
-    const onPointerDown = (e) => { isDragging = true; prevX = e.clientX; dragVelocity = 0; el.style.cursor = 'grabbing' }
+    const onPointerDown = (e) => { isDragging = true; prevX = e.clientX; prevY = e.clientY; dragVelocity = 0; el.style.cursor = 'grabbing' }
     const onPointerMove = (e) => {
       if (!isDragging) return
-      const dx = e.clientX - prevX
+      const dx = e.clientX - prevX, dy = e.clientY - prevY
       dragVelocity = dx * 0.003
-      globe.rotation.y += dragVelocity
+      globe.rotation.y += dx * 0.003
+      globe.rotation.x = Math.max(-0.8, Math.min(0.8, globe.rotation.x + dy * 0.003))
       wire.rotation.y = globe.rotation.y
-      prevX = e.clientX
+      wire.rotation.x = globe.rotation.x
+      prevX = e.clientX; prevY = e.clientY
     }
     const onPointerUp = () => { isDragging = false; el.style.cursor = 'grab' }
     el.addEventListener('pointerdown', onPointerDown)
@@ -223,7 +273,7 @@ function MiniGlobe() {
     <div ref={ref} aria-label="Interactive 3D globe" role="img" style={{
       width: 320, height: 320, marginBottom: 24,
       filter: 'drop-shadow(0 0 40px rgba(200,170,110,0.15))',
-      cursor: 'grab',
+      cursor: 'grab', touchAction: 'none',
     }} />
   )
 }
@@ -237,14 +287,20 @@ function DemoExperience({ onClose, onSignUp }) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [storyFinished, setStoryFinished] = useState(false)
   const [showAddTooltip, setShowAddTooltip] = useState(false)
+  const [activeStoryKey, setActiveStoryKey] = useState('couple')
   const sceneRef = useRef(null)
   const playingRef = useRef(false)
   const cancelStoryRef = useRef(null)
   const storyFinishedRef = useRef(false)
+  const activeStoryRef = useRef('couple')
+
+  const activeStoryEntries = DEMO_STORIES[activeStoryKey]
 
   useEffect(() => {
     const el = ref.current
     if (!el) return
+    const entries = DEMO_STORIES[activeStoryKey]
+    activeStoryRef.current = activeStoryKey
 
     const w = window.innerWidth, h = window.innerHeight
     const { scene, camera, renderer, globe, wire } = buildGlobeScene(el, w, h)
@@ -252,7 +308,7 @@ function DemoExperience({ onClose, onSignUp }) {
 
     // Demo markers (larger, breathing)
     const markerGeo = new THREE.SphereGeometry(0.028, 12, 12)
-    const demoMarkers = DEMO_ENTRIES.map(({ lat, lng }, i) => {
+    const demoMarkers = entries.map(({ lat, lng }, i) => {
       const pos = ll2v(lat, lng, 1.012)
       const mat = new THREE.MeshBasicMaterial({ color: 0xc9a96e, transparent: true, opacity: 0.9 })
       const mesh = new THREE.Mesh(markerGeo, mat)
@@ -264,7 +320,7 @@ function DemoExperience({ onClose, onSignUp }) {
 
     // Pulse rings for demo markers
     const ringGeo = new THREE.RingGeometry(0.03, 0.055, 16)
-    const demoRings = DEMO_ENTRIES.map(({ lat, lng }, i) => {
+    const demoRings = entries.map(({ lat, lng }, i) => {
       const pos = ll2v(lat, lng, 1.018)
       const mat = new THREE.MeshBasicMaterial({ color: 0xc9a96e, transparent: true, opacity: 0, side: THREE.DoubleSide })
       const mesh = new THREE.Mesh(ringGeo, mat)
@@ -277,7 +333,7 @@ function DemoExperience({ onClose, onSignUp }) {
     // Travel arcs between demo cities
     const arcMat = new THREE.LineBasicMaterial({ color: 0xc9a96e, transparent: true, opacity: 0.1 })
     for (const [a, b] of [[0,4],[1,5],[2,3],[0,2],[4,5],[3,0]]) {
-      const ca = DEMO_ENTRIES[a], cb = DEMO_ENTRIES[b]
+      const ca = entries[a], cb = entries[b]
       const va = ll2v(ca.lat, ca.lng, 1.002), vb = ll2v(cb.lat, cb.lng, 1.002)
       const mid = new THREE.Vector3().addVectors(va, vb).multiplyScalar(0.5).normalize().multiplyScalar(1.08)
       const curve = new THREE.QuadraticBezierCurve3(va, mid, vb)
@@ -373,7 +429,7 @@ function DemoExperience({ onClose, onSignUp }) {
       window.removeEventListener('resize', onResize)
       if (el.contains(renderer.domElement)) el.removeChild(renderer.domElement)
     }
-  }, [])
+  }, [activeStoryKey])
 
   // Fly to a city by rotating the globe
   const flyTo = useCallback((entryIndex, duration = 1200) => {
@@ -381,7 +437,7 @@ function DemoExperience({ onClose, onSignUp }) {
       const s = sceneRef.current
       if (!s) { resolve(); return }
       const { globe, wire } = s
-      const entry = DEMO_ENTRIES[entryIndex]
+      const entry = DEMO_STORIES[activeStoryRef.current][entryIndex]
       // Convert lat/lng to globe rotation: lng maps to -Y rotation, lat to X tilt
       const targetY = (-entry.lng - 90) * Math.PI / 180
       const targetX = entry.lat * Math.PI / 180 * 0.4
@@ -420,24 +476,25 @@ function DemoExperience({ onClose, onSignUp }) {
 
     let prevLng = 0 // start from center
 
-    for (let i = 0; i < DEMO_ENTRIES.length; i++) {
+    const storyEntries = DEMO_STORIES[activeStoryRef.current]
+    for (let i = 0; i < storyEntries.length; i++) {
       if (cancelled) break
 
       // Vary fly duration based on longitude distance from previous city
-      const lngDist = Math.abs(DEMO_ENTRIES[i].lng - prevLng)
+      const lngDist = Math.abs(storyEntries[i].lng - prevLng)
       const flyDuration = lngDist > 80 ? 1800 : 1200
-      prevLng = DEMO_ENTRIES[i].lng
+      prevLng = storyEntries[i].lng
 
       await flyTo(i, flyDuration)
       if (cancelled) break
 
       setActiveEntry(i)
       // Use per-city dwell time for a human feel
-      const dwell = DEMO_ENTRIES[i].dwell || 3000
+      const dwell = storyEntries[i].dwell || 3000
       await new Promise(r => setTimeout(r, dwell))
       if (cancelled) break
 
-      if (i < DEMO_ENTRIES.length - 1) setActiveEntry(null)
+      if (i < storyEntries.length - 1) setActiveEntry(null)
       // Random pause between cities (200-600ms)
       const pause = 200 + Math.floor(Math.random() * 400)
       await new Promise(r => setTimeout(r, pause))
@@ -499,6 +556,36 @@ function DemoExperience({ onClose, onSignUp }) {
           )}
         </div>
 
+        {/* Story picker */}
+        <div style={{ display: 'flex', gap: 2, background: 'rgba(200,170,110,0.04)', borderRadius: 10, padding: 2 }}>
+          {STORY_OPTIONS.map(opt => (
+            <button
+              key={opt.key}
+              onClick={() => {
+                if (isPlaying || opt.key === activeStoryKey) return
+                if (cancelStoryRef.current) cancelStoryRef.current()
+                playingRef.current = false
+                setIsPlaying(false)
+                setActiveEntry(null)
+                setStoryFinished(false)
+                storyFinishedRef.current = false
+                setActiveStoryKey(opt.key)
+              }}
+              style={{
+                background: opt.key === activeStoryKey ? 'rgba(200,170,110,0.15)' : 'transparent',
+                border: 'none', borderRadius: 8, padding: '6px 12px',
+                color: opt.key === activeStoryKey ? '#c9a96e' : 'rgba(200,170,110,0.4)',
+                fontSize: 11, fontFamily: FONT,
+                cursor: isPlaying ? 'default' : 'pointer',
+                transition: 'background 0.2s, color 0.2s',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
         {/* Play Story */}
         <button
           onClick={isPlaying ? undefined : playStory}
@@ -546,20 +633,20 @@ function DemoExperience({ onClose, onSignUp }) {
             border: '1px solid #efe3d0',
             boxShadow: '0 8px 32px rgba(90,62,40,0.15)',
           }}>
-            <div style={{ height: 6, background: DEMO_ENTRIES[activeEntry].gradient || 'linear-gradient(135deg, #c9a96e, #b8944f)', borderRadius: '20px 20px 0 0' }} />
+            <div style={{ height: 6, background: activeStoryEntries[activeEntry].gradient || 'linear-gradient(135deg, #c9a96e, #b8944f)', borderRadius: '20px 20px 0 0' }} />
             <div style={{ padding: '18px 22px', textAlign: 'center' }}>
-              <div style={{ fontSize: 28, marginBottom: 8 }}>{DEMO_ENTRIES[activeEntry].emoji}</div>
+              <div style={{ fontSize: 28, marginBottom: 8 }}>{activeStoryEntries[activeEntry].emoji}</div>
               <div style={{ fontSize: 18, fontWeight: 500, color: '#5a3e28', fontFamily: FONT, marginBottom: 4 }}>
-                {DEMO_ENTRIES[activeEntry].city}
+                {activeStoryEntries[activeEntry].city}
               </div>
               <div style={{ fontSize: 11, color: '#a08b74', fontFamily: FONT, marginBottom: 14 }}>
-                {DEMO_ENTRIES[activeEntry].dates}
+                {activeStoryEntries[activeEntry].dates}
               </div>
               <p style={{
                 fontSize: 14, lineHeight: 1.8, color: '#6b5440',
                 fontStyle: 'italic', margin: 0, fontFamily: "'Georgia','Palatino Linotype',serif",
               }}>
-                \u201c{DEMO_ENTRIES[activeEntry].note}\u201d
+                \u201c{activeStoryEntries[activeEntry].note}\u201d
               </p>
             </div>
           </div>
@@ -828,8 +915,9 @@ export default function LandingPage({ onSignIn, onSignUp }) {
         }}>
           A universe that fills up with your stories. Add photos, scribble notes, share it with your favorite people.
         </p>
+        <div style={{ fontSize: 12, opacity: 0.5, marginTop: 36 }}>No credit card needed.</div>
         {/* CTA buttons: Start Your Cosmos + Try the Demo */}
-        <div style={{ display: 'flex', gap: 14, marginTop: 44, flexWrap: 'wrap', justifyContent: 'center' }}>
+        <div style={{ display: 'flex', gap: 14, marginTop: 16, flexWrap: 'wrap', justifyContent: 'center' }}>
           <button onClick={onSignUp} style={{
             padding: '15px 48px',
             background: 'linear-gradient(135deg, #c9a96e, #b8944f)',
@@ -857,7 +945,6 @@ export default function LandingPage({ onSignIn, onSignUp }) {
             Try the Demo
           </button>
         </div>
-        <div style={{ fontSize: 12, opacity: 0.5, marginTop: 16 }}>Free forever. No credit card.</div>
         <div aria-hidden="true" style={{
           marginTop: 48, opacity: 0.5, fontSize: 13,
           animation: prefersReducedMotion ? 'none' : 'landingBounce 2s ease-in-out infinite',
@@ -948,9 +1035,9 @@ export default function LandingPage({ onSignIn, onSignUp }) {
       <section style={{ padding: "60px 24px", maxWidth: 900, margin: "0 auto" }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 20 }}>
           {[
-            { quote: "we've visited 14 countries together. watching them light up on our globe makes me cry every time.", who: "a couple from portland" },
-            { quote: "i hid a love letter on the globe in the city where we met. she found it on our anniversary.", who: "m." },
-            { quote: "my kids love spinning the family globe and finding all our vacation spots.", who: "parent of 3" },
+            { quote: "We've tracked 47 trips across 14 countries. Every anniversary we play our story back.", who: "A & M, together 6 years" },
+            { quote: "The boys' trip group finally has a place to put all our stories. Way better than a group chat.", who: "J, organizer of an annual friends trip" },
+            { quote: "Three generations of family vacations, all on one globe. My mom cried the first time she saw it.", who: "K, family world creator" },
           ].map(t => (
             <div key={t.who} style={{ padding: "22px 20px", borderRadius: 14, background: "rgba(232,224,208,0.03)", border: "1px solid rgba(200,170,110,0.1)" }}>
               <p style={{ fontFamily: FONT, fontStyle: "italic", color: "#e8e0d0", fontSize: 14, lineHeight: 1.7, margin: 0 }}>"{t.quote}"</p>
@@ -976,10 +1063,10 @@ export default function LandingPage({ onSignIn, onSignUp }) {
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16 }}>
           {[
-            { name: 'My World', desc: 'Just yours', color: '#c9a96e', icon: '\u{1F30D}' },
-            { name: 'Partner', desc: 'Love letters & all', color: '#d4a0b0', icon: '\u{1F495}' },
-            { name: 'Friends', desc: 'For the group chat', color: '#7090c0', icon: '\u{1F46F}' },
-            { name: 'Family', desc: 'Every reunion, every trip', color: '#c4956a', icon: '\u{1F468}\u200D\u{1F469}\u200D\u{1F467}\u200D\u{1F466}' },
+            { name: 'Partner', desc: 'For the love stories', color: '#d4758b', icon: '\u{1F495}' },
+            { name: 'Friends', desc: 'For the crew', color: '#5a8fb0', icon: '\u{1F46F}' },
+            { name: 'Family', desc: 'For generations', color: '#c4956a', icon: '\u{1F468}\u200D\u{1F469}\u200D\u{1F467}\u200D\u{1F466}' },
+            { name: 'Personal', desc: 'For your solo adventures', color: '#c9a96e', icon: '\u{1F30D}' },
           ].map((w, i) => (
             <div key={"world-" + i} style={{
               padding: '24px 20px', borderRadius: 16, textAlign: 'center',
