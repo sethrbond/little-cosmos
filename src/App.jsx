@@ -160,6 +160,8 @@ function AppInner() {
   const [showCinematic, setShowCinematic] = useState(false)
   const [confirmModal, setConfirmModal] = useState(null)
   const [errorToast, setErrorToast] = useState(null)
+  const [verifyBannerDismissed, setVerifyBannerDismissed] = useState(false)
+  const [resendingVerification, setResendingVerification] = useState('')
   const errorToastTimer = useRef(null)
   const transitionTimers = useRef([])
   const showErrorToast = useCallback((msg) => {
@@ -494,21 +496,6 @@ function AppInner() {
     return <LandingPage onSignIn={() => setAuthMode('login')} onSignUp={() => setAuthMode('signup')} />
   }
 
-  if (!emailVerified) {
-    return (
-      <div style={{ position: 'fixed', inset: 0, background: '#0c0a12', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: '"Palatino Linotype", serif', color: '#e8e0d0', gap: 16, padding: 32, textAlign: 'center' }}>
-        <div style={{ fontSize: 24, opacity: 0.8 }}>Check your email</div>
-        <div style={{ fontSize: 14, opacity: 0.5, maxWidth: 360, lineHeight: 1.6 }}>
-          We sent a verification link to <span style={{ color: '#c9a96e' }}>{user.email}</span>. Click it to activate your account.
-        </div>
-        <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
-          <button onClick={() => window.location.reload()} style={{ padding: '10px 24px', background: 'rgba(200,170,110,0.15)', border: '1px solid rgba(200,170,110,0.3)', borderRadius: 8, color: '#e8e0d0', fontFamily: 'inherit', fontSize: 13, cursor: 'pointer' }}>I've verified — refresh</button>
-          <button onClick={signOut} style={{ padding: '10px 24px', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: '#e8e0d0', fontFamily: 'inherit', fontSize: 13, cursor: 'pointer', opacity: 0.6 }}>Sign out</button>
-        </div>
-      </div>
-    )
-  }
-
   // For logged-in users, wait for letter check and worlds to load
   // Determine main content — confirm modal overlays on top of any screen
   let content
@@ -567,6 +554,7 @@ function AppInner() {
             userId={userId}
             userEmail={user?.email}
             userDisplayName={userDisplayName}
+            emailVerified={emailVerified}
             connections={connections}
             onConnectionsChange={setConnections}
             pendingRequests={pendingRequests}
@@ -606,6 +594,41 @@ function AppInner() {
       <Suspense fallback={<LoadingScreen />}>
         {content}
       </Suspense>
+      {!emailVerified && !verifyBannerDismissed && !showCinematic && (
+        <div style={{
+          position: 'fixed', bottom: 16, left: '50%', transform: 'translateX(-50%)',
+          background: 'rgba(20,16,30,0.92)', backdropFilter: 'blur(12px)',
+          border: '1px solid rgba(200,170,110,0.15)', borderRadius: 10,
+          padding: '8px 16px', color: '#e8e0d0', fontSize: 12,
+          fontFamily: '"Palatino Linotype", serif', letterSpacing: '0.1px',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.3)', zIndex: 100,
+          display: 'flex', alignItems: 'center', gap: 10, maxWidth: '92vw',
+          animation: 'cosmosToastIn 0.4s ease',
+        }}>
+          <span style={{ opacity: 0.6 }}>Verify your email to enable cloud sync and sharing</span>
+          <button
+            disabled={resendingVerification === 'sending'}
+            onClick={async () => {
+              setResendingVerification('sending')
+              try {
+                const { error } = await supabase.auth.resend({ type: 'signup', email: user.email, options: { emailRedirectTo: 'https://littlecosmos.app' } })
+                if (error) { showErrorToast(error.message); setResendingVerification('') }
+                else { setResendingVerification('sent'); setTimeout(() => setResendingVerification(''), 4000) }
+              } catch { showErrorToast('Could not resend verification email'); setResendingVerification('') }
+            }}
+            style={{ background: 'none', border: 'none', color: '#c9a96e', fontSize: 11, fontFamily: 'inherit', cursor: 'pointer', padding: 0, textDecoration: 'underline', opacity: resendingVerification === 'sending' ? 0.4 : 0.8, whiteSpace: 'nowrap' }}
+          >
+            {resendingVerification === 'sending' ? 'Sending...' : resendingVerification === 'sent' ? 'Sent!' : 'Resend'}
+          </button>
+          <button
+            onClick={() => setVerifyBannerDismissed(true)}
+            aria-label="Dismiss"
+            style={{ background: 'none', border: 'none', color: '#e8e0d0', fontSize: 14, cursor: 'pointer', padding: '0 2px', opacity: 0.4, lineHeight: 1 }}
+          >
+            x
+          </button>
+        </div>
+      )}
       {transitioning && (
         <div aria-hidden="true" style={{
           position: 'fixed', inset: 0, zIndex: 9999, pointerEvents: 'none',

@@ -78,7 +78,7 @@ const _btnP = { background: "linear-gradient(135deg, #c9a96e, #b8944f)", border:
 const _btnS = { background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 10, padding: "8px 20px", color: "#a098a8", fontSize: 12, fontFamily: F, cursor: "pointer", transition: "all .2s" };
 const _optionCard = { background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "18px 20px", textAlign: "left", cursor: "pointer", transition: "all .2s" };
 
-export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorldsChange, userId, userEmail, userDisplayName, connections = [], onConnectionsChange, pendingRequests = [], onPendingRequestsChange, pendingWorldInvites = [], onPendingWorldInvitesChange, myWorldSubtitle = '', myWorldColors = null, personalWorldId = null }) {
+export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorldsChange, userId, userEmail, userDisplayName, emailVerified = true, connections = [], onConnectionsChange, pendingRequests = [], onPendingRequestsChange, pendingWorldInvites = [], onPendingWorldInvitesChange, myWorldSubtitle = '', myWorldColors = null, personalWorldId = null }) {
   const mountRef = useRef(null);
   const [hovered, setHovered] = useState(null);
   const hoveredRef = useRef(null);
@@ -893,6 +893,10 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
   };
 
   const handleSendInvite = async () => {
+    if (!emailVerified) {
+      showToast("Verify your email first to share your cosmos");
+      return;
+    }
     if (!inviteEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail.trim())) {
       showToast("Please enter a valid email address.");
       return;
@@ -920,6 +924,10 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
   };
 
   const handleGenerateInvite = async () => {
+    if (!emailVerified) {
+      showToast("Verify your email first to share your cosmos");
+      return;
+    }
     const refreshInvites = () => getSentInvites(showInviteModal.id, userId).then(d => { if (mountedRef.current) setSentInvites(d); }).catch(err => console.error('[cosmos]', err));
     if (!existingInviteEmail.trim()) {
       setInviteGenerating(true);
@@ -956,6 +964,10 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
 
   // Invite to Cosmos (platform invite with optional letter)
   const handleCosmosInvite = async () => {
+    if (!emailVerified) {
+      showToast("Verify your email first to share your cosmos");
+      return;
+    }
     if (!cosmosInviteEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cosmosInviteEmail.trim())) {
       showToast("Please enter a valid email address.");
       return;
@@ -975,6 +987,10 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
 
   // Add a Friend (connection request)
   const handleAddFriend = async () => {
+    if (!emailVerified) {
+      showToast("Verify your email first to share your cosmos");
+      return;
+    }
     if (!friendEmail.trim().toLowerCase() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(friendEmail.trim().toLowerCase())) {
       showToast("Please enter a valid email address.");
       return;

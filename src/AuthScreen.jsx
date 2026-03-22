@@ -102,7 +102,7 @@ export default function AuthScreen({ initialMode = 'login', onBack }) {
       setLoading(false)
       if (authError) { setError(authError.message); return }
       setMode('verify')
-      setMessage(`We sent a verification link to ${email}. Click it to activate your account, then come back to sign in.`)
+      setMessage(`We sent a verification link to ${email}. You can sign in now to start exploring — verify later to unlock sharing features.`)
     } catch (err) {
       setLoading(false)
       setError('Unable to reach the server. Check your connection and try again.')
