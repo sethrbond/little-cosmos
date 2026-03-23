@@ -89,6 +89,7 @@ export default function DetailCard({
   const [cardTab, setCardTab] = useState("overview");
   const [cardGallery, setCardGallery] = useState(false);
   const [photoDeleteMode, setPhotoDeleteMode] = useState(false);
+  const [confirmDeleteIdx, setConfirmDeleteIdx] = useState(-1);
   const [polaroidMode, setPolaroidMode] = useState(true);
   const [dragOver, setDragOver] = useState(false);
   const [heartBurst, setHeartBurst] = useState(false);
@@ -189,7 +190,7 @@ export default function DetailCard({
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, padding: "0 4px" }}>
             <span style={{ fontSize: 9, color: P.textMid, letterSpacing: ".1em" }}>{"\ud83d\udcf8"} {cur.photos.length} photos</span>
             <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-              {<button onClick={() => setPhotoDeleteMode(v => !v)} style={{ background: photoDeleteMode ? "#c07070" : "none", border: `1px solid ${photoDeleteMode ? "#c07070" : P.textFaint}40`, borderRadius: 4, padding: "1px 6px", fontSize: 10, cursor: "pointer", color: photoDeleteMode ? "#fff" : P.textFaint, fontFamily: "inherit" }}>{photoDeleteMode ? "Done" : "\ud83d\uddd1"}</button>}
+              {<button onClick={() => { setPhotoDeleteMode(v => !v); setConfirmDeleteIdx(-1); }} style={{ background: photoDeleteMode ? "#c07070" : "none", border: `1px solid ${photoDeleteMode ? "#c07070" : P.textFaint}40`, borderRadius: 4, padding: "1px 6px", fontSize: 10, cursor: "pointer", color: photoDeleteMode ? "#fff" : P.textFaint, fontFamily: "inherit" }}>{photoDeleteMode ? "Done" : "\ud83d\uddd1"}</button>}
               <button aria-label="Close photo grid" onClick={() => { setCardGallery(false); setPhotoDeleteMode(false); }} style={{ background: "none", border: "none", fontSize: 12, color: P.textFaint, cursor: "pointer" }}>{"\u00d7"}</button>
             </div>
           </div>
@@ -212,10 +213,17 @@ export default function DetailCard({
                   showToast("Photos reordered", "\u2195\ufe0f", 1500);
                   photoDragRef.current.from = -1;
                 }}>
-                <button onClick={() => { if (photoDeleteMode) { dispatch({ type: "REMOVE_PHOTO", id: cur.id, photoIndex: i }); setPhotoIdx(pi => pi >= i && pi > 0 ? pi - 1 : pi); showToast("Photo removed", "\ud83d\uddd1", 2000); } else { setPhotoIdx(i); setCardGallery(false); setPhotoDeleteMode(false); } }} style={{ padding: 0, border: photoIdx === i ? `2px solid ${P.rose}` : "2px solid transparent", background: P.blush, cursor: photoDeleteMode ? "pointer" : "grab", borderRadius: 6, overflow: "hidden", aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center", width: "100%", opacity: photoDeleteMode ? 0.7 : 1 }}>
+                <button onClick={() => { if (photoDeleteMode) { setConfirmDeleteIdx(confirmDeleteIdx === i ? -1 : i); } else { setPhotoIdx(i); setCardGallery(false); setPhotoDeleteMode(false); } }} style={{ padding: 0, border: photoIdx === i ? `2px solid ${P.rose}` : "2px solid transparent", background: P.blush, cursor: photoDeleteMode ? "pointer" : "grab", borderRadius: 6, overflow: "hidden", aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center", width: "100%", opacity: photoDeleteMode ? 0.7 : 1 }}>
                   <img loading="lazy" src={url} alt="Travel photo" draggable={false} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", borderRadius: 4 }} />
                 </button>
-                {photoDeleteMode && <div style={{ position: "absolute", top: 2, right: 2, width: 16, height: 16, borderRadius: "50%", background: "#c9777a", color: "#fff", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>{"\u00d7"}</div>}
+                {photoDeleteMode && confirmDeleteIdx !== i && <div style={{ position: "absolute", top: 2, right: 2, width: 16, height: 16, borderRadius: "50%", background: "#c9777a", color: "#fff", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>{"\u00d7"}</div>}
+                {confirmDeleteIdx === i && <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.55)", borderRadius: 6, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4 }}>
+                  <div style={{ fontSize: 9, color: "#fff", marginBottom: 2 }}>Delete?</div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button onClick={e => { e.stopPropagation(); dispatch({ type: "REMOVE_PHOTO", id: cur.id, photoIndex: i }); setPhotoIdx(pi => pi >= i && pi > 0 ? pi - 1 : pi); setConfirmDeleteIdx(-1); showToast("Photo removed", "\ud83d\uddd1", 2000); }} style={{ padding: "2px 10px", background: "#c9777a", border: "none", borderRadius: 4, fontSize: 9, color: "#fff", cursor: "pointer", fontFamily: "inherit" }}>Yes</button>
+                    <button onClick={e => { e.stopPropagation(); setConfirmDeleteIdx(-1); }} style={{ padding: "2px 10px", background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 4, fontSize: 9, color: "#fff", cursor: "pointer", fontFamily: "inherit" }}>No</button>
+                  </div>
+                </div>}
               </div>
             ))}
           </div>

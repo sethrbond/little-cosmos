@@ -187,6 +187,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const dispatch = useCallback(action => _dispatch({ ...action, db }), [db]);
   const [config, setConfigState] = useState(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const loadErrorRef = useRef(false);
 
   // Palette & scene merge custom overrides from config (takes effect on render for UI, on reload for scene)
@@ -239,6 +240,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       } catch (err) {
         console.error("Failed to load from Supabase:", err);
         loadErrorRef.current = true;
+        setLoadError(true);
       }
       setLoading(false);
     })();
@@ -1741,7 +1743,18 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         onboardKey={onboardKey} setShowOnboarding={setShowOnboarding} setOnboardStep={setOnboardStep}
       /></Suspense>}
 
-      {data.entries.length === 0 && introComplete && !modals.showAdd && (
+      {loadError && data.entries.length === 0 && introComplete && (
+        <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", zIndex: 200, textAlign: "center", fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,serif", color: P.textMid, maxWidth: 340, padding: 24 }}>
+          <div style={{ fontSize: 15, lineHeight: 1.6, opacity: 0.8, marginBottom: 16 }}>
+            Couldn't load your memories — check your connection and try refreshing.
+          </div>
+          <button onClick={() => window.location.reload()} style={{ padding: "8px 24px", background: `linear-gradient(135deg,${P.rose},${P.blush})`, border: "none", borderRadius: 8, fontSize: 13, color: P.textDark || "#1a1520", fontFamily: "inherit", cursor: "pointer", letterSpacing: ".03em" }}>
+            Retry
+          </button>
+        </div>
+      )}
+
+      {data.entries.length === 0 && introComplete && !modals.showAdd && !loadError && (
         <Suspense fallback={null}><EmptyState
           P={P} config={config} isViewer={isViewer} worldType={worldType}
           isMyWorld={isMyWorld} modalDispatch={modalDispatch} isMobile={isMobile}

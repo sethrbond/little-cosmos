@@ -171,6 +171,7 @@ export default function AuthScreen({ initialMode = 'login', onBack }) {
               <input style={pwInp} type={showPassword ? 'text' : 'password'} placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="new-password" />
               <button type="button" style={eyeBtn} onClick={() => setShowPassword(v => !v)} tabIndex={-1} aria-label="Toggle password visibility">{showPassword ? '\u{1F441}\u200D\u{1F5E8}' : '\u{1F441}'}</button>
             </div>
+            <div style={{ fontSize: 11, color: '#e8e0d0', opacity: 0.35, marginTop: -8, marginBottom: 10, paddingLeft: 2 }}>At least 10 characters</div>
             <div style={pwWrap}>
               <input style={pwInp} type={showPassword ? 'text' : 'password'} placeholder="Confirm password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required autoComplete="new-password" />
               <button type="button" style={eyeBtn} onClick={() => setShowPassword(v => !v)} tabIndex={-1} aria-label="Toggle password visibility">{showPassword ? '\u{1F441}\u200D\u{1F5E8}' : '\u{1F441}'}</button>

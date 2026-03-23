@@ -1031,14 +1031,24 @@ export default function LandingPage({ onSignIn, onSignUp }) {
         {/* Phase text — fades between phases */}
         {heroPhase < 5 && (
           <div key={heroPhase} style={{
-            fontSize: 'clamp(18px, 3vw, 26px)', fontWeight: 300,
-            letterSpacing: 2, lineHeight: 1.4,
-            color: '#e8e0d0', opacity: 0.8,
-            fontStyle: 'italic',
             animation: 'heroFadeIn 0.8s ease-out',
-            marginTop: 8, minHeight: 40,
+            marginTop: 8, minHeight: 40, textAlign: 'center',
           }}>
-            {HERO_PHASES[heroPhase]?.text}
+            <div style={{
+              fontSize: 'clamp(16px, 2.5vw, 22px)', fontWeight: 300,
+              letterSpacing: 3, color: '#e8e0d0', opacity: 0.55,
+              fontFamily: FONT, marginBottom: 6,
+            }}>
+              Little Cosmos
+            </div>
+            <div style={{
+              fontSize: 'clamp(18px, 3vw, 26px)', fontWeight: 300,
+              letterSpacing: 2, lineHeight: 1.4,
+              color: '#e8e0d0', opacity: 0.8,
+              fontStyle: 'italic',
+            }}>
+              {HERO_PHASES[heroPhase]?.text}
+            </div>
           </div>
         )}
 
