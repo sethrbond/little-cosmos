@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
+import { getMilestoneConfig } from "./worldConfigs.js";
 
 // Local copies of utilities — avoids importing from shared modules that pull in heavy deps
 const daysBetween = (a, b) => Math.round((new Date(b) - new Date(a)) / 86400000);
@@ -8,10 +9,11 @@ const todayStr = () => new Date().toISOString().slice(0, 10);
  * useCelebrations — anniversary, milestone, and "on this day" logic.
  *
  * deps:
- *   introComplete, isPartnerWorld, config, worldId, userId, stats, entries, selected, sliderDate
+ *   introComplete, isPartnerWorld, isMyWorld, worldType, worldName,
+ *   config, worldId, userId, stats, entries, selected, sliderDate,
+ *   modalDispatch, setCelebrationData
  *
  * Returns:
- *   showCelebration, setShowCelebration, celebrationData, setCelebrationData,
  *   isAnniversary, milestoneRef,
  *   onThisDayEntry, setOnThisDayEntry,
  *   onThisDay (array with yearsAgo),
@@ -21,6 +23,9 @@ export function useCelebrations(deps) {
   const {
     introComplete,
     isPartnerWorld,
+    isMyWorld,
+    worldType,
+    worldName,
     config,
     worldId,
     userId,
@@ -28,11 +33,11 @@ export function useCelebrations(deps) {
     entries,
     selected,
     sliderDate,
+    modalDispatch,
+    setCelebrationData,
   } = deps;
 
   // ---- State ----
-  const [showCelebration, setShowCelebration] = useState(false);
-  const [celebrationData, setCelebrationData] = useState(null);
   const [onThisDayEntry, setOnThisDayEntry] = useState(null);
   const [dismissOnThisDay, setDismissOnThisDay] = useState(false);
 
@@ -51,20 +56,35 @@ export function useCelebrations(deps) {
 
   // ---- Auto-trigger anniversary celebration (once per session per world) ----
   useEffect(() => {
-    if (!introComplete || !isAnniversary || !isPartnerWorld) return;
+    if (!introComplete || !isAnniversary) return;
     const annivKey = `v2_anniv_${worldId || userId}_${todayStr()}`;
     if (localStorage.getItem(annivKey)) return;
     localStorage.setItem(annivKey, '1');
     const years = Math.floor(daysBetween(config.startDate, todayStr()) / 365);
+    // Personalize anniversary message per world type
+    let annivLabel;
+    if (isPartnerWorld && config.youName && config.partnerName) {
+      annivLabel = years === 1 ? `${config.youName} & ${config.partnerName}'s 1st Year` : `${config.youName} & ${config.partnerName} — ${years} Years`;
+    } else if (isPartnerWorld) {
+      annivLabel = years === 1 ? '1 Year Together' : `${years} Years Together`;
+    } else if (worldType === "friends") {
+      annivLabel = years === 1 ? `${worldName || "The Crew"}'s 1st Year` : `${worldName || "The Crew"} — ${years} Years`;
+    } else if (worldType === "family") {
+      annivLabel = years === 1 ? `${worldName || "Family"}'s 1st Year` : `${worldName || "Family"} — ${years} Years`;
+    } else if (isMyWorld) {
+      annivLabel = years === 1 ? 'Your 1st Year of Adventures' : `${years} Years of Adventures`;
+    } else {
+      annivLabel = years === 1 ? '1 Year Together' : `${years} Years Together`;
+    }
     setCelebrationData({
       type: 'anniversary',
-      message: years === 1 ? '1 Year Together' : `${years} Years Together`,
+      message: annivLabel,
       sub: `${stats.trips} adventures, ${stats.countries} countries, ${Math.round(stats.totalMiles).toLocaleString()} miles`,
     });
-    setShowCelebration(true);
-    const t = setTimeout(() => setShowCelebration(false), 8000);
+    modalDispatch({ type: 'OPEN', name: 'showCelebration' });
+    const t = setTimeout(() => modalDispatch({ type: 'CLOSE', name: 'showCelebration' }), 8000);
     return () => clearTimeout(t);
-  }, [introComplete, isAnniversary, isPartnerWorld, config.startDate, worldId, userId, stats.trips, stats.countries, stats.totalMiles]);
+  }, [introComplete, isAnniversary, config.startDate, worldId, userId, stats.trips, stats.countries, stats.totalMiles]);
 
   // ---- Milestone celebrations ----
   const milestoneRef = useRef(null);
@@ -73,18 +93,24 @@ export function useCelebrations(deps) {
     const n = entries.length;
     const c = stats.countries;
     const m = Math.round(stats.totalMiles);
+    const msConfig = getMilestoneConfig(worldType, isMyWorld);
+
+    // Build personalized name prefix for milestone messages
+    let namePrefix = "";
+    if (isPartnerWorld && config.youName && config.partnerName) {
+      namePrefix = `${config.youName} & ${config.partnerName}'s `;
+    } else if (worldType === "friends" && worldName) {
+      namePrefix = `${worldName}'s `;
+    } else if (worldType === "family" && worldName) {
+      namePrefix = `${worldName}'s `;
+    } else if (isMyWorld) {
+      namePrefix = "Your ";
+    }
+
     const milestones = [
-      { check: n === 5, msg: "5 Adventures!", sub: "Your globe is coming alive", icon: "🎯" },
-      { check: n === 10, msg: "10 Adventures!", sub: "Double digits — you're on a roll", icon: "🌟" },
-      { check: n === 25, msg: "25 Adventures!", sub: "A seasoned traveler", icon: "✨" },
-      { check: n === 50, msg: "50 Adventures!", sub: "Half a century of adventures", icon: "👑" },
-      { check: n === 100, msg: "100 Adventures!", sub: "Your globe is legendary", icon: "💎" },
-      { check: c === 5, msg: "5 Countries!", sub: "Your world is expanding", icon: "🗺" },
-      { check: c === 10, msg: "10 Countries!", sub: "A true globetrotter", icon: "✈️" },
-      { check: c === 25, msg: "25 Countries!", sub: "World explorer status", icon: "🌐" },
-      { check: m >= 1000 && milestoneRef.current !== '1000mi', msg: "1,000 Miles!", sub: "Your adventures span a thousand miles", icon: "🛤" },
-      { check: m >= 10000 && milestoneRef.current !== '10000mi', msg: "10,000 Miles!", sub: "You've circled a good chunk of the Earth", icon: "🚀" },
-      { check: m >= 25000 && milestoneRef.current !== '25000mi', msg: "25,000 Miles!", sub: "Nearly around the world", icon: "🌎" },
+      ...msConfig.entries.map(ms => ({ check: n === ms.count, msg: namePrefix ? `${namePrefix}${ms.msg}` : ms.msg, sub: ms.sub, icon: ms.icon })),
+      ...msConfig.countries.map(ms => ({ check: c === ms.count, msg: namePrefix ? `${namePrefix}${ms.msg}` : ms.msg, sub: ms.sub, icon: ms.icon })),
+      ...msConfig.distance.map(ms => ({ check: m >= ms.miles && milestoneRef.current !== `${ms.miles}mi`, msg: namePrefix ? `${namePrefix}${ms.msg}` : ms.msg, sub: ms.sub, icon: ms.icon })),
     ];
     const hit = milestones.find(ms => ms.check);
     if (!hit) return;
@@ -95,8 +121,8 @@ export function useCelebrations(deps) {
     else if (m >= 10000) milestoneRef.current = '10000mi';
     else if (m >= 1000) milestoneRef.current = '1000mi';
     setCelebrationData({ type: 'milestone', message: hit.msg, sub: hit.sub });
-    setShowCelebration(true);
-    const t = setTimeout(() => setShowCelebration(false), 5000);
+    modalDispatch({ type: 'OPEN', name: 'showCelebration' });
+    const t = setTimeout(() => modalDispatch({ type: 'CLOSE', name: 'showCelebration' }), 5000);
     return () => clearTimeout(t);
   }, [introComplete, entries.length, stats.countries, stats.totalMiles, worldId, userId]);
 
@@ -145,10 +171,6 @@ export function useCelebrations(deps) {
   }, [entries]);
 
   return {
-    showCelebration,
-    setShowCelebration,
-    celebrationData,
-    setCelebrationData,
     isAnniversary,
     milestoneRef,
     onThisDayEntry,

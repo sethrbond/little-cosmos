@@ -49,8 +49,8 @@ import {
   getSeasonalHue, resolveTypes, getSharedWorldConfig,
   WORLD_THEMES, getMilestoneConfig,
 } from "./worldConfigs.js";
-import { sendWelcomeLetter, getMyLetters, deleteWelcomeLetter } from "./supabaseWelcomeLetters.js";
-import { loadComments, addComment, deleteComment, loadAllWorldReactions, toggleReaction, getWorldMembers, removeWorldMember, updateMemberRole, deleteWorld, leaveWorld, updateWorld, loadMyWorlds, shareEntryToWorld, getPersonalWorldId } from "./supabaseWorlds.js";
+import { loadComments, addComment, deleteComment, loadAllWorldReactions, toggleReaction, getWorldMembers, loadMyWorlds, shareEntryToWorld, getPersonalWorldId, updateMemberRole, removeWorldMember, updateWorld, deleteWorld, leaveWorld } from "./supabaseWorlds.js";
+import { sendWelcomeLetter, deleteWelcomeLetter, getMyLetters } from "./supabaseWelcomeLetters.js";
 import { thumbnail, compressImage } from "./imageUtils.js";
 import StatsOverlay from "./StatsOverlay.jsx";
 import RecapOverlay from "./RecapOverlay.jsx";
@@ -424,7 +424,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [letterDraft, setLetterDraft] = useState("");
   const [letterEditId, setLetterEditId] = useState(null); // null = new letter
   const [letterCity, setLetterCity] = useState("");
-  const [letterCitySugg, setLetterCitySugg] = useState([]);
   const [letterLat, setLetterLat] = useState("");
   const [letterLng, setLetterLng] = useState("");
   const [showCapsule, setShowCapsule] = useState(null); // capsule id to show, or null
