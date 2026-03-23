@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { getP } from "./cosmosGetP.js";
 import { inputStyle } from "./formUtils.jsx";
+import { useFocusTrap } from "./formComponents.jsx";
 import { geocodeSearch } from "./geocode.js";
 
 const CAPSULE_PROMPTS = {
@@ -31,12 +32,13 @@ const daysUntil = d => {
 
 function CapsuleViewModal({ capsule, onClose, onRemove, isViewer }) {
   const P = getP();
+  const trapRef = useFocusTrap();
   const today = new Date().toISOString().slice(0, 10);
   const isSealed = capsule.unlockDate > today;
   const days = daysUntil(capsule.unlockDate);
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="Time capsule" onClick={onClose} style={{
+    <div ref={trapRef} role="dialog" aria-modal="true" aria-label="Time capsule" onClick={onClose} style={{
       position: "absolute", inset: 0, zIndex: 50,
       background: isSealed
         ? "linear-gradient(135deg, rgba(20,18,32,.90), rgba(28,24,42,.94))"
@@ -105,6 +107,7 @@ function CapsuleViewModal({ capsule, onClose, onRemove, isViewer }) {
 
 function CapsuleCreateModal({ onClose, onSave, worldType, isMyWorld, config }) {
   const P = getP();
+  const trapRef = useFocusTrap();
   const [message, setMessage] = useState("");
   const [unlockDate, setUnlockDate] = useState("");
   const [city, setCity] = useState("");
@@ -118,7 +121,7 @@ function CapsuleCreateModal({ onClose, onSave, worldType, isMyWorld, config }) {
   const ok = message.trim() && validDate && city.trim() && lat && lng;
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="Create time capsule" onClick={onClose} style={{
+    <div ref={trapRef} role="dialog" aria-modal="true" aria-label="Create time capsule" onClick={onClose} style={{
       position: "fixed", inset: 0, zIndex: 55,
       background: "rgba(22,16,40,.82)", backdropFilter: "blur(20px)",
       display: "flex", alignItems: "center", justifyContent: "center",
@@ -137,7 +140,7 @@ function CapsuleCreateModal({ onClose, onSave, worldType, isMyWorld, config }) {
         </p>
 
         <div style={{ marginBottom: 8, position: "relative" }}>
-          <label style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".13em", textTransform: "uppercase", display: "block", marginBottom: 2 }}>Place on globe near...</label>
+          <label style={{ fontSize: 10, color: P.textFaint, letterSpacing: ".13em", textTransform: "uppercase", display: "block", marginBottom: 2 }}>Place on globe near...</label>
           <input value={city} onChange={e => {
             const v = e.target.value; setCity(v);
             if (v.length >= 2) { geocodeSearch(v, m => setCitySugg(m)); } else setCitySugg([]);
@@ -156,10 +159,10 @@ function CapsuleCreateModal({ onClose, onSave, worldType, isMyWorld, config }) {
         </div>
 
         <div style={{ marginBottom: 8 }}>
-          <label style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".13em", textTransform: "uppercase", display: "block", marginBottom: 2 }}>Opens on...</label>
+          <label style={{ fontSize: 10, color: P.textFaint, letterSpacing: ".13em", textTransform: "uppercase", display: "block", marginBottom: 2 }}>Opens on...</label>
           <input type="date" value={unlockDate} min={(() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); })()} onChange={e => setUnlockDate(e.target.value)} style={inputStyle()} />
-          {unlockDate && !validDate && <div style={{ fontSize: 8, color: "#c97a7a", marginTop: 2 }}>Must be a future date</div>}
-          {validDate && <div style={{ fontSize: 8, color: P.textFaint, marginTop: 2 }}>Opens in {daysUntil(unlockDate)} day{daysUntil(unlockDate) !== 1 ? "s" : ""}</div>}
+          {unlockDate && !validDate && <div style={{ fontSize: 10, color: "#c97a7a", marginTop: 2 }}>Must be a future date</div>}
+          {validDate && <div style={{ fontSize: 10, color: P.textFaint, marginTop: 2 }}>Opens in {daysUntil(unlockDate)} day{daysUntil(unlockDate) !== 1 ? "s" : ""}</div>}
         </div>
 
         <textarea

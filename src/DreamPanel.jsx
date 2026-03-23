@@ -1,14 +1,15 @@
 import { getP } from "./cosmosGetP.js";
-import { DreamAddForm, DREAM_CATEGORIES } from "./formComponents.jsx";
+import { DreamAddForm, DREAM_CATEGORIES, useFocusTrap } from "./formComponents.jsx";
 
 export default function DreamPanel({ dreams, visitedCount, isMyWorld, isPartnerWorld, worldType, isViewer, onClose, onMarkVisited, onRemoveDream, onAddDream }) {
   const P = getP();
+  const trapRef = useFocusTrap();
   const totalDreams = dreams.length + visitedCount;
   const progressPct = totalDreams > 0 ? Math.round((visitedCount / totalDreams) * 100) : 0;
   const catMap = {};
   DREAM_CATEGORIES.forEach(c => { catMap[c.key] = c; });
   return (
-    <div role="dialog" aria-modal="true" aria-label="Dream destinations" onClick={onClose} style={{ position: "absolute", inset: 0, zIndex: 45, background: `linear-gradient(135deg, rgba(22,16,40,.82), rgba(30,24,48,.88))`, backdropFilter: "blur(24px)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", animation: "fadeIn .4s ease" }}>
+    <div ref={trapRef} role="dialog" aria-modal="true" aria-label="Dream destinations" onClick={onClose} style={{ position: "absolute", inset: 0, zIndex: 45, background: `linear-gradient(135deg, rgba(22,16,40,.82), rgba(30,24,48,.88))`, backdropFilter: "blur(24px)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", animation: "fadeIn .4s ease" }}>
       <div onClick={e => e.stopPropagation()} style={{ width: 440, maxWidth: "92vw", maxHeight: "85vh", overflowY: "auto", padding: 32, background: P.card, borderRadius: 22, boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 24px 64px rgba(61,53,82,.1)", cursor: "default" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
           <h2 style={{ margin: 0, fontSize: 18, fontWeight: 400, letterSpacing: ".08em" }}>{isMyWorld ? "🗺 Bucket List" : "✦ Dream Destinations"}</h2>
@@ -42,13 +43,13 @@ export default function DreamPanel({ dreams, visitedCount, isMyWorld, isPartnerW
                 <div style={{ fontSize: 12, fontWeight: 400 }}>{dream.city}</div>
                 <div style={{ fontSize: 9, color: P.textFaint, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                   <span>{dream.country}</span>
-                  {cat && <span style={{ padding: "1px 5px", background: `${P.goldWarm}12`, borderRadius: 6, fontSize: 8 }}>{cat.label}</span>}
-                  {hasTarget && <span style={{ color: daysUntil > 0 ? P.textMuted : P.heart, fontSize: 8 }}>{daysUntil > 0 ? `${daysUntil}d away` : daysUntil === 0 ? "Today!" : "Past target"}</span>}
+                  {cat && <span style={{ padding: "1px 5px", background: `${P.goldWarm}12`, borderRadius: 6, fontSize: 10 }}>{cat.label}</span>}
+                  {hasTarget && <span style={{ color: daysUntil > 0 ? P.textMuted : P.heart, fontSize: 10 }}>{daysUntil > 0 ? `${daysUntil}d away` : daysUntil === 0 ? "Today!" : "Past target"}</span>}
                 </div>
                 {dream.notes && <div style={{ fontSize: 9, color: P.textMuted, marginTop: 2, fontStyle: "italic" }}>{dream.notes}</div>}
               </div>
               {!isViewer && (<>
-                <button onClick={() => onMarkVisited(dream)} style={{ background: P.rose, color: "#fff", border: "none", borderRadius: 5, padding: "3px 8px", fontSize: 8, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>✓ Visited!</button>
+                <button onClick={() => onMarkVisited(dream)} style={{ background: P.rose, color: "#fff", border: "none", borderRadius: 5, padding: "3px 8px", fontSize: 10, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>✓ Visited!</button>
                 <button onClick={() => onRemoveDream(dream)} style={{ background: "none", border: "none", color: P.textFaint, cursor: "pointer", fontSize: 12 }}>×</button>
               </>)}
             </div>

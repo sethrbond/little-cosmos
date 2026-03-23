@@ -1,4 +1,5 @@
 /* RecapOverlay.jsx — Year-in-Review inline recap extracted from OurWorld.jsx */
+import { useFocusTrap } from "./formComponents.jsx";
 
 export default function RecapOverlay({
   P, SC, TYPES, DEFAULT_TYPE, thumbnail, fmtDate, navStyle,
@@ -7,6 +8,7 @@ export default function RecapOverlay({
   setSelected, setPhotoIdx, setCardTab, setTripCardEntry,
   onClose, flyTo,
 }) {
+  const trapRef = useFocusTrap(recapPhase !== 'journey');
   const prefersReducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const rS = recapYearStats;
   const statCards = [
@@ -21,7 +23,7 @@ export default function RecapOverlay({
   const closeRecap = () => onClose();
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="Year in review" style={{ position: "fixed", inset: 0, zIndex: 55, background: recapPhase === 'journey' ? 'transparent' : (SC.bg || "#0c0a12"), display: "flex", alignItems: "center", justifyContent: "center", animation: prefersReducedMotion ? "none" : "fadeIn .6s ease", pointerEvents: recapPhase === 'journey' ? 'none' : 'auto', transition: "background .5s ease" }}>
+    <div ref={trapRef} role="dialog" aria-modal="true" aria-label="Year in review" style={{ position: "fixed", inset: 0, zIndex: 55, background: recapPhase === 'journey' ? 'transparent' : (SC.bg || "#0c0a12"), display: "flex", alignItems: "center", justifyContent: "center", animation: prefersReducedMotion ? "none" : "fadeIn .6s ease", pointerEvents: recapPhase === 'journey' ? 'none' : 'auto', transition: "background .5s ease" }}>
       {/* Close button (hidden during journey — card has its own) */}
       {recapPhase !== 'journey' && <button onClick={closeRecap} style={{ position: "absolute", top: 20, right: 24, background: "none", border: "none", fontSize: 20, color: `${P.textFaint}80`, cursor: "pointer", zIndex: 60, transition: "color .2s", pointerEvents: "auto" }}
         onMouseEnter={e => e.currentTarget.style.color = P.text} onMouseLeave={e => e.currentTarget.style.color = `${P.textFaint}80`}>×</button>}
@@ -73,7 +75,7 @@ export default function RecapOverlay({
               }}>
                 <div style={{ fontSize: 22, marginBottom: 6 }}>{s.icon}</div>
                 <div style={{ fontSize: 28, fontWeight: 300, color: P.goldWarm, fontFamily: "Georgia, serif", lineHeight: 1 }}>{s.val}</div>
-                <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginTop: 6 }}>{s.lbl}</div>
+                <div style={{ fontSize: 10, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginTop: 6 }}>{s.lbl}</div>
               </div>
             ))}
           </div>
@@ -81,19 +83,19 @@ export default function RecapOverlay({
           <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", marginBottom: 24, opacity: recapStatIdx >= 5 ? 1 : 0, transition: "opacity .6s .2s" }}>
             {rS.longestTrip.entry && (
               <div style={{ padding: "10px 16px", background: `${P.rose}06`, borderRadius: 12, borderLeft: `3px solid ${P.goldWarm}60` }}>
-                <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>Longest Trip</div>
+                <div style={{ fontSize: 10, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>Longest Trip</div>
                 <div style={{ fontSize: 12, color: P.text, marginTop: 2 }}>{rS.longestTrip.entry.city} — {rS.longestTrip.days} days</div>
               </div>
             )}
             {rS.topCity && (
               <div style={{ padding: "10px 16px", background: `${P.rose}06`, borderRadius: 12, borderLeft: `3px solid ${P.rose}60` }}>
-                <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>Most Visited</div>
+                <div style={{ fontSize: 10, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>Most Visited</div>
                 <div style={{ fontSize: 12, color: P.text, marginTop: 2 }}>{rS.topCity.name} — {rS.topCity.count} {rS.topCity.count === 1 ? "time" : "times"}</div>
               </div>
             )}
             {rS.months > 0 && (
               <div style={{ padding: "10px 16px", background: `${P.rose}06`, borderRadius: 12, borderLeft: `3px solid ${P.sky}60` }}>
-                <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>Active Months</div>
+                <div style={{ fontSize: 10, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>Active Months</div>
                 <div style={{ fontSize: 12, color: P.text, marginTop: 2 }}>{rS.months} of 12</div>
               </div>
             )}
@@ -124,7 +126,7 @@ export default function RecapOverlay({
               <div style={{ pointerEvents: "auto", background: P.card, backdropFilter: "blur(24px)", borderRadius: 20, padding: "20px 24px", boxShadow: `0 8px 32px ${SC.bg || '#0c0a12'}60`, maxWidth: 460, width: "92vw", animation: prefersReducedMotion ? "none" : "recapSlideUp .5s cubic-bezier(0.16,1,0.3,1)", border: `1px solid ${P.rose}10` }}>
                 {/* Header */}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                  <span style={{ fontSize: 8, color: P.goldWarm, letterSpacing: ".14em", textTransform: "uppercase" }}>
+                  <span style={{ fontSize: 10, color: P.goldWarm, letterSpacing: ".14em", textTransform: "uppercase" }}>
                     {recapYear} — {recapIdx + 1} of {recapEntries.length}
                   </span>
                   <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -213,7 +215,7 @@ export default function RecapOverlay({
               ].map(s => (
                 <div key={s.lbl} style={{ padding: "10px 6px" }}>
                   <div style={{ fontSize: 22, fontWeight: 300, color: P.goldWarm }}>{s.val}</div>
-                  <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>{s.lbl}</div>
+                  <div style={{ fontSize: 10, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>{s.lbl}</div>
                 </div>
               ))}
             </div>

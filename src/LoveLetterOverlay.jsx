@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { getP } from "./cosmosGetP.js";
 import { inputStyle } from "./formUtils.jsx";
+import { useFocusTrap } from "./formComponents.jsx";
 import { geocodeSearch } from "./geocode.js";
 
 // World-type-aware copy for letters
@@ -76,10 +77,11 @@ function getLetterCopy(worldType, isMyWorld, config) {
 
 function LetterViewModal({ letter, userId, config, onClose, onEdit, onSend, onRemove, copy }) {
   const P = getP();
+  const trapRef = useFocusTrap();
   const isMyLetter = !letter.author || letter.author === userId;
   if (letter.draft && !isMyLetter) return null;
   return (
-    <div role="dialog" aria-modal="true" aria-label={copy.ariaView} onClick={onClose} style={{ position: "absolute", inset: 0, zIndex: 50, background: `linear-gradient(135deg, rgba(22,16,40,.84), rgba(30,24,48,.90))`, backdropFilter: "blur(30px)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", animation: "fadeIn .8s ease" }}>
+    <div ref={trapRef} role="dialog" aria-modal="true" aria-label={copy.ariaView} onClick={onClose} style={{ position: "absolute", inset: 0, zIndex: 50, background: `linear-gradient(135deg, rgba(22,16,40,.84), rgba(30,24,48,.90))`, backdropFilter: "blur(30px)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", animation: "fadeIn .8s ease" }}>
       <div style={{ maxWidth: 460, padding: 36, textAlign: "center" }} onClick={e => e.stopPropagation()}>
         {letter.draft && <div style={{ display: "inline-block", padding: "2px 10px", borderRadius: 10, background: `${P.gold}20`, color: P.gold, fontSize: 9, letterSpacing: ".08em", marginBottom: 10 }}>📝 Draft — only you can see this</div>}
         <div style={{ fontSize: 30, marginBottom: 14 }}>{copy.sendEmoji}</div>
@@ -98,6 +100,7 @@ function LetterViewModal({ letter, userId, config, onClose, onEdit, onSend, onRe
 
 function LetterEditModal({ letterEditId, initialDraft, initialCity, initialLat, initialLng, config, onClose, onSave, onSaveDraft, copy }) {
   const P = getP();
+  const trapRef = useFocusTrap();
   const [letterDraft, setLetterDraft] = useState(initialDraft || "");
   const [letterCity, setLetterCity] = useState(initialCity || "");
   const [letterLat, setLetterLat] = useState(initialLat || "");
@@ -113,12 +116,12 @@ function LetterEditModal({ letterEditId, initialDraft, initialCity, initialLat, 
   });
 
   return (
-    <div role="dialog" aria-modal="true" aria-label={copy.ariaEdit} onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 55, background: "rgba(22,16,40,.82)", backdropFilter: "blur(20px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .2s ease" }}>
+    <div ref={trapRef} role="dialog" aria-modal="true" aria-label={copy.ariaEdit} onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 55, background: "rgba(22,16,40,.82)", backdropFilter: "blur(20px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .2s ease" }}>
       <div onClick={e => e.stopPropagation()} style={{ width: 420, maxWidth: "92vw", padding: 28, background: P.card, borderRadius: 16, boxShadow: "0 14px 48px rgba(61,53,82,.1)" }}>
         <h3 style={{ margin: "0 0 10px", fontSize: 16, fontWeight: 400 }}>{copy.sendEmoji} {letterEditId ? copy.editTitle : `New ${copy.newTitle}`}</h3>
         <p style={{ fontSize: 9, color: P.textMuted, marginBottom: 12, fontStyle: "italic" }}>{copy.hint}</p>
         <div style={{ marginBottom: 8, position: "relative" }}>
-          <label style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".13em", textTransform: "uppercase", display: "block", marginBottom: 2 }}>Place on globe near...</label>
+          <label style={{ fontSize: 10, color: P.textFaint, letterSpacing: ".13em", textTransform: "uppercase", display: "block", marginBottom: 2 }}>Place on globe near...</label>
           <input value={letterCity} onChange={e => {
             const v = e.target.value; setLetterCity(v);
             if (v.length >= 2) { geocodeSearch(v, m => setCitySugg(m)); } else setCitySugg([]);

@@ -296,9 +296,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           <div style={{ width: 28, height: 28, borderRadius: 6, background: value, border: `2px solid ${P.textFaint}40`, flexShrink: 0, boxSizing: "border-box" }} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 9, color: P.text, fontWeight: 500 }}>{scene ? "✦ " : ""}{label}</div>
-            <div style={{ fontSize: 7, color: P.textFaint, lineHeight: 1.3 }}>{desc}</div>
+            <div style={{ fontSize: 10, color: P.textFaint, lineHeight: 1.3 }}>{desc}</div>
           </div>
-          <div style={{ fontSize: 7, fontFamily: "monospace", color: P.textFaint, flexShrink: 0 }}>{value}</div>
+          <div style={{ fontSize: 10, fontFamily: "monospace", color: P.textFaint, flexShrink: 0 }}>{value}</div>
           <div style={{ fontSize: 10, color: P.textFaint, transform: isOpen ? "rotate(90deg)" : "none", transition: "transform .15s" }}>▶</div>
         </div>
         {isOpen && (
@@ -346,7 +346,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             </div>
             {/* Hex input */}
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: 8, color: P.textFaint }}>Hex:</span>
+              <span style={{ fontSize: 10, color: P.textFaint }}>Hex:</span>
               <input type="text" defaultValue={value} key={value}
                 onKeyDown={e => { if (e.key === "Enter") { let v = e.target.value.trim(); if (!v.startsWith("#")) v = "#" + v; if (/^#[0-9a-fA-F]{6}$/.test(v)) onChange(v); }}}
                 onBlur={e => { let v = e.target.value.trim(); if (!v.startsWith("#")) v = "#" + v; if (/^#[0-9a-fA-F]{6}$/.test(v)) onChange(v); }}
@@ -1568,7 +1568,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   return (
     <div style={{ width: "100%", height: "100vh", position: "relative", overflow: "hidden", background: `linear-gradient(155deg,${P.cream} 0%,${P.blush} 40%,${P.lavMist} 100%)`, fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", color: P.text, userSelect: "none", transition: "background .6s ease, color .4s ease" }}>
 
-      <div ref={mountRef} style={{ width: "100%", height: "100%", touchAction: "none" }}
+      <div ref={mountRef} aria-label="3D globe showing your travel memories" style={{ width: "100%", height: "100%", touchAction: "none" }}
         onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} />
 
       {/* Hover label — floating city name + photo peek near cursor */}
@@ -1644,7 +1644,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             {daysBetween(todayStr(), nextTogether.dateStart)} days until together 💛
           </div>
         )}
-        {!isMobile && data.entries.length > 0 && <div style={{ fontSize: 8, color: P.textMid, letterSpacing: ".08em", lineHeight: 1.6, textShadow: "0 1px 6px rgba(0,0,0,0.2)" }}>
+        {!isMobile && data.entries.length > 0 && <div style={{ fontSize: 10, color: P.textMid, letterSpacing: ".08em", lineHeight: 1.6, textShadow: "0 1px 6px rgba(0,0,0,0.2)" }}>
           {isMyWorld
             ? <>{data.entries.length} trips · {stats.countries} countries<br />{stats.totalMiles.toLocaleString()} miles explored</>
             : isPartnerWorld
@@ -1657,7 +1657,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           <div style={{ marginTop: 10, position: "relative" }}>
             <button onClick={() => modalDispatch({ type: 'TOGGLE', name: 'showFilter' })} style={{ background: modals.showFilter ? P.blush : "rgba(255,255,255,.6)", border: `1px solid ${P.rose}20`, borderRadius: 8, padding: "8px 12px", fontSize: 9, cursor: "pointer", fontFamily: "inherit", color: P.textMid, letterSpacing: ".06em", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", gap: 4, marginLeft: "auto" }}>
               {markerFilter === "all" ? "🌍 All Entries" : markerFilter === "favorites" ? "♥ Favorites" : `${(TYPES[markerFilter] || {}).icon || "✨"} ${(TYPES[markerFilter] || {}).label || markerFilter}`}
-              <span style={{ fontSize: 6, opacity: 0.5 }}>{modals.showFilter ? "▲" : "▼"}</span>
+              <span style={{ fontSize: 10, opacity: 0.5 }}>{modals.showFilter ? "▲" : "▼"}</span>
             </button>
             {modals.showFilter && (
               <div style={{ position: "absolute", top: "100%", right: 0, marginTop: 4, background: P.card, backdropFilter: "blur(16px)", borderRadius: 10, boxShadow: "0 8px 28px rgba(61,53,82,.12)", border: `1px solid ${P.rose}10`, overflow: "hidden", minWidth: 150, zIndex: 20 }}>
@@ -1672,7 +1672,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                   >
                     <span>{f.icon}</span>
                     <span style={{ flex: 1 }}>{f.label}</span>
-                    <span style={{ fontSize: 7, color: P.textFaint, background: `${P.parchment}`, borderRadius: 10, padding: "1px 5px" }}>{f.count}</span>
+                    <span style={{ fontSize: 10, color: P.textFaint, background: `${P.parchment}`, borderRadius: 10, padding: "1px 5px" }}>{f.count}</span>
                   </button>
                 ))}
               </div>
@@ -1695,12 +1695,12 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                   )}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 10, fontWeight: 400, color: P.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.city}{(e.stops || []).length > 0 ? ` + ${e.stops.length} stop${e.stops.length > 1 ? "s" : ""}` : ""}</div>
-                    <div style={{ fontSize: 8, color: P.textFaint }}>{fmtDate(e.dateStart)}{e.dateEnd && e.dateEnd !== e.dateStart ? ` → ${fmtDate(e.dateEnd)}` : ""}{(e.stops || []).length > 0 ? ` · ${[...new Set(e.stops.map(s => s.country).filter(Boolean))].join(", ")}` : ""}</div>
-                    {allStickersMap[e.id] && <div style={{ display: "flex", gap: 2, marginTop: 1 }}>{allStickersMap[e.id].map((s, i) => <span key={i} style={{ fontSize: 8 }} title={s.label}>{s.emoji}</span>)}</div>}
+                    <div style={{ fontSize: 10, color: P.textFaint }}>{fmtDate(e.dateStart)}{e.dateEnd && e.dateEnd !== e.dateStart ? ` → ${fmtDate(e.dateEnd)}` : ""}{(e.stops || []).length > 0 ? ` · ${[...new Set(e.stops.map(s => s.country).filter(Boolean))].join(", ")}` : ""}</div>
+                    {allStickersMap[e.id] && <div style={{ display: "flex", gap: 2, marginTop: 1 }}>{allStickersMap[e.id].map((s, i) => <span key={i} style={{ fontSize: 10 }} title={s.label}>{s.emoji}</span>)}</div>}
                   </div>
-                  {(e.photos || []).length > 1 && <span style={{ fontSize: 7, color: P.textFaint }}>📸{(e.photos || []).length}</span>}
+                  {(e.photos || []).length > 1 && <span style={{ fontSize: 10, color: P.textFaint }}>📸{(e.photos || []).length}</span>}
                   {isSharedWorld && e.addedBy && memberNameMap[e.addedBy] && (
-                    <div style={{ width: 16, height: 16, borderRadius: "50%", background: `linear-gradient(135deg, ${P.rose}35, ${P.sky}35)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 7, fontWeight: 600, color: P.text, flexShrink: 0 }} title={`Added by ${memberNameMap[e.addedBy]}`}>
+                    <div style={{ width: 16, height: 16, borderRadius: "50%", background: `linear-gradient(135deg, ${P.rose}35, ${P.sky}35)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 600, color: P.text, flexShrink: 0 }} title={`Added by ${memberNameMap[e.addedBy]}`}>
                       {memberNameMap[e.addedBy].charAt(0).toUpperCase()}
                     </div>
                   )}
@@ -1709,10 +1709,10 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               );
               return (
               <div style={{ marginTop: 6, background: P.card, backdropFilter: "blur(12px)", borderRadius: 10, border: `1px solid ${P.rose}10`, maxHeight: "calc(100vh - 340px)", overflowY: "auto", boxShadow: "0 4px 16px rgba(61,53,82,.06)" }}>
-                <div style={{ padding: "6px 10px 4px", fontSize: 7, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", borderBottom: `1px solid ${P.parchment}`, position: "sticky", top: 0, background: P.card, zIndex: 1, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ padding: "6px 10px 4px", fontSize: 10, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", borderBottom: `1px solid ${P.parchment}`, position: "sticky", top: 0, background: P.card, zIndex: 1, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <span>{filteredList.length} {markerFilter === "all" ? "entries" : markerFilter === "favorites" ? "favorites" : (TYPES[markerFilter]?.label || "entries").toLowerCase()}</span>
                   <select value={listSortMode} onChange={e => setListSortMode(e.target.value)}
-                    style={{ background: "none", border: "none", color: P.textFaint, fontSize: 7, fontFamily: "inherit", cursor: "pointer", letterSpacing: ".08em", textTransform: "uppercase", outline: "none", padding: 0 }}>
+                    style={{ background: "none", border: "none", color: P.textFaint, fontSize: 10, fontFamily: "inherit", cursor: "pointer", letterSpacing: ".08em", textTransform: "uppercase", outline: "none", padding: 0 }}>
                     <option value="newest">newest</option>
                     <option value="oldest">oldest</option>
                     <option value="alpha">A→Z</option>
@@ -1865,7 +1865,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           {!isViewer && (<>
             <button onClick={() => { modalDispatch({ type: 'OPEN', name: 'editLetter' }); setLetterDraft(""); setLetterEditId(null); setLetterCity(""); setLetterLat(""); setLetterLng(""); }} style={{ position: "absolute", bottom: 118, right: (config.loveLetters || []).length > 0 ? 50 : 22, zIndex: 12, background: P.glass, border: `1px dashed ${P.rose}40`, borderRadius: 7, cursor: "pointer", fontSize: 9, color: P.textMuted, padding: "3px 9px", fontFamily: "inherit", transition: "right .3s" }}>+ {_lbl}</button>
             {(config.loveLetters || []).filter(l => l.draft && l.author === userId).length > 0 && (
-              <div style={{ position: "absolute", bottom: 138, right: (config.loveLetters || []).length > 0 ? 50 : 22, zIndex: 12, fontSize: 8, color: P.gold, letterSpacing: ".06em" }}>📝 {(config.loveLetters || []).filter(l => l.draft && l.author === userId).length} draft{(config.loveLetters || []).filter(l => l.draft && l.author === userId).length > 1 ? "s" : ""}</div>
+              <div style={{ position: "absolute", bottom: 138, right: (config.loveLetters || []).length > 0 ? 50 : 22, zIndex: 12, fontSize: 10, color: P.gold, letterSpacing: ".06em" }}>📝 {(config.loveLetters || []).filter(l => l.draft && l.author === userId).length} draft{(config.loveLetters || []).filter(l => l.draft && l.author === userId).length > 1 ? "s" : ""}</div>
             )}
           </>)}
         </>;
@@ -2165,7 +2165,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 16px", background: P.card, backdropFilter: "blur(16px)", borderRadius: 16, border: `1px solid ${P.goldWarm}20`, boxShadow: `0 4px 20px rgba(0,0,0,.1), 0 0 30px ${P.goldWarm}08`, cursor: "pointer", fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", maxWidth: "90vw" }}>
               {e.photos?.length > 0 && <img loading="lazy" src={thumbnail(e.photos[0], 72)} alt="" style={{ width: 36, height: 36, borderRadius: 8, objectFit: "cover", border: "2px solid #fff", boxShadow: "0 2px 6px rgba(0,0,0,.15)" }} />}
               <div style={{ textAlign: "left" }}>
-                <div style={{ fontSize: 8, color: P.goldWarm, letterSpacing: ".12em", textTransform: "uppercase" }}>On this day · {yearsAgo} year{yearsAgo > 1 ? "s" : ""} ago</div>
+                <div style={{ fontSize: 10, color: P.goldWarm, letterSpacing: ".12em", textTransform: "uppercase" }}>On this day · {yearsAgo} year{yearsAgo > 1 ? "s" : ""} ago</div>
                 <div style={{ fontSize: 12, color: P.text, fontStyle: "italic", marginTop: 1 }}>You were in {e.city}</div>
               </div>
               <button onClick={ev => { ev.stopPropagation(); setOnThisDayEntry(null); }} style={{ background: "none", border: "none", color: P.textFaint, fontSize: 14, cursor: "pointer", padding: "0 0 0 4px", lineHeight: 1 }}>×</button>
@@ -2269,8 +2269,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             }
 
             <div style={{ margin: "14px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
-            <div style={{ fontSize: 8, color: P.textMid, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 4, fontWeight: 500 }}>🎨 Color Theme</div>
-            <p style={{ fontSize: 8, color: P.textFaint, fontStyle: "italic", marginBottom: 10 }}>Interface colors update instantly. Globe/scene colors (✦) save but require a <strong style={{ color: P.textMid }}>page refresh</strong> to take effect.</p>
+            <div style={{ fontSize: 10, color: P.textMid, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 4, fontWeight: 500 }}>🎨 Color Theme</div>
+            <p style={{ fontSize: 10, color: P.textFaint, fontStyle: "italic", marginBottom: 10 }}>Interface colors update instantly. Globe/scene colors (✦) save but require a <strong style={{ color: P.textMid }}>page refresh</strong> to take effect.</p>
             {(() => {
               const cp = config.customPalette || {};
               const cs = config.customScene || {};
@@ -2280,7 +2280,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               const baseP = isMyWorld ? MY_WORLD_PALETTE : sharedCfg ? sharedCfg.palette : OUR_WORLD_PALETTE;
               const baseSC = isMyWorld ? MY_WORLD_SCENE : sharedCfg ? sharedCfg.scene : OUR_WORLD_SCENE;
               return <>
-                <div style={{ fontSize: 7, color: P.textMid, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 6, marginTop: 2 }}>Theme Presets</div>
+                <div style={{ fontSize: 10, color: P.textMid, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 6, marginTop: 2 }}>Theme Presets</div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
                   {Object.entries(WORLD_THEMES).map(([key, theme]) => (
                     <button key={key} onClick={() => {
@@ -2294,7 +2294,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                     </button>
                   ))}
                 </div>
-                <div style={{ fontSize: 7, color: P.textMid, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 4, marginTop: 2 }}>Interface Colors</div>
+                <div style={{ fontSize: 10, color: P.textMid, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 4, marginTop: 2 }}>Interface Colors</div>
                 {cPick("Primary Accent", "Markers, buttons, borders, highlights", cp.rose || baseP.rose, v => setCP("rose", v))}
                 {cPick("Secondary Accent", "Cards, backgrounds, subtle accents", cp.sky || baseP.sky, v => setCP("sky", v))}
                 {cPick("Highlight Color", "Special entries, gold elements", cp.special || baseP.special, v => setCP("special", v))}
@@ -2302,7 +2302,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 {cPick("Text Color", "Main text throughout the app", cp.text || baseP.text, v => setCP("text", v))}
                 {cPick("Card Background", "Cards, panels, form backgrounds", cp.cream || baseP.cream, v => setCP("cream", v))}
 
-                <div style={{ fontSize: 7, color: P.textMid, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 4, marginTop: 10 }}>Globe & Scene Colors</div>
+                <div style={{ fontSize: 10, color: P.textMid, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 4, marginTop: 10 }}>Globe & Scene Colors</div>
                 {cPick("Space Background", "The dark sky behind the globe", cs.bg || baseSC.bg, v => setCS("bg", v), true)}
                 {cPick("Globe Surface", "The globe sphere color", cs.sphereColor || baseSC.sphereColor, v => setCS("sphereColor", v), true)}
                 {cPick("Glow Aura", "The halo rings around the globe", (cs.glowColors || baseSC.glowColors)[0], v => setCS("glowColors", [v, v+"e8", v+"d0", v+"b8", v+"a0", v+"88", v+"70", v+"58", v+"48", v+"38", v+"28", v+"18"]), true)}
@@ -2320,20 +2320,20 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             })()}
 
             <div style={{ margin: "14px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
-            <div style={{ fontSize: 8, color: P.textMid, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 4, fontWeight: 500 }}>🎵 Ambient Music</div>
-            <p style={{ fontSize: 8, color: P.textFaint, fontStyle: "italic", marginBottom: 6 }}>Paste an audio URL (.mp3, .ogg, .wav) to play background music while exploring your globe.</p>
+            <div style={{ fontSize: 10, color: P.textMid, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 4, fontWeight: 500 }}>🎵 Ambient Music</div>
+            <p style={{ fontSize: 10, color: P.textFaint, fontStyle: "italic", marginBottom: 6 }}>Paste an audio URL (.mp3, .ogg, .wav) to play background music while exploring your globe.</p>
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
               <input value={config.ambientMusicUrl || ""} onChange={e => setConfig({ ambientMusicUrl: e.target.value.trim() || "" })} placeholder="https://example.com/song.mp3" style={{ ...inputStyle(), flex: 1 }} />
               {config.ambientMusicUrl && <button onClick={() => { const au = ambientRef.current; if (!au) return; if (ambientPlaying) { au.pause(); } else { au.play().catch(() => {}); } }} style={{ padding: "8px 10px", background: `${P.rose}15`, border: `1px solid ${P.rose}25`, borderRadius: 10, color: P.rose, fontSize: 11, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>{ambientPlaying ? "⏸ Stop" : "▶ Test"}</button>}
             </div>
-            {config.ambientMusicUrl && !/^https?:\/\/.+\..+/.test(config.ambientMusicUrl) && <div style={{ fontSize: 8, color: "#d4846a", marginTop: 4 }}>Enter a valid URL starting with https://</div>}
+            {config.ambientMusicUrl && !/^https?:\/\/.+\..+/.test(config.ambientMusicUrl) && <div style={{ fontSize: 10, color: "#d4846a", marginTop: 4 }}>Enter a valid URL starting with https://</div>}
 
             <div style={{ margin: "14px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
-            <div style={{ fontSize: 8, color: P.textMid, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 4, fontWeight: 500 }}>✍️ Display</div>
+            <div style={{ fontSize: 10, color: P.textMid, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 4, fontWeight: 500 }}>✍️ Display</div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0" }}>
               <div>
                 <div style={{ fontSize: 10, color: P.text }}>Handwritten Notes</div>
-                <div style={{ fontSize: 8, color: P.textFaint }}>Show notes in cursive on lined paper</div>
+                <div style={{ fontSize: 10, color: P.textFaint }}>Show notes in cursive on lined paper</div>
               </div>
               <button onClick={() => { const next = !handwrittenMode; setHandwrittenMode(next); localStorage.setItem("cosmos_handwritten", next ? "1" : "0"); }} style={{ width: 40, height: 22, borderRadius: 11, border: "none", cursor: "pointer", background: handwrittenMode ? P.rose : P.textFaint + "40", position: "relative", transition: "background .2s" }}>
                 <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#fff", position: "absolute", top: 2, left: handwrittenMode ? 20 : 2, transition: "left .2s", boxShadow: "0 1px 3px rgba(0,0,0,.2)" }} />
@@ -2341,8 +2341,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             </div>
 
             <div style={{ margin: "14px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
-            <div style={{ fontSize: 8, color: P.textMid, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 6, fontWeight: 500 }}>Timeline Chapters</div>
-            <p style={{ fontSize: 8, color: P.textFaint, fontStyle: "italic", marginBottom: 8 }}>{isMyWorld ? "Name the eras of your travels" : "Name the eras of your relationship"}</p>
+            <div style={{ fontSize: 10, color: P.textMid, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 6, fontWeight: 500 }}>Timeline Chapters</div>
+            <p style={{ fontSize: 10, color: P.textFaint, fontStyle: "italic", marginBottom: 8 }}>{isMyWorld ? "Name the eras of your travels" : "Name the eras of your relationship"}</p>
             {(config.chapters || []).map((ch, i) => (
               <div key={i} style={{ display: "flex", gap: 4, alignItems: "center", marginBottom: 4 }}>
                 <input value={ch.label} onChange={e => { const chs = [...(config.chapters || [])]; chs[i] = { ...chs[i], label: e.target.value }; setConfig({ chapters: chs }); }} style={{ ...inputStyle(), flex: 1, fontSize: 10 }} placeholder="Chapter name" />
@@ -2354,8 +2354,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             <button onClick={() => { setConfig({ chapters: [...(config.chapters || []), { label: "New Chapter", startDate: config.startDate, endDate: todayStr() }] }); }} style={{ width: "100%", padding: "5px", background: `${P.lavender}12`, border: `1px dashed ${P.lavender}40`, borderRadius: 5, cursor: "pointer", fontSize: 9, fontFamily: "inherit", color: P.textMid, marginBottom: 8 }}>+ Add Chapter</button>
 
             <div style={{ margin: "14px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
-            <div style={{ fontSize: 8, color: P.textMid, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 6, fontWeight: 500 }}>Welcome Letters</div>
-            <p style={{ fontSize: 8, color: P.textFaint, fontStyle: "italic", marginBottom: 8 }}>Write a personal letter that appears when someone you invite first opens their cosmos. They'll see it once, before the globe.</p>
+            <div style={{ fontSize: 10, color: P.textMid, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 6, fontWeight: 500 }}>Welcome Letters</div>
+            <p style={{ fontSize: 10, color: P.textFaint, fontStyle: "italic", marginBottom: 8 }}>Write a personal letter that appears when someone you invite first opens their cosmos. They'll see it once, before the globe.</p>
             {wlSent && <div style={{ fontSize: 10, color: "#7ab87a", marginBottom: 8 }}>Letter sent! They'll see it when they sign up.</div>}
             <div style={{ marginBottom: 6 }}>
               <Lbl>Recipient's Email</Lbl>
@@ -2386,12 +2386,12 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             </button>
             {myLetters.length > 0 && (
               <div style={{ marginTop: 10 }}>
-                <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 4 }}>Sent Letters</div>
+                <div style={{ fontSize: 10, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 4 }}>Sent Letters</div>
                 {myLetters.map(lt => (
                   <div key={lt.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: `1px solid ${P.textFaint}15` }}>
                     <div>
                       <div style={{ fontSize: 10, color: P.textMid }}>{lt.to_email}</div>
-                      <div style={{ fontSize: 8, color: P.textFaint }}>{lt.read ? "Read" : "Unread"} · {new Date(lt.created_at).toLocaleDateString()}</div>
+                      <div style={{ fontSize: 10, color: P.textFaint }}>{lt.read ? "Read" : "Unread"} · {new Date(lt.created_at).toLocaleDateString()}</div>
                     </div>
                     <button onClick={async () => { try { await deleteWelcomeLetter(lt.id); setMyLetters(prev => prev.filter(l => l.id !== lt.id)); } catch(err) { console.error('[deleteWelcomeLetter]', err); } }}
                       style={{ background: "none", border: "none", color: "#c9777a", cursor: "pointer", fontSize: 11 }}>x</button>
@@ -2403,14 +2403,14 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             {isSharedWorld && (
               <>
                 <div style={{ margin: "14px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
-                <div style={{ fontSize: 8, color: P.textMid, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 6, fontWeight: 500 }}>Members</div>
+                <div style={{ fontSize: 10, color: P.textMid, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 6, fontWeight: 500 }}>Members</div>
                 {worldMembers.length > 0 ? (
                   <div style={{ marginBottom: 8 }}>
                     {worldMembers.map(m => (
                       <div key={m.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 8px", borderBottom: `1px solid ${P.textFaint}12`, gap: 8 }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 11, color: P.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.display_name || "Member"}{m.user_id === userId ? " (you)" : ""}</div>
-                          <div style={{ fontSize: 8, color: P.textFaint, textTransform: "uppercase", letterSpacing: ".08em" }}>{m.role}</div>
+                          <div style={{ fontSize: 10, color: P.textFaint, textTransform: "uppercase", letterSpacing: ".08em" }}>{m.role}</div>
                         </div>
                         {worldRole === "owner" && m.user_id !== userId && (
                           <div style={{ display: "flex", gap: 4 }}>
@@ -2438,7 +2438,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 )}
 
                 <div style={{ margin: "14px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
-                <div style={{ fontSize: 8, color: P.textMid, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 6, fontWeight: 500 }}>World Management</div>
+                <div style={{ fontSize: 10, color: P.textMid, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 6, fontWeight: 500 }}>World Management</div>
                 {worldRole === "owner" && (
                   <button onClick={async () => {
                     const newName = prompt("Rename this world:", worldName || "");
@@ -2491,7 +2491,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             </button>
 
             <div style={{ margin: "10px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
-            <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 6 }}>Data</div>
+            <div style={{ fontSize: 10, color: P.textFaint, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 6 }}>Data</div>
             <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
               <button onClick={exportData} style={{ flex: 1, padding: "9px", background: `linear-gradient(145deg, ${P.parchment}, ${P.cream})`, border: `1px solid ${P.rose}18`, borderRadius: 10, cursor: "pointer", fontSize: 9, fontFamily: "inherit", color: P.textMid, transition: "all .2s", boxShadow: `0 1px 3px ${P.text}04` }}
                 onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = `0 2px 8px ${P.text}08`; }}
@@ -2500,12 +2500,12 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
                 onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = `0 2px 8px ${P.text}08`; }}
                 onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = `0 1px 3px ${P.text}04`; }}>📤 Import Data</button>
             </div>
-            <div style={{ fontSize: 7, color: P.textFaint, fontStyle: "italic", marginBottom: 8 }}>Export saves all entries, photos, and settings as a JSON file</div>
+            <div style={{ fontSize: 10, color: P.textFaint, fontStyle: "italic", marginBottom: 8 }}>Export saves all entries, photos, and settings as a JSON file</div>
 
             <button onClick={() => { flushConfigSave(); modalDispatch({ type: 'CLOSE', name: 'showSettings' }); }} style={{ width: "100%", padding: "11px", background: `linear-gradient(135deg, ${P.rose}, ${P.sky})`, color: "#fff", border: "none", borderRadius: 12, cursor: "pointer", fontSize: 11, fontFamily: "inherit", marginTop: 8, letterSpacing: ".06em", boxShadow: `0 2px 8px ${P.rose}30, 0 4px 16px ${P.rose}15`, transition: "all .25s" }}
               onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = `0 4px 12px ${P.rose}40, 0 8px 24px ${P.rose}20`; }}
               onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = `0 2px 8px ${P.rose}30, 0 4px 16px ${P.rose}15`; }}>Done</button>
-            <div style={{ marginTop: 12, textAlign: "center", fontSize: 8, color: P.textFaint, opacity: 0.5, letterSpacing: ".1em" }}>Little Cosmos v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '9.0'}</div>
+            <div style={{ marginTop: 12, textAlign: "center", fontSize: 10, color: P.textFaint, opacity: 0.5, letterSpacing: ".1em" }}>Little Cosmos v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '9.0'}</div>
           </div>
         </div>
       )}
@@ -2545,7 +2545,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
             <div style={{ fontSize: 11, color: P.textFaint, marginTop: 20, letterSpacing: ".05em", lineHeight: 1.6, opacity: 0.7, fontStyle: "italic" }}>{msg.hint}</div>
             {!isMobile && !isViewer && (
               <div style={{ fontSize: 9, color: P.textFaint, marginTop: 16, letterSpacing: ".08em", opacity: 0.4 }}>
-                press <span style={{ background: `${P.rose}12`, padding: "2px 6px", borderRadius: 4, fontSize: 8 }}>N</span> to quick-add &nbsp;·&nbsp; <span style={{ background: `${P.rose}12`, padding: "2px 6px", borderRadius: 4, fontSize: 8 }}>?</span> for shortcuts
+                press <span style={{ background: `${P.rose}12`, padding: "2px 6px", borderRadius: 4, fontSize: 10 }}>N</span> to quick-add &nbsp;·&nbsp; <span style={{ background: `${P.rose}12`, padding: "2px 6px", borderRadius: 4, fontSize: 10 }}>?</span> for shortcuts
               </div>
             )}
           </div>
