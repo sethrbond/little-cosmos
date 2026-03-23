@@ -1,5 +1,7 @@
 # Supabase Edge Functions — Deployment Guide
 
+> **Quick deploy**: Run `./scripts/deploy-push.sh` for a guided, interactive deployment.
+
 ## Prerequisites
 
 - [Supabase CLI](https://supabase.com/docs/guides/cli) installed (`npm i -g supabase`)
@@ -8,13 +10,15 @@
 
 ---
 
-## 1. Generate VAPID Keys
+## 1. VAPID Keys (already generated)
 
-```bash
-npx web-push generate-vapid-keys
+Public key (committed to `.env` and Vercel):
+
+```
+BLBJKITSItFRv60BNpVPKIgpLNLyI47kPfHbReHCdHPP6R_CVTSKRJpafmbGuOWjhsyH6XJuh9EeEo-0r4KTef0
 ```
 
-This outputs a **public key** and a **private key**. You need both.
+Private key: stored locally only. If you need to regenerate, run `npx web-push generate-vapid-keys` and update both `.env` and Supabase secrets.
 
 ---
 
@@ -26,7 +30,7 @@ In your Vercel project settings, add:
 
 | Variable | Value |
 |---|---|
-| `VITE_VAPID_PUBLIC_KEY` | Your VAPID public key |
+| `VITE_VAPID_PUBLIC_KEY` | `BLBJKITSItFRv60BNpVPKIgpLNLyI47kPfHbReHCdHPP6R_CVTSKRJpafmbGuOWjhsyH6XJuh9EeEo-0r4KTef0` |
 
 Or via CLI:
 
@@ -38,7 +42,7 @@ npx vercel env add VITE_VAPID_PUBLIC_KEY
 
 ```bash
 supabase secrets set \
-  VAPID_PUBLIC_KEY=your-vapid-public-key \
+  VAPID_PUBLIC_KEY=BLBJKITSItFRv60BNpVPKIgpLNLyI47kPfHbReHCdHPP6R_CVTSKRJpafmbGuOWjhsyH6XJuh9EeEo-0r4KTef0 \
   VAPID_PRIVATE_KEY=your-vapid-private-key \
   VAPID_SUBJECT=mailto:hello@littlecosmos.app
 ```
