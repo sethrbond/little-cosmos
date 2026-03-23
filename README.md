@@ -41,13 +41,13 @@ cd our-world
 cp .env.example .env    # add your Supabase credentials
 npm install
 npm run dev             # local dev server
-npm test                # 286 tests across 13 files
+npm test                # 370 tests across 16 files
 npm run build           # production build
 ```
 
 ## Architecture
 
-~25,000 lines across 64 modules.
+~24,530 lines across 77 modules.
 
 ### World Types
 
@@ -72,7 +72,7 @@ npm run build           # production build
 ```
 src/
 ├── App.jsx                 # Routing, auth, world selection
-├── OurWorld.jsx            # Main globe experience (3,500 lines)
+├── OurWorld.jsx            # Main globe experience (2,058 lines)
 ├── WorldSelector.jsx       # Cosmos dashboard with orbiting worlds
 ├── LandingPage.jsx         # Marketing homepage with demo globe
 ├── CinematicOnboarding.jsx # First-time starfield experience
@@ -80,10 +80,26 @@ src/
 ├── useGlobeScene.js        # Three.js scene setup, atmosphere, stars
 ├── useGlobeMarkers.js      # Entry markers, love thread, constellation
 ├── useGlobeInteraction.js  # Pointer, touch, zoom, flyTo, screenshot
+├── useDerivedData.js       # Sorted entries, stats, location groups
 ├── usePlayStory.js         # Cinematic story playback
 ├── useToasts.js            # Toast system + consolidated modal state
+├── useRecap.js             # Recap overlay logic
+├── usePhotoUpload.js       # Photo upload handler
+├── useKeyboardShortcuts.js # Keyboard shortcut bindings
 ├── useRealtimeSync.js      # Supabase Realtime subscriptions + presence
 ├── useCelebrations.js      # Anniversary, milestones, On This Day
+│
+├── geodata.js              # LAND dots + COAST_DATA polylines + geo utilities
+├── entryReducer.js         # Entry CRUD reducer
+│
+├── PhotoLightbox.jsx       # Photo lightbox overlay
+├── PhotoJourneyOverlay.jsx # Photo journey auto-play overlay
+├── CelebrationOverlay.jsx  # Milestone celebration overlay
+├── OnThisDayCard.jsx       # Anniversary "On This Day" card
+├── EntryListPanel.jsx      # Entry list sidebar panel
+├── TrashPanel.jsx          # Trash/deleted entries panel
+├── ConfirmModal.jsx        # Reusable confirmation modal
+├── CinemaOverlay.jsx       # Cinema/play overlay UI
 │
 ├── supabaseClient.js       # Client + retry, safe arrays
 ├── supabase.js             # DB factory (Our World / shared)

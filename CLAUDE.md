@@ -10,8 +10,8 @@
 **Live:** https://littlecosmos.app
 **Stack:** React 18 (Vite), Three.js r160 (vanilla, NOT React Three Fiber), Supabase (Postgres + Auth + Storage), Vercel hosting
 **Repo:** GitHub → auto-deploys to Vercel on push
-**Total codebase:** ~25,062 lines across 66 source files
-**Tests:** 286 tests across 13 files (Vitest)
+**Total codebase:** ~24,530 lines across 77 source files
+**Tests:** 370 tests across 16 files (Vitest)
 
 ---
 
@@ -21,72 +21,83 @@
 my-cosmos/
   CLAUDE.md                    ← this file (project context for Claude Code)
   src/
-    OurWorld.jsx               ← 3,690 lines. Main globe component (state container + JSX renderer)
+    OurWorld.jsx               ← 2,058 lines. Main globe component (state container + JSX renderer)
     WorldSelector.jsx          ← 1,886 lines. "My Cosmos" cosmos dashboard + world management
     ExportHub.jsx              ← 1,953 lines. Multi-format export + import (JSON, CSV, HTML, KML, timeline, Google Maps, EXIF)
     LandingPage.jsx            ← 1,156 lines. Pre-login marketing page with story picker, testimonials
     YearInReview.jsx           ← 834 lines. Animated annual travel recap (10 slides, starfield, counters)
-    useGlobeScene.js           ← 771 lines. Three.js scene setup, globe, glow, particles, stars, aurora, night shadow, animation loop
+    useGlobeScene.js           ← 787 lines. Three.js scene setup, globe, glow, particles, stars, aurora, night shadow, animation loop
     TravelStats.jsx            ← 770 lines. Deep-dive statistics (heatmaps, charts, patterns, records)
     PhotoMap.jsx               ← 744 lines. 2D SVG world map with photo pins, clustering, lightbox
     DetailCard.jsx             ← 725 lines. Entry detail card (4 tabs, Share Card button)
     Milestones.jsx             ← 710 lines. Sentimental milestones & reflections (all world types)
-    supabaseWorlds.js          ← 709 lines. World CRUD, members, invites, comments, reactions
-    App.jsx                    ← 681 lines. Auth gate, routing, invite handling, lazy loading
+    supabaseWorlds.js          ← 710 lines. World CRUD, members, invites, comments, reactions
+    App.jsx                    ← 674 lines. Auth gate, routing, invite handling, lazy loading
     CinematicOnboarding.jsx    ← 612 lines. First-time user experience with star field + city picker
     formComponents.jsx         ← 601 lines. Form components (TBtn, TBtnGroup, Lbl, Fld, QuickAddForm, etc.)
+    geodata.js                 ← 521 lines. LAND dots + COAST_DATA polylines + geo utilities
     worldConfigs.js            ← 508 lines. Palettes, types, scene configs per world type
-    useGlobeMarkers.js         ← 505 lines. Marker creation, rebuild, symbol textures, breathing animations
-    coastlineData.js           ← 501 lines. LAND dots + COAST_DATA polylines (extracted from OurWorld)
     TripJournal.jsx            ← 485 lines. Trip journal overlay
     SettingsPanel.jsx          ← 465 lines. Settings panel, project CRUD, data management
+    useGlobeMarkers.js         ← 464 lines. Marker creation, rebuild, symbol textures, breathing animations
     TripCard.jsx               ← 450 lines. Shareable Instagram-style trip cards with Canvas download
     importTimeline.js          ← 390 lines. Google Maps Timeline import (3 Takeout formats)
-    supabase.js                ← 355 lines. Our World + shared world DB factories
-    useRealtimeSync.js         ← 330 lines. Supabase Realtime subscriptions + presence hook
-    RecapOverlay.jsx           ← 316 lines. Recap overlay
+    supabase.js                ← 359 lines. Our World + shared world DB factories
+    useRealtimeSync.js         ← 331 lines. Supabase Realtime subscriptions + presence hook
+    RecapOverlay.jsx           ← 318 lines. Recap overlay
     useGlobeInteraction.js     ← 303 lines. Drag, click, wheel, touch, keyboard event handlers
-    supabaseMyWorld.js         ← 265 lines. My World + friend world (read-only) DB factories
+    WorldToolbar.jsx           ← 298 lines. Redesigned toolbar (44px buttons, glass effect)
+    useDerivedData.js          ← 269 lines. Sorted entries, stats, location groups, together list
+    supabaseMyWorld.js         ← 268 lines. My World + friend world (read-only) DB factories
     KeyboardShortcuts.jsx      ← 251 lines. Keyboard shortcut reference overlay (? key)
     NotificationCenter.jsx     ← 237 lines. In-app notification panel
+    AuthScreen.jsx             ← 232 lines. Login / signup / forgot password
     offlineQueue.js            ← 232 lines. Offline action queue
-    TimeCapsuleOverlay.jsx     ← Time capsules (notes that unlock on future dates)
-    WorldToolbar.jsx           ← Redesigned toolbar (44px buttons, glass effect)
-    ShareCard.js               ← Canvas-based shareable globe screenshot with stats
-    NotificationPrompt.jsx     ← Push notification permission prompt (shows after 5+ entries)
-    ReunionToast.jsx           ← Reunion detection toast (partner comes online)
-    LoveLetterOverlay.jsx      ← Love letters (extended to all world types)
-    OnboardingOverlay.jsx      ← Onboarding overlay
-    SearchPanel.jsx            ← Search panel
-    StatsOverlay.jsx           ← Stats overlay
-    CinemaOverlay.jsx          ← Cinema/play overlay UI (extracted from OurWorld)
-    GalleryPanel.jsx           ← Gallery panel
-    DreamPanel.jsx             ← Dream destinations panel
-    TimelineSlider.jsx         ← Timeline slider
-    EntryForms.jsx             ← Entry forms (legacy, shares with formComponents)
-    EntryTemplates.jsx         ← Entry templates
-    SyncIndicator.jsx          ← Real-time connection status dot
-    AuthScreen.jsx             ← Login / signup / forgot password
-    WelcomeLetterScreen.jsx    ← Welcome letter display when invited
-    AuthContext.jsx            ← React context for Supabase Auth session
-    formUtils.jsx              ← Form utility components
-    uiPrimitives.jsx           ← UI primitive components
-    useToasts.js               ← Modal state reducer (consolidates 24 modal useState into one)
-    usePlayStory.js            ← Cinema state machine (Play Our Story with photo crossfade)
-    useCelebrations.js         ← Celebration detection hooks
-    useNotifications.js        ← Notification hooks
-    entryReducer.js            ← Entry CRUD reducer (LOAD, ADD, UPDATE, DELETE, ADD_PHOTOS, REMOVE_PHOTO)
-    cosmosGetP.js              ← Palette getter utility
-    pushSubscription.js        ← Web Push subscription management (PushManager API, Supabase storage)
-    supabaseClient.js          ← Shared Supabase client + withRetry, safeArray, cleanArray
-    supabaseWelcomeLetters.js  ← Welcome letter DB operations
-    supabaseConnections.js     ← Friend connection requests
-    utils.js                   ← Shared utilities (haversine, daysBetween, country flags)
-    imageUtils.js              ← Photo thumbnail generation + preloading
-    exifParser.js              ← EXIF metadata extraction from photos
-    geocode.js                 ← Nominatim geocoding with debounce
-    debug.js                   ← Debug utilities
-    main.jsx                   ← Vite entry point + SW registration
+    TimeCapsuleOverlay.jsx     ← 230 lines. Time capsules (notes that unlock on future dates)
+    ShareCard.js               ← 196 lines. Canvas-based shareable globe screenshot with stats
+    LoveLetterOverlay.jsx      ← 183 lines. Love letters (extended to all world types)
+    useCelebrations.js         ← 182 lines. Celebration detection hooks
+    exifParser.js              ← 180 lines. EXIF metadata extraction from photos
+    NotificationPrompt.jsx     ← 155 lines. Push notification permission prompt (shows after 5+ entries)
+    EntryTemplates.jsx         ← 150 lines. Entry templates
+    WelcomeLetterScreen.jsx    ← 138 lines. Welcome letter display when invited
+    StatsOverlay.jsx           ← 129 lines. Stats overlay
+    SearchPanel.jsx            ← 128 lines. Search panel
+    EntryListPanel.jsx         ← 128 lines. Entry list sidebar panel (extracted from OurWorld)
+    pushSubscription.js        ← 118 lines. Web Push subscription management (PushManager API, Supabase storage)
+    entryReducer.js            ← 116 lines. Entry CRUD reducer (LOAD, ADD, UPDATE, DELETE, ADD_PHOTOS, REMOVE_PHOTO)
+    imageUtils.js              ← 110 lines. Photo thumbnail generation + preloading
+    useRecap.js                ← 95 lines. Recap overlay logic (extracted from OurWorld)
+    uiPrimitives.jsx           ← 91 lines. UI primitive components
+    SyncIndicator.jsx          ← 91 lines. Real-time connection status dot
+    usePhotoUpload.js          ← 90 lines. Photo upload handler (extracted from OurWorld)
+    useNotifications.js        ← 88 lines. Notification hooks
+    CinemaOverlay.jsx          ← 82 lines. Cinema/play overlay UI (extracted from OurWorld)
+    usePlayStory.js            ← 80 lines. Cinema state machine (Play Our Story with photo crossfade)
+    TimelineSlider.jsx         ← 77 lines. Timeline slider
+    supabaseWelcomeLetters.js  ← 76 lines. Welcome letter DB operations
+    supabaseConnections.js     ← 73 lines. Friend connection requests
+    formUtils.jsx              ← 68 lines. Form utility components
+    PhotoLightbox.jsx          ← 66 lines. Photo lightbox overlay (extracted from OurWorld)
+    useToasts.js               ← 66 lines. Modal state reducer (consolidates 24 modal useState into one)
+    DreamPanel.jsx             ← 66 lines. Dream destinations panel
+    OnboardingOverlay.jsx      ← 65 lines. Onboarding overlay
+    PhotoJourneyOverlay.jsx    ← 64 lines. Photo journey auto-play overlay (extracted from OurWorld)
+    OnThisDayCard.jsx          ← 63 lines. Anniversary "On This Day" card (extracted from OurWorld)
+    AuthContext.jsx            ← 58 lines. React context for Supabase Auth session
+    utils.js                   ← 48 lines. Shared utilities (haversine, daysBetween, country flags)
+    TrashPanel.jsx             ← 46 lines. Trash/deleted entries panel (extracted from OurWorld)
+    ReunionToast.jsx           ← 46 lines. Reunion detection toast (partner comes online)
+    supabaseClient.js          ← 45 lines. Shared Supabase client + withRetry, safeArray, cleanArray
+    CelebrationOverlay.jsx     ← 44 lines. Milestone celebration overlay (extracted from OurWorld)
+    useKeyboardShortcuts.js    ← 42 lines. Keyboard shortcut bindings (extracted from OurWorld)
+    GalleryPanel.jsx           ← 40 lines. Gallery panel
+    geocode.js                 ← 34 lines. Nominatim geocoding with debounce
+    main.jsx                   ← 16 lines. Vite entry point + SW registration
+    ConfirmModal.jsx           ← 14 lines. Reusable confirmation modal (extracted from OurWorld)
+    EntryForms.jsx             ← 5 lines. Entry forms (re-export from formComponents)
+    debug.js                   ← 4 lines. Debug utilities
+    cosmosGetP.js              ← 3 lines. Palette getter utility
   public/
     manifest.json              ← PWA manifest (installable on mobile/desktop)
     sw.js                      ← Service worker (cache-first assets, network-first API, push events)
@@ -144,14 +155,15 @@ OurWorld is now primarily a **state container + JSX renderer**. Heavy lifting li
 1. **Imports** — React, THREE, auth, DB factories, worldConfigs, extracted hooks
 2. **Module-level constants** — DEFAULT_CONFIGs (4 world types), `P = window.__cosmosP`
 3. **OurWorldErrorBoundary** — class component error boundary
-4. **OurWorldInner** (~3,500 lines) — main function component:
+4. **OurWorldInner** (~1,900 lines) — main function component:
    - Mode-aware setup (P, SC, TYPES, FIELD_LABELS, db, dispatch wrapper)
-   - ~190 hook calls (down from ~208 after useToasts consolidation)
+   - Hook calls (significantly reduced after extraction of useDerivedData, useRecap, usePhotoUpload, useKeyboardShortcuts)
    - Auth + data loading effects
    - Realtime subscriptions (entries, comments, reactions)
-   - Derived data (useMemo: sorted, togetherList, stats, locationGroups, etc.)
+   - Derived data delegated to useDerivedData hook
    - Anniversary detection + milestone badge celebration system
    - JSX: globe, title, right panel, toolbar, search, filter, stats, detail card, forms, overlays, timeline, onboarding, celebrations
+   - UI components extracted: EntryListPanel, PhotoLightbox, PhotoJourneyOverlay, CelebrationOverlay, TrashPanel, ConfirmModal, OnThisDayCard
 
 ### Extracted Hooks (the heavy lifting)
 - **useGlobeScene** (771 lines) — Three.js scene lifecycle: globe geometry, glow, particles, stars, aurora, night shadow shader, animation loop
