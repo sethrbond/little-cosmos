@@ -3,6 +3,7 @@ import { useToasts } from "./useToasts.js";
 import { useRecap } from "./useRecap.js";
 import { usePhotoUpload } from "./usePhotoUpload.js";
 import { useKeyboardShortcuts } from "./useKeyboardShortcuts.js";
+import { useCelebrations } from "./useCelebrations.js";
 import { reducer, getFirstBadges } from "./entryReducer.js";
 import { useState, useEffect, useRef, useCallback, useMemo, useReducer, Component, lazy, Suspense } from "react";
 import * as THREE from "three";
@@ -10,6 +11,7 @@ import { ll2v, lerp, haversine, daysBetween, addDays, fmtDate, todayStr, clamp, 
 import { createOurWorldDB, createSharedWorldDB } from "./supabase.js";
 import { createMyWorldDB, createFriendWorldDB } from "./supabaseMyWorld.js";
 import { useAuth } from "./AuthContext.jsx";
+import { firePartnerNotification } from "./useNotifications.js";
 import { wrapDbForOffline, onQueueChange, flushQueue } from "./offlineQueue.js";
 
 // Lazy-loaded overlay components — code-split, only loaded when user opens them
@@ -37,6 +39,9 @@ const OnThisDayCard = lazy(() => import("./OnThisDayCard.jsx"));
 const PhotoLightbox = lazy(() => import("./PhotoLightbox.jsx"));
 const PhotoJourneyOverlay = lazy(() => import("./PhotoJourneyOverlay.jsx"));
 const CelebrationOverlay = lazy(() => import("./CelebrationOverlay.jsx"));
+const ReunionToast = lazy(() => import("./ReunionToast.jsx"));
+const EmptyState = lazy(() => import("./EmptyState.jsx"));
+const LocationListPopup = lazy(() => import("./LocationListPopup.jsx"));
 import { EntryTemplates, saveTemplate } from "./EntryTemplates.jsx";
 import useRealtimeSync, { useRealtimePresence } from "./useRealtimeSync.js";
 import { shareGlobeCard } from "./ShareCard.js";
@@ -56,7 +61,6 @@ import {
   FRIENDS_TYPES, FRIENDS_FIELDS, FRIENDS_DEFAULT_CONFIG,
   FAMILY_TYPES, FAMILY_FIELDS, FAMILY_DEFAULT_CONFIG,
   getSeasonalHue, resolveTypes, getSharedWorldConfig,
-  getMilestoneConfig,
 } from "./worldConfigs.js";
 import { loadComments, addComment, deleteComment, loadAllWorldReactions, toggleReaction, getWorldMembers, loadMyWorlds, shareEntryToWorld, getPersonalWorldId } from "./supabaseWorlds.js";
 import { thumbnail } from "./imageUtils.js";
@@ -373,9 +377,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     try { const raw = localStorage.getItem(`cosmos_trash_${worldId || worldMode}`); return raw ? JSON.parse(raw).filter(t => Date.now() - t.deletedAt < 30 * 24 * 60 * 60 * 1000) : []; } catch { return []; }
   });
   const [confirmModal, setConfirmModal] = useState(null); // { message, onConfirm }
-  const [dismissOnThisDay, setDismissOnThisDay] = useState(false);
-  // Reset On This Day dismissal when deselecting an entry
-  useEffect(() => { if (!selected) setDismissOnThisDay(false); }, [selected]);
   const [handwrittenMode, setHandwrittenMode] = useState(() => { try { return localStorage.getItem("cosmos_handwritten") === "1"; } catch { return false; } });
   const [linkedEntryId, setLinkedEntryId] = useState(null); // entry id being linked
   const loveThreadRef = useRef([]);
@@ -556,8 +557,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       showToast(`New entry added: ${entry.city || 'somewhere new'}`, "✨", 4000);
       setNotifications(prev => [{ id: `n-${Date.now()}`, type: 'entry_added', message: `New entry: ${entry.city || 'somewhere new'}`, timestamp: new Date().toISOString(), entryId: entry.id, read: false }, ...prev].slice(0, 100));
       // Browser notification when someone else adds an entry
-      if (entry.addedBy && entry.addedBy !== userId && typeof Notification !== "undefined" && Notification.permission === "granted") {
-        new Notification("New memory added", { body: (entry.city || "somewhere new") + " \u{1F495}", icon: "/icons/icon.svg" });
+      if (entry.addedBy && entry.addedBy !== userId) {
+        const name = memberNameMapRef.current?.[entry.addedBy] || "Your partner";
+        firePartnerNotification(name, entry.city);
       }
     }, []),
     onUpdate: useCallback((entry) => { _dispatch({ type: 'UPDATE', id: entry.id, data: entry, _skipSave: true }); }, []),
@@ -611,6 +613,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const { isPlaying, cinemaEntry, cinemaPhotoIdx, cinemaProgress, cinemaTotal, cinemaIdx, cinemaPhase, stopPlay, playStory, playRef, photoTimerRef } = usePlayStory({ sorted, togetherList, isPartnerWorld, flyTo: (...a) => _flyTo.current?.(...a), tSpinSpd, showToast, setSelected, setShowGallery: (v) => modalDispatch({ type: v ? 'OPEN' : 'CLOSE', name: 'showGallery' }), setPhotoIdx: () => {}, setCardTab: () => {}, setSliderDate, tZm });
   const firstBadges = useMemo(() => isPartnerWorld ? getFirstBadges(data.entries) : {}, [data.entries, isPartnerWorld]);
   const memberNameMap = useMemo(() => Object.fromEntries(worldMembers.map(m => [m.user_id, m.display_name || "Member"])), [worldMembers]);
+  const memberNameMapRef = useRef(memberNameMap);
+  memberNameMapRef.current = memberNameMap;
   const season = useMemo(() => getSeasonalHue(sliderDate, isMyWorld), [sliderDate, isMyWorld]);
 
   // Auto-hide zoom hint after 4 seconds
@@ -1567,40 +1571,12 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
       {/* LOCATION LIST — multiple chapters at same place */}
       {locationList && !selected && (
-        <div style={isMobile && !isLandscape
-          ? { position: "absolute", bottom: 105, left: 0, right: 0, zIndex: 25, background: P.card, backdropFilter: "blur(24px)", borderRadius: "16px 16px 0 0", maxHeight: "45vh", boxShadow: "0 -8px 32px rgba(61,53,82,.1)", border: `1px solid ${P.rose}10`, animation: "fadeIn .3s ease", overflow: "hidden", display: "flex", flexDirection: "column" }
-          : isMobile && isLandscape
-          ? { position: "absolute", top: "env(safe-area-inset-top, 8px)", right: "env(safe-area-inset-right, 8px)", bottom: "env(safe-area-inset-bottom, 8px)", width: 280, zIndex: 25, background: P.card, backdropFilter: "blur(24px)", borderRadius: 16, boxShadow: "0 12px 44px rgba(61,53,82,.1)", border: `1px solid ${P.rose}10`, animation: "cardIn .3s ease", overflow: "hidden", display: "flex", flexDirection: "column" }
-          : { position: "absolute", top: "42%", right: 18, transform: "translateY(-50%)", zIndex: 25, background: P.card, backdropFilter: "blur(24px)", borderRadius: 16, maxWidth: 300, minWidth: 220, boxShadow: "0 12px 44px rgba(61,53,82,.1)", border: `1px solid ${P.rose}10`, animation: "cardIn .5s ease", overflow: "hidden", display: "flex", flexDirection: "column" }
-        }>
-          <div style={{ padding: "14px 18px 10px" }}>
-            <button aria-label="Close location list" onClick={() => setLocationList(null)} style={{ position: "absolute", top: 10, right: 10, background: "none", border: "none", fontSize: 16, color: P.textFaint, cursor: "pointer", zIndex: 5 }}>×</button>
-            <h2 style={{ margin: 0, fontSize: 17, fontWeight: 400 }}>{locationList.city}</h2>
-            <p style={{ fontSize: 9, color: P.textFaint, marginTop: 2, letterSpacing: ".1em" }}>{locationList.entries.length} entries here</p>
-          </div>
-          <div style={{ padding: "0 14px 14px", maxHeight: 280, overflowY: "auto" }}>
-            {[...locationList.entries].sort((a, b) => a.dateStart.localeCompare(b.dateStart)).map(e => {
-              const t = TYPES[e.type] || DEFAULT_TYPE;
-              return (
-                <button key={e.id} onClick={() => {
-                  setSelected(e); setLocationList(null);
-                  setSliderDate(e.dateStart);
-                }} style={{
-                  display: "block", width: "100%", textAlign: "left", padding: "10px 12px",
-                  background: "none", border: "none", borderBottom: `1px solid ${P.rose}08`,
-                  cursor: "pointer", fontFamily: "inherit", transition: "background .15s", borderRadius: 6,
-                }}
-                  onMouseEnter={ev => ev.currentTarget.style.background = P.blush}
-                  onMouseLeave={ev => ev.currentTarget.style.background = "none"}
-                >
-                  <div style={{ fontSize: 11, color: P.text, marginBottom: 2 }}>{t.icon} {e.city}</div>
-                  <div style={{ fontSize: 9, color: P.textMuted }}>{fmtDate(e.dateStart)}{e.dateEnd ? ` → ${fmtDate(e.dateEnd)}` : ""}</div>
-                  {e.notes && <div style={{ fontSize: 9, color: P.textFaint, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.notes.slice(0, 60)}{e.notes.length > 60 ? "…" : ""}</div>}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <Suspense fallback={null}><LocationListPopup
+          locationList={locationList} setLocationList={setLocationList}
+          TYPES={TYPES} DEFAULT_TYPE={DEFAULT_TYPE} P={P}
+          isMobile={isMobile} isLandscape={isLandscape}
+          fmtDate={fmtDate} setSelected={setSelected} setSliderDate={setSliderDate}
+        /></Suspense>
       )}
 
       {/* DETAIL CARD */}
@@ -1880,47 +1856,12 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         onboardKey={onboardKey} setShowOnboarding={setShowOnboarding} setOnboardStep={setOnboardStep}
       /></Suspense>}
 
-      {data.entries.length === 0 && introComplete && !modals.showAdd && (() => {
-        const emptyMsg = {
-          partner: { icon: "💫", title: "Your story begins here", desc: "Add your first memory together to bring your shared world to life.", hint: "Every pin on this globe is a chapter in your story." },
-          friends: { icon: "🗺", title: "Adventures await", desc: "Add your first trip to start mapping your crew's adventures together.", hint: "Track every road trip, festival, and reunion." },
-          family:  { icon: "🏡", title: "Every journey starts here", desc: "Add your first memory to start building your family's travel story.", hint: "From weekend getaways to dream vacations." },
-        };
-        const msg = isMyWorld
-          ? { icon: "🌍", title: "Your world awaits", desc: "Add your first trip to start building your personal travel map.", hint: "Track every adventure, from weekend escapes to distant horizons." }
-          : emptyMsg[worldType] || emptyMsg.partner;
-        return (
-          <div style={{ position: "absolute", top: "46%", left: "50%", transform: "translate(-50%,-50%)", zIndex: 12, textAlign: "center", maxWidth: 380, animation: "fadeIn 1.2s ease" }}>
-            <div style={{ position: "relative", width: 110, height: 110, margin: "0 auto 24px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: `radial-gradient(circle, ${P.rose}18, transparent 70%)`, animation: "heartPulse 3s ease-in-out infinite" }} />
-              <div style={{ position: "absolute", inset: 6, borderRadius: "50%", border: `1px dashed ${P.rose}20`, animation: "emptyOrbit 12s linear infinite" }} />
-              <div style={{ position: "absolute", inset: 16, borderRadius: "50%", border: `1px dashed ${P.sky}15`, animation: "emptyOrbit 8s linear infinite reverse" }} />
-              <div style={{ position: "absolute", inset: 28, borderRadius: "50%", border: `1px dashed ${P.gold}10`, animation: "emptyOrbit 16s linear infinite" }} />
-              <div style={{ fontSize: 44, position: "relative", zIndex: 1, animation: "emptyFloat 4s ease-in-out infinite" }}>{msg.icon}</div>
-            </div>
-            <div style={{ fontSize: 22, color: P.text, letterSpacing: ".06em", fontWeight: 500, opacity: 0.9 }}>{msg.title}</div>
-            <div style={{ fontSize: 13, color: P.textMuted, marginTop: 10, lineHeight: 1.8, letterSpacing: ".04em", maxWidth: 320, margin: "10px auto 0" }}>{msg.desc}</div>
-            {!isViewer && (
-              <button onClick={() => modalDispatch({ type: 'OPEN', name: 'showAdd' })} style={{
-                marginTop: 24, padding: "13px 32px", background: `linear-gradient(135deg, ${P.rose}35, ${P.sky}35)`,
-                border: `1px solid ${P.rose}20`, borderRadius: 24, color: P.text, fontSize: 13,
-                fontFamily: "inherit", cursor: "pointer", letterSpacing: ".06em", transition: "all .3s",
-                boxShadow: `0 2px 12px ${P.rose}15, 0 4px 20px ${P.sky}10`,
-              }}
-              onMouseEnter={e => { e.target.style.background = `linear-gradient(135deg, ${P.rose}50, ${P.sky}50)`; e.target.style.transform = "translateY(-1px)"; e.target.style.boxShadow = `0 4px 16px ${P.rose}25, 0 8px 28px ${P.sky}15`; }}
-              onMouseLeave={e => { e.target.style.background = `linear-gradient(135deg, ${P.rose}35, ${P.sky}35)`; e.target.style.transform = "none"; e.target.style.boxShadow = `0 2px 12px ${P.rose}15, 0 4px 20px ${P.sky}10`; }}>
-                + {isMyWorld ? "Add Your First Trip" : worldType === "friends" ? "Add Your First Trip" : "Add Your First Memory"}
-              </button>
-            )}
-            <div style={{ fontSize: 11, color: P.textFaint, marginTop: 20, letterSpacing: ".05em", lineHeight: 1.6, opacity: 0.7, fontStyle: "italic" }}>{msg.hint}</div>
-            {!isMobile && !isViewer && (
-              <div style={{ fontSize: 9, color: P.textFaint, marginTop: 16, letterSpacing: ".08em", opacity: 0.4 }}>
-                press <span style={{ background: `${P.rose}12`, padding: "2px 6px", borderRadius: 4, fontSize: 10 }}>N</span> to quick-add &nbsp;·&nbsp; <span style={{ background: `${P.rose}12`, padding: "2px 6px", borderRadius: 4, fontSize: 10 }}>?</span> for shortcuts
-              </div>
-            )}
-          </div>
-        );
-      })()}
+      {data.entries.length === 0 && introComplete && !modals.showAdd && (
+        <Suspense fallback={null}><EmptyState
+          P={P} config={config} isViewer={isViewer} worldType={worldType}
+          isMyWorld={isMyWorld} modalDispatch={modalDispatch} isMobile={isMobile}
+        /></Suspense>
+      )}
 
       {/* STATS DASHBOARD */}
       {modals.showStats && <StatsOverlay P={P} stats={stats} expandedStats={expandedStats} reunionStats={reunionStats} milestones={milestones} isMyWorld={isMyWorld} isPartnerWorld={isPartnerWorld} fmtDate={fmtDate} startRecap={startRecap} onClose={() => modalDispatch({ type: 'CLOSE', name: 'showStats' })} setTripCardEntry={setTripCardEntry} config={config} worldName={worldName} worldType={worldType} />}
@@ -2022,6 +1963,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
 
       {/* CONFIRM MODAL */}
       {confirmModal && <Suspense fallback={null}><ConfirmModal confirmModal={confirmModal} onClose={() => setConfirmModal(null)} P={P} /></Suspense>}
+
+      {/* REUNION TOAST — detects when both partners are online simultaneously */}
+      {isPartnerWorld && isSharedWorld && <Suspense fallback={null}><ReunionToast onlineUsers={onlineUsers} worldId={worldId} userId={userId} isPartnerWorld={isPartnerWorld} /></Suspense>}
 
       <style>{`
         @keyframes onThisDaySlideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
