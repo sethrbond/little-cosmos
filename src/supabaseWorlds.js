@@ -85,24 +85,20 @@ export async function createWorld(userId, name, type = 'shared', { youName = '',
 }
 
 export async function loadMyWorlds(userId) {
-  console.log('[loadMyWorlds] starting for userId:', userId)
   // Get all worlds this user is a member of
   const { data: memberships, error: memErr } = await supabase
     .from('world_members')
     .select('world_id, role')
     .eq('user_id', userId)
-  console.log('[loadMyWorlds] memberships:', memberships?.length, 'error:', memErr?.message || 'none')
   if (memErr) { console.error('[loadMyWorlds] memberships:', memErr); return [] }
   if (!memberships || memberships.length === 0) { console.warn('[loadMyWorlds] NO memberships found for user'); return [] }
 
   const worldIds = memberships.map(m => m.world_id)
-  console.log('[loadMyWorlds] fetching worlds:', worldIds)
   const { data: worlds, error } = await supabase
     .from('worlds')
     .select('*')
     .in('id', worldIds)
     .order('created_at', { ascending: true })
-  console.log('[loadMyWorlds] worlds:', worlds?.length, 'error:', error?.message || 'none')
   if (error) { console.error('[loadMyWorlds]', error); return [] }
 
   // Also fetch config data (names, subtitle, metadata for members) for each world

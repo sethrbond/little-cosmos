@@ -1,20 +1,5 @@
 import { supabase } from './supabaseClient.js'
 
-// Fetch any unread welcome letter addressed to the current user's email
-export async function getWelcomeLetter(email) {
-  if (!email) return null
-  const { data, error } = await supabase
-    .from('welcome_letters')
-    .select('*')
-    .eq('to_email', email.toLowerCase())
-    .eq('read', false)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-  if (error || !data) return null
-  return data
-}
-
 // Fetch all unread welcome letters addressed to the current user's email
 export async function getAllWelcomeLetters(email) {
   if (!email) return []

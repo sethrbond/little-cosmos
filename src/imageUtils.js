@@ -28,19 +28,6 @@ export function thumbnail(url, width = 320, quality = 75) {
 }
 
 /**
- * Preload a full-size image in background (for hover-to-view patterns).
- * Returns a promise that resolves when loaded.
- */
-export function preloadImage(url) {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    img.onload = () => resolve(url)
-    img.onerror = reject
-    img.src = url
-  })
-}
-
-/**
  * Compress an image file client-side before upload.
  * Uses Canvas API to resize and re-encode as JPEG.
  *

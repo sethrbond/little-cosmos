@@ -6,3 +6,4 @@ dist/
 .DS_Store
 docs/PROJECT_CARD.md
 .claude/settings.local.json
+supabase/.temp/

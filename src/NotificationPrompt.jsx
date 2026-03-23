@@ -103,7 +103,6 @@ export default function NotificationPrompt({ supabase, worldId, userId }) {
             keys_auth: subJSON.keys.auth,
           }, { onConflict: "user_id,endpoint" });
           if (error) console.error("[push] Failed to store subscription:", error);
-          else console.log("[push] Subscribed to Web Push");
         }
       } catch (err) {
         console.error("[push] Push subscription failed:", err);

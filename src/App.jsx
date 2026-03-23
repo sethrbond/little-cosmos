@@ -293,11 +293,9 @@ function AppInner() {
 
         // Auto-accept any pending world invites so shared worlds appear immediately
         if (worldInvites && worldInvites.length > 0) {
-          console.log(`[autoAccept] Found ${worldInvites.length} pending invite(s), auto-accepting...`)
           for (const inv of worldInvites) {
             try {
-              const result = await acceptInvite(inv.token)
-              console.log(`[autoAccept] ${inv.worldName}: ${result?.ok ? 'accepted' : result?.error || 'failed'}`)
+              await acceptInvite(inv.token)
             } catch (e) { console.error('[autoAccept] error:', e) }
           }
           // Reload worlds now that invites are accepted
