@@ -642,13 +642,16 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     return { daysTog, countries: countries.size, trips: statList.length, totalMiles, photos: data.entries.reduce((s, e) => s + (e.photos || []).length, 0) };
   }, [data.entries, togetherList, sorted, isPartnerWorld]);
 
-  // Anniversary check
-  const isAnniversary = useMemo(() => {
-    if (!config.startDate) return false;
-    const sd = config.startDate.slice(5);
-    const today = sliderDate.slice(5);
-    return sd === today && sliderDate !== config.startDate;
-  }, [sliderDate, config.startDate]);
+  // Celebrations: anniversary, milestones, "on this day" — extracted to useCelebrations hook
+  const {
+    isAnniversary, milestoneRef,
+    onThisDayEntry, setOnThisDayEntry,
+    onThisDay, dismissOnThisDay, setDismissOnThisDay,
+  } = useCelebrations({
+    introComplete, isPartnerWorld, isMyWorld, worldType, worldName,
+    config, worldId, userId, stats, entries: data.entries,
+    selected, sliderDate, modalDispatch, setCelebrationData,
+  });
 
   // Seasonal tinting (must be after season + isAnniversary declarations)
   useEffect(() => {
@@ -661,108 +664,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     if (isAnniversary && particlesRef.current) particlesRef.current.material.opacity = 0.35;
     else if (particlesRef.current) particlesRef.current.material.opacity = 0.18;
   }, [season, isAnniversary]);
-
-  // Auto-trigger anniversary/milestone celebration (once per session per world)
-  useEffect(() => {
-    if (!introComplete || !isAnniversary) return;
-    const annivKey = `v2_anniv_${worldId || userId}_${todayStr()}`;
-    if (localStorage.getItem(annivKey)) return;
-    localStorage.setItem(annivKey, '1');
-    const years = Math.floor(daysBetween(config.startDate, todayStr()) / 365);
-    // Personalize anniversary message per world type
-    let annivLabel;
-    if (isPartnerWorld && config.youName && config.partnerName) {
-      annivLabel = years === 1 ? `${config.youName} & ${config.partnerName}'s 1st Year` : `${config.youName} & ${config.partnerName} — ${years} Years`;
-    } else if (isPartnerWorld) {
-      annivLabel = years === 1 ? '1 Year Together' : `${years} Years Together`;
-    } else if (worldType === "friends") {
-      annivLabel = years === 1 ? `${worldName || "The Crew"}'s 1st Year` : `${worldName || "The Crew"} — ${years} Years`;
-    } else if (worldType === "family") {
-      annivLabel = years === 1 ? `${worldName || "Family"}'s 1st Year` : `${worldName || "Family"} — ${years} Years`;
-    } else if (isMyWorld) {
-      annivLabel = years === 1 ? 'Your 1st Year of Adventures' : `${years} Years of Adventures`;
-    } else {
-      annivLabel = years === 1 ? '1 Year Together' : `${years} Years Together`;
-    }
-    setCelebrationData({
-      type: 'anniversary',
-      message: annivLabel,
-      sub: `${stats.trips} adventures, ${stats.countries} countries, ${Math.round(stats.totalMiles).toLocaleString()} miles`,
-    });
-    modalDispatch({ type: 'OPEN', name: 'showCelebration' });
-    const t = setTimeout(() => modalDispatch({ type: 'CLOSE', name: 'showCelebration' }), 8000);
-    return () => clearTimeout(t);
-  }, [introComplete, isAnniversary, config.startDate, worldId, userId, stats.trips, stats.countries, stats.totalMiles]);
-
-  // Milestone celebrations — celebrate round-number moments (all world types)
-  const milestoneRef = useRef(null);
-  useEffect(() => {
-    if (!introComplete || data.entries.length < 2) return;
-    const n = data.entries.length;
-    const c = stats.countries;
-    const m = Math.round(stats.totalMiles);
-    const msConfig = getMilestoneConfig(worldType, isMyWorld);
-
-    // Build personalized name prefix for milestone messages
-    let namePrefix = "";
-    if (isPartnerWorld && config.youName && config.partnerName) {
-      namePrefix = `${config.youName} & ${config.partnerName}'s `;
-    } else if (worldType === "friends" && worldName) {
-      namePrefix = `${worldName}'s `;
-    } else if (worldType === "family" && worldName) {
-      namePrefix = `${worldName}'s `;
-    } else if (isMyWorld) {
-      namePrefix = "Your ";
-    }
-
-    const milestones = [
-      ...msConfig.entries.map(ms => ({ check: n === ms.count, msg: namePrefix ? `${namePrefix}${ms.msg}` : ms.msg, sub: ms.sub, icon: ms.icon })),
-      ...msConfig.countries.map(ms => ({ check: c === ms.count, msg: namePrefix ? `${namePrefix}${ms.msg}` : ms.msg, sub: ms.sub, icon: ms.icon })),
-      ...msConfig.distance.map(ms => ({ check: m >= ms.miles && milestoneRef.current !== `${ms.miles}mi`, msg: namePrefix ? `${namePrefix}${ms.msg}` : ms.msg, sub: ms.sub, icon: ms.icon })),
-    ];
-    const hit = milestones.find(ms => ms.check);
-    if (!hit) return;
-    const key = `v2_milestone_${worldId || userId}_${hit.msg}`;
-    if (localStorage.getItem(key)) return;
-    localStorage.setItem(key, '1');
-    if (m >= 25000) milestoneRef.current = '25000mi';
-    else if (m >= 10000) milestoneRef.current = '10000mi';
-    else if (m >= 1000) milestoneRef.current = '1000mi';
-    setCelebrationData({ type: 'milestone', message: hit.msg, sub: hit.sub });
-    modalDispatch({ type: 'OPEN', name: 'showCelebration' });
-    const t = setTimeout(() => modalDispatch({ type: 'CLOSE', name: 'showCelebration' }), 5000);
-    return () => clearTimeout(t);
-  }, [introComplete, data.entries.length, stats.countries, stats.totalMiles, worldId, userId]);
-
-  // "On This Day" — surface memories from the same date in previous years
-  const [onThisDayEntry, setOnThisDayEntry] = useState(null);
-  useEffect(() => {
-    if (!introComplete || data.entries.length < 2) return;
-    const today = todayStr();
-    const md = today.slice(5); // "MM-DD"
-    const thisYear = today.slice(0, 4);
-    const matches = data.entries.filter(e => {
-      if (!e.dateStart) return false;
-      const eYear = e.dateStart.slice(0, 4);
-      if (eYear === thisYear) return false; // only past years
-      // Check if today falls within the entry's date range
-      const eMd = e.dateStart.slice(5);
-      if (eMd === md) return true;
-      if (e.dateEnd) {
-        const endMd = e.dateEnd.slice(5);
-        if (eMd <= md && endMd >= md) return true;
-      }
-      return false;
-    });
-    if (matches.length === 0) return;
-    const otdKey = `otd_${worldId || userId}_${today}`;
-    if (localStorage.getItem(otdKey)) return;
-    localStorage.setItem(otdKey, '1');
-    const pick = matches[Math.floor(Math.random() * matches.length)];
-    setOnThisDayEntry(pick);
-    const t = setTimeout(() => setOnThisDayEntry(null), 12000);
-    return () => clearTimeout(t);
-  }, [introComplete, data.entries, worldId, userId]);
 
   // Positions on slider date
   const getPositions = useCallback(date => {
@@ -815,22 +716,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     window.addEventListener("online", goOnline);
     return () => { window.removeEventListener("offline", goOffline); window.removeEventListener("online", goOnline); };
   }, [showToast]);
-
-  // ---- "ON THIS DAY" MEMORIES ----
-  const onThisDay = useMemo(() => {
-    const today = todayStr();
-    const md = today.slice(5); // "MM-DD"
-    return data.entries.filter(e => {
-      if (!e.dateStart) return false;
-      const eMd = e.dateStart.slice(5);
-      const eYear = parseInt(e.dateStart.slice(0, 4));
-      const thisYear = parseInt(today.slice(0, 4));
-      return eMd === md && eYear < thisYear;
-    }).map(e => ({
-      ...e,
-      yearsAgo: parseInt(today.slice(0, 4)) - parseInt(e.dateStart.slice(0, 4))
-    }));
-  }, [data.entries]);
 
   // Show "On This Day" toast on load (once per session)
   // Note: TYPES/DEFAULT_TYPE are stable per world session (derived from worldType prop)
