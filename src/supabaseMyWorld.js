@@ -1,4 +1,5 @@
-import { supabase, withRetry, safeArray, cleanArray, mergeMemoriesIntoHighlights } from './supabaseClient.js'
+import { supabase, withRetry, safeArray } from './supabaseClient.js'
+import { rowToEntry, entryToRow } from './rowMapper.js'
 
 /* supabaseMyWorld.js — Personal world + friend world DB factories */
 
@@ -64,19 +65,8 @@ export function createMyWorldDB(worldId, userId) {
         .order('date_start', { ascending: true })
         .range(0, 499)
       if (error) { console.error('[my:loadEntries] error:', error); return [] }
-      return (data || []).map(row => ({
-        id: row.id, city: row.city, country: row.country || '',
-        lat: row.lat, lng: row.lng,
-        dateStart: row.date_start, dateEnd: row.date_end || null,
-        type: row.entry_type, who: 'solo',
-        zoomLevel: row.zoom_level || 1, notes: row.notes || '',
-        museums: safeArray(row.museums),
-        restaurants: safeArray(row.restaurants), highlights: mergeMemoriesIntoHighlights(row),
-        photos: safeArray(row.photos), stops: safeArray(row.stops),
-        musicUrl: row.music_url || null, favorite: row.favorite || false,
-        loveNote: '',
-        photoCaptions: row.photo_captions || {},
-      }))
+      const myOverrides = { who: 'solo', loveNote: '' }
+      return (data || []).map(row => rowToEntry(row, myOverrides))
     },
 
 
@@ -86,36 +76,12 @@ export function createMyWorldDB(worldId, userId) {
         .order('date_start', { ascending: true })
         .range(offset, offset + 499)
       if (error) { console.error('[my:loadMoreEntries] error:', error); return [] }
-      return (data || []).map(row => ({
-        id: row.id, city: row.city, country: row.country || '',
-        lat: row.lat, lng: row.lng,
-        dateStart: row.date_start, dateEnd: row.date_end || null,
-        type: row.entry_type, who: 'solo',
-        zoomLevel: row.zoom_level || 1, notes: row.notes || '',
-        museums: safeArray(row.museums),
-        restaurants: safeArray(row.restaurants), highlights: mergeMemoriesIntoHighlights(row),
-        photos: safeArray(row.photos), stops: safeArray(row.stops),
-        musicUrl: row.music_url || null, favorite: row.favorite || false,
-        loveNote: '',
-        photoCaptions: row.photo_captions || {},
-      }))
+      const myOverrides = { who: 'solo', loveNote: '' }
+      return (data || []).map(row => rowToEntry(row, myOverrides))
     },
 
     saveEntry: async (entry) => {
-      const row = {
-        id: entry.id, user_id: userId, world_id: worldId,
-        city: entry.city, country: entry.country || '',
-        lat: entry.lat, lng: entry.lng,
-        date_start: entry.dateStart, date_end: entry.dateEnd || null,
-        entry_type: entry.type, who: 'solo',
-        zoom_level: entry.zoomLevel || 1, notes: entry.notes || '',
-        memories: [], museums: cleanArray(entry.museums),
-        restaurants: cleanArray(entry.restaurants), highlights: cleanArray(entry.highlights),
-        photos: cleanArray(entry.photos), stops: cleanArray(entry.stops),
-        music_url: entry.musicUrl || null, favorite: entry.favorite || false,
-        love_note: '',
-        photo_captions: entry.photoCaptions || {},
-      }
+      const row = entryToRow(entry, userId, worldId, { who: 'solo', love_note: '' })
       return withRetry(async () => {
         const { error } = await supabase.from('entries').upsert(row, { onConflict: 'id' })
         if (error) {
@@ -198,19 +164,8 @@ export function createFriendWorldDB(friendWorldId) {
         .order('date_start', { ascending: true })
         .range(0, 499)
       if (error) { console.error('[friend:loadEntries] error:', error); return [] }
-      return (data || []).map(row => ({
-        id: row.id, city: row.city, country: row.country || '',
-        lat: row.lat, lng: row.lng,
-        dateStart: row.date_start, dateEnd: row.date_end || null,
-        type: row.entry_type, who: 'solo',
-        zoomLevel: row.zoom_level || 1, notes: row.notes || '',
-        museums: safeArray(row.museums),
-        restaurants: safeArray(row.restaurants), highlights: mergeMemoriesIntoHighlights(row),
-        photos: safeArray(row.photos), stops: safeArray(row.stops),
-        musicUrl: row.music_url || null, favorite: row.favorite || false,
-        loveNote: '',
-        photoCaptions: row.photo_captions || {},
-      }))
+      const friendOverrides = { who: 'solo', loveNote: '' }
+      return (data || []).map(row => rowToEntry(row, friendOverrides))
     },
     loadMoreEntries: async (offset) => {
       const { data, error } = await supabase.from('entries').select('*')
@@ -218,19 +173,8 @@ export function createFriendWorldDB(friendWorldId) {
         .order('date_start', { ascending: true })
         .range(offset, offset + 499)
       if (error) { console.error('[friend:loadMoreEntries] error:', error); return [] }
-      return (data || []).map(row => ({
-        id: row.id, city: row.city, country: row.country || '',
-        lat: row.lat, lng: row.lng,
-        dateStart: row.date_start, dateEnd: row.date_end || null,
-        type: row.entry_type, who: 'solo',
-        zoomLevel: row.zoom_level || 1, notes: row.notes || '',
-        museums: safeArray(row.museums),
-        restaurants: safeArray(row.restaurants), highlights: mergeMemoriesIntoHighlights(row),
-        photos: safeArray(row.photos), stops: safeArray(row.stops),
-        musicUrl: row.music_url || null, favorite: row.favorite || false,
-        loveNote: '',
-        photoCaptions: row.photo_captions || {},
-      }))
+      const friendOverrides = { who: 'solo', loveNote: '' }
+      return (data || []).map(row => rowToEntry(row, friendOverrides))
     },
     loadConfig: async () => {
       const { data, error } = await supabase.from('config').select('*').eq('world_id', friendWorldId).maybeSingle()

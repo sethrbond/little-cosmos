@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { haversine, daysBetween } from "./utils.js";
+import { haversine, daysBetween } from "./geodata.js";
 
 /* =================================================================
    TravelStats — Deep-dive statistics overlay for My Cosmos

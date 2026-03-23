@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { haversine, daysBetween, countryFlag } from "./utils.js";
+import { haversine, daysBetween } from "./geodata.js";
+import { countryFlag } from "./utils.js";
 
 /* =================================================================
    Year-in-Review — animated full-screen recap overlay

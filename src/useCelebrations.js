@@ -1,9 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { getMilestoneConfig } from "./worldConfigs.js";
 
-// Local copies of utilities — avoids importing from shared modules that pull in heavy deps
-const daysBetween = (a, b) => Math.round((new Date(b) - new Date(a)) / 86400000);
-const todayStr = () => new Date().toISOString().slice(0, 10);
+import { daysBetween, todayStr } from "./geodata.js";
 
 /**
  * useCelebrations — anniversary, milestone, and "on this day" logic.

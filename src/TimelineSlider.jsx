@@ -1,11 +1,6 @@
 import { getP } from "./cosmosGetP.js";
 import { navStyle } from "./formUtils.jsx";
-
-const fmtDate = d => { if (!d) return ""; const dt = new Date(d + "T12:00:00"); return dt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }); };
-const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-const daysBetween = (a, b) => Math.round((new Date(b) - new Date(a)) / 86400000);
-const addDays = (ds, n) => { const d = new Date(ds); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
-const todayStr = () => new Date().toISOString().slice(0, 10);
+import { fmtDate, clamp, daysBetween, addDays, todayStr } from "./geodata.js";
 
 export default function TimelineSlider({
   sliderDate, sliderVal, totalDays, effectiveStartDate, sorted, milestones, chapters,

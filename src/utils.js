@@ -1,15 +1,5 @@
 // Shared utility functions — used across multiple components
-
-export const haversine = (lat1, lng1, lat2, lng2) => {
-  const R = 3959, dLat = (lat2 - lat1) * Math.PI / 180, dLng = (lng2 - lng1) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
-  return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
-};
-
-export const daysBetween = (a, b) => {
-  if (!a || !b) return 0;
-  return Math.max(1, Math.round(Math.abs(new Date(b + "T12:00:00") - new Date(a + "T12:00:00")) / 86400000));
-};
+// NOTE: haversine and daysBetween now live in geodata.js (canonical source)
 
 export const COUNTRY_CODES = {
   "Afghanistan":"AF","Albania":"AL","Algeria":"DZ","Andorra":"AD","Angola":"AO","Argentina":"AR",

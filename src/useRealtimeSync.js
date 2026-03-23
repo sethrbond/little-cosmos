@@ -1,4 +1,5 @@
-import { supabase, safeArray, mergeMemoriesIntoHighlights } from './supabaseClient.js'
+import { supabase } from './supabaseClient.js'
+import { rowToEntry } from './rowMapper.js'
 import { useState, useEffect, useRef, useCallback } from 'react'
 
 /* useRealtimeSync.js — Supabase Realtime subscriptions for My Cosmos
@@ -6,35 +7,6 @@ import { useState, useEffect, useRef, useCallback } from 'react'
  * Default export: useRealtimeSync — syncs table changes (INSERT/UPDATE/DELETE)
  * Named export:   useRealtimePresence — tracks who's online in a shared world
  */
-
-// ---- Row mapper: converts DB snake_case row to app camelCase entry ----
-
-function rowToEntry(row) {
-  if (!row) return null
-  return {
-    id: row.id,
-    city: row.city,
-    country: row.country || '',
-    lat: row.lat,
-    lng: row.lng,
-    dateStart: row.date_start,
-    dateEnd: row.date_end || null,
-    type: row.entry_type,
-    who: row.who || 'solo',
-    zoomLevel: row.zoom_level || 1,
-    notes: row.notes || '',
-    museums: safeArray(row.museums),
-    restaurants: safeArray(row.restaurants),
-    highlights: mergeMemoriesIntoHighlights(row),
-    photos: safeArray(row.photos),
-    stops: safeArray(row.stops),
-    musicUrl: row.music_url || null,
-    favorite: row.favorite || false,
-    loveNote: row.love_note || '',
-    photoCaptions: row.photo_captions || {},
-    addedBy: row.user_id || null,
-  }
-}
 
 // ---- MAIN HOOK: useRealtimeSync ----
 

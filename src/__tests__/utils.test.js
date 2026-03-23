@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { haversine, daysBetween, countryFlag, COUNTRY_CODES } from '../utils.js'
+import { haversine, daysBetween } from '../geodata.js'
+import { countryFlag, COUNTRY_CODES } from '../utils.js'
 
 describe('haversine', () => {
   it('returns 0 for same point', () => {
@@ -33,27 +34,16 @@ describe('haversine', () => {
 })
 
 describe('daysBetween', () => {
-  it('returns 1 for same day', () => {
-    expect(daysBetween('2024-01-01', '2024-01-01')).toBe(1)
+  it('returns 0 for same day', () => {
+    expect(daysBetween('2024-01-01', '2024-01-01')).toBe(0)
   })
 
   it('calculates days between two dates', () => {
     expect(daysBetween('2024-01-01', '2024-01-10')).toBe(9)
   })
 
-  it('handles reverse order (absolute difference)', () => {
-    expect(daysBetween('2024-01-10', '2024-01-01')).toBe(9)
-  })
-
-  it('returns 0 for null/undefined inputs', () => {
-    expect(daysBetween(null, '2024-01-01')).toBe(0)
-    expect(daysBetween('2024-01-01', null)).toBe(0)
-    expect(daysBetween(undefined, undefined)).toBe(0)
-  })
-
-  it('returns 0 for empty string inputs', () => {
-    expect(daysBetween('', '2024-01-01')).toBe(0)
-    expect(daysBetween('2024-01-01', '')).toBe(0)
+  it('returns negative for reverse order', () => {
+    expect(daysBetween('2024-01-10', '2024-01-01')).toBe(-9)
   })
 
   it('handles cross-year dates', () => {

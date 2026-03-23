@@ -1,13 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
-
-// ---- Math utilities (copied locally to avoid TDZ with shared imports) ----
-const ll2v = (lat, lng, r) => {
-  const phi = (90 - lat) * Math.PI / 180, theta = (lng + 180) * Math.PI / 180;
-  return new THREE.Vector3(-(r * Math.sin(phi) * Math.cos(theta)), r * Math.cos(phi), r * Math.sin(phi) * Math.sin(theta));
-};
-const lerp = (a, b, t) => a + (b - a) * t;
-const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+import { ll2v, lerp, clamp } from "./geodata.js";
 
 // Pre-allocated vectors for animation loop (avoid per-frame GC)
 const _cometTarget = new THREE.Vector3();

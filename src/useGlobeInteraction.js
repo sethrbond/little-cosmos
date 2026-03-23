@@ -1,21 +1,16 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import * as THREE from "three";
+import { ll2v, clamp } from "./geodata.js";
 
-// ---- Local utility copies (avoid importing from form/UI modules) ----
 const RAD = 1;
 const MIN_Z = 1.15;
 const MAX_Z = 6;
-const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-const ll2v = (lat, lng, r) => {
-  const phi = (90 - lat) * Math.PI / 180, theta = (lng + 180) * Math.PI / 180;
-  return new THREE.Vector3(-(r * Math.sin(phi) * Math.cos(theta)), r * Math.cos(phi), r * Math.sin(phi) * Math.sin(theta));
-};
 
 /**
  * useGlobeInteraction — pointer, touch, wheel, hover, flyTo, and screenshot
  *
  * @param {Object} deps — all refs, state, and callbacks needed by the interaction layer
- * @returns {{ flyTo, hoverLabel, setHoverLabel, saveGlobeScreenshot, onDown, onMove, onUp, RAD, MIN_Z, MAX_Z, clamp, ll2v }}
+ * @returns {{ flyTo, hoverLabel, setHoverLabel, saveGlobeScreenshot, onDown, onMove, onUp }}
  */
 export function useGlobeInteraction(deps) {
   const {

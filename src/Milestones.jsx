@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { haversine, daysBetween } from "./utils.js";
+import { haversine, daysBetween } from "./geodata.js";
 
 /* =================================================================
    Milestones & Reflections — sentimental moments from your journeys

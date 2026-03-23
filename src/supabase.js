@@ -1,4 +1,4 @@
-import { supabase, withRetry, safeArray, cleanArray } from './supabaseClient.js'
+import { supabase, withRetry, safeArray } from './supabaseClient.js'
 import { rowToEntry, entryToRow } from './rowMapper.js'
 export { supabase }
 
@@ -175,20 +175,7 @@ export function createSharedWorldDB(worldId, userId) {
         .order('date_start', { ascending: true })
         .range(0, 499)
       if (error) { console.error('[shared:loadEntries] error:', error); return [] }
-      return (data || []).map(row => ({
-        id: row.id, city: row.city, country: row.country || '',
-        lat: row.lat, lng: row.lng,
-        dateStart: row.date_start, dateEnd: row.date_end || null,
-        type: row.entry_type, who: row.who,
-        zoomLevel: row.zoom_level || 1, notes: row.notes || '',
-        museums: safeArray(row.museums),
-        restaurants: safeArray(row.restaurants), highlights: mergeMemoriesIntoHighlights(row),
-        photos: safeArray(row.photos), stops: safeArray(row.stops),
-        musicUrl: row.music_url || null, favorite: row.favorite || false,
-        loveNote: row.love_note || '',
-        photoCaptions: row.photo_captions || {},
-        addedBy: row.user_id || null,
-      }))
+      return (data || []).map(row => rowToEntry(row))
     },
 
 
@@ -198,37 +185,11 @@ export function createSharedWorldDB(worldId, userId) {
         .order('date_start', { ascending: true })
         .range(offset, offset + 499)
       if (error) { console.error('[shared:loadMoreEntries] error:', error); return [] }
-      return (data || []).map(row => ({
-        id: row.id, city: row.city, country: row.country || '',
-        lat: row.lat, lng: row.lng,
-        dateStart: row.date_start, dateEnd: row.date_end || null,
-        type: row.entry_type, who: row.who,
-        zoomLevel: row.zoom_level || 1, notes: row.notes || '',
-        museums: safeArray(row.museums),
-        restaurants: safeArray(row.restaurants), highlights: mergeMemoriesIntoHighlights(row),
-        photos: safeArray(row.photos), stops: safeArray(row.stops),
-        musicUrl: row.music_url || null, favorite: row.favorite || false,
-        loveNote: row.love_note || '',
-        photoCaptions: row.photo_captions || {},
-        addedBy: row.user_id || null,
-      }))
+      return (data || []).map(row => rowToEntry(row))
     },
 
     saveEntry: async (entry) => {
-      const row = {
-        id: entry.id, user_id: userId, world_id: worldId,
-        city: entry.city, country: entry.country || '',
-        lat: entry.lat, lng: entry.lng,
-        date_start: entry.dateStart, date_end: entry.dateEnd || null,
-        entry_type: entry.type, who: entry.who,
-        zoom_level: entry.zoomLevel || 1, notes: entry.notes || '',
-        memories: [], museums: cleanArray(entry.museums),
-        restaurants: cleanArray(entry.restaurants), highlights: cleanArray(entry.highlights),
-        photos: cleanArray(entry.photos), stops: cleanArray(entry.stops),
-        music_url: entry.musicUrl || null, favorite: entry.favorite || false,
-        love_note: entry.loveNote || '',
-        photo_captions: entry.photoCaptions || {},
-      }
+      const row = entryToRow(entry, userId, worldId)
       return withRetry(async () => {
         const { error } = await supabase.from('entries').upsert(row, { onConflict: 'id' })
         if (error) {

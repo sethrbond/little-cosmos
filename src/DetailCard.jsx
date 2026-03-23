@@ -9,8 +9,7 @@ import { thumbnail, compressImage } from "./imageUtils.js";
    entry info, love notes, reactions/comments, edit/duplicate/delete
    ================================================================= */
 
-const fmtDate = d => { if (!d) return ""; const dt = new Date(d + "T12:00:00"); return dt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }); };
-const daysBetween = (a, b) => Math.round((new Date(b) - new Date(a)) / 86400000);
+import { fmtDate, daysBetween } from "./geodata.js";
 
 export default function DetailCard({
   entry: cur,
