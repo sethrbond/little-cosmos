@@ -176,16 +176,18 @@ function loadImage(src) {
   });
 }
 
-function buildStatsLine(entries, countries, miles, isPartner) {
+export function buildStatsLine(entries, countries, miles, isPartner) {
   const parts = [];
   if (entries > 0) parts.push(`${entries} ${isPartner ? "adventures" : "trips"}`);
   if (countries > 0) parts.push(`${countries} ${countries === 1 ? "country" : "countries"}`);
   return parts.join(" \u00B7 ");
 }
 
-function formatSinceDate(isoDate) {
+export function formatSinceDate(isoDate) {
   try {
+    if (!isoDate) return "";
     const d = new Date(isoDate + "T00:00:00");
+    if (isNaN(d.getTime())) return "";
     const month = d.toLocaleString("en-US", { month: "long" });
     return `Since ${month} ${d.getFullYear()}`;
   } catch {
