@@ -1808,6 +1808,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         onSignOut={() => setConfirmModal({ message: "Sign out of My Cosmos?", onConfirm: () => signOut() })}
         syncProps={{ isConnected: realtimeConnected, lastSync, pendingOffline, palette: { bg: SC.bg, text: P.text } }}
         introComplete={introComplete}
+        isMobile={isMobile}
       /></Suspense>
 
       {/* PRESENCE INDICATOR — who's exploring this world right now */}
@@ -2142,6 +2143,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         allPhotoCaptions={allPhotoCaptions}
         polaroidMode={false}
         onTogglePolaroid={() => {}}
+        isMobile={isMobile}
         onSelectPhoto={(ph) => {
           const entry = data.entries.find(e => e.id === ph.id);
           if (entry) {
