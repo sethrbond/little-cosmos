@@ -1017,23 +1017,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   // ---- PLAY OUR STORY ----
   // Cinema state for Play Story overlay
 
-  // Keyboard shortcuts (extracted to useKeyboardShortcuts)
-  useKeyboardShortcuts({
-    stepDay, flushConfigSave, setSelected, setEditing, modalDispatch, modals,
-    setShowLetter, setShowCapsule, setShowCreateCapsule, setMarkerFilter,
-    setLocationList, setConfirmDelete, setLightboxOpen, setShowOnboarding,
-    setConfirmModal, setTripCardEntry, onboardKey, tSpinSpd, isPlaying, stopPlay,
-    dispatch, showToast, editing, setSliderDate, saveGlobeScreenshot,
-    data, tZm, flyTo, surpriseTimers, playStory, togetherList, sorted, isPartnerWorld,
-  });
-
-  // Year-in-review recap (extracted to useRecap)
-  const {
-    recapAutoPlay, setRecapAutoPlay, recapPhase, setRecapPhase,
-    recapStatIdx, setRecapStatIdx, recapYear, recapIdx, setRecapIdx,
-    startRecap, recapEntries, recapYearStats, closeRecap,
-  } = useRecap({ sorted, modals, modalDispatch, setSelected, setSliderDate, flyTo });
-
   // ---- GALLERY DATA ----
   const allPhotos = useMemo(() => {
     const out = [];
@@ -1110,6 +1093,23 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     setSelected, setLocationList, setSliderDate, setShowLetter, setShowCapsule, setShowZoomHint,
   });
   _flyTo.current = flyTo;
+
+  // Keyboard shortcuts (after useGlobeInteraction so flyTo + saveGlobeScreenshot are defined)
+  useKeyboardShortcuts({
+    stepDay, flushConfigSave, setSelected, setEditing, modalDispatch, modals,
+    setShowLetter, setShowCapsule, setShowCreateCapsule, setMarkerFilter,
+    setLocationList, setConfirmDelete, setLightboxOpen, setShowOnboarding,
+    setConfirmModal, setTripCardEntry, onboardKey, tSpinSpd, isPlaying, stopPlay,
+    dispatch, showToast, editing, setSliderDate, saveGlobeScreenshot,
+    data, tZm, flyTo, surpriseTimers, playStory, togetherList, sorted, isPartnerWorld,
+  });
+
+  // Year-in-review recap (after useGlobeInteraction so flyTo is defined)
+  const {
+    recapAutoPlay, setRecapAutoPlay, recapPhase, setRecapPhase,
+    recapStatIdx, setRecapStatIdx, recapYear, recapIdx, setRecapIdx,
+    startRecap, recapEntries, recapYearStats, closeRecap,
+  } = useRecap({ sorted, modals, modalDispatch, setSelected, setSliderDate, flyTo });
 
   // ---- Share card (generate + download/share a styled globe image) ----
   const handleShareCard = useCallback(async () => {
