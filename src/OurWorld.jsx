@@ -45,9 +45,8 @@ import { useGlobeMarkers } from "./useGlobeMarkers.js";
 import { useGlobeScene } from "./useGlobeScene.js";
 import { supabase } from "./supabaseClient.js";
 import { geocodeSearch } from "./geocode.js";
-import { inputStyle, navStyle, imageNavBtn, renderList, StarRating, FONT_FAMILY } from "./formUtils.jsx";
-import { Lbl, Fld } from "./uiPrimitives.jsx";
-import { QuickAddForm, DreamAddForm, DREAM_CATEGORIES, AddForm, EditForm, OverlayBoundary, useFocusTrap } from "./formComponents.jsx";
+import { navStyle, imageNavBtn, renderList, StarRating, FONT_FAMILY } from "./formUtils.jsx";
+import { QuickAddForm, DreamAddForm, DREAM_CATEGORIES, AddForm, EditForm, OverlayBoundary } from "./formComponents.jsx";
 import {
   OUR_WORLD_PALETTE, MY_WORLD_PALETTE,
   OUR_WORLD_TYPES, MY_WORLD_TYPES,
@@ -57,11 +56,10 @@ import {
   FRIENDS_TYPES, FRIENDS_FIELDS, FRIENDS_DEFAULT_CONFIG,
   FAMILY_TYPES, FAMILY_FIELDS, FAMILY_DEFAULT_CONFIG,
   getSeasonalHue, resolveTypes, getSharedWorldConfig,
-  WORLD_THEMES, getMilestoneConfig,
+  getMilestoneConfig,
 } from "./worldConfigs.js";
-import { loadComments, addComment, deleteComment, loadAllWorldReactions, toggleReaction, getWorldMembers, loadMyWorlds, shareEntryToWorld, getPersonalWorldId, updateMemberRole, removeWorldMember, updateWorld, deleteWorld, leaveWorld } from "./supabaseWorlds.js";
-import { sendWelcomeLetter, deleteWelcomeLetter, getMyLetters } from "./supabaseWelcomeLetters.js";
-import { thumbnail, compressImage } from "./imageUtils.js";
+import { loadComments, addComment, deleteComment, loadAllWorldReactions, toggleReaction, getWorldMembers, loadMyWorlds, shareEntryToWorld, getPersonalWorldId } from "./supabaseWorlds.js";
+import { thumbnail } from "./imageUtils.js";
 import StatsOverlay from "./StatsOverlay.jsx";
 import RecapOverlay from "./RecapOverlay.jsx";
 import OnboardingOverlay from "./OnboardingOverlay.jsx";
@@ -359,12 +357,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [sliderDate, setSliderDate] = useState(todayStr());
   const [isAnimating, setIsAnimating] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 });
-  const uploadLockRef = useRef(Promise.resolve()); // sequential photo upload queue
   const [markerFilter, setMarkerFilter] = useState("all"); // "all", "together", "special", "home-seth", "home-rosie", "seth-solo", "rosie-solo"
-  const [recapYear, setRecapYear] = useState(null);
-  const [recapIdx, setRecapIdx] = useState(0);
+  const [listRenderLimit, setListRenderLimit] = useState(100);
   const [locationList, setLocationList] = useState(null); // for multi-entry popup
   // Comments & Reactions (shared/viewer worlds)
   const [entryComments, setEntryComments] = useState([]);
@@ -1134,112 +1128,22 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   // ---- PLAY OUR STORY ----
   // Cinema state for Play Story overlay
 
-  // Keyboard shortcuts (must be after stopPlay/playStory declarations)
-  useEffect(() => {
-    const handler = e => {
-      const inInput = e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT";
-      if (inInput && e.key !== "Escape") return;
-      if (e.key === "ArrowLeft") { e.preventDefault(); stepDay(-1); }
-      if (e.key === "ArrowRight") { e.preventDefault(); stepDay(1); }
-      if (e.key === "Escape") { flushConfigSave(); setSelected(null); setEditing(null); modalDispatch({ type: 'CLOSE_ALL' }); setShowLetter(null); setShowCapsule(null); setShowCreateCapsule(false); setMarkerFilter("all"); setLocationList(null); setConfirmDelete(null); setLightboxOpen(false); setShowOnboarding(false); setConfirmModal(null); setTripCardEntry(null); localStorage.setItem(onboardKey, "1"); tSpinSpd.current = 0.002; if (isPlaying) stopPlay(); }
-      if (e.key === "z" && (e.metaKey || e.ctrlKey) && !e.shiftKey && !modals.showAdd && !editing) { e.preventDefault(); dispatch({ type: "UNDO" }); showToast("Undone", "↩", 1500); }
-      if (e.key === "z" && (e.metaKey || e.ctrlKey) && e.shiftKey && !modals.showAdd && !editing) { e.preventDefault(); dispatch({ type: "REDO" }); showToast("Redone", "↪", 1500); }
-      if (e.key === "?" && !modals.showAdd && !editing && !modals.showSettings) modalDispatch({ type: 'TOGGLE', name: 'showShortcuts' });
-      if (e.key === "f" && !modals.showAdd && !editing && !modals.showSettings) { if (modals.showFilter) { setMarkerFilter("all"); setLocationList(null); } modalDispatch({ type: 'TOGGLE', name: 'showFilter' }); }
-      if (e.key === "i" && !modals.showAdd && !editing && !modals.showSettings) modalDispatch({ type: 'TOGGLE', name: 'showStats' });
-      if (e.key === "s" && !modals.showAdd && !editing && !modals.showSettings && !modals.showSearch) { e.preventDefault(); modalDispatch({ type: 'OPEN', name: 'showSearch' }); }
-      if (e.key === "g" && !modals.showAdd && !editing && !modals.showSettings) modalDispatch({ type: 'TOGGLE', name: 'showGallery' });
-      if (e.key === "t" && !modals.showAdd && !editing && !modals.showSettings) setSliderDate(todayStr());
-      if (e.key === "p" && !modals.showAdd && !editing && !modals.showSettings && !modals.showSearch) saveGlobeScreenshot();
-      if (e.key === "r" && !modals.showAdd && !editing && !modals.showSettings && !modals.showSearch) {
-        const pool = data.entries.filter(en => en.lat != null && en.lng != null);
-        if (pool.length > 1) {
-          const pick = pool[Math.floor(Math.random() * pool.length)];
-          tZm.current = 4.5;
-          const t1 = setTimeout(() => { flyTo(pick.lat, pick.lng, 2.2); const t2 = setTimeout(() => { setSelected(pick); }, 600); surpriseTimers.current.push(t2); }, 400);
-          surpriseTimers.current.push(t1);
-        }
-      }
-      if (e.key === " " && !modals.showAdd && !editing && !modals.showSettings && !modals.showSearch) { e.preventDefault(); if (isPlaying) stopPlay(); else if ((isPartnerWorld ? togetherList : sorted).length > 0) playStory(); }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [stepDay, isPlaying, modals.showAdd, editing, modals.showSettings, modals.showSearch, stopPlay, playStory, togetherList, sorted, isPartnerWorld, showToast]);
+  // Keyboard shortcuts (extracted to useKeyboardShortcuts)
+  useKeyboardShortcuts({
+    stepDay, flushConfigSave, setSelected, setEditing, modalDispatch, modals,
+    setShowLetter, setShowCapsule, setShowCreateCapsule, setMarkerFilter,
+    setLocationList, setConfirmDelete, setLightboxOpen, setShowOnboarding,
+    setConfirmModal, setTripCardEntry, onboardKey, tSpinSpd, isPlaying, stopPlay,
+    dispatch, showToast, editing, setSliderDate, saveGlobeScreenshot,
+    data, tZm, flyTo, surpriseTimers, playStory, togetherList, sorted, isPartnerWorld,
+  });
 
-  // ---- YEAR-IN-REVIEW RECAP ----
-  const [recapAutoPlay, setRecapAutoPlay] = useState(false);
-  const [recapPhase, setRecapPhase] = useState('title'); // 'title' | 'stats' | 'journey' | 'summary'
-  const [recapStatIdx, setRecapStatIdx] = useState(0); // animated stat reveal counter
-
-  const startRecap = useCallback((year) => {
-    const yearEntries = sorted.filter(e => e.dateStart?.startsWith(String(year)));
-    if (yearEntries.length === 0) return;
-    modalDispatch({ type: 'OPEN', name: 'showRecap' });
-    setRecapYear(year);
-    setRecapIdx(-1);
-    setRecapPhase('title');
-    setRecapStatIdx(0);
-    setRecapAutoPlay(false);
-    modalDispatch({ type: 'CLOSE', name: 'showStats' });
-    setSelected(null);
-  }, [sorted]);
-
-  const recapEntries = useMemo(() => {
-    if (!recapYear) return [];
-    return sorted.filter(e => e.dateStart?.startsWith(String(recapYear)));
-  }, [recapYear, sorted]);
-
-  const recapYearStats = useMemo(() => {
-    if (!recapEntries.length) return null;
-    const countries = new Set();
-    const cities = new Set();
-    const months = new Set();
-    const cityVisits = {};
-    let totalDays = 0, photos = 0, totalMiles = 0, favorites = 0;
-    let longestTrip = { days: 0, entry: null };
-    const allPhotos = [];
-    recapEntries.forEach((e, i) => {
-      if (e.country) countries.add(e.country);
-      if (e.city) { cities.add(e.city); cityVisits[e.city] = (cityVisits[e.city] || 0) + 1; }
-      (e.stops || []).forEach(s => { if (s.country) countries.add(s.country); if (s.city) cities.add(s.city); });
-      if (e.dateStart) months.add(e.dateStart.slice(5, 7));
-      const d = Math.max(1, daysBetween(e.dateStart, e.dateEnd || e.dateStart));
-      totalDays += d;
-      if (d > longestTrip.days) longestTrip = { days: d, entry: e };
-      const pLen = (e.photos || []).length;
-      photos += pLen;
-      if (pLen > 0) (e.photos || []).forEach(url => allPhotos.push({ url, city: e.city }));
-      if (e.favorite) favorites++;
-      if (i > 0) totalMiles += haversine(recapEntries[i - 1].lat, recapEntries[i - 1].lng, e.lat, e.lng);
-    });
-    const topCity = Object.entries(cityVisits).sort((a, b) => b[1] - a[1])[0];
-    const firstTrip = recapEntries[0]; // sorted oldest-first
-    const lastTrip = recapEntries[recapEntries.length - 1];
-    return {
-      countries: countries.size, countryNames: [...countries],
-      cities: cities.size, entries: recapEntries.length, totalDays, photos, totalMiles,
-      months: months.size, favorites,
-      longestTrip, topCity: topCity ? { name: topCity[0], count: topCity[1] } : null,
-      firstTrip, lastTrip, allPhotos: allPhotos.slice(0, 20),
-    };
-  }, [recapEntries]);
-
-  // Animated stat reveal for recap stats phase
-  useEffect(() => {
-    if (!modals.showRecap || recapPhase !== 'stats' || recapStatIdx >= 5) return;
-    const t = setTimeout(() => setRecapStatIdx(i => i + 1), 300);
-    return () => clearTimeout(t);
-  }, [modals.showRecap, recapPhase, recapStatIdx]);
-
-  // Auto-play timer for recap journey phase
-  useEffect(() => {
-    if (!recapAutoPlay || !modals.showRecap || recapPhase !== 'journey') return;
-    const t = setTimeout(() => {
-      if (recapIdx >= recapEntries.length - 1) { setRecapPhase('summary'); setRecapAutoPlay(false); }
-      else { const next = recapIdx + 1; setRecapIdx(next); const e = recapEntries[next]; if (e) { setSliderDate(e.dateStart); flyTo(e.lat, e.lng, 2.4); } }
-    }, 4500);
-    return () => clearTimeout(t);
-  }, [recapAutoPlay, modals.showRecap, recapPhase, recapIdx, recapEntries]); // flyTo via _flyTo ref (stable)
+  // Year-in-review recap (extracted to useRecap)
+  const {
+    recapAutoPlay, setRecapAutoPlay, recapPhase, setRecapPhase,
+    recapStatIdx, setRecapStatIdx, recapYear, recapIdx, setRecapIdx,
+    startRecap, recapEntries, recapYearStats, closeRecap,
+  } = useRecap({ sorted, modals, modalDispatch, setSelected, setSliderDate, flyTo });
 
   // ---- GALLERY DATA ----
   const allPhotos = useMemo(() => {
@@ -1346,85 +1250,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     }
   }, [config.title, config.youName, config.partnerName, config.startDate, isMyWorld, isPartnerWorld, worldName, stats, showToast]);
 
-  const fileInputRef = useRef(null);
-  const photoEntryIdRef = useRef(null);
-  const dbRef = useRef(db);
-  const dispatchRef = useRef(dispatch);
-  dbRef.current = db;
-  dispatchRef.current = dispatch;
-
-  // Safari-safe photo upload — input must be in DOM
-  useEffect(() => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/*";
-    input.multiple = true;
-    input.style.display = "none";
-    document.body.appendChild(input);
-    fileInputRef.current = input;
-
-    const handler = () => {
-      const files = Array.from(input.files);
-      const id = photoEntryIdRef.current;
-
-      if (files.length === 0 || !id) return;
-      // Queue upload behind any in-progress upload to prevent read/merge/write race
-      uploadLockRef.current = uploadLockRef.current.then(async () => {
-        const curDb = dbRef.current;
-        const curDispatch = dispatchRef.current;
-        setUploading(true);
-        setUploadProgress({ done: 0, total: files.length });
-
-        // Step 1: Upload files to Supabase storage
-        const urls = [];
-        for (let i = 0; i < files.length; i++) {
-          try {
-            const compressed = await compressImage(files[i]);
-            const url = await curDb.uploadPhoto(compressed, id);
-            if (url && typeof url === 'string') urls.push(url);
-          } catch (err) { /* skip failed uploads */ }
-          setUploadProgress({ done: i + 1, total: files.length });
-        }
-        if (urls.length === 0) { setUploading(false); input.value = ""; return; }
-
-        // Step 2: Read current photos from DB (sequenced — no concurrent reads)
-        const current = await curDb.readPhotos(id);
-        const existing = current.ok ? current.photos : [];
-
-        // Step 3: Merge and save directly to DB
-        const merged = [...existing, ...urls];
-        const saveResult = await curDb.savePhotos(id, merged);
-
-        // Step 4: Update local state
-        curDispatch({ type: "ADD_PHOTOS", id, urls });
-
-        // Step 5: Show result
-        if (saveResult.ok) {
-          showToast(`${urls.length} photo${urls.length > 1 ? "s" : ""} saved (${merged.length} total)`, "✅", 3000);
-        } else {
-          showToast(`Photo save failed: ${saveResult.error}`, "⚠️", 8000);
-        }
-
-        setUploading(false);
-        input.value = "";
-      }).catch(err => { console.error('[photoUpload] queue error:', err); setUploading(false); });
-    };
-
-    input.addEventListener("change", handler);
-    return () => {
-      input.removeEventListener("change", handler);
-      document.body.removeChild(input);
-    };
-  }, []);
-
-  const handlePhotos = useCallback((id) => {
-    if (!navigator.onLine) { showToast("Photos can't be uploaded while offline", "📵", 3000); return; }
-    photoEntryIdRef.current = id;
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ""; // reset
-      fileInputRef.current.click();
-    }
-  }, [showToast]);
+  // Photo upload (extracted to usePhotoUpload)
+  const { uploading, setUploading, uploadProgress, setUploadProgress, handlePhotos, uploadLockRef } = usePhotoUpload({ db, dispatch, showToast });
 
   const cur = selected ? data.entries.find(e => e.id === selected.id) : null;
   const allStickersMap = useMemo(() => {
@@ -1531,107 +1358,17 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         </div>
       )}
 
-      {/* RIGHT PANEL — distance + stats */}
-      <div style={{ position: "absolute", top: `max(${isMobile ? 14 : 22}px, env(safe-area-inset-top, ${isMobile ? 14 : 22}px))`, right: `max(${isMobile ? 12 : 22}px, env(safe-area-inset-right, ${isMobile ? 12 : 22}px))`, zIndex: 10, textAlign: "right", opacity: introComplete ? .8 : 0, transition: "opacity 1s ease", maxWidth: isMobile ? 130 : 180 }}>
-        {isPartnerWorld && dist !== null && (
-          <div style={{ marginBottom: 4 }}>
-            {areTogether ? <div style={{ fontSize: 16, color: P.heart, animation: "heartPulse 1.5s ease infinite" }}>💕 {config.youName && config.partnerName ? `${config.youName} & ${config.partnerName}` : "Together"}</div>
-              : <div style={{ fontSize: 13, color: P.textMid }}><span style={{ color: P.rose }}>♥</span> {dist.toLocaleString()} mi apart{dist > 3000 ? <div style={{ fontSize: 9, color: P.rose, opacity: 0.7, marginTop: 2, fontStyle: "italic" }}>across the world</div> : dist > 500 ? <div style={{ fontSize: 9, color: P.rose, opacity: 0.7, marginTop: 2, fontStyle: "italic" }}>missing you</div> : null}</div>}
-          </div>
-        )}
-        {isPartnerWorld && nextTogether && !areTogether && (
-          <div style={{ fontSize: 10, color: P.goldWarm, letterSpacing: ".08em", marginBottom: 4, fontWeight: 500, textShadow: "0 1px 3px rgba(0,0,0,.15)" }}>
-            {daysBetween(todayStr(), nextTogether.dateStart)} days until together 💛
-          </div>
-        )}
-        {!isMobile && data.entries.length > 0 && <div style={{ fontSize: 10, color: P.textMid, letterSpacing: ".08em", lineHeight: 1.6, textShadow: "0 1px 6px rgba(0,0,0,0.2)" }}>
-          {isMyWorld
-            ? <>{data.entries.length} trips · {stats.countries} countries<br />{stats.totalMiles.toLocaleString()} miles explored</>
-            : isPartnerWorld
-            ? <>{stats.daysTog} days {config.youName && config.partnerName ? `${config.youName} & ${config.partnerName}` : "together"}<br />{stats.trips} adventures · {stats.countries} countries<br />{stats.totalMiles.toLocaleString()} miles traveled</>
-            : <>{data.entries.length} {worldName ? `${worldName} ` : ""}trips · {stats.countries} countries<br />{stats.totalMiles.toLocaleString()} miles traveled</>
-          }
-        </div>}
-        {/* Entry type filter + scrollable entry list */}
-        {data.entries.length > 0 && (
-          <div style={{ marginTop: 10, position: "relative" }}>
-            <button onClick={() => modalDispatch({ type: 'TOGGLE', name: 'showFilter' })} style={{ background: modals.showFilter ? P.blush : "rgba(255,255,255,.6)", border: `1px solid ${P.rose}20`, borderRadius: 8, padding: "8px 12px", fontSize: 9, cursor: "pointer", fontFamily: "inherit", color: P.textMid, letterSpacing: ".06em", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", gap: 4, marginLeft: "auto" }}>
-              {markerFilter === "all" ? "🌍 All Entries" : markerFilter === "favorites" ? "♥ Favorites" : `${(TYPES[markerFilter] || {}).icon || "✨"} ${(TYPES[markerFilter] || {}).label || markerFilter}`}
-              <span style={{ fontSize: 10, opacity: 0.5 }}>{modals.showFilter ? "▲" : "▼"}</span>
-            </button>
-            {modals.showFilter && (
-              <div style={{ position: "absolute", top: "100%", right: 0, marginTop: 4, background: P.card, backdropFilter: "blur(16px)", borderRadius: 10, boxShadow: "0 8px 28px rgba(61,53,82,.12)", border: `1px solid ${P.rose}10`, overflow: "hidden", minWidth: 150, zIndex: 20 }}>
-                {[{ key: "all", icon: "🌍", label: "All Entries", count: data.entries.length },
-                  { key: "favorites", icon: "♥", label: "Favorites", count: favorites.length },
-                  ...Object.entries(TYPES).map(([k, v]) => ({ key: k, icon: v.icon, label: v.label, count: data.entries.filter(e => e.type === k).length }))
-                ].filter(f => f.count > 0 || f.key === "favorites").map(f => (
-                  <button key={f.key} onClick={() => { setMarkerFilter(f.key); modalDispatch({ type: 'CLOSE', name: 'showFilter' }); setListRenderLimit(100); }}
-                    style={{ display: "flex", width: "100%", alignItems: "center", gap: 8, padding: "10px 12px", border: "none", borderBottom: `1px solid ${P.parchment}`, background: markerFilter === f.key ? P.blush : "transparent", cursor: "pointer", fontFamily: "inherit", fontSize: 10, color: markerFilter === f.key ? P.text : P.textMid, textAlign: "left" }}
-                    onMouseEnter={e => { if (markerFilter !== f.key) e.currentTarget.style.background = P.lavMist; }}
-                    onMouseLeave={e => { if (markerFilter !== f.key) e.currentTarget.style.background = "transparent"; }}
-                  >
-                    <span>{f.icon}</span>
-                    <span style={{ flex: 1 }}>{f.label}</span>
-                    <span style={{ fontSize: 10, color: P.textFaint, background: `${P.parchment}`, borderRadius: 10, padding: "1px 5px" }}>{f.count}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-            {/* Scrollable entry list — grouped by trip when possible */}
-            {filteredList.length > 0 && (() => {
-              const entryRow = (e) => (
-                <button key={e.id} onClick={() => {
-                  setSelected(e); setLocationList(null); setSliderDate(e.dateStart);
-                  flyTo(e.lat, e.lng, 2.5);
-                }}
-                  style={{ display: "flex", width: "100%", alignItems: "center", gap: 8, padding: "7px 10px", border: "none", borderBottom: `1px solid ${P.parchment}60`, background: selected?.id === e.id ? P.blush : "transparent", cursor: "pointer", fontFamily: "inherit", textAlign: "left", transition: "background .15s" }}
-                  onMouseEnter={ev => { if (selected?.id !== e.id) ev.currentTarget.style.background = P.lavMist; }}
-                  onMouseLeave={ev => { if (selected?.id !== e.id) ev.currentTarget.style.background = "transparent"; }}
-                >
-                  {(e.photos || []).length > 0 ? (
-                    <img loading="lazy" src={thumbnail(e.photos[0], 64)} alt="" style={{ width: 32, height: 32, borderRadius: 6, objectFit: "cover", flexShrink: 0, border: `1px solid ${P.rose}15` }} />
-                  ) : (
-                    <span style={{ fontSize: 14, flexShrink: 0, width: 32, textAlign: "center" }}>{(TYPES[e.type] || {}).icon || "📍"}</span>
-                  )}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 10, fontWeight: 400, color: P.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.city}{(e.stops || []).length > 0 ? ` + ${e.stops.length} stop${e.stops.length > 1 ? "s" : ""}` : ""}</div>
-                    <div style={{ fontSize: 10, color: P.textFaint }}>{fmtDate(e.dateStart)}{e.dateEnd && e.dateEnd !== e.dateStart ? ` → ${fmtDate(e.dateEnd)}` : ""}{(e.stops || []).length > 0 ? ` · ${[...new Set(e.stops.map(s => s.country).filter(Boolean))].join(", ")}` : ""}</div>
-                    {allStickersMap[e.id] && <div style={{ display: "flex", gap: 2, marginTop: 1 }}>{allStickersMap[e.id].map((s, i) => <span key={i} style={{ fontSize: 10 }} title={s.label}>{s.emoji}</span>)}</div>}
-                  </div>
-                  {(e.photos || []).length > 1 && <span style={{ fontSize: 10, color: P.textFaint }}>📸{(e.photos || []).length}</span>}
-                  {isSharedWorld && e.addedBy && memberNameMap[e.addedBy] && (
-                    <div style={{ width: 16, height: 16, borderRadius: "50%", background: `linear-gradient(135deg, ${P.rose}35, ${P.sky}35)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 600, color: P.text, flexShrink: 0 }} title={`Added by ${memberNameMap[e.addedBy]}`}>
-                      {memberNameMap[e.addedBy].charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                  {e.favorite && <span style={{ fontSize: 9, color: P.heart }}>♥</span>}
-                </button>
-              );
-              return (
-              <div style={{ marginTop: 6, background: P.card, backdropFilter: "blur(12px)", borderRadius: 10, border: `1px solid ${P.rose}10`, maxHeight: "calc(100vh - 340px)", overflowY: "auto", boxShadow: "0 4px 16px rgba(61,53,82,.06)" }}>
-                <div style={{ padding: "6px 10px 4px", fontSize: 10, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", borderBottom: `1px solid ${P.parchment}`, position: "sticky", top: 0, background: P.card, zIndex: 1, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span>{filteredList.length} {markerFilter === "all" ? "entries" : markerFilter === "favorites" ? "favorites" : (TYPES[markerFilter]?.label || "entries").toLowerCase()}</span>
-                  <select value={listSortMode} onChange={e => setListSortMode(e.target.value)}
-                    style={{ background: "none", border: "none", color: P.textFaint, fontSize: 10, fontFamily: "inherit", cursor: "pointer", letterSpacing: ".08em", textTransform: "uppercase", outline: "none", padding: 0 }}>
-                    <option value="newest">newest</option>
-                    <option value="oldest">oldest</option>
-                    <option value="alpha">A→Z</option>
-                    <option value="country">country</option>
-                  </select>
-                </div>
-                {filteredList.slice(0, listRenderLimit).map(e => entryRow(e))}
-                {filteredList.length > listRenderLimit && (
-                  <button onClick={() => setListRenderLimit(v => v + 100)}
-                    style={{ width: "100%", padding: "8px", border: "none", background: P.lavMist, cursor: "pointer", fontSize: 9, color: P.textMid, fontFamily: "inherit", letterSpacing: ".06em" }}>
-                    Show more ({filteredList.length - listRenderLimit} remaining)
-                  </button>
-                )}
-              </div>
-              );
-            })()}
-          </div>
-        )}
-      </div>
+      {/* RIGHT PANEL — distance + stats + entry list */}
+      <Suspense fallback={null}><EntryListPanel
+        entries={data.entries} sorted={sorted} togetherList={togetherList} favorites={favorites}
+        selected={selected} onSelectEntry={e => { setSelected(e); setLocationList(null); setSliderDate(e.dateStart); flyTo(e.lat, e.lng, 2.5); }}
+        markerFilter={markerFilter} setMarkerFilter={setMarkerFilter}
+        showFilter={modals.showFilter} onToggleFilter={() => modalDispatch({ type: 'TOGGLE', name: 'showFilter' })} onCloseFilter={() => modalDispatch({ type: 'CLOSE', name: 'showFilter' })}
+        TYPES={TYPES} P={P} config={config}
+        isMobile={isMobile} isPartnerWorld={isPartnerWorld} isMyWorld={isMyWorld} isSharedWorld={isSharedWorld}
+        fmtDate={fmtDate} stats={stats} dist={dist} nextTogether={nextTogether} areTogether={areTogether}
+        allStickersMap={allStickersMap} memberNameMap={memberNameMap} worldName={worldName} introComplete={introComplete}
+      /></Suspense>
 
       {/* TOOLBAR */}
       <Suspense fallback={null}><WorldToolbar
@@ -2130,287 +1867,18 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         }}
       /></Suspense>}
 
-      {modals.showSettings && !isViewer && (
-        <div role="dialog" aria-modal="true" aria-label="Settings" onClick={() => { flushConfigSave(); modalDispatch({ type: 'CLOSE', name: 'showSettings' }); }} style={{ position: "absolute", inset: 0, zIndex: 45, background: `linear-gradient(135deg, rgba(22,16,40,.82), rgba(30,24,48,.88))`, backdropFilter: "blur(24px)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", animation: "fadeIn .3s ease" }}>
-          <div ref={settingsTrapRef} onClick={e => e.stopPropagation()} style={{ width: 400, maxWidth: "92vw", maxHeight: "85vh", overflowY: "auto", padding: 30, background: P.card, borderRadius: 22, boxShadow: "0 1px 3px rgba(61,53,82,.04), 0 8px 24px rgba(61,53,82,.06), 0 24px 64px rgba(61,53,82,.1)", cursor: "default" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}><h3 style={{ margin: 0, fontSize: 16, fontWeight: 400, letterSpacing: ".06em" }}>Settings</h3><button aria-label="Close settings" onClick={() => { flushConfigSave(); modalDispatch({ type: 'CLOSE', name: 'showSettings' }); }} style={{ background: "none", border: "none", fontSize: 17, color: P.textFaint, cursor: "pointer", transition: "color .2s" }}>×</button></div>
-            <Fld l={isMyWorld ? "First Trip Date" : isPartnerWorld ? "Date You Met" : "First Trip Date"} v={config.startDate} t="date" set={v => setConfig({ startDate: v })} />
-            <Fld l="Title" v={config.title} set={v => setConfig({ title: v })} />
-            <Fld l="Subtitle" v={config.subtitle} set={v => setConfig({ subtitle: v })} />
-            {isMyWorld
-              ? <Fld l="Traveler Name" v={config.travelerName || ''} set={v => setConfig({ travelerName: v })} ph="Your name" />
-              : isPartnerWorld
-                ? <>
-                    <Fld l="Your Name" v={config.youName} set={v => setConfig({ youName: v })} ph="Enter your name" />
-                    <Fld l="Partner's Name" v={config.partnerName} set={v => setConfig({ partnerName: v })} ph="Enter their name" />
-                  </>
-                : (() => {
-                    const members = config.members || [];
-                    const updateMember = (i, name) => { const next = [...members]; next[i] = { name }; setConfig({ members: next }); };
-                    const addMember = () => setConfig({ members: [...members, { name: "" }] });
-                    const removeMember = (i) => setConfig({ members: members.filter((_, j) => j !== i) });
-                    return <div style={{ marginBottom: 12 }}>
-                      <Lbl>{worldType === "family" ? "Family Members" : "Group Members"}</Lbl>
-                      {members.map((m, i) => (
-                        <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "center" }}>
-                          <input value={m.name || ""} onChange={e => updateMember(i, e.target.value)}
-                            placeholder={worldType === "family" ? `Member ${i + 1}` : `Friend ${i + 1}`}
-                            style={inputStyle()} />
-                          {members.length > 1 && (
-                            <button onClick={() => removeMember(i)}
-                              style={{ background: "none", border: "none", color: P.textFaint, fontSize: 15, cursor: "pointer", padding: "0 4px" }}>×</button>
-                          )}
-                        </div>
-                      ))}
-                      <button onClick={addMember}
-                        style={{ background: "none", border: `1px dashed ${P.rose}30`, borderRadius: 6, color: P.textMid, fontSize: 10, padding: "5px 10px", cursor: "pointer", width: "100%", fontFamily: "inherit", marginTop: 2 }}>
-                        + Add {worldType === "family" ? "family member" : "friend"}
-                      </button>
-                    </div>;
-                  })()
-            }
-
-            <div style={{ margin: "14px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
-            <div style={{ fontSize: 10, color: P.textMid, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 4, fontWeight: 500 }}>🎨 Color Theme</div>
-            <p style={{ fontSize: 10, color: P.textFaint, fontStyle: "italic", marginBottom: 10 }}>Interface colors update instantly. Globe/scene colors (✦) save but require a <strong style={{ color: P.textMid }}>page refresh</strong> to take effect.</p>
-            {(() => {
-              const cp = config.customPalette || {};
-              const cs = config.customScene || {};
-              const setCP = (key, val) => setConfig({ customPalette: { ...cp, [key]: val } });
-              const setCS = (key, val) => setConfig({ customScene: { ...cs, [key]: val } });
-              const sharedCfg = (!isMyWorld && worldType) ? getSharedWorldConfig(worldType) : null;
-              const baseP = isMyWorld ? MY_WORLD_PALETTE : sharedCfg ? sharedCfg.palette : OUR_WORLD_PALETTE;
-              const baseSC = isMyWorld ? MY_WORLD_SCENE : sharedCfg ? sharedCfg.scene : OUR_WORLD_SCENE;
-              return <>
-                <div style={{ fontSize: 10, color: P.textMid, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 6, marginTop: 2 }}>Theme Presets</div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
-                  {Object.entries(WORLD_THEMES).map(([key, theme]) => (
-                    <button key={key} onClick={() => {
-                      setConfig({ customPalette: theme.palette, customScene: theme.scene });
-                      showToast(`${theme.name} theme applied — reload for scene colors`, "🎨", 3000);
-                    }} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", background: "transparent", border: `1px solid ${P.textFaint}30`, borderRadius: 10, cursor: "pointer", fontFamily: "inherit", transition: "all .2s" }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = P.rose + "60"; e.currentTarget.style.background = P.rose + "08"; }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = P.textFaint + "30"; e.currentTarget.style.background = "transparent"; }}>
-                      <div style={{ display: "flex", gap: 2 }}>{theme.preview.map((c, i) => <div key={i} style={{ width: 10, height: 10, borderRadius: "50%", background: c }} />)}</div>
-                      <span style={{ fontSize: 9, color: P.text }}>{theme.name}</span>
-                    </button>
-                  ))}
-                </div>
-                <div style={{ fontSize: 10, color: P.textMid, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 4, marginTop: 2 }}>Interface Colors</div>
-                {cPick("Primary Accent", "Markers, buttons, borders, highlights", cp.rose || baseP.rose, v => setCP("rose", v))}
-                {cPick("Secondary Accent", "Cards, backgrounds, subtle accents", cp.sky || baseP.sky, v => setCP("sky", v))}
-                {cPick("Highlight Color", "Special entries, gold elements", cp.special || baseP.special, v => setCP("special", v))}
-                {cPick(isPartnerWorld ? "Heart / Love Color" : "Highlight / Special", isPartnerWorld ? "Together markers, love features" : "Featured markers, special entries", cp.heart || baseP.heart, v => setCP("heart", v))}
-                {cPick("Text Color", "Main text throughout the app", cp.text || baseP.text, v => setCP("text", v))}
-                {cPick("Card Background", "Cards, panels, form backgrounds", cp.cream || baseP.cream, v => setCP("cream", v))}
-
-                <div style={{ fontSize: 10, color: P.textMid, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 4, marginTop: 10 }}>Globe & Scene Colors</div>
-                {cPick("Space Background", "The dark sky behind the globe", cs.bg || baseSC.bg, v => setCS("bg", v), true)}
-                {cPick("Globe Surface", "The globe sphere color", cs.sphereColor || baseSC.sphereColor, v => setCS("sphereColor", v), true)}
-                {cPick("Glow Aura", "The halo rings around the globe", (cs.glowColors || baseSC.glowColors)[0], v => setCS("glowColors", [v, v+"e8", v+"d0", v+"b8", v+"a0", v+"88", v+"70", v+"58", v+"48", v+"38", v+"28", v+"18"]), true)}
-                {cPick("Coastlines", "Country outlines on the globe", cs.coastColor || baseSC.coastColor, v => setCS("coastColor", v), true)}
-                {cPick("Particles", "Floating dust particles around globe", cs.particleColor || baseSC.particleColor, v => setCS("particleColor", v), true)}
-                {cPick("Stars Tint", "Background star color", cs.starTint || baseSC.starTint, v => setCS("starTint", v), true)}
-
-                <button onClick={() => { setConfig({ customPalette: {}, customScene: {} }); }}
-                  style={{ marginTop: 10, width: "100%", padding: "8px", background: "transparent", border: `1px dashed ${P.textFaint}30`, borderRadius: 8, cursor: "pointer", fontSize: 9, fontFamily: "inherit", color: P.textMid, transition: "all .2s" }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = `${P.rose}50`; e.currentTarget.style.color = P.text; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = `${P.textFaint}30`; e.currentTarget.style.color = P.textMid; }}>
-                  Reset All Colors to Default
-                </button>
-              </>;
-            })()}
-
-            <div style={{ margin: "14px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
-            <div style={{ fontSize: 10, color: P.textMid, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 4, fontWeight: 500 }}>🎵 Ambient Music</div>
-            <p style={{ fontSize: 10, color: P.textFaint, fontStyle: "italic", marginBottom: 6 }}>Paste an audio URL (.mp3, .ogg, .wav) to play background music while exploring your globe.</p>
-            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <input value={config.ambientMusicUrl || ""} onChange={e => setConfig({ ambientMusicUrl: e.target.value.trim() || "" })} placeholder="https://example.com/song.mp3" style={{ ...inputStyle(), flex: 1 }} />
-              {config.ambientMusicUrl && <button onClick={() => { const au = ambientRef.current; if (!au) return; if (ambientPlaying) { au.pause(); } else { au.play().catch(() => {}); } }} style={{ padding: "8px 10px", background: `${P.rose}15`, border: `1px solid ${P.rose}25`, borderRadius: 10, color: P.rose, fontSize: 11, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>{ambientPlaying ? "⏸ Stop" : "▶ Test"}</button>}
-            </div>
-            {config.ambientMusicUrl && !/^https?:\/\/.+\..+/.test(config.ambientMusicUrl) && <div style={{ fontSize: 10, color: "#d4846a", marginTop: 4 }}>Enter a valid URL starting with https://</div>}
-
-            <div style={{ margin: "14px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
-            <div style={{ fontSize: 10, color: P.textMid, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 4, fontWeight: 500 }}>✍️ Display</div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0" }}>
-              <div>
-                <div style={{ fontSize: 10, color: P.text }}>Handwritten Notes</div>
-                <div style={{ fontSize: 10, color: P.textFaint }}>Show notes in cursive on lined paper</div>
-              </div>
-              <button onClick={() => { const next = !handwrittenMode; setHandwrittenMode(next); localStorage.setItem("cosmos_handwritten", next ? "1" : "0"); }} style={{ width: 40, height: 22, borderRadius: 11, border: "none", cursor: "pointer", background: handwrittenMode ? P.rose : P.textFaint + "40", position: "relative", transition: "background .2s" }}>
-                <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#fff", position: "absolute", top: 2, left: handwrittenMode ? 20 : 2, transition: "left .2s", boxShadow: "0 1px 3px rgba(0,0,0,.2)" }} />
-              </button>
-            </div>
-
-            <div style={{ margin: "14px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
-            <div style={{ fontSize: 10, color: P.textMid, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 6, fontWeight: 500 }}>Timeline Chapters</div>
-            <p style={{ fontSize: 10, color: P.textFaint, fontStyle: "italic", marginBottom: 8 }}>{isMyWorld ? "Name the eras of your travels" : "Name the eras of your relationship"}</p>
-            {(config.chapters || []).map((ch, i) => (
-              <div key={i} style={{ display: "flex", gap: 4, alignItems: "center", marginBottom: 4 }}>
-                <input value={ch.label} onChange={e => { const chs = [...(config.chapters || [])]; chs[i] = { ...chs[i], label: e.target.value }; setConfig({ chapters: chs }); }} style={{ ...inputStyle(), flex: 1, fontSize: 10 }} placeholder="Chapter name" />
-                <input type="date" value={ch.startDate || ""} onChange={e => { const chs = [...(config.chapters || [])]; chs[i] = { ...chs[i], startDate: e.target.value }; setConfig({ chapters: chs }); }} style={{ ...inputStyle(), width: 95, fontSize: 9 }} />
-                <input type="date" value={ch.endDate || ""} onChange={e => { const chs = [...(config.chapters || [])]; chs[i] = { ...chs[i], endDate: e.target.value }; setConfig({ chapters: chs }); }} style={{ ...inputStyle(), width: 95, fontSize: 9 }} />
-                <button onClick={() => { const chs = (config.chapters || []).filter((_, j) => j !== i); setConfig({ chapters: chs }); }} style={{ background: "none", border: "none", color: "#c9777a", cursor: "pointer", fontSize: 12, flexShrink: 0 }}>×</button>
-              </div>
-            ))}
-            <button onClick={() => { setConfig({ chapters: [...(config.chapters || []), { label: "New Chapter", startDate: config.startDate, endDate: todayStr() }] }); }} style={{ width: "100%", padding: "5px", background: `${P.lavender}12`, border: `1px dashed ${P.lavender}40`, borderRadius: 5, cursor: "pointer", fontSize: 9, fontFamily: "inherit", color: P.textMid, marginBottom: 8 }}>+ Add Chapter</button>
-
-            <div style={{ margin: "14px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
-            <div style={{ fontSize: 10, color: P.textMid, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 6, fontWeight: 500 }}>Welcome Letters</div>
-            <p style={{ fontSize: 10, color: P.textFaint, fontStyle: "italic", marginBottom: 8 }}>Write a personal letter that appears when someone you invite first opens their cosmos. They'll see it once, before the globe.</p>
-            {wlSent && <div style={{ fontSize: 10, color: "#7ab87a", marginBottom: 8 }}>Letter sent! They'll see it when they sign up.</div>}
-            <div style={{ marginBottom: 6 }}>
-              <Lbl>Recipient's Email</Lbl>
-              <input type="email" value={wlEmail} onChange={e => setWlEmail(e.target.value)} placeholder="their.email@example.com" style={inputStyle()} />
-            </div>
-            <div style={{ marginBottom: 6 }}>
-              <Lbl>Your Letter</Lbl>
-              <textarea value={wlText} onChange={e => setWlText(e.target.value)} rows={5}
-                placeholder={"This is our world \u2014 every place we've been, every adventure we've shared...\n\nSpin the globe. Click the hearts. This is our story.\n\nI love you."}
-                style={{ ...inputStyle(), resize: "vertical", lineHeight: 1.7 }} />
-            </div>
-            <button
-              disabled={wlSending || !wlEmail.trim() || !wlText.trim()}
-              onClick={async () => {
-                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(wlEmail.trim())) { showToast("Please enter a valid email address", "⚠️", 3000); return; }
-                setWlSending(true); setWlSent(false);
-                try {
-                  const name = isMyWorld ? (config.travelerName || "Someone") : (config.youName || "Someone");
-                  await sendWelcomeLetter(userId, name, wlEmail.trim(), wlText.trim());
-                  setWlSent(true); setWlEmail(""); setWlText("");
-                  const letters = await getMyLetters(userId);
-                  setMyLetters(letters);
-                } catch (err) { showToast("Failed to send: " + err.message, "⚠️", 5000); }
-                setWlSending(false);
-              }}
-              style={{ width: "100%", padding: "10px", background: wlSending ? P.textFaint : `linear-gradient(135deg, ${P.rose}, ${P.sky})`, border: "none", borderRadius: 12, cursor: wlSending ? "wait" : "pointer", fontSize: 10, fontFamily: "inherit", color: "#fff", fontWeight: 600, opacity: (!wlEmail.trim() || !wlText.trim()) ? 0.4 : 1, letterSpacing: ".06em", boxShadow: !wlSending && wlEmail.trim() && wlText.trim() ? `0 2px 8px ${P.rose}30` : "none", transition: "all .25s" }}>
-              {wlSending ? "Sending..." : "Send Welcome Letter"}
-            </button>
-            {myLetters.length > 0 && (
-              <div style={{ marginTop: 10 }}>
-                <div style={{ fontSize: 10, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 4 }}>Sent Letters</div>
-                {myLetters.map(lt => (
-                  <div key={lt.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: `1px solid ${P.textFaint}15` }}>
-                    <div>
-                      <div style={{ fontSize: 10, color: P.textMid }}>{lt.to_email}</div>
-                      <div style={{ fontSize: 10, color: P.textFaint }}>{lt.read ? "Read" : "Unread"} · {new Date(lt.created_at).toLocaleDateString()}</div>
-                    </div>
-                    <button onClick={async () => { try { await deleteWelcomeLetter(lt.id); setMyLetters(prev => prev.filter(l => l.id !== lt.id)); } catch(err) { console.error('[deleteWelcomeLetter]', err); } }}
-                      style={{ background: "none", border: "none", color: "#c9777a", cursor: "pointer", fontSize: 11 }}>x</button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {isSharedWorld && (
-              <>
-                <div style={{ margin: "14px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
-                <div style={{ fontSize: 10, color: P.textMid, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 6, fontWeight: 500 }}>Members</div>
-                {worldMembers.length > 0 ? (
-                  <div style={{ marginBottom: 8 }}>
-                    {worldMembers.map(m => (
-                      <div key={m.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 8px", borderBottom: `1px solid ${P.textFaint}12`, gap: 8 }}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 11, color: P.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.display_name || "Member"}{m.user_id === userId ? " (you)" : ""}</div>
-                          <div style={{ fontSize: 10, color: P.textFaint, textTransform: "uppercase", letterSpacing: ".08em" }}>{m.role}</div>
-                        </div>
-                        {worldRole === "owner" && m.user_id !== userId && (
-                          <div style={{ display: "flex", gap: 4 }}>
-                            <select value={m.role} onChange={async (e) => {
-                              const ok = await updateMemberRole(m.id, e.target.value);
-                              if (ok) { const members = await getWorldMembers(worldId); setWorldMembers(members); }
-                            }} style={{ padding: "2px 4px", background: `${P.parchment}`, border: `1px solid ${P.textFaint}30`, borderRadius: 4, fontSize: 9, color: P.textMid, fontFamily: "inherit" }}>
-                              <option value="owner">Owner</option>
-                              <option value="member">Member</option>
-                              <option value="viewer">Viewer</option>
-                            </select>
-                            <button onClick={() => {
-                              setConfirmModal({ message: "Remove this member from the world?", onConfirm: async () => {
-                                const ok = await removeWorldMember(worldId, m.id, userId);
-                                if (ok) { const members = await getWorldMembers(worldId); setWorldMembers(members); }
-                              }});
-                            }} style={{ background: "none", border: "none", color: "#c9777a", cursor: "pointer", fontSize: 11, padding: "0 4px" }}>×</button>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div style={{ fontSize: 10, color: P.textFaint, marginBottom: 8 }}>Loading members...</div>
-                )}
-
-                <div style={{ margin: "14px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
-                <div style={{ fontSize: 10, color: P.textMid, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 6, fontWeight: 500 }}>World Management</div>
-                {worldRole === "owner" && (
-                  <button onClick={async () => {
-                    const newName = prompt("Rename this world:", worldName || "");
-                    if (!newName || !newName.trim() || newName.trim() === worldName) return;
-                    const ok = await updateWorld(worldId, { name: newName.trim() });
-                    if (ok) {
-                      localStorage.setItem('activeWorldName', newName.trim());
-                      window.location.reload();
-                    } else { showToast("Failed to rename world", "⚠️", 4000); }
-                  }} style={{ width: "100%", padding: "8px", background: `${P.parchment}`, border: `1px solid ${P.textFaint}30`, borderRadius: 8, cursor: "pointer", fontSize: 10, fontFamily: "inherit", color: P.textMid, marginBottom: 6, transition: "all .2s" }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = `${P.rose}40`; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = `${P.textFaint}30`; }}>
-                    Rename World
-                  </button>
-                )}
-                {worldRole === "owner" ? (
-                  <button onClick={() => {
-                    setConfirmModal({ message: `Are you sure you want to permanently delete "${worldName}"? This cannot be undone. All entries, photos, and settings will be lost.`, onConfirm: async () => {
-                      const ok = await deleteWorld(worldId, userId);
-                      if (ok) { flushConfigSave(); modalDispatch({ type: 'CLOSE', name: 'showSettings' }); onSwitchWorld(); }
-                      else { showToast("Failed to delete world.", "⚠️", 4000); }
-                    }});
-                  }} style={{ width: "100%", padding: "8px", background: "transparent", border: "1px solid rgba(200,100,100,0.25)", borderRadius: 8, cursor: "pointer", fontSize: 10, fontFamily: "inherit", color: "#c97777", marginBottom: 6, transition: "all .2s" }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(200,100,100,0.5)"; e.currentTarget.style.background = "rgba(200,100,100,0.06)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(200,100,100,0.25)"; e.currentTarget.style.background = "transparent"; }}>
-                    Delete World
-                  </button>
-                ) : (
-                  <button onClick={() => {
-                    setConfirmModal({ message: `Leave "${worldName}"? You'll lose access to this world.`, onConfirm: async () => {
-                      const ok = await leaveWorld(worldId, userId);
-                      if (ok) { flushConfigSave(); modalDispatch({ type: 'CLOSE', name: 'showSettings' }); onSwitchWorld(); }
-                      else { showToast("Failed to leave world.", "⚠️", 4000); }
-                    }});
-                  }} style={{ width: "100%", padding: "8px", background: "transparent", border: "1px solid rgba(200,160,100,0.25)", borderRadius: 8, cursor: "pointer", fontSize: 10, fontFamily: "inherit", color: "#c9a077", marginBottom: 6, transition: "all .2s" }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(200,160,100,0.5)"; e.currentTarget.style.background = "rgba(200,160,100,0.06)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(200,160,100,0.25)"; e.currentTarget.style.background = "transparent"; }}>
-                    Leave World
-                  </button>
-                )}
-              </>
-            )}
-
-            <div style={{ margin: "14px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
-            <button onClick={() => { modalDispatch({ type: 'CLOSE', name: 'showSettings' }); setShowOnboarding(true); setOnboardStep(0); localStorage.removeItem(onboardKey); }}
-              style={{ width: "100%", padding: "8px", background: "transparent", border: `1px dashed ${P.textFaint}30`, borderRadius: 8, cursor: "pointer", fontSize: 10, fontFamily: "inherit", color: P.textMid, transition: "all .2s" }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = `${P.rose}40`; e.currentTarget.style.color = P.text; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = `${P.textFaint}30`; e.currentTarget.style.color = P.textMid; }}>
-              Replay Tour
-            </button>
-
-            <div style={{ margin: "10px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}15,transparent)` }} />
-            <div style={{ fontSize: 10, color: P.textFaint, letterSpacing: ".13em", textTransform: "uppercase", marginBottom: 6 }}>Data</div>
-            <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-              <button onClick={exportData} style={{ flex: 1, padding: "9px", background: `linear-gradient(145deg, ${P.parchment}, ${P.cream})`, border: `1px solid ${P.rose}18`, borderRadius: 10, cursor: "pointer", fontSize: 9, fontFamily: "inherit", color: P.textMid, transition: "all .2s", boxShadow: `0 1px 3px ${P.text}04` }}
-                onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = `0 2px 8px ${P.text}08`; }}
-                onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = `0 1px 3px ${P.text}04`; }}>📥 Export Backup</button>
-              <button onClick={importData} style={{ flex: 1, padding: "9px", background: `linear-gradient(145deg, ${P.parchment}, ${P.cream})`, border: `1px solid ${P.sky}18`, borderRadius: 10, cursor: "pointer", fontSize: 9, fontFamily: "inherit", color: P.textMid, transition: "all .2s", boxShadow: `0 1px 3px ${P.text}04` }}
-                onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = `0 2px 8px ${P.text}08`; }}
-                onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = `0 1px 3px ${P.text}04`; }}>📤 Import Data</button>
-            </div>
-            <div style={{ fontSize: 10, color: P.textFaint, fontStyle: "italic", marginBottom: 8 }}>Export saves all entries, photos, and settings as a JSON file</div>
-
-            <button onClick={() => { flushConfigSave(); modalDispatch({ type: 'CLOSE', name: 'showSettings' }); }} style={{ width: "100%", padding: "11px", background: `linear-gradient(135deg, ${P.rose}, ${P.sky})`, color: "#fff", border: "none", borderRadius: 12, cursor: "pointer", fontSize: 11, fontFamily: "inherit", marginTop: 8, letterSpacing: ".06em", boxShadow: `0 2px 8px ${P.rose}30, 0 4px 16px ${P.rose}15`, transition: "all .25s" }}
-              onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = `0 4px 12px ${P.rose}40, 0 8px 24px ${P.rose}20`; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = `0 2px 8px ${P.rose}30, 0 4px 16px ${P.rose}15`; }}>Done</button>
-            <div style={{ marginTop: 12, textAlign: "center", fontSize: 10, color: P.textFaint, opacity: 0.5, letterSpacing: ".1em" }}>Little Cosmos v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '9.0'}</div>
-          </div>
-        </div>
-      )}
+      {modals.showSettings && !isViewer && <Suspense fallback={null}><SettingsPanel
+        config={config} setConfig={setConfig}
+        isMyWorld={isMyWorld} isPartnerWorld={isPartnerWorld} isSharedWorld={isSharedWorld} worldType={worldType}
+        worldId={worldId} userId={userId} worldRole={worldRole} worldName={worldName}
+        handwrittenMode={handwrittenMode} setHandwrittenMode={setHandwrittenMode}
+        ambientRef={ambientRef} ambientPlaying={ambientPlaying}
+        onClose={() => modalDispatch({ type: 'CLOSE', name: 'showSettings' })}
+        showToast={showToast} flushConfigSave={flushConfigSave}
+        exportData={exportData} importData={importData}
+        onSwitchWorld={onSwitchWorld} setConfirmModal={setConfirmModal}
+        onboardKey={onboardKey} setShowOnboarding={setShowOnboarding} setOnboardStep={setOnboardStep}
+      /></Suspense>}
 
       {data.entries.length === 0 && introComplete && !modals.showAdd && (() => {
         const emptyMsg = {
@@ -2464,7 +1932,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         recapPhase={recapPhase} recapIdx={recapIdx} recapStatIdx={recapStatIdx} recapAutoPlay={recapAutoPlay}
         setRecapPhase={setRecapPhase} setRecapIdx={setRecapIdx} setRecapStatIdx={setRecapStatIdx} setRecapAutoPlay={setRecapAutoPlay}
         setSliderDate={setSliderDate} setSelected={setSelected} setPhotoIdx={() => {}} setCardTab={() => {}} setTripCardEntry={setTripCardEntry}
-        onClose={() => { modalDispatch({ type: 'CLOSE', name: 'showRecap' }); setRecapYear(null); setRecapAutoPlay(false); setRecapPhase('title'); }} flyTo={flyTo}
+        onClose={closeRecap} flyTo={flyTo}
       />}
 
       {/* TOAST NOTIFICATIONS (stacked) */}
@@ -2504,58 +1972,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       `}</style>
 
       {/* PHOTO JOURNEY MODE */}
-      {modals.showPhotoJourney && allPhotos.length > 0 && (() => {
-        const ph = allPhotos[pjIndex];
-        const prevPh = pjIndex > 0 ? allPhotos[pjIndex - 1] : null;
-        const entry = sorted.find(e => e.id === ph.id);
-        const note = entry?.notes || '';
-        const caption = entry?.photoCaptions?.[ph.url] || '';
-        return (
-          <div role="dialog" aria-modal="true" aria-label="Photo journey" style={{ position: "fixed", inset: 0, zIndex: 200, background: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}
-            onClick={() => { if (pjAutoPlay) { setPjAutoPlay(false); } else if (pjIndex < allPhotos.length - 1) setPjIndex(i => i + 1); else { modalDispatch({ type: 'CLOSE', name: 'showPhotoJourney' }); setPjAutoPlay(false); } }}>
-            {/* Crossfade: previous image fades out behind current */}
-            {prevPh && <img src={prevPh.url} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", opacity: 0, transition: "opacity 0.8s ease", pointerEvents: "none" }} />}
-            <img key={ph.url} src={ph.url} alt="Travel photo" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", animation: "fadeIn .8s ease", transition: "opacity .8s ease" }} />
-            {/* Bottom info overlay */}
-            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(transparent, rgba(0,0,0,0.7) 40%, rgba(0,0,0,0.85))", padding: "60px 24px 28px", pointerEvents: "none" }}>
-              <div style={{ fontSize: 18, color: "#e8e0d0", fontFamily: "'Palatino Linotype',serif", letterSpacing: ".08em", textShadow: "0 2px 12px rgba(0,0,0,0.8)", textAlign: "center" }}>{ph.city}</div>
-              <div style={{ fontSize: 11, color: "#a098a8", marginTop: 4, textShadow: "0 1px 8px rgba(0,0,0,0.8)", textAlign: "center" }}>{ph.date}{ph.country ? ` · ${ph.country}` : ''}</div>
-              {caption && <div style={{ fontSize: 14, color: "#e8dcc8", marginTop: 10, textAlign: "center", maxWidth: 420, margin: "10px auto 0", lineHeight: 1.5, fontStyle: "italic", fontFamily: "'Palatino Linotype',serif", letterSpacing: ".04em", opacity: 0.95 }}>{caption}</div>}
-              {note && <div style={{ fontSize: 11, color: "#c8c0b0", marginTop: caption ? 6 : 10, textAlign: "center", maxWidth: 400, margin: `${caption ? 6 : 10}px auto 0`, lineHeight: 1.6, fontStyle: "italic", opacity: 0.85 }}>"{note}"</div>}
-            </div>
-            {/* Progress bar */}
-            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: "rgba(255,255,255,0.1)" }}>
-              <div style={{ height: "100%", width: `${((pjIndex + 1) / allPhotos.length) * 100}%`, background: `linear-gradient(90deg, ${P.goldWarm}, ${P.rose || P.accent})`, transition: "width .5s ease" }} />
-            </div>
-            {/* Counter + auto-play toggle */}
-            <div style={{ position: "absolute", top: 14, right: 16, display: "flex", alignItems: "center", gap: 10 }}>
-              <button onClick={(e) => { e.stopPropagation(); setPjAutoPlay(a => !a); }}
-                style={{ background: pjAutoPlay ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.08)", border: "none", borderRadius: 6, padding: "5px 10px", color: pjAutoPlay ? "#e8e0d0" : "#686070", fontSize: 11, cursor: "pointer", fontFamily: "inherit", transition: "all .3s" }}>
-                {pjAutoPlay ? "⏸ Pause" : "▶ Auto"}
-              </button>
-              <span style={{ fontSize: 11, color: "#686070" }}>{pjIndex + 1} / {allPhotos.length}</span>
-            </div>
-            {/* Close */}
-            <button onClick={(e) => { e.stopPropagation(); modalDispatch({ type: 'CLOSE', name: 'showPhotoJourney' }); setPjAutoPlay(false); }}
-              style={{ position: "absolute", top: 12, left: 16, background: "rgba(255,255,255,0.1)", border: "none", borderRadius: 8, padding: "6px 14px", color: "#a098a8", fontSize: 12, fontFamily: "inherit", cursor: "pointer" }}>
-              ✕ Close
-            </button>
-            {/* Navigation arrows */}
-            {pjIndex > 0 && (
-              <button onClick={(e) => { e.stopPropagation(); setPjIndex(i => i - 1); }}
-                style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,0.08)", border: "none", borderRadius: "50%", width: 44, height: 44, color: "#e8e0d0", fontSize: 18, cursor: "pointer", transition: "background .2s" }}>
-                &#9664;
-              </button>
-            )}
-            {pjIndex < allPhotos.length - 1 && (
-              <button onClick={(e) => { e.stopPropagation(); setPjIndex(i => i + 1); }}
-                style={{ position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,0.08)", border: "none", borderRadius: "50%", width: 44, height: 44, color: "#e8e0d0", fontSize: 18, cursor: "pointer", transition: "background .2s" }}>
-                &#9654;
-              </button>
-            )}
-          </div>
-        );
-      })()}
+      {modals.showPhotoJourney && allPhotos.length > 0 && <Suspense fallback={null}><PhotoJourneyOverlay allPhotos={allPhotos} sortedEntries={sorted} pjIndex={pjIndex} setPjIndex={setPjIndex} pjAutoPlay={pjAutoPlay} setPjAutoPlay={setPjAutoPlay} onClose={() => modalDispatch({ type: 'CLOSE', name: 'showPhotoJourney' })} showToast={showToast} P={P} /></Suspense>}
 
       {/* EASTER EGG — visible when zoomed all the way out (partner worlds only) */}
       {isPartnerWorld && isSharedWorld && (
@@ -2570,73 +1987,9 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       {modals.showShortcuts && <Suspense fallback={<div style={{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(8,6,18,0.7)",backdropFilter:"blur(8px)"}}><div style={{color:"rgba(255,255,255,0.4)",fontSize:14,fontFamily:"'Palatino Linotype',Georgia,serif",letterSpacing:".05em"}}>Loading…</div></div>}><KeyboardShortcuts onClose={() => modalDispatch({ type: 'CLOSE', name: 'showShortcuts' })} palette={P} worldMode={worldMode} /></Suspense>}
 
       {/* FULLSCREEN PHOTO LIGHTBOX */}
-      {lightboxOpen && cur?.photos?.length > 0 && (() => {
-        const photos = cur.photos;
-        const idx = ((lightboxIdx % photos.length) + photos.length) % photos.length;
-        const caption = (cur.photoCaptions || {})[photos[idx]];
-        const prev = () => setLightboxIdx(i => ((i - 1) + photos.length) % photos.length);
-        const next = () => setLightboxIdx(i => (i + 1) % photos.length);
-        const lbSwipeRef = { startX: 0, startY: 0, swiping: false };
-        return (
-          <div role="dialog" aria-modal="true" aria-label="Photo lightbox" style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.92)", backdropFilter: "blur(24px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .25s ease" }}
-            onClick={() => setLightboxOpen(false)}
-            onKeyDown={e => { if (e.key === "Escape") setLightboxOpen(false); else if (e.key === "ArrowLeft") prev(); else if (e.key === "ArrowRight") next(); }}
-            onTouchStart={e => { if (e.touches.length === 1) { lbSwipeRef.startX = e.touches[0].clientX; lbSwipeRef.startY = e.touches[0].clientY; lbSwipeRef.swiping = true; } }}
-            onTouchEnd={e => { if (!lbSwipeRef.swiping || !e.changedTouches[0]) return; lbSwipeRef.swiping = false; const dx = e.changedTouches[0].clientX - lbSwipeRef.startX; const dy = Math.abs(e.changedTouches[0].clientY - lbSwipeRef.startY); if (Math.abs(dx) > 50 && dy < 100) { if (dx > 0) prev(); else next(); e.preventDefault(); } }}
-            tabIndex={0} ref={el => el?.focus()}>
-            {/* Close button */}
-            <button aria-label="Close lightbox" onClick={() => setLightboxOpen(false)} style={{ position: "absolute", top: 20, right: 20, background: "none", border: "none", color: "#fff", fontSize: 28, cursor: "pointer", zIndex: 210, opacity: 0.7, lineHeight: 1 }}>×</button>
-            {/* Counter */}
-            <div style={{ position: "absolute", top: 20, left: 0, right: 0, textAlign: "center", color: "rgba(255,255,255,0.5)", fontSize: 12, letterSpacing: "1px", zIndex: 210 }}>{idx + 1} / {photos.length}</div>
-            {/* Photo */}
-            <img key={photos[idx]} src={photos[idx]} alt={`Photo ${idx + 1}`} onClick={e => e.stopPropagation()}
-              style={{ maxWidth: "90vw", maxHeight: !isViewer ? "75vh" : caption ? "78vh" : "85vh", objectFit: "contain", borderRadius: 4, boxShadow: "0 8px 40px rgba(0,0,0,0.5)", cursor: "default", animation: "lbFadeOpacity .35s ease" }} />
-            {/* Caption — editable for owners */}
-            <div onClick={e => e.stopPropagation()} style={{ position: "absolute", bottom: photos.length > 1 ? 72 : 46, left: 0, right: 0, textAlign: "center", zIndex: 210, animation: "lbFadeOpacity .5s ease" }}>
-              {!isViewer ? (
-                <input
-                  type="text"
-                  placeholder="write a caption..."
-                  value={caption || ""}
-                  onClick={e => e.stopPropagation()}
-                  onChange={e => {
-                    const captions = { ...(cur.photoCaptions || {}), [photos[idx]]: e.target.value };
-                    dispatch({ type: "UPDATE", id: cur.id, data: { photoCaptions: captions }, _skipSave: true });
-                  }}
-                  onBlur={e => {
-                    const captions = { ...(cur.photoCaptions || {}), [photos[idx]]: e.target.value };
-                    dispatch({ type: "UPDATE", id: cur.id, data: { photoCaptions: captions } });
-                  }}
-                  onKeyDown={e => { if (e.key === "Enter") e.target.blur(); e.stopPropagation(); }}
-                  style={{ display: "inline-block", maxWidth: "70vw", width: "50vw", padding: "6px 16px", background: caption ? "rgba(0,0,0,0.5)" : "rgba(0,0,0,0.25)", borderRadius: 8, color: "rgba(255,255,255,0.8)", fontSize: 13, fontStyle: "italic", fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", letterSpacing: ".03em", lineHeight: 1.5, border: "none", outline: "none", textAlign: "center", transition: "background .2s" }}
-                />
-              ) : caption ? (
-                <span style={{ display: "inline-block", maxWidth: "70vw", padding: "6px 16px", background: "rgba(0,0,0,0.5)", borderRadius: 8, color: "rgba(255,255,255,0.8)", fontSize: 13, fontStyle: "italic", fontFamily: "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif", letterSpacing: ".03em", lineHeight: 1.5 }}>{caption}</span>
-              ) : null}
-            </div>
-            {/* Navigation arrows */}
-            {photos.length > 1 && (<>
-              <button aria-label="Previous photo" onClick={e => { e.stopPropagation(); prev(); }} style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "50%", width: 44, height: 44, cursor: "pointer", fontSize: 20, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 210, transition: "all .2s" }}
-                onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.15)"}
-                onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.08)"}>‹</button>
-              <button aria-label="Next photo" onClick={e => { e.stopPropagation(); next(); }} style={{ position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "50%", width: 44, height: 44, cursor: "pointer", fontSize: 20, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 210, transition: "all .2s" }}
-                onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.15)"}
-                onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.08)"}>›</button>
-            </>)}
-            {/* Dot indicators */}
-            {photos.length > 1 && photos.length <= 20 && (
-              <div style={{ position: "absolute", bottom: 24, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 6, zIndex: 210 }}>
-                {photos.map((_, i) => <button key={i} onClick={e => { e.stopPropagation(); setLightboxIdx(i); }}
-                  style={{ width: i === idx ? 10 : 6, height: 6, borderRadius: 3, background: i === idx ? "#fff" : "rgba(255,255,255,0.3)", border: "none", padding: 0, cursor: "pointer", transition: "all .2s" }} />)}
-              </div>
-            )}
-            {/* City label */}
-            <div style={{ position: "absolute", bottom: photos.length > 1 ? 50 : 24, left: 0, right: 0, textAlign: "center", color: "rgba(255,255,255,0.4)", fontSize: 11, letterSpacing: "1px", zIndex: 210 }}>{cur.city}{cur.country ? `, ${cur.country}` : ""}</div>
-          </div>
-        );
-      })()}
+      {lightboxOpen && cur?.photos?.length > 0 && <Suspense fallback={null}><PhotoLightbox photos={cur.photos} lightboxIdx={lightboxIdx} setLightboxIdx={setLightboxIdx} onClose={() => setLightboxOpen(false)} isViewer={isViewer} dispatch={dispatch} entryId={cur.id} photoCaptions={cur.photoCaptions} P={P} city={cur.city} country={cur.country} /></Suspense>}
 
-      {/* LAZY-LOADED OVERLAYS — code-split, only fetched when opened */}
+      {/* LAZY-LOADED OVERLAYS{/* LAZY-LOADED OVERLAYS — code-split, only fetched when opened */}
       {modals.showPhotoMap && <OverlayBoundary onClose={() => modalDispatch({ type: 'CLOSE', name: 'showPhotoMap' })}><Suspense fallback={<div style={{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(8,6,18,0.7)",backdropFilter:"blur(8px)"}}><div style={{color:"rgba(255,255,255,0.4)",fontSize:14,fontFamily:"'Palatino Linotype',Georgia,serif",letterSpacing:".05em"}}>Loading…</div></div>}><PhotoMap entries={data.entries} palette={P} onClose={() => modalDispatch({ type: 'CLOSE', name: 'showPhotoMap' })} worldMode={worldMode} /></Suspense></OverlayBoundary>}
       {modals.showMilestones && <OverlayBoundary onClose={() => modalDispatch({ type: 'CLOSE', name: 'showMilestones' })}><Suspense fallback={<div style={{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(8,6,18,0.7)",backdropFilter:"blur(8px)"}}><div style={{color:"rgba(255,255,255,0.4)",fontSize:14,fontFamily:"'Palatino Linotype',Georgia,serif",letterSpacing:".05em"}}>Loading…</div></div>}><Milestones entries={data.entries} palette={P} onClose={() => modalDispatch({ type: 'CLOSE', name: 'showMilestones' })} worldMode={worldMode} config={config} /></Suspense></OverlayBoundary>}
       {modals.showTravelStats && <OverlayBoundary onClose={() => modalDispatch({ type: 'CLOSE', name: 'showTravelStats' })}><Suspense fallback={<div style={{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(8,6,18,0.7)",backdropFilter:"blur(8px)"}}><div style={{color:"rgba(255,255,255,0.4)",fontSize:14,fontFamily:"'Palatino Linotype',Georgia,serif",letterSpacing:".05em"}}>Loading…</div></div>}><TravelStats entries={data.entries} stats={stats} palette={P} onClose={() => modalDispatch({ type: 'CLOSE', name: 'showTravelStats' })} worldMode={worldMode} config={config} /></Suspense></OverlayBoundary>}
