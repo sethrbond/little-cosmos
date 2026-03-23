@@ -1,5 +1,8 @@
 import { usePlayStory } from "./usePlayStory.js";
 import { useToasts } from "./useToasts.js";
+import { useRecap } from "./useRecap.js";
+import { usePhotoUpload } from "./usePhotoUpload.js";
+import { useKeyboardShortcuts } from "./useKeyboardShortcuts.js";
 import { reducer, getFirstBadges } from "./entryReducer.js";
 import { useState, useEffect, useRef, useCallback, useMemo, useReducer, Component, lazy, Suspense } from "react";
 import * as THREE from "three";
@@ -27,6 +30,13 @@ const DetailCard = lazy(() => import("./DetailCard.jsx"));
 const TimelineSlider = lazy(() => import("./TimelineSlider.jsx"));
 const LoveLetterOverlay = lazy(() => import("./LoveLetterOverlay.jsx"));
 const TimeCapsuleOverlay = lazy(() => import("./TimeCapsuleOverlay.jsx"));
+const EntryListPanel = lazy(() => import("./EntryListPanel.jsx"));
+const TrashPanel = lazy(() => import("./TrashPanel.jsx"));
+const ConfirmModal = lazy(() => import("./ConfirmModal.jsx"));
+const OnThisDayCard = lazy(() => import("./OnThisDayCard.jsx"));
+const PhotoLightbox = lazy(() => import("./PhotoLightbox.jsx"));
+const PhotoJourneyOverlay = lazy(() => import("./PhotoJourneyOverlay.jsx"));
+const CelebrationOverlay = lazy(() => import("./CelebrationOverlay.jsx"));
 import { EntryTemplates, saveTemplate } from "./EntryTemplates.jsx";
 import useRealtimeSync, { useRealtimePresence } from "./useRealtimeSync.js";
 import { shareGlobeCard } from "./ShareCard.js";
@@ -55,6 +65,7 @@ import { thumbnail, compressImage } from "./imageUtils.js";
 import StatsOverlay from "./StatsOverlay.jsx";
 import RecapOverlay from "./RecapOverlay.jsx";
 import OnboardingOverlay from "./OnboardingOverlay.jsx";
+const SettingsPanel = lazy(() => import("./SettingsPanel.jsx"));
 
 /* =================================================================
    🌍 OUR WORLD / MY WORLD — Multi-World Globe Engine
@@ -275,90 +286,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     }
   }, [db]);
 
-  // Color picker — rainbow gradient + presets + hex input
-  const [cpOpen, setCpOpen] = useState(null);
-  const cPick = (label, desc, value, onChange, scene) => {
-    const isOpen = cpOpen === label;
-    const presets = scene
-      ? ["#0a0814","#161028","#18102c","#0c0e16","#101820","#1a1428",
-         "#f8e8f4","#f0dce8","#e8d8f0","#d0c0a0","#e0d0b0","#c8b898",
-         "#f8b8d0","#f0a0c8","#d8a0f0","#e0c0f0","#80a0c0","#7088a8",
-         "#78c058","#70b850","#5a9848","#fce0f0","#d8e0f0","#c8d0e0"]
-      : ["#d4a0b9","#e8b8d0","#f0c8d8","#e07a9a","#f08888","#c97a7a",
-         "#c0a068","#d4b078","#b08040","#dfc090","#c4a048","#e8c88a",
-         "#9bb5d6","#7090a8","#a0c0e8","#b8a5cc","#908098","#c4a8e0",
-         "#a8bf94","#7a9a70","#88a890","#faf8f4","#f2f0ec","#e8e4dc",
-         "#3d3552","#282830","#504c58","#6b5e7e","#ffffff","#000000"];
-    return (
-      <div key={label} style={{ marginBottom: 8 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", cursor: "pointer" }}
-          onClick={() => setCpOpen(isOpen ? null : label)}>
-          <div style={{ width: 28, height: 28, borderRadius: 6, background: value, border: `2px solid ${P.textFaint}40`, flexShrink: 0, boxSizing: "border-box" }} />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 9, color: P.text, fontWeight: 500 }}>{scene ? "✦ " : ""}{label}</div>
-            <div style={{ fontSize: 10, color: P.textFaint, lineHeight: 1.3 }}>{desc}</div>
-          </div>
-          <div style={{ fontSize: 10, fontFamily: "monospace", color: P.textFaint, flexShrink: 0 }}>{value}</div>
-          <div style={{ fontSize: 10, color: P.textFaint, transform: isOpen ? "rotate(90deg)" : "none", transition: "transform .15s" }}>▶</div>
-        </div>
-        {isOpen && (
-          <div style={{ padding: "6px 0 2px 36px" }}>
-            {/* Rainbow gradient bar — click anywhere to pick */}
-            <canvas width={260} height={28}
-              style={{ width: "100%", height: 28, borderRadius: 4, cursor: "crosshair", marginBottom: 6, border: `1px solid ${P.textFaint}20` }}
-              ref={el => {
-                if (!el) return;
-                const ctx = el.getContext("2d");
-                if (el._drawn) return;
-                el._drawn = true;
-                const grad = ctx.createLinearGradient(0, 0, 260, 0);
-                ["#ff0000","#ff8000","#ffff00","#80ff00","#00ff00","#00ff80","#00ffff","#0080ff","#0000ff","#8000ff","#ff00ff","#ff0080","#ff0000"].forEach((c, i) => grad.addColorStop(i/12, c));
-                ctx.fillStyle = grad;
-                ctx.fillRect(0, 0, 260, 10);
-                const grad2 = ctx.createLinearGradient(0, 0, 260, 0);
-                ["#ffb0b0","#ffd0a0","#ffffb0","#b0ffb0","#b0ffff","#b0b0ff","#e0b0ff","#ffb0e0"].forEach((c, i) => grad2.addColorStop(i/7, c));
-                ctx.fillStyle = grad2;
-                ctx.fillRect(0, 10, 260, 9);
-                const grad3 = ctx.createLinearGradient(0, 0, 260, 0);
-                ["#000000","#1a1020","#2a1828","#182030","#202820","#282018","#382028","#ffffff"].forEach((c, i) => grad3.addColorStop(i/7, c));
-                ctx.fillStyle = grad3;
-                ctx.fillRect(0, 19, 260, 9);
-              }}
-              onClick={e => {
-                const canvas = e.target;
-                const rect = canvas.getBoundingClientRect();
-                const x = Math.round((e.clientX - rect.left) / rect.width * 259);
-                const y = Math.round((e.clientY - rect.top) / rect.height * 27);
-                const ctx = canvas.getContext("2d");
-                const px = ctx.getImageData(x, y, 1, 1).data;
-                const hex = "#" + [px[0],px[1],px[2]].map(v => v.toString(16).padStart(2,"0")).join("");
-                onChange(hex);
-              }}
-            />
-            {/* Preset swatches */}
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginBottom: 6 }}>
-              {presets.map(c => (
-                <div key={c} onClick={() => onChange(c)}
-                  style={{ width: 18, height: 18, borderRadius: 3, background: c, cursor: "pointer",
-                    border: value === c ? `2px solid ${P.text}` : `1px solid ${P.textFaint}30`,
-                    boxSizing: "border-box" }} />
-              ))}
-            </div>
-            {/* Hex input */}
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: 10, color: P.textFaint }}>Hex:</span>
-              <input type="text" defaultValue={value} key={value}
-                onKeyDown={e => { if (e.key === "Enter") { let v = e.target.value.trim(); if (!v.startsWith("#")) v = "#" + v; if (/^#[0-9a-fA-F]{6}$/.test(v)) onChange(v); }}}
-                onBlur={e => { let v = e.target.value.trim(); if (!v.startsWith("#")) v = "#" + v; if (/^#[0-9a-fA-F]{6}$/.test(v)) onChange(v); }}
-                style={{ width: 70, padding: "3px 5px", fontSize: 9, fontFamily: "monospace", background: `${P.textFaint}12`, border: `1px solid ${P.textFaint}20`, borderRadius: 3, color: P.textMid, outline: "none" }} />
-              <div style={{ width: 16, height: 16, borderRadius: 3, background: value, border: `1px solid ${P.textFaint}30` }} />
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
   // THREE refs
   const mountRef = useRef(null);
   const mkRef = useRef([]);
@@ -428,11 +355,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [letterLng, setLetterLng] = useState("");
   const [showCapsule, setShowCapsule] = useState(null); // capsule id to show, or null
   const [showCreateCapsule, setShowCreateCapsule] = useState(false);
-  const [wlEmail, setWlEmail] = useState("");
-  const [wlText, setWlText] = useState("");
-  const [wlSending, setWlSending] = useState(false);
-  const [wlSent, setWlSent] = useState(false);
-  const [myLetters, setMyLetters] = useState([]);
   const [worldMembers, setWorldMembers] = useState([]);
   const [sliderDate, setSliderDate] = useState(todayStr());
   const [isAnimating, setIsAnimating] = useState(false);
@@ -441,7 +363,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
   const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 });
   const uploadLockRef = useRef(Promise.resolve()); // sequential photo upload queue
   const [markerFilter, setMarkerFilter] = useState("all"); // "all", "together", "special", "home-seth", "home-rosie", "seth-solo", "rosie-solo"
-  const [listRenderLimit, setListRenderLimit] = useState(100);
   const [recapYear, setRecapYear] = useState(null);
   const [recapIdx, setRecapIdx] = useState(0);
   const [locationList, setLocationList] = useState(null); // for multi-entry popup
@@ -689,14 +610,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     if (sorted.length > 0 && sorted[0].dateStart) return sorted[0].dateStart;
     return todayStr();
   }, [config.startDate, sorted]);
-  const [listSortMode, setListSortMode] = useState("newest"); // newest, oldest, alpha, country
-  const filteredList = useMemo(() => {
-    const list = markerFilter === "all" ? data.entries : markerFilter === "favorites" ? data.entries.filter(e => e.favorite) : data.entries.filter(e => e.type === markerFilter);
-    if (listSortMode === "oldest") return [...list].sort((a, b) => (a.dateStart || "").localeCompare(b.dateStart || ""));
-    if (listSortMode === "alpha") return [...list].sort((a, b) => (a.city || "").localeCompare(b.city || ""));
-    if (listSortMode === "country") return [...list].sort((a, b) => (a.country || "").localeCompare(b.country || "") || (a.city || "").localeCompare(b.city || ""));
-    return [...list].sort((a, b) => (b.dateStart || "").localeCompare(a.dateStart || ""));
-  }, [data.entries, markerFilter, listSortMode]);
   // Trip grouping — cluster entries within 3 days of each other
   // Entries listed individually; stops shown inside each entry's detail card
 
@@ -885,9 +798,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     const idx = togetherList.findIndex(e => e.id === id);
     return idx >= 0 ? idx + 1 : null;
   }, [togetherList]);
-
-  // ---- FOCUS TRAP (settings modal) ----
-  const settingsTrapRef = useFocusTrap(modals.showSettings);
 
   // ---- TOAST SYSTEM (queue/stack with undo support) ----
 
@@ -1346,16 +1256,6 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
     return map;
   }, [data.entries]);
 
-  // ---- PHOTO JOURNEY AUTO-PLAY ----
-  useEffect(() => {
-    if (!pjAutoPlay || !modals.showPhotoJourney) return;
-    const t = setTimeout(() => {
-      if (pjIndex >= allPhotos.length - 1) { modalDispatch({ type: 'CLOSE', name: 'showPhotoJourney' }); setPjAutoPlay(false); showToast("Photo journey complete", "🎞", 3000); }
-      else setPjIndex(i => i + 1);
-    }, 3500);
-    return () => clearTimeout(t);
-  }, [pjAutoPlay, modals.showPhotoJourney, pjIndex, allPhotos.length]);
-
   // ---- EXPORT / IMPORT ----
   const exportData = useCallback(() => {
     const blob = new Blob([JSON.stringify({ data, config }, null, 2)], { type: "application/json" });
@@ -1755,7 +1655,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           try { if (localStorage.getItem(dk) && JSON.parse(localStorage.getItem(dk)).city) { modalDispatch({ type: 'OPEN', name: 'showAdd' }); return; } } catch {}
           modalDispatch({ type: 'OPEN', name: 'quickAddMode' });
         }}
-        onSettings={() => { modalDispatch({ type: 'OPEN', name: 'showSettings' }); getMyLetters(userId).then(setMyLetters); }}
+        onSettings={() => modalDispatch({ type: 'OPEN', name: 'showSettings' })}
         onToggleSearch={() => modalDispatch({ type: 'TOGGLE', name: 'showSearch' })}
         onToggleStats={() => modalDispatch({ type: 'TOGGLE', name: 'showStats' })}
         onToggleConstellation={() => modalDispatch({ type: 'TOGGLE', name: 'showConstellation' })}
@@ -2581,112 +2481,14 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       </div>
 
       {/* ON THIS DAY — anniversary replay card */}
-      {onThisDay.length > 0 && introComplete && !modals.showStats && !modals.showRecap && toasts.length === 0 && !selected && !editing && !modals.showAdd && !dismissOnThisDay && (() => {
-        const mem = onThisDay[0];
-        const typeInfo = TYPES[mem.type] || DEFAULT_TYPE;
-        const yearsLabel = mem.yearsAgo === 1 ? "1 year ago today" : `${mem.yearsAgo} years ago today`;
-        const hasPhoto = mem.photos && mem.photos.length > 0;
-        const destination = mem.city + (mem.country ? `, ${mem.country}` : "");
-        const annivMessage = isPartnerWorld
-          ? `${mem.yearsAgo === 1 ? "1 year" : mem.yearsAgo + " years"} ago, you and ${config.partnerName || "your partner"} were in ${destination}`
-          : worldType === "friends"
-          ? `${mem.yearsAgo === 1 ? "1 year" : mem.yearsAgo + " years"} ago, the crew was in ${destination}`
-          : worldType === "family"
-          ? `${mem.yearsAgo === 1 ? "1 year" : mem.yearsAgo + " years"} ago, the family was in ${destination}`
-          : `${mem.yearsAgo === 1 ? "1 year" : mem.yearsAgo + " years"} ago, you were in ${destination}`;
-        return (
-          <div style={{ position: "absolute", bottom: 140, left: 20, zIndex: 12, maxWidth: 300, background: P.card + "ee", backdropFilter: "blur(16px)", border: `1px solid ${P.gold}25`, borderRadius: 16, padding: "14px 16px", boxShadow: "0 4px 24px rgba(0,0,0,.10)", animation: "onThisDaySlideUp .5s ease both", fontFamily: "inherit" }}>
-            {/* Dismiss button */}
-            <button onClick={() => setDismissOnThisDay(true)} style={{ position: "absolute", top: 8, right: 10, background: "none", border: "none", color: P.textFaint, cursor: "pointer", fontSize: 14, padding: "2px 4px", lineHeight: 1, fontFamily: "inherit" }} aria-label="Dismiss">×</button>
-            {/* Header */}
-            <div style={{ fontSize: 10, fontVariant: "all-small-caps", letterSpacing: ".12em", color: P.gold, marginBottom: 8 }}>🎉 On This Day</div>
-            {/* Photo */}
-            {hasPhoto && (
-              <img src={thumbnail(mem.photos[0], 280)} alt="" style={{ width: "100%", height: 100, borderRadius: 10, objectFit: "cover", marginBottom: 10, border: `1px solid ${P.gold}15` }} />
-            )}
-            {/* Anniversary message */}
-            <div style={{ fontSize: 12, color: P.text, fontWeight: 500, lineHeight: 1.4, marginBottom: 2 }}>
-              {annivMessage}
-            </div>
-            {/* Years badge */}
-            <div style={{ fontSize: 9, color: P.textMuted, letterSpacing: ".05em", marginBottom: 6 }}>{typeInfo.icon} {yearsLabel}</div>
-            {/* More memories count */}
-            {onThisDay.length > 1 && (
-              <div style={{ fontSize: 9, color: P.textMuted, marginBottom: 6, letterSpacing: ".04em" }}>+{onThisDay.length - 1} more {onThisDay.length - 1 === 1 ? "memory" : "memories"}</div>
-            )}
-            {/* Action buttons */}
-            <div style={{ display: "flex", gap: 6 }}>
-              <button onClick={() => {
-                const entry = data.entries.find(e => e.id === mem.id);
-                if (entry) {
-                  flyTo(entry.lat, entry.lng, 2.5);
-                  setSliderDate(entry.dateStart);
-                  setSelected(entry);
-                }
-                setDismissOnThisDay(true);
-              }} style={{ flex: 1, padding: "7px 0", background: P.rose, color: "#fff", border: "none", borderRadius: 10, fontSize: 10, fontWeight: 600, letterSpacing: ".06em", cursor: "pointer", fontFamily: "inherit", transition: "opacity .2s" }}
-                onMouseEnter={e => e.currentTarget.style.opacity = "0.85"}
-                onMouseLeave={e => e.currentTarget.style.opacity = "1"}
-              >Replay</button>
-              <button onClick={() => {
-                setDismissOnThisDay(true);
-                playStory();
-              }} style={{ flex: 1, padding: "7px 0", background: "transparent", color: P.text, border: `1px solid ${P.gold}30`, borderRadius: 10, fontSize: 10, fontWeight: 500, letterSpacing: ".04em", cursor: "pointer", fontFamily: "inherit", transition: "opacity .2s" }}
-                onMouseEnter={e => e.currentTarget.style.opacity = "0.85"}
-                onMouseLeave={e => e.currentTarget.style.opacity = "1"}
-              >Cinema</button>
-            </div>
-          </div>
-        );
-      })()}
+      {onThisDay.length > 0 && introComplete && !modals.showStats && !modals.showRecap && toasts.length === 0 && !selected && !editing && !modals.showAdd && !dismissOnThisDay && <Suspense fallback={null}><OnThisDayCard onThisDay={onThisDay} dismissOnThisDay={dismissOnThisDay} setDismissOnThisDay={setDismissOnThisDay} selected={selected} editing={editing} modals={modals} TYPES={TYPES} DEFAULT_TYPE={DEFAULT_TYPE} P={P} config={config} isPartnerWorld={isPartnerWorld} worldType={worldType} flyTo={flyTo} setSliderDate={setSliderDate} setSelected={setSelected} playStory={playStory} introComplete={introComplete} fmtDate={fmtDate} entries={data.entries} /></Suspense>}
 
       {/* ONBOARDING OVERLAY */}
       {showOnboarding && introComplete && <OnboardingOverlay worldName={worldName} worldType={worldType} isSharedWorld={isSharedWorld} isPartnerWorld={isPartnerWorld} isMyWorld={isMyWorld} onboardStep={onboardStep} setOnboardStep={setOnboardStep} onClose={() => setShowOnboarding(false)} onboardKey={onboardKey} />}
 
 
       {/* FIRST ENTRY CELEBRATION */}
-      {modals.showCelebration && (() => {
-        const cd = celebrationData || { type: 'first', message: 'Your First Entry!', sub: '' };
-        const isAnniv = cd.type === 'anniversary';
-        const isMilestone = cd.type === 'milestone';
-        const showConfetti = isAnniv || isMilestone;
-        const celebIcon = isAnniv ? "💕" : isMilestone ? (cd.message.includes("Countries") ? "🗺" : cd.message.includes("Miles") ? "🚀" : "✨") : "✨";
-        const accentColor = isAnniv ? P.heart : isMilestone ? P.goldWarm : P.goldWarm;
-        return (
-          <div role="alert" aria-label="Celebration" style={{ position: "fixed", inset: 0, zIndex: 250, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "auto", cursor: "pointer", background: showConfetti ? `radial-gradient(ellipse at center, ${accentColor}15, transparent 70%)` : 'transparent', animation: "fadeIn .4s ease" }}
-            onClick={() => modalDispatch({ type: 'CLOSE', name: 'showCelebration' })}>
-            {/* Confetti particles */}
-            {showConfetti && Array.from({ length: isMilestone ? 16 : 24 }, (_, i) => (
-              <div key={i} style={{
-                position: "absolute",
-                left: `${10 + Math.random() * 80}%`,
-                top: "-5%",
-                width: 6 + Math.random() * 6,
-                height: 6 + Math.random() * 6,
-                borderRadius: Math.random() > 0.5 ? "50%" : "2px",
-                background: [P.heart, P.goldWarm, P.rose, P.sky, P.lavender, '#f0c0d0'][i % 6],
-                opacity: 0.8,
-                animation: `confettiFall ${2 + Math.random() * 3}s ${Math.random() * 1.5}s ease-in forwards`,
-              }} />
-            ))}
-            <div style={{ textAlign: "center", animation: "celebrationPop .6s cubic-bezier(0.34, 1.56, 0.64, 1)", zIndex: 1 }}>
-              <div style={{ fontSize: isAnniv ? 80 : 64, marginBottom: 12, filter: `drop-shadow(0 0 20px ${accentColor}60)`, animation: isAnniv ? "heartPulse 1.5s ease infinite" : "none" }}>
-                {celebIcon}
-              </div>
-              <div style={{ fontSize: isAnniv ? 28 : isMilestone ? 24 : 22, fontWeight: isAnniv ? 300 : 500, color: P.text, letterSpacing: isAnniv ? ".12em" : "1px", textShadow: `0 0 30px ${accentColor}40, 0 2px 10px rgba(0,0,0,0.6)`, marginBottom: 8, fontFamily: "'Palatino Linotype', Georgia, serif" }}>
-                {cd.message}
-              </div>
-              {cd.sub && <div style={{ fontSize: 12, color: P.textMid, lineHeight: 1.7, maxWidth: 320, margin: "0 auto", textShadow: "0 1px 6px rgba(0,0,0,0.5)" }}>{cd.sub}</div>}
-              {isAnniv && config.startDate && (
-                <div style={{ fontSize: 10, color: P.textFaint, marginTop: 12, letterSpacing: ".1em" }}>
-                  Since {fmtDate(config.startDate)}
-                </div>
-              )}
-              <div style={{ fontSize: 9, color: P.textFaint, marginTop: 16, opacity: 0.5 }}>tap anywhere to continue</div>
-            </div>
-          </div>
-        );
-      })()}
+      {modals.showCelebration && <Suspense fallback={null}><CelebrationOverlay celebrationData={celebrationData} onClose={() => modalDispatch({ type: 'CLOSE', name: 'showCelebration' })} P={P} config={config} /></Suspense>}
       <style>{`
         @keyframes confettiFall {
           0% { transform: translateY(0) rotate(0deg); opacity: 1; }
@@ -2863,64 +2665,10 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
       {modals.showTripJournal && <Suspense fallback={null}><TripJournal entries={data.entries} palette={P} types={TYPES} onClose={() => modalDispatch({ type: 'CLOSE', name: 'showTripJournal' })} onSelectEntry={e => { modalDispatch({ type: 'CLOSE', name: 'showTripJournal' }); setSelected(e); }} flyTo={flyTo} /></Suspense>}
 
       {/* RECENTLY DELETED TRASH */}
-      {modals.showTrash && (
-        <div role="dialog" aria-modal="true" aria-label="Recently deleted entries" onClick={() => modalDispatch({ type: 'CLOSE', name: 'showTrash' })} style={{ position: "fixed", inset: 0, zIndex: 310, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .2s ease" }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: P.card, borderRadius: 16, padding: "24px 28px", maxWidth: 400, width: "90vw", maxHeight: "70vh", overflowY: "auto", border: `1px solid ${P.rose}20`, boxShadow: "0 8px 32px rgba(0,0,0,0.4)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <div style={{ fontSize: 15, fontWeight: 600, color: P.text }}>🗑 Recently Deleted</div>
-              <button onClick={() => modalDispatch({ type: 'CLOSE', name: 'showTrash' })} style={{ background: "none", border: "none", color: P.textFaint, fontSize: 18, cursor: "pointer" }}>×</button>
-            </div>
-            <p style={{ fontSize: 10, color: P.textFaint, margin: "0 0 12px", letterSpacing: ".04em" }}>Entries are kept for 30 days. Click to restore.</p>
-            {recentlyDeleted.length === 0 && <p style={{ fontSize: 12, color: P.textMuted, textAlign: "center", padding: "20px 0", fontStyle: "italic" }}>Trash is empty</p>}
-            {recentlyDeleted.map(t => {
-              const daysLeft = Math.max(1, Math.ceil((30 * 24 * 60 * 60 * 1000 - (Date.now() - t.deletedAt)) / (24 * 60 * 60 * 1000)));
-              return (
-                <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 10, background: `${P.rose}08`, border: `1px solid ${P.rose}12`, marginBottom: 6, cursor: "pointer", transition: "background .15s" }}
-                  onClick={() => {
-                    dispatch({ type: "ADD", entry: { ...t, deletedAt: undefined }, _skipUndo: true });
-                    const updated = recentlyDeleted.filter(x => x.id !== t.id);
-                    setRecentlyDeleted(updated);
-                    localStorage.setItem(`cosmos_trash_${worldId || worldMode}`, JSON.stringify(updated));
-                    showToast(`${t.city} restored!`, "↩️", 2500);
-                    if (updated.length === 0) modalDispatch({ type: 'CLOSE', name: 'showTrash' });
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = `${P.rose}18`}
-                  onMouseLeave={e => e.currentTarget.style.background = `${P.rose}08`}
-                >
-                  <span style={{ fontSize: 16, flexShrink: 0 }}>{(TYPES[t.type] || {}).icon || "📍"}</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12, color: P.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.city}{t.country ? `, ${t.country}` : ""}</div>
-                    <div style={{ fontSize: 9, color: P.textFaint }}>{fmtDate(t.dateStart)} · {daysLeft}d left</div>
-                  </div>
-                  <span style={{ fontSize: 9, color: P.rose, fontWeight: 500 }}>Restore</span>
-                </div>
-              );
-            })}
-            {recentlyDeleted.length > 0 && (
-              <button onClick={() => {
-                setRecentlyDeleted([]);
-                localStorage.removeItem(`cosmos_trash_${worldId || worldMode}`);
-                showToast("Trash emptied", "🗑", 2000);
-                modalDispatch({ type: 'CLOSE', name: 'showTrash' });
-              }} style={{ marginTop: 10, width: "100%", padding: "8px", background: "transparent", border: `1px solid ${P.textFaint}30`, borderRadius: 8, cursor: "pointer", fontSize: 10, color: P.textFaint, fontFamily: "inherit" }}>Empty Trash Permanently</button>
-            )}
-          </div>
-        </div>
-      )}
+      {modals.showTrash && <Suspense fallback={null}><TrashPanel recentlyDeleted={recentlyDeleted} setRecentlyDeleted={setRecentlyDeleted} dispatch={dispatch} TYPES={TYPES} P={P} fmtDate={fmtDate} onClose={() => modalDispatch({ type: 'CLOSE', name: 'showTrash' })} showToast={showToast} worldId={worldId || worldMode} /></Suspense>}
 
-      {/* CONFIRM MODAL — replaces browser confirm() */}
-      {confirmModal && (
-        <div role="dialog" aria-modal="true" aria-label="Confirm action" style={{ position: "fixed", inset: 0, zIndex: 999, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn .2s ease" }}
-          onClick={() => setConfirmModal(null)}>
-          <div onClick={e => e.stopPropagation()} style={{ background: P.card, borderRadius: 16, padding: "24px 28px", maxWidth: 360, width: "90%", boxShadow: "0 12px 48px rgba(0,0,0,.25)", border: `1px solid ${P.rose}15`, textAlign: "center" }}>
-            <div style={{ fontSize: 13, color: P.text, lineHeight: 1.6, marginBottom: 20, fontFamily: "inherit" }}>{confirmModal.message}</div>
-            <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-              <button onClick={() => setConfirmModal(null)} style={{ padding: "8px 20px", background: "transparent", border: `1px solid ${P.textFaint}30`, borderRadius: 10, color: P.textMuted, fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
-              <button onClick={() => { const cb = confirmModal.onConfirm; setConfirmModal(null); cb(); }} style={{ padding: "8px 20px", background: `${P.rose}18`, border: `1px solid ${P.rose}30`, borderRadius: 10, color: P.rose, fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>Confirm</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* CONFIRM MODAL */}
+      {confirmModal && <Suspense fallback={null}><ConfirmModal confirmModal={confirmModal} onClose={() => setConfirmModal(null)} P={P} /></Suspense>}
 
       <style>{`
         @keyframes onThisDaySlideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
