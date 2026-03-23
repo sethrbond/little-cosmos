@@ -74,21 +74,6 @@ const STORY_OPTIONS = [
   { key: 'family', label: 'Family Memories' },
 ]
 
-// Sample cities for the mini globe markers
-const SAMPLE_CITIES = [
-  { lat: 48.86, lng: 2.35 },   // Paris
-  { lat: 35.68, lng: 139.69 },  // Tokyo
-  { lat: -33.87, lng: 151.21 }, // Sydney
-  { lat: 40.71, lng: -74.01 },  // New York
-  { lat: -22.91, lng: -43.17 }, // Rio
-  { lat: 51.51, lng: -0.13 },   // London
-  { lat: 41.90, lng: 12.50 },   // Rome
-  { lat: 37.57, lng: 126.98 },  // Seoul
-  { lat: 1.35, lng: 103.82 },   // Singapore
-  { lat: 28.61, lng: 77.21 },   // Delhi
-  { lat: -34.60, lng: -58.38 }, // Buenos Aires
-  { lat: 55.76, lng: 37.62 },   // Moscow
-]
 
 function ll2v(lat, lng, r) {
   const phi = (90 - lat) * Math.PI / 180
@@ -179,50 +164,34 @@ function buildGlobeScene(el, w, h) {
   return { scene, camera, renderer, globe, wire, globeGeo }
 }
 
-// Mini 3D globe for the hero section (interactive -- drag to rotate)
-function MiniGlobe() {
-  const ref = useRef(null)
+// Hero cities for the auto-story sequence
+const HERO_CITIES = [
+  { city: 'Paris', lat: 48.86, lng: 2.35 },
+  { city: 'Tokyo', lat: 35.68, lng: 139.69 },
+  { city: 'New York', lat: 40.71, lng: -74.01 },
+  { city: 'Barcelona', lat: 41.39, lng: 2.17 },
+  { city: 'Cape Town', lat: -33.93, lng: 18.42 },
+  { city: 'Kyoto', lat: 35.01, lng: 135.77 },
+]
 
+// 15-second auto-playing hero globe with story phases
+function HeroGlobe({ phase, onSequenceDone }) {
+  const ref = useRef(null)
+  const sceneRef = useRef(null)
+
+  // Build the globe scene once
   useEffect(() => {
     const el = ref.current
     if (!el) return
 
-    const w = 320, h = 320
+    const w = 420, h = 420
     const { scene, camera, renderer, globe, wire } = buildGlobeScene(el, w, h)
 
-    let isDragging = false, prevX = 0, prevY = 0, dragVelocity = 0, autoRotateSpeed = 0.08
+    const markerMeshes = []
+    const arcLines = []
+    let isDragging = false, prevX = 0, prevY = 0, dragVelocity = 0
 
-    const markerGeo = new THREE.SphereGeometry(0.018, 8, 8)
-    const markers = SAMPLE_CITIES.map(({ lat, lng }) => {
-      const pos = ll2v(lat, lng, 1.01)
-      const mat = new THREE.MeshBasicMaterial({ color: 0xc9a96e, transparent: true, opacity: 0.9 })
-      const mesh = new THREE.Mesh(markerGeo, mat)
-      mesh.position.copy(pos)
-      globe.add(mesh)
-      return { mesh, mat, phase: Math.random() * Math.PI * 2 }
-    })
-
-    const ringGeo = new THREE.RingGeometry(0.02, 0.04, 16)
-    const rings = SAMPLE_CITIES.slice(0, 5).map(({ lat, lng }, i) => {
-      const pos = ll2v(lat, lng, 1.015)
-      const mat = new THREE.MeshBasicMaterial({ color: 0xc9a96e, transparent: true, opacity: 0, side: THREE.DoubleSide })
-      const mesh = new THREE.Mesh(ringGeo, mat)
-      mesh.position.copy(pos)
-      mesh.lookAt(0, 0, 0)
-      globe.add(mesh)
-      return { mesh, mat, phase: i * 1.2, scale: 1 }
-    })
-
-    const arcMat = new THREE.LineBasicMaterial({ color: 0xc9a96e, transparent: true, opacity: 0.06 })
-    const arcPairs = [[0,5],[1,7],[2,8],[3,10],[4,10],[5,6],[6,9],[8,9]]
-    for (const [a, b] of arcPairs) {
-      const ca = SAMPLE_CITIES[a], cb = SAMPLE_CITIES[b]
-      const va = ll2v(ca.lat, ca.lng, 1.002), vb = ll2v(cb.lat, cb.lng, 1.002)
-      const mid = new THREE.Vector3().addVectors(va, vb).multiplyScalar(0.5).normalize().multiplyScalar(1.06)
-      const curve = new THREE.QuadraticBezierCurve3(va, mid, vb)
-      globe.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(20)), arcMat))
-    }
-
+    // Drag interaction (active after sequence ends)
     const onPointerDown = (e) => { isDragging = true; prevX = e.clientX; prevY = e.clientY; dragVelocity = 0; el.style.cursor = 'grabbing' }
     const onPointerMove = (e) => {
       if (!isDragging) return
@@ -239,21 +208,23 @@ function MiniGlobe() {
     window.addEventListener('pointermove', onPointerMove)
     window.addEventListener('pointerup', onPointerUp)
 
+    sceneRef.current = { scene, camera, renderer, globe, wire, markerMeshes, arcLines, isDragging: () => isDragging, dragVelocity: () => dragVelocity, setDragVelocity: (v) => { dragVelocity = v } }
+
     let raf
     const animate = () => {
       const t = Date.now() * 0.001
       if (!isDragging) {
         if (Math.abs(dragVelocity) > 0.0001) { globe.rotation.y += dragVelocity; dragVelocity *= 0.96 }
-        else { globe.rotation.y += autoRotateSpeed * 0.016 }
+        else { globe.rotation.y += 0.04 * 0.016 }
       }
       wire.rotation.y = globe.rotation.y
-      for (const m of markers) { m.mat.opacity = 0.5 + Math.sin(t * 1.5 + m.phase) * 0.4 }
-      for (const r of rings) {
-        const cycle = ((t * 0.5 + r.phase) % 2) / 2
-        r.mat.opacity = Math.max(0, 0.5 - cycle * 0.6)
-        const s = 1 + cycle * 3
-        r.mesh.scale.set(s, s, 1)
+      wire.rotation.x = globe.rotation.x
+
+      // Pulse markers
+      for (const m of markerMeshes) {
+        if (m.mat) m.mat.opacity = 0.5 + Math.sin(t * 1.5 + (m.phase || 0)) * 0.4
       }
+
       renderer.render(scene, camera)
       raf = requestAnimationFrame(animate)
     }
@@ -269,11 +240,114 @@ function MiniGlobe() {
     }
   }, [])
 
+  // Phase-driven animations
+  useEffect(() => {
+    const s = sceneRef.current
+    if (!s) return
+
+    // Phase 1 (2-5s): Add comet markers landing on cities
+    if (phase >= 1) {
+      // Add markers if not yet added
+      if (s.markerMeshes.length === 0) {
+        const markerGeo = new THREE.SphereGeometry(0.022, 10, 10)
+        HERO_CITIES.forEach(({ lat, lng }, i) => {
+          const pos = ll2v(lat, lng, 1.012)
+          const mat = new THREE.MeshBasicMaterial({ color: 0xc9a96e, transparent: true, opacity: 0 })
+          const mesh = new THREE.Mesh(markerGeo, mat)
+          mesh.position.copy(pos)
+          s.globe.add(mesh)
+          s.markerMeshes.push({ mesh, mat, phase: i * 0.9 })
+
+          // Animate marker fade-in with stagger
+          const delay = i * 400
+          setTimeout(() => { if (mat) mat.opacity = 0.9 }, delay)
+
+          // Add pulse ring
+          const ringGeo = new THREE.RingGeometry(0.025, 0.045, 16)
+          const ringMat = new THREE.MeshBasicMaterial({ color: 0xc9a96e, transparent: true, opacity: 0.4, side: THREE.DoubleSide })
+          const ringMesh = new THREE.Mesh(ringGeo, ringMat)
+          ringMesh.position.copy(ll2v(lat, lng, 1.016))
+          ringMesh.lookAt(0, 0, 0)
+          s.globe.add(ringMesh)
+          setTimeout(() => { if (ringMat) ringMat.opacity = 0.3 }, delay)
+        })
+      }
+    }
+
+    // Phase 2 (5-8s): Show a golden letter icon pulse at Paris — rotate globe to Paris
+    if (phase === 2) {
+      const paris = HERO_CITIES[0]
+      const targetY = (-paris.lng - 90) * Math.PI / 180
+      const targetX = paris.lat * Math.PI / 180 * 0.4
+      const startY = s.globe.rotation.y, startX = s.globe.rotation.x
+      let dy = targetY - startY
+      dy = ((dy + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI
+      const start = Date.now()
+      const step = () => {
+        const p = Math.min(1, (Date.now() - start) / 1200)
+        const ease = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2
+        s.globe.rotation.y = startY + dy * ease
+        s.globe.rotation.x = startX + (targetX - startX) * ease
+        s.wire.rotation.y = s.globe.rotation.y
+        s.wire.rotation.x = s.globe.rotation.x
+        if (p < 1) requestAnimationFrame(step)
+      }
+      step()
+
+      // Add a slightly larger glowing marker at Paris for the "letter"
+      const letterGeo = new THREE.SphereGeometry(0.035, 12, 12)
+      const letterMat = new THREE.MeshBasicMaterial({ color: 0xf0d080, transparent: true, opacity: 0.7 })
+      const letterMesh = new THREE.Mesh(letterGeo, letterMat)
+      letterMesh.position.copy(ll2v(paris.lat, paris.lng, 1.02))
+      s.globe.add(letterMesh)
+
+      // Pulse the letter
+      let pulseRaf
+      const pulse = () => {
+        const t = Date.now() * 0.001
+        letterMat.opacity = 0.4 + Math.sin(t * 3) * 0.35
+        const sc = 1 + Math.sin(t * 3) * 0.2
+        letterMesh.scale.setScalar(sc)
+        pulseRaf = requestAnimationFrame(pulse)
+      }
+      pulse()
+      return () => cancelAnimationFrame(pulseRaf)
+    }
+
+    // Phase 3 (8-11s): Show arcs connecting all markers — sweep camera
+    if (phase === 3 && s.arcLines.length === 0) {
+      const arcMat = new THREE.LineBasicMaterial({ color: 0xc9a96e, transparent: true, opacity: 0.12 })
+      const pairs = [[0,1],[1,5],[2,3],[3,4],[0,3],[2,4],[0,5]]
+      for (const [a, b] of pairs) {
+        const ca = HERO_CITIES[a], cb = HERO_CITIES[b]
+        const va = ll2v(ca.lat, ca.lng, 1.002), vb = ll2v(cb.lat, cb.lng, 1.002)
+        const mid = new THREE.Vector3().addVectors(va, vb).multiplyScalar(0.5).normalize().multiplyScalar(1.07)
+        const curve = new THREE.QuadraticBezierCurve3(va, mid, vb)
+        const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(24)), arcMat)
+        s.globe.add(line)
+        s.arcLines.push(line)
+      }
+
+      // Slow sweep across the globe
+      const startY = s.globe.rotation.y
+      const sweepStart = Date.now()
+      const sweep = () => {
+        const p = Math.min(1, (Date.now() - sweepStart) / 2800)
+        const ease = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2
+        s.globe.rotation.y = startY + ease * 2.5
+        s.wire.rotation.y = s.globe.rotation.y
+        if (p < 1) requestAnimationFrame(sweep)
+      }
+      sweep()
+    }
+  }, [phase])
+
   return (
     <div ref={ref} aria-label="Interactive 3D globe" role="img" style={{
-      width: 320, height: 320, marginBottom: 24,
-      filter: 'drop-shadow(0 0 40px rgba(200,170,110,0.15))',
-      cursor: 'grab', touchAction: 'none',
+      width: 420, height: 420,
+      filter: 'drop-shadow(0 0 50px rgba(200,170,110,0.18))',
+      cursor: phase >= 5 ? 'grab' : 'default',
+      touchAction: 'none',
     }} />
   )
 }
@@ -816,11 +890,24 @@ const features = [
   },
 ]
 
+// Phase text content for the hero story
+const HERO_PHASES = [
+  { text: 'A universe you fill with your story', sub: '' },
+  { text: 'Every trip becomes a glowing memory', sub: '' },
+  { text: 'Hide letters at the places that matter', sub: '' },
+  { text: 'Watch your story play back', sub: '' },
+  { text: 'For couples, friends, and families', sub: '' },
+  { text: '', sub: '' }, // CTA phase
+]
+
 export default function LandingPage({ onSignIn, onSignUp }) {
   const prefersReducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
   const [scrollY, setScrollY] = useState(0)
   const [visible, setVisible] = useState(new Set())
   const [showDemo, setShowDemo] = useState(false)
+  const [heroPhase, setHeroPhase] = useState(0)
+  const [sequenceDone, setSequenceDone] = useState(false)
+  const phaseTimers = useRef([])
   const featureRefs = useRef([])
 
   useEffect(() => {
@@ -844,6 +931,38 @@ export default function LandingPage({ onSignIn, onSignUp }) {
     featureRefs.current.forEach(el => el && obs.observe(el))
     return () => obs.disconnect()
   }, [])
+
+  // Hero story sequence: 15 seconds, 6 phases
+  const startHeroSequence = useCallback(() => {
+    // Clear any existing timers
+    phaseTimers.current.forEach(t => clearTimeout(t))
+    phaseTimers.current = []
+    setHeroPhase(0)
+    setSequenceDone(false)
+
+    // Phase 0: 0-2s (empty globe, text fades in)
+    // Phase 1: 2-5s (comets land, markers appear)
+    phaseTimers.current.push(setTimeout(() => setHeroPhase(1), 2000))
+    // Phase 2: 5-8s (letter icon pulses at Paris)
+    phaseTimers.current.push(setTimeout(() => setHeroPhase(2), 5000))
+    // Phase 3: 8-11s (arcs connect, camera sweeps)
+    phaseTimers.current.push(setTimeout(() => setHeroPhase(3), 8000))
+    // Phase 4: 11-14s (toast + "for couples, friends, families")
+    phaseTimers.current.push(setTimeout(() => setHeroPhase(4), 11000))
+    // Phase 5: 14-15s (CTA)
+    phaseTimers.current.push(setTimeout(() => { setHeroPhase(5); setSequenceDone(true) }, 14000))
+  }, [])
+
+  // Auto-start the sequence on mount
+  useEffect(() => {
+    if (!prefersReducedMotion) {
+      startHeroSequence()
+    } else {
+      setHeroPhase(5)
+      setSequenceDone(true)
+    }
+    return () => phaseTimers.current.forEach(t => clearTimeout(t))
+  }, [startHeroSequence, prefersReducedMotion])
 
   const heroOpacity = prefersReducedMotion ? 1 : Math.max(0, 1 - scrollY / 500)
   const heroTranslate = prefersReducedMotion ? 0 : scrollY * 0.3
@@ -885,7 +1004,7 @@ export default function LandingPage({ onSignIn, onSignUp }) {
         </div>
       </nav>
 
-      {/* Hero */}
+      {/* Hero — 15-second auto-story */}
       <section style={{
         position: 'relative', zIndex: 1,
         minHeight: '100vh', display: 'flex', flexDirection: 'column',
@@ -893,61 +1012,97 @@ export default function LandingPage({ onSignIn, onSignUp }) {
         textAlign: 'center', padding: '0 24px',
         opacity: heroOpacity, transform: `translateY(${heroTranslate}px)`,
       }}>
-        <MiniGlobe />
-        <h1 style={{
-          fontSize: 'clamp(36px, 7vw, 64px)', fontWeight: 300,
-          letterSpacing: 4, margin: 0, lineHeight: 1.2,
-          background: 'linear-gradient(135deg, #f0e8d8 30%, #c9a96e 100%)',
-          WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-        }}>
-          Little Cosmos
-        </h1>
-        <p style={{
-          fontSize: 'clamp(16px, 2.5vw, 20px)', opacity: 0.5,
-          marginTop: 16, fontWeight: 300, letterSpacing: 1.5,
-          fontStyle: 'italic',
-        }}>
-          for the adventures worth sharing forever
-        </p>
-        <p style={{
-          fontSize: 'clamp(14px, 1.8vw, 17px)', opacity: 0.55,
-          marginTop: 28, maxWidth: 460, lineHeight: 1.8,
-        }}>
-          A universe that fills up with your stories. Add photos, scribble notes, share it with your favorite people.
-        </p>
-        <div style={{ fontSize: 12, opacity: 0.5, marginTop: 36 }}>No credit card needed.</div>
-        {/* CTA buttons: Start Your Cosmos + Try the Demo */}
-        <div style={{ display: 'flex', gap: 14, marginTop: 16, flexWrap: 'wrap', justifyContent: 'center' }}>
-          <button onClick={onSignUp} style={{
-            padding: '15px 48px',
-            background: 'linear-gradient(135deg, #c9a96e, #b8944f)',
-            border: 'none', borderRadius: 12, color: '#1a1520',
-            fontSize: 17, fontWeight: 600, fontFamily: FONT,
-            cursor: 'pointer', letterSpacing: 0.5,
-            boxShadow: '0 4px 24px rgba(200,170,110,0.25), 0 1px 3px rgba(0,0,0,0.2)',
-            transition: 'transform 0.2s, box-shadow 0.2s',
+        {/* Toast notification — phase 4 */}
+        {heroPhase === 4 && (
+          <div style={{
+            position: 'absolute', top: 80, left: '50%', transform: 'translateX(-50%)',
+            background: 'rgba(200,170,110,0.12)', border: '1px solid rgba(200,170,110,0.25)',
+            borderRadius: 12, padding: '10px 24px',
+            fontSize: 14, color: '#e8e0d0', fontFamily: FONT,
+            animation: 'heroFadeIn 0.6s ease-out',
+            whiteSpace: 'nowrap', zIndex: 2,
+          }}>
+            You're both here right now &#x1F495;
+          </div>
+        )}
+
+        <HeroGlobe phase={heroPhase} onSequenceDone={() => setSequenceDone(true)} />
+
+        {/* Phase text — fades between phases */}
+        {heroPhase < 5 && (
+          <div key={heroPhase} style={{
+            fontSize: 'clamp(18px, 3vw, 26px)', fontWeight: 300,
+            letterSpacing: 2, lineHeight: 1.4,
+            color: '#e8e0d0', opacity: 0.8,
+            fontStyle: 'italic',
+            animation: 'heroFadeIn 0.8s ease-out',
+            marginTop: 8, minHeight: 40,
+          }}>
+            {HERO_PHASES[heroPhase]?.text}
+          </div>
+        )}
+
+        {/* CTA — phase 5 (final) */}
+        {heroPhase >= 5 && (
+          <div style={{ animation: 'heroFadeIn 0.8s ease-out', marginTop: 8 }}>
+            <h1 style={{
+              fontSize: 'clamp(32px, 6vw, 56px)', fontWeight: 300,
+              letterSpacing: 4, margin: 0, lineHeight: 1.2,
+              background: 'linear-gradient(135deg, #f0e8d8 30%, #c9a96e 100%)',
+              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+            }}>
+              Little Cosmos
+            </h1>
+            <div style={{ display: 'flex', gap: 14, marginTop: 28, flexWrap: 'wrap', justifyContent: 'center' }}>
+              <button onClick={onSignUp} style={{
+                padding: '15px 48px',
+                background: 'linear-gradient(135deg, #c9a96e, #b8944f)',
+                border: 'none', borderRadius: 12, color: '#1a1520',
+                fontSize: 17, fontWeight: 600, fontFamily: FONT,
+                cursor: 'pointer', letterSpacing: 0.5,
+                boxShadow: '0 4px 24px rgba(200,170,110,0.25), 0 1px 3px rgba(0,0,0,0.2)',
+                transition: 'transform 0.2s, box-shadow 0.2s',
+              }}
+              onMouseEnter={e => { e.target.style.transform = 'translateY(-2px)'; e.target.style.boxShadow = '0 6px 32px rgba(200,170,110,0.35), 0 2px 6px rgba(0,0,0,0.2)' }}
+              onMouseLeave={e => { e.target.style.transform = 'translateY(0)'; e.target.style.boxShadow = '0 4px 24px rgba(200,170,110,0.25), 0 1px 3px rgba(0,0,0,0.2)' }}>
+                Begin Your Cosmos
+              </button>
+              <button onClick={() => setShowDemo(true)} style={{
+                padding: '15px 36px',
+                background: 'transparent',
+                border: '1px solid rgba(200,170,110,0.35)',
+                borderRadius: 12, color: '#c9a96e',
+                fontSize: 17, fontWeight: 400, fontFamily: FONT,
+                cursor: 'pointer', letterSpacing: 0.5,
+                transition: 'border-color 0.2s, background 0.2s, transform 0.2s',
+              }}
+              onMouseEnter={e => { e.target.style.borderColor = 'rgba(200,170,110,0.6)'; e.target.style.background = 'rgba(200,170,110,0.06)'; e.target.style.transform = 'translateY(-2px)' }}
+              onMouseLeave={e => { e.target.style.borderColor = 'rgba(200,170,110,0.35)'; e.target.style.background = 'transparent'; e.target.style.transform = 'translateY(0)' }}>
+                Try the Demo
+              </button>
+            </div>
+            <div style={{ fontSize: 12, opacity: 0.4, marginTop: 16 }}>No account needed to explore</div>
+          </div>
+        )}
+
+        {/* Replay link */}
+        {sequenceDone && (
+          <button onClick={startHeroSequence} style={{
+            background: 'none', border: 'none', color: 'rgba(200,170,110,0.35)',
+            fontSize: 11, fontFamily: FONT, cursor: 'pointer',
+            marginTop: 20, letterSpacing: 0.5,
+            transition: 'color 0.2s',
           }}
-          onMouseEnter={e => { e.target.style.transform = 'translateY(-2px)'; e.target.style.boxShadow = '0 6px 32px rgba(200,170,110,0.35), 0 2px 6px rgba(0,0,0,0.2)' }}
-          onMouseLeave={e => { e.target.style.transform = 'translateY(0)'; e.target.style.boxShadow = '0 4px 24px rgba(200,170,110,0.25), 0 1px 3px rgba(0,0,0,0.2)' }}>
-            Start Your Cosmos
+          onMouseEnter={e => e.target.style.color = 'rgba(200,170,110,0.6)'}
+          onMouseLeave={e => e.target.style.color = 'rgba(200,170,110,0.35)'}>
+            Replay
           </button>
-          <button onClick={() => setShowDemo(true)} style={{
-            padding: '15px 36px',
-            background: 'transparent',
-            border: '1px solid rgba(200,170,110,0.35)',
-            borderRadius: 12, color: '#c9a96e',
-            fontSize: 17, fontWeight: 400, fontFamily: FONT,
-            cursor: 'pointer', letterSpacing: 0.5,
-            transition: 'border-color 0.2s, background 0.2s, transform 0.2s',
-          }}
-          onMouseEnter={e => { e.target.style.borderColor = 'rgba(200,170,110,0.6)'; e.target.style.background = 'rgba(200,170,110,0.06)'; e.target.style.transform = 'translateY(-2px)' }}
-          onMouseLeave={e => { e.target.style.borderColor = 'rgba(200,170,110,0.35)'; e.target.style.background = 'transparent'; e.target.style.transform = 'translateY(0)' }}>
-            Try the Demo
-          </button>
-        </div>
+        )}
+
         <div aria-hidden="true" style={{
-          marginTop: 48, opacity: 0.5, fontSize: 13,
+          marginTop: 32, opacity: heroPhase >= 5 ? 0.5 : 0, fontSize: 13,
           animation: prefersReducedMotion ? 'none' : 'landingBounce 2s ease-in-out infinite',
+          transition: 'opacity 0.5s',
         }}>
           {'\u2193'}
         </div>
@@ -1031,22 +1186,6 @@ export default function LandingPage({ onSignIn, onSignUp }) {
         </div>
       </section>
 
-      {/* Testimonials */}
-      <section style={{ padding: "60px 24px", maxWidth: 900, margin: "0 auto" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 20 }}>
-          {[
-            { quote: "We've tracked 47 trips across 14 countries. Every anniversary we play our story back.", who: "A & M, together 6 years" },
-            { quote: "The boys' trip group finally has a place to put all our stories. Way better than a group chat.", who: "J, organizer of an annual friends trip" },
-            { quote: "Three generations of family vacations, all on one globe. My mom cried the first time she saw it.", who: "K, family world creator" },
-          ].map(t => (
-            <div key={t.who} style={{ padding: "22px 20px", borderRadius: 14, background: "rgba(232,224,208,0.03)", border: "1px solid rgba(200,170,110,0.1)" }}>
-              <p style={{ fontFamily: FONT, fontStyle: "italic", color: "#e8e0d0", fontSize: 14, lineHeight: 1.7, margin: 0 }}>"{t.quote}"</p>
-              <p style={{ fontSize: 11, color: "rgba(232,224,208,0.35)", margin: "12px 0 0" }}>— {t.who}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
       {/* World types showcase */}
       <section style={{
         position: 'relative', zIndex: 1,
@@ -1084,14 +1223,7 @@ export default function LandingPage({ onSignIn, onSignUp }) {
         </div>
       </section>
 
-      {/* Trust bar */}
-      <div style={{ display: "flex", justifyContent: "center", gap: 32, padding: "20px 24px", flexWrap: "wrap" }}>
-        {["🔒 your memories are yours", "📦 export anytime", "💛 free forever, no ads"].map(t => (
-          <span key={t} style={{ fontSize: 11, color: "rgba(232,224,208,0.35)", letterSpacing: ".03em" }}>{t}</span>
-        ))}
-      </div>
-
-      {/* Social proof / bottom CTA */}
+      {/* Bottom CTA */}
       <section style={{
         position: 'relative', zIndex: 1,
         padding: '80px 24px 120px', textAlign: 'center',
@@ -1149,6 +1281,10 @@ export default function LandingPage({ onSignIn, onSignUp }) {
         @keyframes landingBounce {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(6px); }
+        }
+        @keyframes heroFadeIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
     </div>
