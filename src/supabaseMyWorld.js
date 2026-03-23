@@ -248,6 +248,7 @@ export function createFriendWorldDB(friendWorldId) {
         if (data.metadata.customPalette && typeof data.metadata.customPalette === 'object') cfg.customPalette = data.metadata.customPalette
         if (data.metadata.customScene && typeof data.metadata.customScene === 'object') cfg.customScene = data.metadata.customScene
         if (data.metadata.ambientMusicUrl) cfg.ambientMusicUrl = data.metadata.ambientMusicUrl
+        if (Array.isArray(data.metadata.timeCapsules)) cfg.timeCapsules = data.metadata.timeCapsules
       }
       return cfg
     },

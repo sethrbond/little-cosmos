@@ -691,6 +691,7 @@ export async function shareEntryToWorld(entry, targetWorldId, userId) {
     photos: entry.photos || [], stops: entry.stops || [],
     music_url: entry.musicUrl || null, favorite: false,
     love_note: '',
+    photo_captions: entry.photoCaptions || entry.photo_captions || {},
   }
   const { error } = await supabase.from('entries').insert(row)
   if (error) { console.error('[shareEntryToWorld]', error); return { ok: false, error: error.message } }

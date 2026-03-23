@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, Component, lazy, Suspense } f
 import { AuthProvider, useAuth } from './AuthContext.jsx'
 import { supabase } from './supabaseClient.js'
 import AuthScreen from './AuthScreen.jsx'
-import LandingPage from './LandingPage.jsx'
+const LandingPage = lazy(() => import('./LandingPage.jsx'))
 
 // Route-level code splitting — only one screen renders at a time
 const WorldSelector = lazy(() => import('./WorldSelector.jsx'))
@@ -13,7 +13,7 @@ import { getAllWelcomeLetters, markLetterRead } from './supabaseWelcomeLetters.j
 import { loadMyWorlds, loadMyWorldSubtitle, acceptInvite, getInviteInfo, getPendingWorldInvites, getPendingWorldInvitesForLetter, ensurePersonalWorld, clearWorldCaches } from './supabaseWorlds.js'
 import { getPendingRequests, getMyConnections } from './supabaseConnections.js'
 const NotificationPrompt = lazy(() => import('./NotificationPrompt.jsx'))
-const ReunionToast = lazy(() => import('./ReunionToast.jsx'))
+
 
 // Bump this to reset all onboarding/tour flags for every user
 const ONBOARD_VERSION = 'v3'
@@ -486,7 +486,7 @@ function AppInner() {
     // Check for invite token — go straight to auth if present
     const hasInvite = invitePending || new URLSearchParams(window.location.search).has('invite')
     if (authMode || hasInvite) return <AuthScreen initialMode={authMode || 'login'} onBack={() => setAuthMode(null)} />
-    return <LandingPage onSignIn={() => setAuthMode('login')} onSignUp={() => setAuthMode('signup')} />
+    return <Suspense fallback={null}><LandingPage onSignIn={() => setAuthMode('login')} onSignUp={() => setAuthMode('signup')} /></Suspense>
   }
 
   // For logged-in users, wait for letter check and worlds to load
