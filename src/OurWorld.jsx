@@ -1375,8 +1375,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         </Suspense>
       )}
 
-      {/* LETTER TRIGGERS — small markers in bottom-right (all world types) */}
-      {(() => {
+      {/* LETTER TRIGGERS — small markers in bottom-right (desktop only, mobile uses toolbar) */}
+      {!isMobile && (() => {
         const _lmi = isMyWorld || worldType === "personal" ? "✦" : worldType === "friends" ? "✧" : worldType === "family" ? "♥" : "❀";
         const _lbl = isMyWorld || worldType === "personal" ? "Note" : worldType === "friends" ? "Note" : worldType === "family" ? "Note" : "Love Letter";
         return <>
@@ -1398,8 +1398,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
         </>;
       })()}
 
-      {/* TIME CAPSULE TRIGGERS — bottom-right, below love letters */}
-      {(() => {
+      {/* TIME CAPSULE TRIGGERS — bottom-right, desktop only */}
+      {!isMobile && (() => {
         const capsules = config.timeCapsules || [];
         const today = new Date().toISOString().slice(0, 10);
         const letterCount = (config.loveLetters || []).length;
@@ -1419,8 +1419,8 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
               })}
             </div>
           )}
-          {!isViewer && (
-            <button onClick={() => setShowCreateCapsule(true)} style={{ position: "absolute", bottom: capsuleBottom, right: capsules.length > 0 ? 50 : 22, zIndex: 12, background: P.glass, border: `1px dashed rgba(200,168,96,.35)`, borderRadius: 7, cursor: "pointer", fontSize: 9, color: P.textMuted, padding: "3px 9px", fontFamily: "inherit", transition: "right .3s" }}>+ Capsule</button>
+          {!isViewer && !isMobile && (
+            <button onClick={() => setShowCreateCapsule(true)} style={{ position: "absolute", bottom: capsuleBottom, right: capsules.length > 0 ? 50 : 22, zIndex: 12, background: P.glass, border: `1px dashed rgba(200,168,96,.35)`, borderRadius: 7, cursor: "pointer", fontSize: 10, color: P.textMuted, padding: "3px 9px", fontFamily: "inherit", transition: "right .3s" }}>+ Capsule</button>
           )}
         </>;
       })()}
