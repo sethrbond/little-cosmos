@@ -270,7 +270,7 @@ export function DreamAddForm({ onAdd, isMyWorld }) {
   const ok = f.city && f.lat && f.lng;
   return (
     <div style={{ marginTop: 14, padding: 14, background: `linear-gradient(145deg, ${P.gold}06, ${P.cream})`, borderRadius: 14, border: `1px dashed ${P.goldWarm}25` }}>
-      <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 8 }}>{isMyWorld ? "Add to Bucket List" : "Add a Dream"}</div>
+      <div style={{ fontSize: 10, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 8 }}>{isMyWorld ? "Add to Bucket List" : "Add a Dream"}</div>
       <div style={{ position: "relative", marginBottom: 6 }}>
         <input placeholder="Start typing a city..." value={f.city} onChange={e => onInput(e.target.value)} onFocus={() => { if (sugg.length > 0) setShowSugg(true); }} style={{ ...inputStyle(), fontSize: 11 }} />
         {showSugg && sugg.length > 0 && (
@@ -469,7 +469,7 @@ export function AddForm({ types, defaultType = "together", defaultWho = "both", 
       }); }} style={{ width: "100%", padding: "12px 0", background: ok ? `linear-gradient(135deg, ${P.rose}, ${P.sky})` : `${P.textFaint}60`, color: "#fff", border: "none", borderRadius: 14, cursor: ok ? "pointer" : "default", fontSize: 12, letterSpacing: ".1em", fontFamily: "inherit", transition: "all .3s", boxShadow: ok ? `0 2px 8px ${P.rose}30, 0 4px 16px ${P.rose}15` : "none" }}>
         {ok ? `Add to ${worldName || (isMyWorld ? "My World" : "Our World")} ${isMyWorld ? "🌍" : "💕"}` : "Fill required fields to continue"}
       </button>
-      {!ok && <p style={{ fontSize: 8, color: validationMsg ? "#c9777a" : P.textFaint, textAlign: "center", marginTop: 5, letterSpacing: ".08em" }}>
+      {!ok && <p style={{ fontSize: 10, color: validationMsg ? "#c9777a" : P.textFaint, textAlign: "center", marginTop: 5, letterSpacing: ".08em" }}>
         {validationMsg || "Fill required fields to continue"}
       </p>}
     </div>

@@ -7,7 +7,7 @@
 export const OUR_WORLD_PALETTE = {
   cream: "#faf7f5", warm: "#fdf8f5", parchment: "#f3ede8",
   blush: "#faf0f2", lavMist: "#f1edf8",
-  text: "#2e2440", textMid: "#584c6e", textMuted: "#7a6a94", textFaint: "#b8aec8",
+  text: "#2e2440", textMid: "#584c6e", textMuted: "#7a6a94", textFaint: "#8a7a9e",
   rose: "#c48aa8", roseLight: "#e4c0d4", roseSoft: "#d8a8c0",
   sky: "#8ca8c8", skyLight: "#b8d0e8", skySoft: "#a0bcd8",
   sage: "#90b080", gold: "#c8a060", goldWarm: "#dab470", lavender: "#a898c0",
@@ -57,7 +57,7 @@ export const OUR_WORLD_FIELDS = {
 export const MY_WORLD_PALETTE = {
   cream: "#f5f2ee", warm: "#f8f4ee", parchment: "#ece6de",
   blush: "#ede8e0", lavMist: "#e4e0d8",
-  text: "#24222c", textMid: "#484450", textMuted: "#6c6876", textFaint: "#a09ca8",
+  text: "#24222c", textMid: "#484450", textMuted: "#6c6876", textFaint: "#7a7088",
   rose: "#b89058",       // warm amber accent (richer, deeper)
   roseLight: "#d0b080", roseSoft: "#c4a070",
   sky: "#6888a4",        // deeper slate blue
@@ -114,7 +114,7 @@ export const PARTNER_PALETTE = OUR_WORLD_PALETTE;
 export const FRIENDS_PALETTE = {
   cream: "#f5f4fa", warm: "#f7f5fc", parchment: "#eceaf6",
   blush: "#f2eef8", lavMist: "#eceef8",
-  text: "#1c1c34", textMid: "#3c3c5c", textMuted: "#6c6c8c", textFaint: "#9c9cb8",
+  text: "#1c1c34", textMid: "#3c3c5c", textMuted: "#6c6c8c", textFaint: "#6a6a88",
   rose: "#5b6abf",       // deep sapphire accent
   roseLight: "#8890d8", roseSoft: "#7078cc",
   sky: "#c89640",        // burnished gold secondary
@@ -131,7 +131,7 @@ export const FRIENDS_PALETTE = {
 export const FAMILY_PALETTE = {
   cream: "#fcf5ee", warm: "#fef7f0", parchment: "#f4e8da",
   blush: "#fce8dc", lavMist: "#e4eee6",
-  text: "#2c1c14", textMid: "#583828", textMuted: "#885c48", textFaint: "#b0907c",
+  text: "#2c1c14", textMid: "#583828", textMuted: "#885c48", textFaint: "#8a6a5c",
   rose: "#d05030",       // vivid terracotta-red accent (distinct from My World amber)
   roseLight: "#e87058", roseSoft: "#d86040",
   sky: "#2c7048",        // deep forest green secondary

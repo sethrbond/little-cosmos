@@ -34,7 +34,7 @@ function CatBtn({ cat, icon, label, isOpen, onToggle, P }) {
       }}
     >
       <span style={{ fontSize: 14, lineHeight: 1 }}>{icon}</span>
-      <span style={{ fontSize: 8, fontWeight: 600, letterSpacing: ".04em", lineHeight: 1, opacity: 0.7 }}>{label}</span>
+      <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: ".04em", lineHeight: 1, opacity: 0.7 }}>{label}</span>
     </button>
   );
 }
@@ -59,8 +59,52 @@ function CatFlyout({ items, onSelect, P }) {
 }
 
 /* ---- Thin separator line ---- */
-function ToolbarSep({ P }) {
-  return <div style={{ width: 28, height: 1, background: (P.textFaint || '#b8aec8') + "18", margin: "2px auto", borderRadius: 1 }} />;
+function ToolbarSep({ P, horizontal }) {
+  return horizontal
+    ? <div style={{ width: 1, height: 28, background: (P.textFaint || '#b8aec8') + "18", margin: "auto 2px", borderRadius: 1 }} />
+    : <div style={{ width: 28, height: 1, background: (P.textFaint || '#b8aec8') + "18", margin: "2px auto", borderRadius: 1 }} />;
+}
+
+/* ---- Mobile flyout (opens upward from bottom bar) ---- */
+function MobileFlyout({ items, onSelect, P }) {
+  return (
+    <div style={{
+      position: "absolute", bottom: "100%", left: "50%", transform: "translateX(-50%)",
+      marginBottom: 8, display: "flex", flexWrap: "wrap", gap: 4, justifyContent: "center",
+      background: P.card || "rgba(252,249,246,0.96)",
+      backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
+      border: `1px solid ${(P.textFaint || '#b8aec8')}20`,
+      borderRadius: 12, padding: "6px 8px",
+      animation: "fadeIn .15s ease",
+      boxShadow: `0 4px 20px ${(P.text || '#2e2440')}10, 0 1px 4px ${(P.text || '#2e2440')}06`,
+      minWidth: 180, maxWidth: 280,
+    }}>
+      {items.map((item, i) => (
+        <TBtn key={i} a={item.a} onClick={() => { item.onClick(); onSelect(); }} tip={item.tip}>{item.icon}</TBtn>
+      ))}
+    </div>
+  );
+}
+
+/* ---- Mobile overflow menu (for extra buttons) ---- */
+function MobileOverflow({ items, onClose, P }) {
+  return (
+    <div style={{
+      position: "absolute", bottom: "100%", right: 0,
+      marginBottom: 8, display: "flex", flexWrap: "wrap", gap: 4, justifyContent: "center",
+      background: P.card || "rgba(252,249,246,0.96)",
+      backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
+      border: `1px solid ${(P.textFaint || '#b8aec8')}20`,
+      borderRadius: 12, padding: "8px 10px",
+      animation: "fadeIn .15s ease",
+      boxShadow: `0 4px 20px ${(P.text || '#2e2440')}10, 0 1px 4px ${(P.text || '#2e2440')}06`,
+      minWidth: 160,
+    }}>
+      {items.map((item, i) => (
+        <TBtn key={i} a={item.a} onClick={() => { item.onClick(); onClose(); }} tip={item.tip}>{item.icon}</TBtn>
+      ))}
+    </div>
+  );
 }
 
 export default function WorldToolbar({
@@ -80,10 +124,10 @@ export default function WorldToolbar({
   onScreenshot, onShare, onTemplates, onTripJournal, onExportHub, onYearReview, onTrash,
   onTimeCapsule,
   onDismissNotification, onDismissAllNotifications, onClickNotification,
-  onSwitchWorld, onSignOut, syncProps, introComplete,
+  onSwitchWorld, onSignOut, syncProps, introComplete, isMobile,
 }) {
   const P = getP();
-  const [menuOpen, setMenuOpen] = useState(null); // null | "explore" | "photos" | "play" | "tools"
+  const [menuOpen, setMenuOpen] = useState(null); // null | "explore" | "photos" | "play" | "tools" | "overflow"
   const toolbarRef = useRef(null);
 
   // Close menu on outside click
@@ -143,10 +187,72 @@ export default function WorldToolbar({
     ].filter(Boolean),
   };
 
+  // Mobile: collect overflow items (buttons beyond the 6 primary ones)
+  const mobileOverflowItems = isMobile ? [
+    ...(isSharedWorld && notifications?.length ? [{ icon: "🔔", tip: "Notifications", onClick: () => {}, a: false }] : []),
+    ...(onSwitchWorld ? [{ icon: "🔄", tip: "Switch World", onClick: onSwitchWorld }] : []),
+    { icon: "🚪", tip: "Sign Out", onClick: onSignOut },
+  ] : [];
+
+  if (isMobile) {
+    // Mobile: horizontal bar at bottom
+    return (
+      <div ref={toolbarRef} role="toolbar" aria-label="World tools" style={{
+        position: "fixed", bottom: "env(safe-area-inset-bottom, 8px)", left: "50%", transform: "translateX(-50%)",
+        zIndex: 20, display: "flex", flexDirection: "row", alignItems: "center", gap: 4,
+        background: P.card || "rgba(252,249,246,0.96)",
+        backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
+        borderRadius: 16, padding: "6px 8px",
+        boxShadow: `0 4px 20px ${(P.text || '#2e2440')}12, 0 1px 4px ${(P.text || '#2e2440')}08`,
+        border: `1px solid ${(P.textFaint || '#b8aec8')}20`,
+        opacity: introComplete ? 1 : 0, transition: "opacity .8s ease",
+      }}>
+        {/* 1. Add */}
+        {!isViewer && <TBtn onClick={onAdd} accent tip="Add Entry">＋</TBtn>}
+        {/* 2. Settings */}
+        {!isViewer && <TBtn onClick={onSettings} tip="Settings">⚙️</TBtn>}
+
+        <ToolbarSep P={P} horizontal />
+
+        {/* 3. Explore */}
+        <div style={{ position: "relative" }}>
+          <CatBtn cat="explore" icon="🔍" label="Explore" isOpen={menuOpen === "explore"} onToggle={toggle} P={P} />
+          {menuOpen === "explore" && <MobileFlyout items={menuItems.explore} onSelect={closeMenu} P={P} />}
+        </div>
+        {/* 4. Photos */}
+        <div style={{ position: "relative" }}>
+          <CatBtn cat="photos" icon="📸" label="Photos" isOpen={menuOpen === "photos"} onToggle={toggle} P={P} />
+          {menuOpen === "photos" && <MobileFlyout items={menuItems.photos} onSelect={closeMenu} P={P} />}
+        </div>
+        {/* 5. Play */}
+        <div style={{ position: "relative" }}>
+          <CatBtn cat="play" icon="▶" label="Play" isOpen={menuOpen === "play"} onToggle={toggle} P={P} />
+          {menuOpen === "play" && <MobileFlyout items={menuItems.play} onSelect={closeMenu} P={P} />}
+        </div>
+        {/* 6. Tools */}
+        <div style={{ position: "relative" }}>
+          <CatBtn cat="tools" icon="🔧" label="Tools" isOpen={menuOpen === "tools"} onToggle={toggle} P={P} />
+          {menuOpen === "tools" && <MobileFlyout items={menuItems.tools} onSelect={closeMenu} P={P} />}
+        </div>
+
+        {/* Overflow "..." for remaining items */}
+        {mobileOverflowItems.length > 0 && <>
+          <ToolbarSep P={P} horizontal />
+          <div style={{ position: "relative" }}>
+            <TBtn onClick={() => setMenuOpen(v => v === "overflow" ? null : "overflow")} tip="More">⋯</TBtn>
+            {menuOpen === "overflow" && <MobileOverflow items={mobileOverflowItems} onClose={closeMenu} P={P} />}
+          </div>
+        </>}
+      </div>
+    );
+  }
+
+  // Desktop: vertical toolbar on the left
   return (
     <div ref={toolbarRef} role="toolbar" aria-label="World tools" style={{
       position: "absolute", top: 22, left: 22, zIndex: 20,
       display: "flex", flexDirection: "column", gap: 6,
+      maxHeight: "calc(100vh - 44px)", overflowY: "auto",
       opacity: introComplete ? 1 : 0, transition: "opacity .8s ease",
     }}>
 

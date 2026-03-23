@@ -1481,7 +1481,7 @@ export default function ExportHub({ entries = [], config = {}, stats = {}, palet
                       {opt.disabled && (
                         <div style={{
                           position: "absolute", top: 10, right: 10,
-                          fontSize: 8, textTransform: "uppercase", letterSpacing: "0.1em",
+                          fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em",
                           color: textFaint, background: `${parchment}`, padding: "2px 7px",
                           borderRadius: 6, border: `1px solid ${textFaint}25`,
                         }}>

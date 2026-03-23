@@ -12,7 +12,7 @@ export default function CinemaOverlay({ entry, typeInfo, photoIdx, progress, tot
       {/* Top bar: title + progress */}
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, padding: "12px clamp(12px, 4vw, 24px) 10px", background: `linear-gradient(180deg, ${SC.bg || '#0c0a12'}cc, transparent)`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ fontSize: 8, letterSpacing: ".2em", color: P.goldWarm, textTransform: "uppercase", opacity: 0.7 }}>
+          <div style={{ fontSize: 10, letterSpacing: ".2em", color: P.goldWarm, textTransform: "uppercase", opacity: 0.7 }}>
             {isMyWorld ? "My Story" : isPartnerWorld ? "Our Story" : "Our Journey"}
           </div>
           <div style={{ fontSize: 9, color: P.textFaint }}>{currentIdx + 1} / {total}</div>
@@ -55,7 +55,7 @@ export default function CinemaOverlay({ entry, typeInfo, photoIdx, progress, tot
                   {photos.slice(0, 8).map((_, i) => (
                     <div key={i} style={{ width: 4, height: 4, borderRadius: 2, background: i === photoIdx ? P.goldWarm : `${P.textFaint}40`, transition: "background .4s" }} />
                   ))}
-                  {photos.length > 8 && <div style={{ fontSize: 7, color: `${P.textFaint}60`, marginLeft: 1 }}>+{photos.length - 8}</div>}
+                  {photos.length > 8 && <div style={{ fontSize: 10, color: `${P.textFaint}60`, marginLeft: 1 }}>+{photos.length - 8}</div>}
                 </div>
               )}
             </div>

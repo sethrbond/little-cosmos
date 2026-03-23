@@ -1142,7 +1142,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 2 }}>
             <div style={{ fontSize: 12, color: w.id.startsWith("friend-") ? "#d0dce8" : (w.glowColor || "#e8d8e0"), letterSpacing: "0.8px", fontWeight: 400, textShadow: `0 0 10px ${w.color}60, 0 1px 6px rgba(0,0,0,0.8)` }}>{w.sub}</div>
             {!w.id.startsWith("friend-") && w.worldType && w.worldType !== "shared" && (
-              <div style={{ fontSize: 8, letterSpacing: "0.8px", textTransform: "uppercase", color: `${w.color}aa`, background: `${w.color}18`, border: `1px solid ${w.color}30`, borderRadius: 6, padding: "1px 6px", fontWeight: 600 }}>
+              <div style={{ fontSize: 10, letterSpacing: "0.8px", textTransform: "uppercase", color: `${w.color}aa`, background: `${w.color}18`, border: `1px solid ${w.color}30`, borderRadius: 6, padding: "1px 6px", fontWeight: 600 }}>
                 {{ partner: "Partner", friends: "Friends", family: "Family" }[w.worldType] || w.worldType}
               </div>
             )}
@@ -1178,7 +1178,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
                 style={{ background: "rgba(200,100,100,0.08)", border: "1px solid rgba(200,100,100,0.20)", borderRadius: 12, padding: "3px 10px", color: "#c09090", fontSize: 9, fontFamily: F, cursor: "pointer", pointerEvents: "auto", letterSpacing: "0.5px" }}>
                 {w.role === "owner" ? "Delete" : "Leave"}
               </button>
-              {isTouchDevice && <div style={{ width: "100%", textAlign: "center", fontSize: 8, color: "rgba(200,192,210,0.5)", marginTop: 4, letterSpacing: "0.3px" }}>tap again to enter</div>}
+              {isTouchDevice && <div style={{ width: "100%", textAlign: "center", fontSize: 10, color: "rgba(200,192,210,0.5)", marginTop: 4, letterSpacing: "0.3px" }}>tap again to enter</div>}
             </div>
           )}
         </div>
@@ -1769,7 +1769,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
                   <div key={inv.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 10px", background: "rgba(255,255,255,0.02)", borderRadius: 8, marginBottom: 4, border: "1px solid rgba(255,255,255,0.04)" }}>
                     <div>
                       <div style={{ fontSize: 11, color: "#c0b8c8" }}>{inv.toEmail || "Link invite"}</div>
-                      <div style={{ fontSize: 8, color: "#686070" }}>{inv.role} · {new Date(inv.created_at).toLocaleDateString()}</div>
+                      <div style={{ fontSize: 10, color: "#686070" }}>{inv.role} · {new Date(inv.created_at).toLocaleDateString()}</div>
                     </div>
                     <div style={{
                       padding: "2px 8px", borderRadius: 10, fontSize: 9, fontWeight: 500, letterSpacing: ".04em",

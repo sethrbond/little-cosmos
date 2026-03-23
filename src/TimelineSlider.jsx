@@ -54,7 +54,7 @@ export default function TimelineSlider({
         {milestones.map(m => (
           <div key={m.days} style={{ position: "absolute", left: `${m.pct}%`, top: 2, transform: "translateX(-50%)", pointerEvents: "none", display: "flex", flexDirection: "column", alignItems: "center" }}>
             <div style={{ width: 6, height: 6, background: P.gold, transform: "rotate(45deg)", boxShadow: `0 0 6px ${P.gold}60` }} />
-            <div style={{ fontSize: 6, color: P.goldWarm, marginTop: 2, whiteSpace: "nowrap", letterSpacing: ".05em" }}>{m.label}</div>
+            <div style={{ fontSize: 10, color: P.goldWarm, marginTop: 2, whiteSpace: "nowrap", letterSpacing: ".05em" }}>{m.label}</div>
           </div>
         ))}
         {(chapters || []).map((ch, i) => {
@@ -64,11 +64,11 @@ export default function TimelineSlider({
           const pctEnd = totalDays > 0 ? (cEnd / totalDays) * 100 : 100;
           if (pctStart > 100 || pctEnd < 0) return null;
           return <div key={i} style={{ position: "absolute", left: `${clamp(pctStart, 0, 100)}%`, width: `${clamp(pctEnd - pctStart, 0, 100 - pctStart)}%`, top: -14, height: 12, background: `${[P.rose, P.sky, P.sage, P.gold, P.lavender][i % 5]}30`, borderRadius: 3, pointerEvents: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <span style={{ fontSize: 7, color: P.textMuted, letterSpacing: ".06em", fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%", padding: "0 2px" }}>{ch.label}</span>
+            <span style={{ fontSize: 10, color: P.textMuted, letterSpacing: ".06em", fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%", padding: "0 2px" }}>{ch.label}</span>
           </div>;
         })}
       </div>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 7, color: P.textFaint, letterSpacing: ".1em", marginTop: 1 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: P.textFaint, letterSpacing: ".1em", marginTop: 1 }}>
         <span>{fmtDate(effectiveStartDate)}</span>
         <span>today</span>
       </div>

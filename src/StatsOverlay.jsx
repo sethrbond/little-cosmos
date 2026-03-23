@@ -24,18 +24,18 @@ export default function StatsOverlay({ P, stats, expandedStats, reunionStats, mi
               onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = `0 1px 3px ${P.text}04, 0 4px 12px ${P.text}03`; }}>
               <div style={{ fontSize: 20, marginBottom: 4 }}>{s.icon}</div>
               <div style={{ fontSize: 24, fontWeight: 400, color: P.text, letterSpacing: ".02em" }}>{s.value}</div>
-              <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginTop: 2 }}>{s.label}</div>
+              <div style={{ fontSize: 10, color: P.textFaint, letterSpacing: ".12em", textTransform: "uppercase", marginTop: 2 }}>{s.label}</div>
             </div>
           ))}
         </div>
 
         {/* Distance Scoreboard */}
         {isPartnerWorld && <div style={{ padding: "14px 18px", background: `linear-gradient(135deg,${P.blush},${P.lavMist})`, borderRadius: 14, marginBottom: 16, textAlign: "center", boxShadow: `0 1px 4px ${P.text}04` }}>
-          <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 6 }}>The Scoreboard</div>
+          <div style={{ fontSize: 10, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 6 }}>The Scoreboard</div>
           <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 12 }}>
-            <div><span style={{ fontSize: 16, color: P.heart }}>💕</span><div style={{ fontSize: 18, fontWeight: 400 }}>{reunionStats.daysTogether}</div><div style={{ fontSize: 7, color: P.textFaint }}>{config.youName && config.partnerName ? `days ${config.youName} & ${config.partnerName}` : "days together"}</div></div>
+            <div><span style={{ fontSize: 16, color: P.heart }}>💕</span><div style={{ fontSize: 18, fontWeight: 400 }}>{reunionStats.daysTogether}</div><div style={{ fontSize: 10, color: P.textFaint }}>{config.youName && config.partnerName ? `days ${config.youName} & ${config.partnerName}` : "days together"}</div></div>
             <div style={{ fontSize: 11, color: reunionStats.togetherWinning ? P.heart : P.textFaint, fontStyle: "italic" }}>vs</div>
-            <div><span style={{ fontSize: 16 }}>🌍</span><div style={{ fontSize: 18, fontWeight: 400 }}>{reunionStats.daysApart}</div><div style={{ fontSize: 7, color: P.textFaint }}>days apart</div></div>
+            <div><span style={{ fontSize: 16 }}>🌍</span><div style={{ fontSize: 18, fontWeight: 400 }}>{reunionStats.daysApart}</div><div style={{ fontSize: 10, color: P.textFaint }}>days apart</div></div>
           </div>
           <div style={{ fontSize: 10, color: reunionStats.togetherWinning ? P.heart : P.sky, marginTop: 6, fontStyle: "italic" }}>
             {reunionStats.togetherWinning ? (config.youName && config.partnerName ? `${config.youName} & ${config.partnerName} are winning 💕` : "Together is winning 💕") : "Distance makes the heart grow fonder 💙"}
@@ -44,13 +44,13 @@ export default function StatsOverlay({ P, stats, expandedStats, reunionStats, mi
 
         <div style={{ margin: "14px 0", height: 1, background: `linear-gradient(90deg,transparent,${P.rose}20,transparent)` }} />
 
-        <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 10 }}>Highlights</div>
+        <div style={{ fontSize: 10, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 10 }}>Highlights</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {expandedStats.longestTrip.entry && (
             <div style={{ padding: "12px 14px", background: `linear-gradient(135deg, ${P.together}06, ${P.together}03)`, borderRadius: 12, borderLeft: `3px solid ${P.together}`, transition: prefersReducedMotion ? "none" : "transform .2s" }}
               onMouseEnter={e => e.currentTarget.style.transform = "translateX(2px)"}
               onMouseLeave={e => e.currentTarget.style.transform = "none"}>
-              <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>{isPartnerWorld ? (config.youName && config.partnerName ? `Longest ${config.youName} & ${config.partnerName} Trip` : "Longest Trip Together") : "Longest Trip"}</div>
+              <div style={{ fontSize: 10, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>{isPartnerWorld ? (config.youName && config.partnerName ? `Longest ${config.youName} & ${config.partnerName} Trip` : "Longest Trip Together") : "Longest Trip"}</div>
               <div style={{ fontSize: 13, marginTop: 2 }}>{expandedStats.longestTrip.entry.city} — {expandedStats.longestTrip.days} days</div>
             </div>
           )}
@@ -58,7 +58,7 @@ export default function StatsOverlay({ P, stats, expandedStats, reunionStats, mi
             <div style={{ padding: "12px 14px", background: `linear-gradient(135deg, ${P.sky}06, ${P.sky}03)`, borderRadius: 12, borderLeft: `3px solid ${P.sky}`, transition: prefersReducedMotion ? "none" : "transform .2s" }}
               onMouseEnter={e => e.currentTarget.style.transform = "translateX(2px)"}
               onMouseLeave={e => e.currentTarget.style.transform = "none"}>
-              <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>Farthest Apart</div>
+              <div style={{ fontSize: 10, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>Farthest Apart</div>
               <div style={{ fontSize: 13, marginTop: 2 }}>{expandedStats.farthestApart.dist.toLocaleString()} miles</div>
             </div>
           )}
@@ -66,7 +66,7 @@ export default function StatsOverlay({ P, stats, expandedStats, reunionStats, mi
             <div style={{ padding: "12px 14px", background: `linear-gradient(135deg, ${P.rose}06, ${P.rose}03)`, borderRadius: 12, borderLeft: `3px solid ${P.rose}`, transition: prefersReducedMotion ? "none" : "transform .2s" }}
               onMouseEnter={e => e.currentTarget.style.transform = "translateX(2px)"}
               onMouseLeave={e => e.currentTarget.style.transform = "none"}>
-              <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>{isPartnerWorld ? (config.youName && config.partnerName ? `${config.youName} & ${config.partnerName}'s Favorite` : "Most Visited Together") : "Most Visited"}</div>
+              <div style={{ fontSize: 10, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>{isPartnerWorld ? (config.youName && config.partnerName ? `${config.youName} & ${config.partnerName}'s Favorite` : "Most Visited Together") : "Most Visited"}</div>
               <div style={{ fontSize: 13, marginTop: 2 }}>{expandedStats.topCity[0]} — {expandedStats.topCity[1]} times</div>
             </div>
           )}
@@ -74,7 +74,7 @@ export default function StatsOverlay({ P, stats, expandedStats, reunionStats, mi
             <div style={{ padding: "12px 14px", background: `linear-gradient(135deg, ${P.lavender}06, ${P.lavender}03)`, borderRadius: 12, borderLeft: `3px solid ${P.lavender}`, transition: prefersReducedMotion ? "none" : "transform .2s" }}
               onMouseEnter={e => e.currentTarget.style.transform = "translateX(2px)"}
               onMouseLeave={e => e.currentTarget.style.transform = "none"}>
-              <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>Longest Apart</div>
+              <div style={{ fontSize: 10, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>Longest Apart</div>
               <div style={{ fontSize: 13, marginTop: 2 }}>{expandedStats.longestApart} days</div>
             </div>
           )}
@@ -82,7 +82,7 @@ export default function StatsOverlay({ P, stats, expandedStats, reunionStats, mi
             <div style={{ padding: "12px 14px", background: `linear-gradient(135deg, ${P.rose}06, ${P.rose}03)`, borderRadius: 12, borderLeft: `3px solid ${P.rose}`, transition: prefersReducedMotion ? "none" : "transform .2s" }}
               onMouseEnter={e => e.currentTarget.style.transform = "translateX(2px)"}
               onMouseLeave={e => e.currentTarget.style.transform = "none"}>
-              <div style={{ fontSize: 7, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>Average Trip Length</div>
+              <div style={{ fontSize: 10, color: P.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>Average Trip Length</div>
               <div style={{ fontSize: 13, marginTop: 2 }}>{expandedStats.avgTripLength} days</div>
             </div>
           )}
@@ -90,7 +90,7 @@ export default function StatsOverlay({ P, stats, expandedStats, reunionStats, mi
 
         {expandedStats.countryList.length > 0 && (
           <div style={{ marginTop: 14 }}>
-            <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 6 }}>Countries Visited</div>
+            <div style={{ fontSize: 10, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 6 }}>Countries Visited</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
               {[...expandedStats.countryList].sort().map(c => (
                 <span key={c} style={{ padding: "4px 10px", background: `linear-gradient(145deg, ${P.parchment}, ${P.cream})`, borderRadius: 14, fontSize: 9, color: P.textMid, border: `1px solid ${P.rose}06` }}>{c}</span>
@@ -101,7 +101,7 @@ export default function StatsOverlay({ P, stats, expandedStats, reunionStats, mi
 
         {expandedStats.years.length > 0 && (
           <div style={{ marginTop: 16 }}>
-            <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 6 }}>Year in Review</div>
+            <div style={{ fontSize: 10, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 6 }}>Year in Review</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {expandedStats.years.map(y => (
                 <button key={y} onClick={() => startRecap(y)} style={{ padding: "8px 16px", background: `linear-gradient(135deg,${P.blush},${P.lavMist})`, border: `1px solid ${P.rose}12`, borderRadius: 12, cursor: "pointer", fontSize: 10, fontFamily: "inherit", color: P.textMid, transition: prefersReducedMotion ? "none" : "all .25s", boxShadow: `0 1px 4px ${P.text}04` }}
@@ -115,7 +115,7 @@ export default function StatsOverlay({ P, stats, expandedStats, reunionStats, mi
 
         {milestones.length > 0 && (
           <div style={{ marginTop: 16 }}>
-            <div style={{ fontSize: 8, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 6 }}>Milestones Reached</div>
+            <div style={{ fontSize: 10, color: P.textFaint, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 6 }}>Milestones Reached</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
               {milestones.map(m => (
                 <span key={m.days} style={{ padding: "4px 10px", background: `linear-gradient(135deg, ${P.gold}12, ${P.gold}06)`, borderRadius: 14, fontSize: 9, color: P.goldWarm, border: `1px solid ${P.gold}10` }}>◆ {m.label} — {fmtDate(m.date)}</span>
