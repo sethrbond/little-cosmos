@@ -1,4 +1,4 @@
-import { COAST_DATA, LAND } from './coastlineData.js';
+import { COAST_DATA, LAND } from './geodata.js';
 import { useState, useEffect, useRef, useCallback } from 'react'
 import * as THREE from 'three'
 
