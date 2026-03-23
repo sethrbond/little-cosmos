@@ -520,7 +520,7 @@ function OurWorldInner({ worldMode = "our", worldId = null, worldName = null, wo
           origin, targetLocal, color,
           head, trail, trailGeo, trailPositions, TRAIL_LEN,
           flash, halo,
-          history: [],
+          historyBuf: new Float32Array(TRAIL_LEN * 3), historyIdx: 0, historyCount: 0,
           burst: null, burstAge: 0,
         };
       }

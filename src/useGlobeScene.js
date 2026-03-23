@@ -11,6 +11,8 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
 // Pre-allocated vectors for animation loop (avoid per-frame GC)
 const _cometTarget = new THREE.Vector3();
+const _cometMid = new THREE.Vector3();
+const _cometPos = new THREE.Vector3();
 const _burstTmp = new THREE.Vector3();
 const _meteorV1 = new THREE.Vector3();
 const _meteorV2 = new THREE.Vector3();
@@ -632,24 +634,38 @@ export function useGlobeScene(mountRef, deps) {
           c.burst = { group: burstGroup, particles: burstParticles };
           c.burstAge = 0;
         } else {
-          // Recompute curve each frame to track globe rotation
-          const mid = c.origin.clone().add(target).multiplyScalar(0.5);
-          mid.y += 1.5;
-          const curve = new THREE.QuadraticBezierCurve3(c.origin, mid, target);
+          // Recompute bezier position each frame to track globe rotation
+          // Mid-point: average of origin & target, lifted on Y
+          _cometMid.addVectors(c.origin, target).multiplyScalar(0.5);
+          _cometMid.y += 1.5;
           const eased = c.progress < 0.5
             ? 2 * c.progress * c.progress
             : 1 - Math.pow(-2 * c.progress + 2, 2) / 2;
-          const pos = curve.getPoint(eased);
-          c.head.position.copy(pos);
-          // Record position history for multi-segment trail
-          c.history.unshift(pos.clone());
-          if (c.history.length > c.TRAIL_LEN) c.history.length = c.TRAIL_LEN;
-          // Update trail geometry from history
+          // Manual quadratic bezier: B(t) = (1-t)²P0 + 2(1-t)tP1 + t²P2
+          const t = eased, t1 = 1 - t;
+          const t1sq = t1 * t1, tsq = t * t, t1t2 = 2 * t1 * t;
+          _cometPos.set(
+            t1sq * c.origin.x + t1t2 * _cometMid.x + tsq * target.x,
+            t1sq * c.origin.y + t1t2 * _cometMid.y + tsq * target.y,
+            t1sq * c.origin.z + t1t2 * _cometMid.z + tsq * target.z
+          );
+          c.head.position.copy(_cometPos);
+          // Record position in ring buffer for multi-segment trail
+          const ri = c.historyIdx;
+          c.historyBuf[ri * 3] = _cometPos.x;
+          c.historyBuf[ri * 3 + 1] = _cometPos.y;
+          c.historyBuf[ri * 3 + 2] = _cometPos.z;
+          c.historyIdx = (ri + 1) % c.TRAIL_LEN;
+          if (c.historyCount < c.TRAIL_LEN) c.historyCount++;
+          // Update trail geometry from ring buffer (newest first)
           for (let ti = 0; ti < c.TRAIL_LEN; ti++) {
-            const hp = c.history[Math.min(ti, c.history.length - 1)];
-            c.trailPositions[ti * 3] = hp.x;
-            c.trailPositions[ti * 3 + 1] = hp.y;
-            c.trailPositions[ti * 3 + 2] = hp.z;
+            // Read backwards from most recent entry in ring buffer
+            const si = ti < c.historyCount
+              ? ((c.historyIdx - 1 - ti + c.TRAIL_LEN * 2) % c.TRAIL_LEN) * 3
+              : ((c.historyIdx - 1 + c.TRAIL_LEN * 2) % c.TRAIL_LEN) * 3; // clamp to oldest available
+            c.trailPositions[ti * 3] = c.historyBuf[si];
+            c.trailPositions[ti * 3 + 1] = c.historyBuf[si + 1];
+            c.trailPositions[ti * 3 + 2] = c.historyBuf[si + 2];
           }
           c.trailGeo.attributes.position.needsUpdate = true;
           c.trail.material.opacity = 0.3 + c.progress * 0.4;
