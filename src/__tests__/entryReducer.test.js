@@ -1,85 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-
-// The reducer lives inside OurWorld.jsx as a module-private function.
-// We replicate it here for isolated testing of the reducer logic.
-function reducer(st, a) {
-  let next = st
-  const _saveEntry = a.db?.saveEntry
-  const _deleteEntry = a.db?.deleteEntry
-  const _deletePhoto = a.db?.deletePhoto
-  const _savePhotos = a.db?.savePhotos
-  const pushUndo = (inverse) => {
-    if (!a._skipSave && !a._skipUndo) {
-      next = { ...next, undoStack: [...(next.undoStack || []).slice(-29), inverse], redoStack: [] }
-    }
-  }
-  switch (a.type) {
-    case "LOAD": return { ...st, entries: a.entries, undoStack: st.undoStack || [], redoStack: st.redoStack || [] }
-    case "UNDO": {
-      const stack = [...(st.undoStack || [])]
-      if (stack.length === 0) return st
-      const action = stack.pop()
-      if (action.type === "ADD") {
-        next = { ...st, entries: [...st.entries, action.entry], undoStack: stack, redoStack: [...(st.redoStack || []), { type: "DELETE", id: action.entry.id }] }
-        if (_saveEntry) _saveEntry(action.entry).catch(() => {})
-      } else if (action.type === "DELETE") {
-        const doomed = st.entries.find(e => e.id === action.id)
-        next = { ...st, entries: st.entries.filter(e => e.id !== action.id), undoStack: stack, redoStack: [...(st.redoStack || []), { type: "ADD", entry: doomed }] }
-        if (_deleteEntry) _deleteEntry(action.id)
-      } else if (action.type === "UPDATE") {
-        const prev = st.entries.find(e => e.id === action.id)
-        next = { ...st, entries: st.entries.map(e => e.id === action.id ? { ...e, ...action.data } : e), undoStack: stack, redoStack: [...(st.redoStack || []), { type: "UPDATE", id: action.id, data: prev ? { ...prev } : {} }] }
-        const updated = next.entries.find(e => e.id === action.id)
-        if (_saveEntry && updated) _saveEntry(updated).catch(() => {})
-      }
-      return next
-    }
-    case "REDO": {
-      const stack = [...(st.redoStack || [])]
-      if (stack.length === 0) return st
-      const action = stack.pop()
-      if (action.type === "ADD") {
-        next = { ...st, entries: [...st.entries, action.entry], redoStack: stack, undoStack: [...(st.undoStack || []), { type: "DELETE", id: action.entry.id }] }
-        if (_saveEntry) _saveEntry(action.entry).catch(() => {})
-      } else if (action.type === "DELETE") {
-        const doomed = st.entries.find(e => e.id === action.id)
-        next = { ...st, entries: st.entries.filter(e => e.id !== action.id), redoStack: stack, undoStack: [...(st.undoStack || []), { type: "ADD", entry: doomed }] }
-        if (_deleteEntry) _deleteEntry(action.id)
-      } else if (action.type === "UPDATE") {
-        const prev = st.entries.find(e => e.id === action.id)
-        next = { ...st, entries: st.entries.map(e => e.id === action.id ? { ...e, ...action.data } : e), redoStack: stack, undoStack: [...(st.undoStack || []), { type: "UPDATE", id: action.id, data: prev ? { ...prev } : {} }] }
-        const updated = next.entries.find(e => e.id === action.id)
-        if (_saveEntry && updated) _saveEntry(updated).catch(() => {})
-      }
-      return next
-    }
-    case "ADD":
-      next = { ...st, entries: [...st.entries, a.entry] }
-      pushUndo({ type: "DELETE", id: a.entry.id })
-      if (_saveEntry && !a._skipSave) _saveEntry(a.entry).catch(() => {})
-      break
-    case "UPDATE":
-      { const prev = st.entries.find(e => e.id === a.id)
-        if (prev) pushUndo({ type: "UPDATE", id: a.id, data: { ...prev } })
-      }
-      next = { ...next, entries: (next.entries || st.entries).map(e => e.id === a.id ? { ...e, ...a.data } : e) }
-      if (_saveEntry && !a._skipSave) { const updated = next.entries.find(e => e.id === a.id); if (updated) _saveEntry(updated).catch(() => {}) }
-      break
-    case "DELETE":
-      { const doomed = st.entries.find(e => e.id === a.id)
-        if (doomed) pushUndo({ type: "ADD", entry: { ...doomed } })
-      }
-      next = { ...next, entries: (next.entries || st.entries).filter(e => e.id !== a.id) }
-      if (_deleteEntry && !a._skipSave) _deleteEntry(a.id)
-      break
-    default: return st
-  }
-  return next
-}
+import { reducer, getFirstBadges } from '../entryReducer.js'
 
 describe('entryReducer', () => {
   const entry1 = { id: '1', city: 'Paris', lat: 48.8, lng: 2.3 }
   const entry2 = { id: '2', city: 'Tokyo', lat: 35.6, lng: 139.7 }
+
+  let db
+  beforeEach(() => {
+    db = {
+      saveEntry: vi.fn().mockResolvedValue({}),
+      deleteEntry: vi.fn().mockResolvedValue({}),
+      deletePhoto: vi.fn().mockResolvedValue({}),
+      savePhotos: vi.fn().mockResolvedValue({}),
+    }
+  })
 
   describe('LOAD', () => {
     it('sets entries from action', () => {
@@ -124,17 +58,15 @@ describe('entryReducer', () => {
     })
 
     it('calls saveEntry from db', () => {
-      const saveEntry = vi.fn().mockResolvedValue({})
       const state = { entries: [], undoStack: [], redoStack: [] }
-      reducer(state, { type: 'ADD', entry: entry1, db: { saveEntry } })
-      expect(saveEntry).toHaveBeenCalledWith(entry1)
+      reducer(state, { type: 'ADD', entry: entry1, db })
+      expect(db.saveEntry).toHaveBeenCalledWith(entry1)
     })
 
     it('skips saveEntry when _skipSave is true', () => {
-      const saveEntry = vi.fn().mockResolvedValue({})
       const state = { entries: [], undoStack: [], redoStack: [] }
-      reducer(state, { type: 'ADD', entry: entry1, db: { saveEntry }, _skipSave: true })
-      expect(saveEntry).not.toHaveBeenCalled()
+      reducer(state, { type: 'ADD', entry: entry1, db, _skipSave: true })
+      expect(db.saveEntry).not.toHaveBeenCalled()
     })
   })
 
@@ -155,10 +87,24 @@ describe('entryReducer', () => {
     })
 
     it('calls deleteEntry from db', () => {
-      const deleteEntry = vi.fn()
       const state = { entries: [entry1], undoStack: [], redoStack: [] }
-      reducer(state, { type: 'DELETE', id: '1', db: { deleteEntry } })
-      expect(deleteEntry).toHaveBeenCalledWith('1')
+      reducer(state, { type: 'DELETE', id: '1', db })
+      expect(db.deleteEntry).toHaveBeenCalledWith('1')
+    })
+
+    it('calls deletePhoto for each photo when entry has photos', () => {
+      const entryWithPhotos = { ...entry1, photos: ['url1.jpg', 'url2.jpg'] }
+      const state = { entries: [entryWithPhotos], undoStack: [], redoStack: [] }
+      reducer(state, { type: 'DELETE', id: '1', db })
+      expect(db.deletePhoto).toHaveBeenCalledWith('url1.jpg')
+      expect(db.deletePhoto).toHaveBeenCalledWith('url2.jpg')
+      expect(db.deletePhoto).toHaveBeenCalledTimes(2)
+    })
+
+    it('does not call deletePhoto when entry has no photos', () => {
+      const state = { entries: [entry1], undoStack: [], redoStack: [] }
+      reducer(state, { type: 'DELETE', id: '1', db })
+      expect(db.deletePhoto).not.toHaveBeenCalled()
     })
   })
 
@@ -280,6 +226,56 @@ describe('entryReducer', () => {
       expect(result.undoStack[0].type).toBe('UPDATE')
       expect(result.undoStack[0].data.city).toBe('Paris')
     })
+
+    it('calls saveEntry from db with the updated entry', () => {
+      const state = { entries: [entry1], undoStack: [], redoStack: [] }
+      reducer(state, { type: 'UPDATE', id: '1', data: { city: 'Lyon' }, db })
+      expect(db.saveEntry).toHaveBeenCalledWith(expect.objectContaining({ id: '1', city: 'Lyon' }))
+    })
+  })
+
+  describe('ADD_PHOTOS', () => {
+    it('appends photos to existing entry photos array', () => {
+      const entryWithPhotos = { ...entry1, photos: ['existing.jpg'] }
+      const state = { entries: [entryWithPhotos, entry2], undoStack: [], redoStack: [] }
+      const result = reducer(state, { type: 'ADD_PHOTOS', id: '1', urls: ['new1.jpg', 'new2.jpg'] })
+      expect(result.entries[0].photos).toEqual(['existing.jpg', 'new1.jpg', 'new2.jpg'])
+    })
+
+    it('creates photos array when entry had none', () => {
+      const state = { entries: [entry1], undoStack: [], redoStack: [] }
+      const result = reducer(state, { type: 'ADD_PHOTOS', id: '1', urls: ['photo.jpg'] })
+      expect(result.entries[0].photos).toEqual(['photo.jpg'])
+    })
+
+    it('does not modify other entries', () => {
+      const state = { entries: [entry1, entry2], undoStack: [], redoStack: [] }
+      const result = reducer(state, { type: 'ADD_PHOTOS', id: '1', urls: ['photo.jpg'] })
+      expect(result.entries[1]).toEqual(entry2)
+    })
+  })
+
+  describe('REMOVE_PHOTO', () => {
+    it('removes photo at the given index', () => {
+      const entryWithPhotos = { ...entry1, photos: ['a.jpg', 'b.jpg', 'c.jpg'] }
+      const state = { entries: [entryWithPhotos], undoStack: [], redoStack: [] }
+      const result = reducer(state, { type: 'REMOVE_PHOTO', id: '1', photoIndex: 1, db })
+      expect(result.entries[0].photos).toEqual(['a.jpg', 'c.jpg'])
+    })
+
+    it('calls db.deletePhoto with the removed photo URL', () => {
+      const entryWithPhotos = { ...entry1, photos: ['a.jpg', 'b.jpg'] }
+      const state = { entries: [entryWithPhotos], undoStack: [], redoStack: [] }
+      reducer(state, { type: 'REMOVE_PHOTO', id: '1', photoIndex: 0, db })
+      expect(db.deletePhoto).toHaveBeenCalledWith('a.jpg')
+    })
+
+    it('calls db.savePhotos with updated photos array', () => {
+      const entryWithPhotos = { ...entry1, photos: ['a.jpg', 'b.jpg', 'c.jpg'] }
+      const state = { entries: [entryWithPhotos], undoStack: [], redoStack: [] }
+      reducer(state, { type: 'REMOVE_PHOTO', id: '1', photoIndex: 1, db })
+      expect(db.savePhotos).toHaveBeenCalledWith('1', ['a.jpg', 'c.jpg'])
+    })
   })
 
   describe('unknown action', () => {
@@ -288,5 +284,54 @@ describe('entryReducer', () => {
       const result = reducer(state, { type: 'UNKNOWN' })
       expect(result).toBe(state)
     })
+  })
+})
+
+describe('getFirstBadges', () => {
+  it('returns empty object for empty entries', () => {
+    expect(getFirstBadges([])).toEqual({})
+  })
+
+  it('returns "First time together" badge for earliest "both" entry', () => {
+    const entries = [
+      { id: '2', who: 'both', dateStart: '2024-06-01', country: 'USA' },
+      { id: '1', who: 'both', dateStart: '2024-01-15', country: 'USA' },
+    ]
+    const badges = getFirstBadges(entries)
+    expect(badges['1']).toBe('First time together')
+  })
+
+  it('returns "First trip abroad together" for first non-USA country', () => {
+    const entries = [
+      { id: '1', who: 'both', dateStart: '2024-01-01', country: 'USA' },
+      { id: '2', who: 'both', dateStart: '2024-03-01', country: 'France' },
+    ]
+    const badges = getFirstBadges(entries)
+    expect(badges['2']).toBe('First trip abroad together')
+  })
+
+  it('returns "First Christmas together" badge for December entry', () => {
+    const entries = [
+      { id: '1', who: 'both', dateStart: '2024-12-25', country: 'USA' },
+    ]
+    const badges = getFirstBadges(entries)
+    expect(badges['1']).toBe('First Christmas together')
+  })
+
+  it('ignores solo entries (who !== "both")', () => {
+    const entries = [
+      { id: '1', who: 'solo', dateStart: '2024-01-01', country: 'France' },
+    ]
+    const badges = getFirstBadges(entries)
+    expect(badges).toEqual({})
+  })
+
+  it('does not override existing badge with "First trip abroad"', () => {
+    const entries = [
+      { id: '1', who: 'both', dateStart: '2024-01-01', country: 'France' },
+    ]
+    const badges = getFirstBadges(entries)
+    // id '1' gets "First time together" since it's the earliest — "First trip abroad" should not overwrite it
+    expect(badges['1']).toBe('First time together')
   })
 })
