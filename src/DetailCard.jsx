@@ -674,7 +674,7 @@ export default function DetailCard({
                     <span style={{ fontSize: 10, color: P.textFaint }}>{new Date(c.created_at).toLocaleDateString()}</span>
                     {c.user_id === userId && <button onClick={async () => {
                       try {
-                        await deleteComment(c.id);
+                        await deleteComment(c.id, userId);
                         loadComments(worldId, cur.id).then(setEntryComments).catch(() => {});
                       } catch { showToast("Couldn't delete comment", "\u26a0\ufe0f", 2000); }
                     }} style={{ background: "none", border: "none", fontSize: 10, color: P.textFaint, cursor: "pointer", padding: 0 }}>{"\u2715"}</button>}

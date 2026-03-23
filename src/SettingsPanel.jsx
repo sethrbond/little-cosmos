@@ -327,7 +327,7 @@ export default function SettingsPanel({
                     {worldRole === "owner" && m.user_id !== userId && (
                       <div style={{ display: "flex", gap: 4 }}>
                         <select value={m.role} onChange={async (e) => {
-                          const ok = await updateMemberRole(m.id, e.target.value);
+                          const ok = await updateMemberRole(m.id, e.target.value, userId);
                           if (ok) { const members = await getWorldMembers(worldId); setWorldMembers(members); }
                         }} style={{ padding: "2px 4px", background: `${P.parchment}`, border: `1px solid ${P.textFaint}30`, borderRadius: 4, fontSize: 9, color: P.textMid, fontFamily: "inherit" }}>
                           <option value="owner">Owner</option>

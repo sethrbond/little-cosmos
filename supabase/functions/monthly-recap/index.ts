@@ -19,6 +19,15 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const FROM_EMAIL = "Little Cosmos <hello@littlecosmos.app>";
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 serve(async () => {
   if (!RESEND_API_KEY) {
     return new Response(JSON.stringify({ error: "RESEND_API_KEY not set" }), { status: 500 });
@@ -113,8 +122,9 @@ function generateRecapEmail({ name, monthName, entryCount, cities, countries }: 
   cities: string[];
   countries: string[];
 }) {
-  const cityList = cities.slice(0, 5).join(", ") + (cities.length > 5 ? ` +${cities.length - 5} more` : "");
-  const countryList = countries.length > 0 ? countries.join(", ") : "";
+  const safeName = escapeHtml(name);
+  const cityList = escapeHtml(cities.slice(0, 5).join(", ") + (cities.length > 5 ? ` +${cities.length - 5} more` : ""));
+  const countryList = countries.length > 0 ? escapeHtml(countries.join(", ")) : "";
 
   return `
 <!DOCTYPE html>
@@ -133,7 +143,7 @@ function generateRecapEmail({ name, monthName, entryCount, cities, countries }: 
 
   <div style="background:rgba(30,25,48,0.8);border:1px solid rgba(200,170,110,0.12);border-radius:16px;padding:24px;margin-bottom:20px">
     <p style="font-size:14px;color:#e8e0d0;line-height:1.7;margin:0 0 16px">
-      Hi ${name},
+      Hi ${safeName},
     </p>
     <p style="font-size:14px;color:rgba(232,224,208,0.7);line-height:1.7;margin:0 0 20px">
       Here's what happened in your cosmos last month:

@@ -131,13 +131,23 @@ describe('updateMemberRole', () => {
     expect(await updateMemberRole('member-1', undefined)).toBe(false)
   })
 
+  it('rejects missing callerUserId', async () => {
+    expect(await updateMemberRole('member-1', 'owner')).toBe(false)
+    expect(await updateMemberRole('member-1', 'owner', null)).toBe(false)
+    expect(await updateMemberRole('member-1', 'owner', '')).toBe(false)
+  })
+
   it('accepts valid role "owner" (no demotion guard)', async () => {
     setupFromSequence([
-      // from().update({role}).eq(id) → 1st eq is terminal
+      // lookup world_id: from().select('world_id').eq(id).maybeSingle()
+      c => c.maybeSingle.mockResolvedValue({ data: { world_id: 'world-1' }, error: null }),
+      // caller auth: from().select('role').eq(wid).eq(uid).maybeSingle()
+      c => c.maybeSingle.mockResolvedValue({ data: { role: 'owner' }, error: null }),
+      // update: from().update({role}).eq(id) → 1st eq is terminal
       c => c._terminalEq(1, { error: null }),
     ])
 
-    const result = await updateMemberRole('member-1', 'owner')
+    const result = await updateMemberRole('member-1', 'owner', 'caller-1')
     expect(result).toBe(true)
   })
 
@@ -149,7 +159,7 @@ describe('updateMemberRole', () => {
       c => c._terminalEq(2, { count: 1 }),
     ])
 
-    const result = await updateMemberRole('member-1', 'member')
+    const result = await updateMemberRole('member-1', 'member', 'caller-1')
     expect(result).toBe(false)
   })
 
@@ -159,7 +169,7 @@ describe('updateMemberRole', () => {
       c => c._terminalEq(2, { count: 1 }),
     ])
 
-    const result = await updateMemberRole('member-1', 'viewer')
+    const result = await updateMemberRole('member-1', 'viewer', 'caller-1')
     expect(result).toBe(false)
   })
 
@@ -167,11 +177,13 @@ describe('updateMemberRole', () => {
     setupFromSequence([
       c => c.maybeSingle.mockResolvedValue({ data: { role: 'owner', world_id: 'world-1' }, error: null }),
       c => c._terminalEq(2, { count: 2 }),
+      // caller auth: from().select('role').eq(wid).eq(uid).maybeSingle()
+      c => c.maybeSingle.mockResolvedValue({ data: { role: 'owner' }, error: null }),
       // update: from().update({role}).eq(id) → 1st eq is terminal
       c => c._terminalEq(1, { error: null }),
     ])
 
-    const result = await updateMemberRole('member-1', 'member')
+    const result = await updateMemberRole('member-1', 'member', 'caller-1')
     expect(result).toBe(true)
   })
 
@@ -179,12 +191,26 @@ describe('updateMemberRole', () => {
     setupFromSequence([
       // current role is viewer → no demotion guard triggered
       c => c.maybeSingle.mockResolvedValue({ data: { role: 'viewer', world_id: 'world-1' }, error: null }),
+      // caller auth: from().select('role').eq(wid).eq(uid).maybeSingle()
+      c => c.maybeSingle.mockResolvedValue({ data: { role: 'owner' }, error: null }),
       // update
       c => c._terminalEq(1, { error: null }),
     ])
 
-    const result = await updateMemberRole('member-1', 'member')
+    const result = await updateMemberRole('member-1', 'member', 'caller-1')
     expect(result).toBe(true)
+  })
+
+  it('rejects caller who is not owner', async () => {
+    setupFromSequence([
+      // lookup world_id for promotion case
+      c => c.maybeSingle.mockResolvedValue({ data: { world_id: 'world-1' }, error: null }),
+      // caller auth: caller is a member, not owner
+      c => c.maybeSingle.mockResolvedValue({ data: { role: 'member' }, error: null }),
+    ])
+
+    const result = await updateMemberRole('member-1', 'owner', 'non-owner')
+    expect(result).toBe(false)
   })
 })
 

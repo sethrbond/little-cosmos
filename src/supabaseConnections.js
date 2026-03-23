@@ -60,12 +60,14 @@ export async function acceptConnection(connectionId) {
   return { ok: !!data }
 }
 
-// Decline a connection request
-export async function declineConnection(connectionId) {
+// Decline a connection request (only the target can decline)
+export async function declineConnection(connectionId, userEmail) {
+  if (!userEmail) { console.error('[declineConnection] userEmail required'); return false }
   const { error } = await supabase
     .from('cosmos_connections')
     .update({ status: 'declined', responded_at: new Date().toISOString() })
     .eq('id', connectionId)
+    .eq('target_email', userEmail.toLowerCase())
   if (error) { console.error('[declineConnection]', error); return false }
   return true
 }

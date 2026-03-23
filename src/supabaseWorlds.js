@@ -233,17 +233,18 @@ export async function leaveWorld(worldId, userId) {
 
 export async function removeWorldMember(worldId, memberId, callerUserId) {
   try {
-    // Verify caller is the world owner before removing a member
-    if (callerUserId) {
-      const { data: callerMembership } = await supabase
-        .from('world_members')
-        .select('role')
-        .eq('world_id', worldId)
-        .eq('user_id', callerUserId)
-        .maybeSingle()
-      if (!callerMembership || callerMembership.role !== 'owner') {
-        console.error('[removeWorldMember] caller is not owner'); return false
-      }
+    // Verify caller is the world owner before removing a member (mandatory)
+    if (!callerUserId) {
+      console.error('[removeWorldMember] callerUserId required'); return false
+    }
+    const { data: callerMembership } = await supabase
+      .from('world_members')
+      .select('role')
+      .eq('world_id', worldId)
+      .eq('user_id', callerUserId)
+      .maybeSingle()
+    if (!callerMembership || callerMembership.role !== 'owner') {
+      console.error('[removeWorldMember] caller is not owner'); return false
     }
     const { error } = await supabase
       .from('world_members')
@@ -255,30 +256,60 @@ export async function removeWorldMember(worldId, memberId, callerUserId) {
   } catch (err) { console.error('[removeWorldMember] exception:', err); return false }
 }
 
-export async function updateMemberRole(memberId, newRole) {
+export async function updateMemberRole(memberId, newRole, callerUserId) {
   try {
     if (!['owner', 'member', 'viewer'].includes(newRole)) {
       console.error('[updateMemberRole] Invalid role:', newRole)
       return false
     }
+    if (!callerUserId) {
+      console.error('[updateMemberRole] callerUserId required')
+      return false
+    }
     // Guard: prevent demoting the last owner
+    // Also fetch world_id to verify caller authorization
+    let worldId = null
     if (newRole !== 'owner') {
       const { data: member } = await supabase
         .from('world_members')
         .select('role, world_id')
         .eq('id', memberId)
         .maybeSingle()
-      if (member && member.role === 'owner') {
-        const { count } = await supabase
-          .from('world_members')
-          .select('*', { count: 'exact', head: true })
-          .eq('world_id', member.world_id)
-          .eq('role', 'owner')
-        if (count <= 1) {
-          console.error('[updateMemberRole] Cannot demote the last owner')
-          return false
+      if (member) {
+        worldId = member.world_id
+        if (member.role === 'owner') {
+          const { count } = await supabase
+            .from('world_members')
+            .select('*', { count: 'exact', head: true })
+            .eq('world_id', member.world_id)
+            .eq('role', 'owner')
+          if (count <= 1) {
+            console.error('[updateMemberRole] Cannot demote the last owner')
+            return false
+          }
         }
       }
+    }
+    // Verify caller is an owner of this world
+    if (!worldId) {
+      // For promotion to owner, we still need to look up the world_id
+      const { data: member } = await supabase
+        .from('world_members')
+        .select('world_id')
+        .eq('id', memberId)
+        .maybeSingle()
+      worldId = member?.world_id
+    }
+    if (!worldId) { console.error('[updateMemberRole] member not found'); return false }
+    const { data: callerMembership } = await supabase
+      .from('world_members')
+      .select('role')
+      .eq('world_id', worldId)
+      .eq('user_id', callerUserId)
+      .maybeSingle()
+    if (!callerMembership || callerMembership.role !== 'owner') {
+      console.error('[updateMemberRole] caller is not owner')
+      return false
     }
     const { error } = await supabase
       .from('world_members')
@@ -565,8 +596,9 @@ export async function addComment(worldId, entryId, userId, userName, text) {
   return data
 }
 
-export async function deleteComment(commentId) {
-  const { error } = await supabase.from('entry_comments').delete().eq('id', commentId)
+export async function deleteComment(commentId, userId) {
+  if (!userId) { console.error('[deleteComment] userId required'); return false }
+  const { error } = await supabase.from('entry_comments').delete().eq('id', commentId).eq('user_id', userId)
   if (error) console.error('[deleteComment]', error)
   return !error
 }

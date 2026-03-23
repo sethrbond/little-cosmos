@@ -1032,7 +1032,7 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
   };
 
   const handleDeclineRequest = async (req) => {
-    const ok = await declineConnection(req.id);
+    const ok = await declineConnection(req.id, userEmail);
     if (!mountedRef.current) return;
     if (ok) {
       if (onPendingRequestsChange) onPendingRequestsChange(prev => prev.filter(r => r.id !== req.id));

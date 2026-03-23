@@ -25,6 +25,26 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    // --- Auth: require JWT or service role key ---
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Missing Authorization header" }), { status: 401 });
+    }
+    const token = authHeader.replace(/^Bearer\s+/i, "");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    // Allow service role key (used by cron jobs) to bypass user check
+    if (token !== serviceRoleKey) {
+      // Verify JWT and check that the caller matches the target user_id
+      const { data: userData, error: authError } = await supabase.auth.getUser(token);
+      if (authError || !userData?.user) {
+        return new Response(JSON.stringify({ error: "Invalid or expired token" }), { status: 401 });
+      }
+      if (userData.user.id !== user_id) {
+        return new Response(JSON.stringify({ error: "Cannot send push to another user" }), { status: 403 });
+      }
+    }
+
     // Get all push subscriptions for this user
     const { data: subs, error } = await supabase
       .from("push_subscriptions")
