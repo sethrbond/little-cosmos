@@ -1880,6 +1880,29 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
         </div>
       )}
 
+      {/* Rainbow easter egg — tiny arc in bottom-left corner */}
+      <div
+        onClick={(e) => { e.stopPropagation(); e.preventDefault(); window.open("/rainbow/index.html", "_blank"); }}
+        title="🌈"
+        style={{
+          position: "fixed", bottom: 24, left: 24, zIndex: 900,
+          width: 48, height: 28, cursor: "pointer", opacity: 0.45,
+          transition: "opacity 0.4s, transform 0.4s",
+          overflow: "hidden",
+        }}
+        onMouseEnter={e => { e.currentTarget.style.opacity = "0.85"; e.currentTarget.style.transform = "scale(1.2)"; }}
+        onMouseLeave={e => { e.currentTarget.style.opacity = "0.4"; e.currentTarget.style.transform = "scale(1)"; }}
+      >
+        <svg viewBox="0 0 28 16" xmlns="http://www.w3.org/2000/svg">
+          <path d="M 2,16 A 13,13 0 0,1 26,16" fill="none" stroke="#ff1744" strokeWidth="2" strokeLinecap="round"/>
+          <path d="M 4,16 A 11,11 0 0,1 24,16" fill="none" stroke="#ff6d00" strokeWidth="1.5" strokeLinecap="round"/>
+          <path d="M 6,16 A 9,9 0 0,1 22,16" fill="none" stroke="#ffd600" strokeWidth="1.5" strokeLinecap="round"/>
+          <path d="M 8,16 A 7,7 0 0,1 20,16" fill="none" stroke="#00e676" strokeWidth="1.5" strokeLinecap="round"/>
+          <path d="M 10,16 A 5,5 0 0,1 18,16" fill="none" stroke="#2979ff" strokeWidth="1.5" strokeLinecap="round"/>
+          <path d="M 12,16 A 3,3 0 0,1 16,16" fill="none" stroke="#d500f9" strokeWidth="1.5" strokeLinecap="round"/>
+        </svg>
+      </div>
+
       <style>{`@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}@keyframes notifySlideIn{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}@keyframes emptyPulse{0%,100%{transform:scale(1);opacity:.6}50%{transform:scale(1.1);opacity:1}}`}</style>
     </div>
   );

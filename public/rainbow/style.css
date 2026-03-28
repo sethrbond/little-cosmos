@@ -1,0 +1,1054 @@
+/* ============================================================
+   Rainbow Explainer — style.css
+   Dark, immersive, scroll-snap educational site
+   ============================================================ */
+
+/* --- Custom Properties --- */
+:root {
+  /* Backgrounds */
+  --bg-deep: #0a0a1a;
+  --bg-dark: #0d1127;
+  --bg-card: #121830;
+  --bg-glow: #1a1a3e;
+
+  /* Rainbow Spectrum */
+  --red: #ff1744;
+  --orange: #ff6d00;
+  --yellow: #ffd600;
+  --green: #00e676;
+  --blue: #2979ff;
+  --indigo: #3d5afe;
+  --violet: #d500f9;
+
+  /* Text & UI */
+  --text-primary: #e8e8f0;
+  --text-secondary: #9999b3;
+  --text-dim: #666680;
+  --water-fill: rgba(41, 121, 255, 0.15);
+  --water-border: rgba(41, 121, 255, 0.3);
+
+  /* Gradients */
+  --rainbow-gradient: linear-gradient(
+    90deg,
+    #ff1744,
+    #ff6d00,
+    #ffd600,
+    #00e676,
+    #2979ff,
+    #3d5afe,
+    #d500f9
+  );
+
+  /* Fonts */
+  --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui,
+    sans-serif;
+  --font-mono: "SF Mono", "Fira Code", "Consolas", monospace;
+}
+
+/* --- Reset --- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* --- Global --- */
+html {
+  scroll-behavior: smooth;
+  scroll-snap-type: y mandatory;
+}
+
+body {
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  font-family: var(--font-main);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background 1.5s ease-out;
+}
+
+/* Page load animation removed — hero stays visible */
+
+/* --- Selection --- */
+::selection {
+  background: rgba(41, 121, 255, 0.3);
+  color: white;
+}
+
+/* --- Scrollbar (Webkit) --- */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-deep);
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    180deg,
+    var(--red),
+    var(--orange),
+    var(--yellow),
+    var(--green),
+    var(--blue),
+    var(--indigo),
+    var(--violet)
+  );
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(
+    180deg,
+    var(--red),
+    var(--orange),
+    var(--yellow),
+    var(--green),
+    var(--blue),
+    var(--indigo),
+    var(--violet)
+  );
+  filter: brightness(1.2);
+}
+
+/* ============================================================
+   Progress Bar
+   ============================================================ */
+#progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  background: var(--rainbow-gradient);
+  width: 0%;
+  z-index: 1000;
+  box-shadow: 0 0 8px rgba(255,255,255,0.15);
+}
+
+/* ============================================================
+   Dot Navigation
+   ============================================================ */
+#dot-nav {
+  position: fixed;
+  right: 2rem;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  transition: opacity 1s ease-out 2s;
+}
+
+#dot-nav::before {
+  content: '';
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  left: 4.5px;
+  width: 1px;
+  background: rgba(255,255,255,0.08);
+}
+
+.dot-link {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  position: relative;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  background: transparent;
+  transition: all 0.3s ease;
+}
+
+.dot-link:hover .dot,
+.dot-link.active .dot {
+  background: var(--text-primary);
+  border-color: var(--text-primary);
+  transform: scale(1.3);
+}
+
+/* Active dot matches section theme color */
+.dot-link[data-section="hero"].active .dot { background: white; border-color: white; }
+.dot-link[data-section="spectrum"].active .dot { background: #ffd600; border-color: #ffd600; }
+.dot-link[data-section="refraction"].active .dot { background: #2979ff; border-color: #2979ff; }
+.dot-link[data-section="dispersion"].active .dot { background: #00e676; border-color: #00e676; }
+.dot-link[data-section="reflection"].active .dot { background: #ff6d00; border-color: #ff6d00; }
+.dot-link[data-section="exit"].active .dot { background: #ff1744; border-color: #ff1744; }
+.dot-link[data-section="color-order"].active .dot { background: #ff1744; border-color: #ff1744; }
+.dot-link[data-section="angle"].active .dot { background: #ffd600; border-color: #ffd600; }
+.dot-link[data-section="double-rainbow"].active .dot { background: #d500f9; border-color: #d500f9; }
+.dot-link[data-section="phenomena"].active .dot { background: #3d5afe; border-color: #3d5afe; }
+.dot-link[data-section="credits"].active .dot { background: white; border-color: white; }
+
+.dot-label {
+  position: absolute;
+  right: 2rem;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  opacity: 0;
+  transform: translateX(10px);
+  transition: all 0.3s ease;
+  pointer-events: none;
+}
+
+.dot-link:hover .dot-label {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* ============================================================
+   Sections — Layout
+   ============================================================ */
+.section {
+  min-height: 100vh;
+  scroll-snap-align: start;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+/* --- Per-section atmospheric backgrounds --- */
+#spectrum {
+  background: linear-gradient(180deg, var(--bg-dark) 0%, rgba(255,109,0,0.03) 50%, var(--bg-dark) 100%);
+}
+
+#refraction {
+  background: radial-gradient(ellipse at 60% 50%, rgba(41,121,255,0.04) 0%, var(--bg-deep) 60%);
+}
+
+#dispersion {
+  background: radial-gradient(ellipse at 40% 50%, rgba(0,230,118,0.03) 0%, var(--bg-dark) 60%);
+}
+
+#reflection {
+  background: radial-gradient(ellipse at 60% 50%, rgba(255,214,0,0.03) 0%, var(--bg-deep) 60%);
+}
+
+#exit {
+  background: radial-gradient(ellipse at 40% 60%, rgba(255,23,68,0.03) 0%, rgba(213,0,249,0.02) 40%, var(--bg-dark) 70%);
+}
+
+#color-order {
+  background: var(--bg-dark);
+}
+
+#angle {
+  background: var(--bg-deep);
+}
+
+#double-rainbow {
+  background: linear-gradient(180deg, var(--bg-dark) 0%, rgba(213,0,249,0.03) 50%, var(--bg-dark) 100%);
+}
+
+#phenomena {
+  background: radial-gradient(ellipse at 50% 50%, rgba(61,90,254,0.04) 0%, var(--bg-deep) 60%);
+}
+
+/* --- Section divider lines --- */
+.section + .section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40%;
+  max-width: 300px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+}
+
+.section-content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4rem;
+  align-items: center;
+  padding: 4rem 8vw;
+  max-width: 1400px;
+  width: 100%;
+  position: relative;
+  z-index: 1;
+}
+
+.section-content.reverse {
+  direction: rtl;
+}
+
+.section-content.reverse > * {
+  direction: ltr;
+}
+
+.visual {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.visual svg {
+  width: 100%;
+  height: auto;
+  max-width: 500px;
+}
+
+.text-content h2 {
+  position: relative;
+  padding-bottom: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+.text-content h2::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 60px;
+  height: 2px;
+  background: var(--rainbow-gradient);
+  border-radius: 1px;
+}
+
+.text-content p {
+  margin-bottom: 1rem;
+}
+
+/* --- Myth-busting callout boxes --- */
+.callout {
+  margin-top: 1.5rem;
+  padding: 1rem 1.25rem;
+  background: rgba(41,121,255,0.06);
+  border-left: 3px solid var(--blue);
+  border-radius: 0 8px 8px 0;
+}
+.callout-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--blue);
+  display: block;
+  margin-bottom: 0.4rem;
+}
+.callout p {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ============================================================
+   Typography
+   ============================================================ */
+.hero-title {
+  font-size: clamp(3rem, 8vw, 7rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  background: var(--rainbow-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  line-height: 1.1;
+}
+
+.hero-subtitle {
+  font-size: clamp(1rem, 2.5vw, 1.5rem);
+  font-weight: 300;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  margin-top: 1rem;
+}
+
+h2 {
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+p {
+  font-size: clamp(1rem, 1.5vw, 1.25rem);
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+.data-label {
+  font-size: clamp(2rem, 5vw, 4rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  background: var(--rainbow-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.caption {
+  font-size: 0.875rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  color: var(--text-dim);
+}
+
+/* ============================================================
+   Hero Section (#hero)
+   ============================================================ */
+#hero {
+  text-align: center;
+  background: radial-gradient(
+      ellipse at 50% 120%,
+      rgba(41, 121, 255, 0.08) 0%,
+      var(--bg-deep) 70%
+    );
+}
+
+#hero .section-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+}
+
+#hero .visual {
+  max-width: 60vw;
+}
+
+#hero .visual svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* --- Hero Rain Effect --- */
+#hero .rain {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+#hero .rain::before,
+#hero .rain::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: 0;
+  width: 100%;
+  height: 200%;
+  background: transparent;
+  box-shadow:
+    /* Row 1 — scattered across viewport */
+    40px 80px 0 0 rgba(150,180,220,0.08),
+    120px 160px 0 0 rgba(150,180,220,0.06),
+    230px 40px 0 0 rgba(150,180,220,0.07),
+    350px 200px 0 0 rgba(150,180,220,0.05),
+    480px 120px 0 0 rgba(150,180,220,0.08),
+    600px 60px 0 0 rgba(150,180,220,0.06),
+    720px 180px 0 0 rgba(150,180,220,0.07),
+    850px 100px 0 0 rgba(150,180,220,0.05),
+    950px 220px 0 0 rgba(150,180,220,0.08),
+    1080px 30px 0 0 rgba(150,180,220,0.06),
+    /* Row 2 — offset positions */
+    80px 320px 0 0 rgba(150,180,220,0.06),
+    190px 400px 0 0 rgba(150,180,220,0.08),
+    310px 360px 0 0 rgba(150,180,220,0.05),
+    440px 440px 0 0 rgba(150,180,220,0.07),
+    570px 300px 0 0 rgba(150,180,220,0.06),
+    680px 480px 0 0 rgba(150,180,220,0.08),
+    790px 340px 0 0 rgba(150,180,220,0.05),
+    920px 420px 0 0 rgba(150,180,220,0.07),
+    1030px 380px 0 0 rgba(150,180,220,0.06),
+    1160px 460px 0 0 rgba(150,180,220,0.08),
+    /* Row 3 — deeper positions */
+    60px 560px 0 0 rgba(150,180,220,0.07),
+    170px 640px 0 0 rgba(150,180,220,0.05),
+    290px 580px 0 0 rgba(150,180,220,0.08),
+    410px 660px 0 0 rgba(150,180,220,0.06),
+    530px 540px 0 0 rgba(150,180,220,0.07),
+    660px 620px 0 0 rgba(150,180,220,0.05),
+    770px 700px 0 0 rgba(150,180,220,0.08),
+    890px 560px 0 0 rgba(150,180,220,0.06),
+    1010px 680px 0 0 rgba(150,180,220,0.07),
+    1140px 600px 0 0 rgba(150,180,220,0.05);
+  width: 2px;
+  height: 6px;
+  border-radius: 50%;
+  animation: rainfall 1.5s linear infinite;
+}
+
+#hero .rain::after {
+  animation-delay: -0.75s;
+  margin-left: 30px;
+}
+
+@keyframes rainfall {
+  from {
+    transform: translateY(-50%) translateX(-5px);
+  }
+  to {
+    transform: translateY(0%) translateX(0px);
+  }
+}
+
+/* Hero arc draw-in animation */
+#hero-arc path {
+  opacity: 0;
+}
+
+/* Outer glow paths (1-7): fade in with matching delay */
+.visible #hero-arc path.beam-glow:nth-of-type(1) {
+  animation: fadeGlow 2s ease-out 0s forwards;
+}
+
+.visible #hero-arc path.beam-glow:nth-of-type(2) {
+  animation: fadeGlow 2s ease-out 0.15s forwards;
+}
+.visible #hero-arc path.beam-glow:nth-of-type(3) {
+  animation: fadeGlow 2s ease-out 0.3s forwards;
+}
+.visible #hero-arc path.beam-glow:nth-of-type(4) {
+  animation: fadeGlow 2s ease-out 0.45s forwards;
+}
+.visible #hero-arc path.beam-glow:nth-of-type(5) {
+  animation: fadeGlow 2s ease-out 0.6s forwards;
+}
+.visible #hero-arc path.beam-glow:nth-of-type(6) {
+  animation: fadeGlow 2s ease-out 0.75s forwards;
+}
+.visible #hero-arc path.beam-glow:nth-of-type(7) {
+  animation: fadeGlow 2s ease-out 0.9s forwards;
+}
+
+/* Main arc paths (8-14): draw in with staggered delay */
+.visible #hero-arc path.beam:nth-of-type(8) {
+  animation: drawArc 2s ease-out 0s forwards;
+}
+.visible #hero-arc path.beam:nth-of-type(9) {
+  animation: drawArc 2s ease-out 0.15s forwards;
+}
+.visible #hero-arc path.beam:nth-of-type(10) {
+  animation: drawArc 2s ease-out 0.3s forwards;
+}
+.visible #hero-arc path.beam:nth-of-type(11) {
+  animation: drawArc 2s ease-out 0.45s forwards;
+}
+.visible #hero-arc path.beam:nth-of-type(12) {
+  animation: drawArc 2s ease-out 0.6s forwards;
+}
+.visible #hero-arc path.beam:nth-of-type(13) {
+  animation: drawArc 2s ease-out 0.75s forwards;
+}
+.visible #hero-arc path.beam:nth-of-type(14) {
+  animation: drawArc 2s ease-out 0.9s forwards;
+}
+
+@keyframes drawArc {
+  from {
+    stroke-dashoffset: 1100;
+    opacity: 0;
+  }
+  to {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}
+
+@keyframes fadeGlow {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 0.4;
+  }
+}
+
+/* ============================================================
+   Credits Section (#credits)
+   ============================================================ */
+#credits {
+  min-height: 50vh;
+  text-align: center;
+}
+
+#credits .section-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+}
+
+#credits::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  height: 1px;
+  background: var(--rainbow-gradient);
+}
+
+.credits-main {
+  font-size: 1.5rem;
+  font-weight: 300;
+  color: var(--text-primary);
+}
+.credits-sub {
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+.back-to-top {
+  color: var(--text-dim);
+  text-decoration: none;
+  font-size: 0.85rem;
+  margin-top: 2rem;
+  display: inline-block;
+  transition: color 0.3s;
+}
+.back-to-top:hover {
+  color: var(--text-primary);
+}
+
+/* ============================================================
+   Scroll Indicator
+   ============================================================ */
+.scroll-indicator {
+  position: absolute;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  animation: bounce 2s infinite ease-in-out;
+  transition: opacity 0.5s ease-out 2.5s;
+}
+
+.scroll-indicator svg {
+  width: 24px;
+  height: 24px;
+  stroke: var(--text-dim);
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@keyframes bounce {
+  0%,
+  100% {
+    transform: translateX(-50%) translateY(0);
+  }
+  50% {
+    transform: translateX(-50%) translateY(10px);
+  }
+}
+
+/* ============================================================
+   SVG Animations — Scroll-triggered via .visible
+   ============================================================ */
+
+/* --- Beams are always visible (no hide/show needed) --- */
+
+/* --- Color beam stagger --- */
+.visible .beam-red {
+  transition-delay: 0s;
+}
+
+.visible .beam-orange {
+  transition-delay: 0.1s;
+}
+
+.visible .beam-yellow {
+  transition-delay: 0.2s;
+}
+
+.visible .beam-green {
+  transition-delay: 0.3s;
+}
+
+.visible .beam-blue {
+  transition-delay: 0.4s;
+}
+
+.visible .beam-indigo {
+  transition-delay: 0.5s;
+}
+
+.visible .beam-violet {
+  transition-delay: 0.6s;
+}
+
+/* --- Text content slide-up + fade-in --- */
+.text-content {
+  opacity: 0;
+  transform: translateY(25px);
+  transition: opacity 0.7s ease-out, transform 0.7s ease-out;
+}
+
+.visible .text-content {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* --- Visual fade-in --- */
+.visual {
+  opacity: 0;
+  transition: opacity 0.5s ease-out;
+}
+
+.visible .visual {
+  opacity: 1;
+}
+
+/* --- Hero is immediately visible --- */
+#hero .visual,
+#hero .text-content {
+  opacity: 1;
+  transform: none;
+  transition: none;
+}
+
+/* --- SVG glow pulse --- */
+.glow-pulse {
+  animation: glowPulse 3s ease-in-out infinite;
+}
+
+@keyframes glowPulse {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.3));
+  }
+  50% {
+    filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.6));
+  }
+}
+
+/* --- Raindrop water shimmer --- */
+.water-shimmer {
+  animation: waterShimmer 4s ease-in-out infinite;
+}
+
+@keyframes waterShimmer {
+  0%,
+  100% {
+    fill: rgba(41, 121, 255, 0.12);
+  }
+  50% {
+    fill: rgba(41, 121, 255, 0.18);
+  }
+}
+
+/* --- Reflection flash --- */
+.reflection-flash {
+  opacity: 0;
+  transform: scale(0);
+  transform-origin: center center;
+}
+
+.visible .reflection-flash {
+  animation: flash 0.5s ease-out 1.5s forwards;
+}
+
+@keyframes flash {
+  0% {
+    opacity: 0;
+    transform: scale(0);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.5);
+  }
+  100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+}
+
+/* --- Phenomena cards stagger --- */
+.phenomena-item {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+}
+
+.visible .phenomena-item:nth-child(1) {
+  transition-delay: 0s;
+}
+
+.visible .phenomena-item:nth-child(2) {
+  transition-delay: 0.2s;
+}
+
+.visible .phenomena-item:nth-child(3) {
+  transition-delay: 0.4s;
+}
+
+.visible .phenomena-item {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ============================================================
+   Definition List — Phenomena Text
+   ============================================================ */
+dt {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 1.1rem;
+  margin-top: 1.5rem;
+  margin-bottom: 0.4rem;
+}
+dd {
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-left: 0;
+}
+
+/* ============================================================
+   Phenomena Cards — Visual Style
+   ============================================================ */
+.phenomena-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.phenomena-item {
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: opacity 0.5s ease-out, transform 0.5s ease-out,
+    border-color 0.3s ease;
+}
+
+.phenomena-item:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* ============================================================
+   Canvas Section (#angle)
+   ============================================================ */
+#angle-canvas {
+  border-radius: 12px;
+  max-width: 100%;
+  cursor: grab;
+}
+
+#angle-canvas:active {
+  cursor: grabbing;
+}
+
+.canvas-prompt {
+  font-size: 0.875rem;
+  font-style: italic;
+  color: var(--text-secondary);
+  text-align: center;
+  margin-top: 0.75rem;
+  transition: opacity 0.5s ease;
+}
+
+.canvas-prompt.hidden {
+  opacity: 0;
+}
+
+/* ============================================================
+   SVG Text Elements
+   ============================================================ */
+svg text {
+  fill: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+/* ============================================================
+   Section Counter
+   ============================================================ */
+#section-counter {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.25);
+  z-index: 100;
+  transition: color 0.3s;
+}
+
+/* ============================================================
+   Responsive — Tablet and below
+   ============================================================ */
+@media (max-width: 768px) {
+  html {
+    scroll-snap-type: y proximity;
+  }
+
+  .section-content {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+    padding: 2rem 6vw;
+  }
+
+  .section-content.reverse {
+    direction: ltr;
+  }
+
+  .visual {
+    order: -1;
+    width: 100%;
+  }
+
+  /* 1. SVGs fill available width instead of capping at 500px */
+  .visual svg {
+    max-width: 100%;
+  }
+
+  #dot-nav {
+    display: none;
+  }
+
+  .hero-arc {
+    max-width: 80vw;
+  }
+
+  /* 2. Canvas scales to container; aspect-ratio preserves proportions */
+  #angle-canvas {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 6 / 5;
+  }
+
+  /* 5. Callout boxes: tighter on tablet */
+  .callout {
+    padding: 0.875rem 1rem;
+  }
+
+  .callout p {
+    font-size: 0.9rem;
+  }
+
+  /* 7. Tighten definition list spacing */
+  dt {
+    margin-top: 1.25rem;
+    font-size: 1rem;
+  }
+
+  /* 8. Cap tall phenomena SVG so it doesn't dominate the viewport */
+  #phenomena-svg {
+    max-height: 60vh;
+    width: auto;
+  }
+
+  .phenomena-grid {
+    grid-template-columns: 1fr;
+  }
+
+  #section-counter {
+    bottom: 1rem;
+    right: 1rem;
+  }
+}
+
+/* ============================================================
+   Responsive — Small phones
+   ============================================================ */
+@media (max-width: 480px) {
+  /* 4. Better horizontal padding for readability on small phones */
+  .section-content {
+    padding: 2rem 1.25rem;
+  }
+
+  h2 {
+    font-size: 1.75rem;
+  }
+
+  /* 3. Ensure body text stays readable on very small screens */
+  p {
+    font-size: 1rem;
+    line-height: 1.75;
+  }
+
+  /* 5. Callout boxes: compact on small phones */
+  .callout {
+    padding: 0.75rem 0.875rem;
+    margin-top: 1.25rem;
+  }
+
+  .callout-label {
+    font-size: 0.65rem;
+  }
+
+  .callout p {
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
+
+  /* 6. Hero title: prevent cramping on very small screens */
+  .hero-title {
+    font-size: clamp(2.25rem, 10vw, 3rem);
+    padding: 0 0.5rem;
+  }
+
+  .hero-subtitle {
+    font-size: 0.95rem;
+    padding: 0 0.5rem;
+  }
+
+  .hero-arc {
+    max-width: 90vw;
+  }
+
+  /* 7. Definition list: tighter spacing on small phones */
+  dt {
+    margin-top: 1rem;
+    font-size: 0.95rem;
+  }
+
+  dd {
+    font-size: 0.9rem;
+    line-height: 1.55;
+  }
+
+  /* 8. Double rainbow SVG: ensure it doesn't shrink too much */
+  #double-rainbow-svg {
+    min-width: 100%;
+  }
+
+  /* Credits: scale down for small screens */
+  .credits-main {
+    font-size: 1.25rem;
+  }
+
+  .credits-sub {
+    font-size: 0.8rem;
+  }
+}
+
+/* ============================================================
+   Reduced Motion
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
