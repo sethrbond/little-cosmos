@@ -1880,26 +1880,53 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
         </div>
       )}
 
-      {/* Rainbow easter egg — tiny arc in bottom-left corner */}
+      {/* Rainbow easter egg — cloud with rain and rainbow arc */}
       <div
         onClick={(e) => { e.stopPropagation(); e.preventDefault(); window.open("/rainbow/index.html", "_blank"); }}
         title="🌈"
         style={{
-          position: "fixed", bottom: 24, left: 24, zIndex: 900,
-          width: 48, height: 28, cursor: "pointer", opacity: 0.45,
+          position: "fixed", bottom: 20, left: 20, zIndex: 900,
+          width: 64, height: 52, cursor: "pointer", opacity: 0.4,
           transition: "opacity 0.4s, transform 0.4s",
-          overflow: "hidden",
         }}
-        onMouseEnter={e => { e.currentTarget.style.opacity = "0.85"; e.currentTarget.style.transform = "scale(1.2)"; }}
+        onMouseEnter={e => { e.currentTarget.style.opacity = "0.85"; e.currentTarget.style.transform = "scale(1.15)"; }}
         onMouseLeave={e => { e.currentTarget.style.opacity = "0.4"; e.currentTarget.style.transform = "scale(1)"; }}
       >
-        <svg viewBox="0 0 28 16" xmlns="http://www.w3.org/2000/svg">
-          <path d="M 2,16 A 13,13 0 0,1 26,16" fill="none" stroke="#ff1744" strokeWidth="2" strokeLinecap="round"/>
-          <path d="M 4,16 A 11,11 0 0,1 24,16" fill="none" stroke="#ff6d00" strokeWidth="1.5" strokeLinecap="round"/>
-          <path d="M 6,16 A 9,9 0 0,1 22,16" fill="none" stroke="#ffd600" strokeWidth="1.5" strokeLinecap="round"/>
-          <path d="M 8,16 A 7,7 0 0,1 20,16" fill="none" stroke="#00e676" strokeWidth="1.5" strokeLinecap="round"/>
-          <path d="M 10,16 A 5,5 0 0,1 18,16" fill="none" stroke="#2979ff" strokeWidth="1.5" strokeLinecap="round"/>
-          <path d="M 12,16 A 3,3 0 0,1 16,16" fill="none" stroke="#d500f9" strokeWidth="1.5" strokeLinecap="round"/>
+        <svg viewBox="0 0 64 52" xmlns="http://www.w3.org/2000/svg" style={{overflow:"visible"}}>
+          {/* Cloud */}
+          <ellipse cx="32" cy="14" rx="20" ry="10" fill="rgba(180,190,210,0.25)"/>
+          <ellipse cx="22" cy="16" rx="14" ry="9" fill="rgba(180,190,210,0.2)"/>
+          <ellipse cx="42" cy="16" rx="14" ry="9" fill="rgba(180,190,210,0.2)"/>
+          <ellipse cx="32" cy="18" rx="22" ry="8" fill="rgba(180,190,210,0.3)"/>
+          {/* Rain drops */}
+          <line x1="20" y1="26" x2="18" y2="33" stroke="rgba(150,180,220,0.4)" strokeWidth="0.8" strokeLinecap="round">
+            <animate attributeName="y1" values="26;34;26" dur="1.2s" repeatCount="indefinite"/>
+            <animate attributeName="y2" values="33;41;33" dur="1.2s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" values="0.4;0;0.4" dur="1.2s" repeatCount="indefinite"/>
+          </line>
+          <line x1="28" y1="27" x2="26" y2="35" stroke="rgba(150,180,220,0.35)" strokeWidth="0.7" strokeLinecap="round">
+            <animate attributeName="y1" values="27;36;27" dur="1.5s" repeatCount="indefinite"/>
+            <animate attributeName="y2" values="35;44;35" dur="1.5s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" values="0.35;0;0.35" dur="1.5s" repeatCount="indefinite"/>
+          </line>
+          <line x1="36" y1="26" x2="34" y2="34" stroke="rgba(150,180,220,0.4)" strokeWidth="0.8" strokeLinecap="round">
+            <animate attributeName="y1" values="26;35;26" dur="1.3s" repeatCount="indefinite"/>
+            <animate attributeName="y2" values="34;43;34" dur="1.3s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" values="0.4;0;0.4" dur="1.3s" repeatCount="indefinite"/>
+          </line>
+          <line x1="44" y1="27" x2="42" y2="34" stroke="rgba(150,180,220,0.3)" strokeWidth="0.7" strokeLinecap="round">
+            <animate attributeName="y1" values="27;37;27" dur="1.6s" repeatCount="indefinite"/>
+            <animate attributeName="y2" values="34;44;34" dur="1.6s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" values="0.3;0;0.3" dur="1.6s" repeatCount="indefinite"/>
+          </line>
+          {/* Rainbow arc beneath the rain */}
+          <path d="M 8,50 A 28,28 0 0,1 56,50" fill="none" stroke="#ff1744" strokeWidth="2" strokeLinecap="round"/>
+          <path d="M 12,50 A 24,24 0 0,1 52,50" fill="none" stroke="#ff6d00" strokeWidth="1.8" strokeLinecap="round"/>
+          <path d="M 16,50 A 20,20 0 0,1 48,50" fill="none" stroke="#ffd600" strokeWidth="1.6" strokeLinecap="round"/>
+          <path d="M 20,50 A 16,16 0 0,1 44,50" fill="none" stroke="#00e676" strokeWidth="1.6" strokeLinecap="round"/>
+          <path d="M 24,50 A 12,12 0 0,1 40,50" fill="none" stroke="#2979ff" strokeWidth="1.6" strokeLinecap="round"/>
+          <path d="M 27,50 A 9,9 0 0,1 37,50" fill="none" stroke="#3d5afe" strokeWidth="1.4" strokeLinecap="round"/>
+          <path d="M 29,50 A 7,7 0 0,1 35,50" fill="none" stroke="#d500f9" strokeWidth="1.4" strokeLinecap="round"/>
         </svg>
       </div>
 

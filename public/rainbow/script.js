@@ -58,6 +58,37 @@ document.addEventListener('DOMContentLoaded', () => {
             if (entry.isIntersecting) {
                 entry.target.classList.add('visible');
 
+                // Spectrum prism entrance animation
+                if (entry.target.id === 'spectrum' && !entry.target.dataset.animated) {
+                    entry.target.dataset.animated = '1';
+                    const svg = document.getElementById('spectrum-svg');
+                    if (svg) {
+                        // White beam fades in first (glow + core)
+                        const whiteBeams = svg.querySelectorAll('.spectrum-beam');
+                        whiteBeams.forEach(el => {
+                            el.style.transition = 'opacity 0.6s ease-out';
+                            el.style.opacity = el.getAttribute('opacity') || '1';
+                        });
+
+                        // Color beams fan out sequentially, red to violet
+                        const colorGlows = svg.querySelectorAll('.spectrum-color-glow');
+                        const colorCores = svg.querySelectorAll('.spectrum-color');
+                        for (let i = 0; i < 7; i++) {
+                            const delay = 500 + i * 120;
+                            setTimeout(() => {
+                                if (colorGlows[i]) {
+                                    colorGlows[i].style.transition = 'opacity 0.4s ease-out';
+                                    colorGlows[i].style.opacity = '0.4';
+                                }
+                                if (colorCores[i]) {
+                                    colorCores[i].style.transition = 'opacity 0.4s ease-out';
+                                    colorCores[i].style.opacity = '1';
+                                }
+                            }, delay);
+                        }
+                    }
+                }
+
                 // Update dot navigation
                 document.querySelectorAll('.dot-link').forEach(dot => {
                     dot.classList.remove('active');
@@ -87,13 +118,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const progressBar = document.getElementById('progress-bar');
 
+    let scrollTicking = false;
     window.addEventListener('scroll', () => {
-        if (!progressBar) return;
-        const scrollTop = document.documentElement.scrollTop;
-        const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
-        if (scrollHeight > 0) {
-            const progress = (scrollTop / scrollHeight) * 100;
-            progressBar.style.width = progress + '%';
+        if (!scrollTicking) {
+            requestAnimationFrame(() => {
+                if (!progressBar) return;
+                const scrollTop = document.documentElement.scrollTop;
+                const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+                if (scrollHeight > 0) {
+                    const progress = (scrollTop / scrollHeight) * 100;
+                    progressBar.style.width = progress + '%';
+                }
+                scrollTicking = false;
+            });
+            scrollTicking = true;
         }
     });
 
@@ -598,6 +636,12 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.moveTo(OBS_X, OBS_Y - 10);
         ctx.lineTo(OBS_X + 14, OBS_Y + 2);
         ctx.stroke();
+
+        // "anti-solar point" label below the observer, near the dashed line
+        ctx.font = '10px "Courier New", monospace';
+        ctx.fillStyle = 'rgba(255,255,255,0.35)';
+        ctx.textAlign = 'center';
+        ctx.fillText('anti-solar point', OBS_X, OBS_Y + 45);
 
         ctx.restore();
     }
