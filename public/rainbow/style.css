@@ -505,56 +505,10 @@ p {
   }
 }
 
-/* Hero arc draw-in animation */
+/* Hero arc draw-in animation — paths start invisible.
+   Animation is applied via JS (avoids nth-of-type mismatch). */
 #hero-arc path {
   opacity: 0;
-}
-
-/* Outer glow paths (1-7): fade in with matching delay */
-.visible #hero-arc path.beam-glow:nth-of-type(1) {
-  animation: fadeGlow 2s ease-out 0s forwards;
-}
-
-.visible #hero-arc path.beam-glow:nth-of-type(2) {
-  animation: fadeGlow 2s ease-out 0.15s forwards;
-}
-.visible #hero-arc path.beam-glow:nth-of-type(3) {
-  animation: fadeGlow 2s ease-out 0.3s forwards;
-}
-.visible #hero-arc path.beam-glow:nth-of-type(4) {
-  animation: fadeGlow 2s ease-out 0.45s forwards;
-}
-.visible #hero-arc path.beam-glow:nth-of-type(5) {
-  animation: fadeGlow 2s ease-out 0.6s forwards;
-}
-.visible #hero-arc path.beam-glow:nth-of-type(6) {
-  animation: fadeGlow 2s ease-out 0.75s forwards;
-}
-.visible #hero-arc path.beam-glow:nth-of-type(7) {
-  animation: fadeGlow 2s ease-out 0.9s forwards;
-}
-
-/* Main arc paths (8-14): draw in with staggered delay */
-.visible #hero-arc path.beam:nth-of-type(8) {
-  animation: drawArc 2s ease-out 0s forwards;
-}
-.visible #hero-arc path.beam:nth-of-type(9) {
-  animation: drawArc 2s ease-out 0.15s forwards;
-}
-.visible #hero-arc path.beam:nth-of-type(10) {
-  animation: drawArc 2s ease-out 0.3s forwards;
-}
-.visible #hero-arc path.beam:nth-of-type(11) {
-  animation: drawArc 2s ease-out 0.45s forwards;
-}
-.visible #hero-arc path.beam:nth-of-type(12) {
-  animation: drawArc 2s ease-out 0.6s forwards;
-}
-.visible #hero-arc path.beam:nth-of-type(13) {
-  animation: drawArc 2s ease-out 0.75s forwards;
-}
-.visible #hero-arc path.beam:nth-of-type(14) {
-  animation: drawArc 2s ease-out 0.9s forwards;
 }
 
 @keyframes drawArc {
@@ -602,6 +556,16 @@ p {
   width: 60%;
   height: 1px;
   background: var(--rainbow-gradient);
+}
+
+.credits-closing {
+  font-size: clamp(1.25rem, 3vw, 1.75rem);
+  font-weight: 300;
+  color: var(--text-primary);
+  line-height: 1.8;
+  margin-bottom: 2.5rem;
+  font-style: italic;
+  letter-spacing: 0.02em;
 }
 
 .credits-main {
@@ -661,6 +625,14 @@ p {
    SVG Animations — Scroll-triggered via .visible
    ============================================================ */
 
+/* --- Spectrum prism entrance animation --- */
+#spectrum-svg .spectrum-beam,
+#spectrum-svg .spectrum-color,
+#spectrum-svg .spectrum-color-glow {
+  opacity: 0;
+  transition: opacity 0.5s ease-out;
+}
+
 /* --- Beams are always visible (no hide/show needed) --- */
 
 /* --- Color beam stagger --- */
@@ -692,11 +664,11 @@ p {
   transition-delay: 0.6s;
 }
 
-/* --- Text content slide-up + fade-in --- */
+/* --- Text content slide-up + fade-in (slight delay so visual leads) --- */
 .text-content {
   opacity: 0;
   transform: translateY(25px);
-  transition: opacity 0.7s ease-out, transform 0.7s ease-out;
+  transition: opacity 0.7s ease-out 0.15s, transform 0.7s ease-out 0.15s;
 }
 
 .visible .text-content {
@@ -704,14 +676,38 @@ p {
   transform: translateY(0);
 }
 
-/* --- Visual fade-in --- */
-.visual {
+/* --- Visual parallax slide-in --- */
+/* Odd sections (visual on left): slide in from left */
+.section-content:not(.reverse) .visual {
   opacity: 0;
-  transition: opacity 0.5s ease-out;
+  transform: translateX(-30px);
+  transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+}
+.visible .section-content:not(.reverse) .visual {
+  opacity: 1;
+  transform: translateX(0);
 }
 
-.visible .visual {
+/* Even sections (visual on right / .reverse): slide in from right */
+.section-content.reverse .visual {
+  opacity: 0;
+  transform: translateX(30px);
+  transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+}
+.visible .section-content.reverse .visual {
   opacity: 1;
+  transform: translateX(0);
+}
+
+/* --- Callout boxes stagger in after text --- */
+.callout {
+  opacity: 0;
+  transform: translateY(15px);
+  transition: opacity 0.5s ease-out 0.6s, transform 0.5s ease-out 0.6s;
+}
+.visible .callout {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 /* --- Hero is immediately visible --- */

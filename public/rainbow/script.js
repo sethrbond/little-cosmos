@@ -25,6 +25,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // Hero arc animation — driven by JS to avoid nth-of-type mismatch.
+    // The SVG has 7 beam-glow paths then 14 beam paths (7 colors x 2 layers).
+    // We assign staggered animation delays per color (0.15s apart).
+    function animateHeroArc() {
+        const glows = document.querySelectorAll('#hero-arc .beam-glow');
+        const beams = document.querySelectorAll('#hero-arc .beam');
+
+        // 7 glow paths — one per color, staggered fade-in
+        glows.forEach((el, i) => {
+            el.style.animation = `fadeGlow 2s ease-out ${i * 0.15}s forwards`;
+        });
+
+        // 14 beam paths — two per color (wide glow layer + narrow core).
+        // Colors alternate: index 0,1 = red; 2,3 = orange; ... 12,13 = violet.
+        beams.forEach((el, i) => {
+            const colorIndex = Math.floor(i / 2);
+            el.style.animation = `drawArc 2s ease-out ${colorIndex * 0.15}s forwards`;
+        });
+    }
+
     // =========================================================
     // 2. Intersection Observer — Scroll-Triggered Animations
     // =========================================================
@@ -139,7 +159,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================================================
 
     const hero = document.getElementById('hero');
-    if (hero) hero.classList.add('visible');
+    if (hero) {
+        hero.classList.add('visible');
+        animateHeroArc();
+    }
 
     // Auto-hide scroll indicator on scroll
     const scrollIndicator = document.querySelector('.scroll-indicator');
@@ -382,25 +405,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // --- Anti-solar line ---
-        // Extends from sun through observer and below
-        const dx = OBS_X - OBS_X;  // 0 (sun is directly above)
-        const dy = OBS_Y - sunY;
-        const len = Math.sqrt(dx * dx + dy * dy) || 1;
-        const dirX = dx / len;
-        const dirY = dy / len;
-
-        // Extend well past observer
-        const extLen = 600;
-        const antiX = OBS_X + dirX * extLen;
-        const antiY = OBS_Y + dirY * extLen;
-
+        // Sun is directly above observer, so the line is purely vertical.
+        // Extends from sun through observer and well below.
         ctx.save();
         ctx.setLineDash([6, 6]);
         ctx.strokeStyle = 'rgba(255,255,255,0.2)';
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(OBS_X, sunY);
-        ctx.lineTo(antiX, antiY);
+        ctx.lineTo(OBS_X, OBS_Y + 600);
         ctx.stroke();
         ctx.restore();
 
@@ -437,25 +450,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 endAngle = 2 * Math.PI;
             } else {
                 // Clip arc to above ground
-                const cosClip = groundOffset / clampedRadius;
-                if (cosClip >= 1) {
-                    // Entire arc below ground
-                    startAngle = 0;
-                    endAngle = 0;
-                } else if (cosClip <= -1) {
+                const ratio = Math.min(1, Math.abs(groundOffset / clampedRadius));
+                if (groundOffset > 0) {
+                    // Arc center above ground but close — show full semicircle
                     startAngle = Math.PI;
                     endAngle = 2 * Math.PI;
                 } else {
-                    const clipAngle = Math.acos(-cosClip);
-                    startAngle = Math.PI / 2 + clipAngle;
-                    endAngle = Math.PI / 2 + (2 * Math.PI - clipAngle);
-                    // Ensure we draw the upper portion
-                    startAngle = Math.PI + Math.asin(Math.min(1, Math.abs(groundOffset / clampedRadius)));
-                    endAngle = 2 * Math.PI - Math.asin(Math.min(1, Math.abs(groundOffset / clampedRadius)));
-                    if (groundOffset > 0) {
-                        startAngle = Math.PI;
-                        endAngle = 2 * Math.PI;
-                    }
+                    // Arc center below ground — narrow the visible portion
+                    startAngle = Math.PI + Math.asin(ratio);
+                    endAngle = 2 * Math.PI - Math.asin(ratio);
                 }
             }
 
