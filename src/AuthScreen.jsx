@@ -3,6 +3,19 @@ import { supabase } from './supabaseClient.js'
 
 const SITE_URL = 'https://littlecosmos.app'
 
+// Line-art eye for the show-password toggle; the emoji rendered as a
+// photographic eyeball in the gold-on-dark form.
+function EyeIcon({ open }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" />
+      <circle cx="12" cy="12" r="3" />
+      {open && <path d="M4 4l16 16" />}
+    </svg>
+  )
+}
+
 const wrap = {
   position: 'fixed', inset: 0,
   background: '#0c0a12',
@@ -62,11 +75,13 @@ export default function AuthScreen({ initialMode = 'login', onBack }) {
   const clearState = () => { setError(''); setMessage(''); setPassword(''); setConfirmPassword(''); setResendStatus(''); setShowPassword(false) }
 
   const pwWrap = { position: 'relative', width: '100%' }
+  // top 0 / bottom 12 spans the input itself (its wrapper also holds the
+  // input's 12px bottom margin), so the icon sits on the field's centre line.
   const eyeBtn = {
-    position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)',
-    background: 'none', border: 'none', color: '#e8e0d0', opacity: 0.5,
-    cursor: 'pointer', fontSize: 18, padding: '8px 10px', lineHeight: 1,
-    marginBottom: 12,
+    position: 'absolute', right: 4, top: 0, bottom: 12,
+    display: 'flex', alignItems: 'center',
+    background: 'none', border: 'none', color: '#c9a96e', opacity: 0.7,
+    cursor: 'pointer', padding: '0 10px', lineHeight: 1,
   }
   const pwInp = { ...inp, paddingRight: 38 }
 
@@ -149,7 +164,7 @@ export default function AuthScreen({ initialMode = 'login', onBack }) {
             <input style={inp} type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required autoFocus autoComplete="email" inputMode="email" />
             <div style={pwWrap}>
               <input style={pwInp} type={showPassword ? 'text' : 'password'} placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="current-password" />
-              <button type="button" style={eyeBtn} onClick={() => setShowPassword(v => !v)} tabIndex={-1} aria-label="Toggle password visibility">{showPassword ? '\u{1F441}\u200D\u{1F5E8}' : '\u{1F441}'}</button>
+              <button type="button" style={eyeBtn} onClick={() => setShowPassword(v => !v)} tabIndex={-1} aria-label="Toggle password visibility"><EyeIcon open={showPassword} /></button>
             </div>
             {error && <div role="alert" style={{ color: '#e57373', fontSize: 13, marginBottom: 8 }}>{error}</div>}
             <button style={{ ...btn, opacity: loading ? 0.6 : 1 }} disabled={loading} type="submit">
@@ -169,12 +184,12 @@ export default function AuthScreen({ initialMode = 'login', onBack }) {
             <input style={inp} type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" inputMode="email" />
             <div style={pwWrap}>
               <input style={pwInp} type={showPassword ? 'text' : 'password'} placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="new-password" />
-              <button type="button" style={eyeBtn} onClick={() => setShowPassword(v => !v)} tabIndex={-1} aria-label="Toggle password visibility">{showPassword ? '\u{1F441}\u200D\u{1F5E8}' : '\u{1F441}'}</button>
+              <button type="button" style={eyeBtn} onClick={() => setShowPassword(v => !v)} tabIndex={-1} aria-label="Toggle password visibility"><EyeIcon open={showPassword} /></button>
             </div>
-            <div style={{ fontSize: 11, color: '#e8e0d0', opacity: 0.35, marginTop: -8, marginBottom: 10, paddingLeft: 2 }}>At least 10 characters</div>
+            <div style={{ fontSize: 12, color: '#e8e0d0', opacity: 0.55, marginTop: -8, marginBottom: 10, paddingLeft: 2 }}>At least 10 characters</div>
             <div style={pwWrap}>
               <input style={pwInp} type={showPassword ? 'text' : 'password'} placeholder="Confirm password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required autoComplete="new-password" />
-              <button type="button" style={eyeBtn} onClick={() => setShowPassword(v => !v)} tabIndex={-1} aria-label="Toggle password visibility">{showPassword ? '\u{1F441}\u200D\u{1F5E8}' : '\u{1F441}'}</button>
+              <button type="button" style={eyeBtn} onClick={() => setShowPassword(v => !v)} tabIndex={-1} aria-label="Toggle password visibility"><EyeIcon open={showPassword} /></button>
             </div>
             {error && <div role="alert" style={{ color: '#e57373', fontSize: 13, marginBottom: 8 }}>{error}</div>}
             <button style={{ ...btn, opacity: loading ? 0.6 : 1 }} disabled={loading} type="submit">
