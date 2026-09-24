@@ -78,6 +78,12 @@ const STORY_OPTIONS = [
 // Detailed coastline polylines (~300 coordinate pairs for recognizable world coastlines)
 // Each sub-array is a continuous polyline of [lat, lng] pairs
 
+// Demo camera distance: 3.6 keeps the whole globe under the toolbar on a wide
+// screen (2.8 clipped its top and bottom). On a tall
+// phone screen the same distance showed a sliver of one continent. Back off
+// until the globe (radius 1) spans the width. Vertical FOV is 40 degrees.
+const demoCameraZ = (w, h) => Math.max(3.6, 1 / (Math.tan(20 * Math.PI / 180) * (w / h)))
+
 // Shared globe-building helper
 function buildGlobeScene(el, w, h) {
   const scene = new THREE.Scene()
@@ -368,7 +374,7 @@ function DemoExperience({ onClose, onSignUp }) {
 
     const w = window.innerWidth, h = window.innerHeight
     const { scene, camera, renderer, globe, wire } = buildGlobeScene(el, w, h)
-    camera.position.z = 2.8
+    camera.position.z = demoCameraZ(w, h)
 
     // Demo markers (larger, breathing)
     const markerGeo = new THREE.SphereGeometry(0.028, 12, 12)
@@ -448,6 +454,7 @@ function DemoExperience({ onClose, onSignUp }) {
 
     const onResize = () => {
       camera.aspect = window.innerWidth / window.innerHeight
+      camera.position.z = demoCameraZ(window.innerWidth, window.innerHeight)
       camera.updateProjectionMatrix()
       renderer.setSize(window.innerWidth, window.innerHeight)
     }
@@ -587,11 +594,12 @@ function DemoExperience({ onClose, onSignUp }) {
 
       {/* Toolbar */}
       <div style={{
-        position: 'absolute', top: 20, left: '50%', transform: 'translateX(-50%)',
-        display: 'flex', gap: 10, zIndex: 10001,
+        position: 'absolute', top: 'max(12px, env(safe-area-inset-top))', left: 0, right: 0,
+        margin: '0 auto', width: 'fit-content', maxWidth: 'calc(100vw - 16px)',
+        display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 8, zIndex: 10001,
         background: 'rgba(12,10,18,0.7)', backdropFilter: 'blur(12px)',
-        borderRadius: 14, padding: '8px 12px',
-        border: '1px solid #efe3d0',
+        borderRadius: 14, padding: '8px 10px',
+        border: '1px solid rgba(200,170,110,0.2)',
       }}>
         {/* Add (disabled) */}
         <div style={{ position: 'relative' }}>
@@ -968,16 +976,17 @@ export default function LandingPage({ onSignIn, onSignUp }) {
       <nav aria-label="Main navigation" style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        padding: '16px 32px',
+        padding: 'max(12px, env(safe-area-inset-top)) clamp(14px, 4vw, 32px) 12px',
+        gap: 12,
         background: scrollY > 50 ? 'rgba(12,10,18,0.85)' : 'transparent',
         backdropFilter: scrollY > 50 ? 'blur(12px)' : 'none',
         transition: 'background 0.3s, backdrop-filter 0.3s',
       }}>
-        <div style={{ fontSize: 20, fontWeight: 300, letterSpacing: 2, opacity: 0.9 }}>Little Cosmos</div>
-        <div style={{ display: 'flex', gap: 12 }}>
+        <div style={{ fontSize: 'clamp(16px, 4.2vw, 20px)', fontWeight: 300, letterSpacing: 'clamp(1px, 0.4vw, 2px)', opacity: 0.9, whiteSpace: 'nowrap' }}>Little Cosmos</div>
+        <div style={{ display: 'flex', gap: 'clamp(8px, 2vw, 12px)', flexShrink: 0 }}>
           <button onClick={onSignIn} style={{
             background: 'none', border: '1px solid rgba(200,170,110,0.3)',
-            borderRadius: 8, padding: '8px 20px', color: '#c9a96e',
+            borderRadius: 8, padding: '8px clamp(12px, 3.5vw, 20px)', color: '#c9a96e', whiteSpace: 'nowrap',
             fontSize: 14, fontFamily: FONT, cursor: 'pointer',
             transition: 'border-color 0.2s, color 0.2s',
           }}
@@ -985,7 +994,7 @@ export default function LandingPage({ onSignIn, onSignUp }) {
           onMouseLeave={e => { e.target.style.borderColor = 'rgba(200,170,110,0.3)'; e.target.style.color = '#c9a96e' }}>Sign In</button>
           <button onClick={onSignUp} style={{
             background: 'linear-gradient(135deg, #c9a96e, #b8944f)',
-            border: 'none', borderRadius: 8, padding: '8px 20px', color: '#1a1520',
+            border: 'none', borderRadius: 8, padding: '8px clamp(12px, 3.5vw, 20px)', color: '#1a1520', whiteSpace: 'nowrap',
             fontSize: 14, fontWeight: 600, fontFamily: FONT, cursor: 'pointer',
             transition: 'transform 0.2s, box-shadow 0.2s',
           }}
