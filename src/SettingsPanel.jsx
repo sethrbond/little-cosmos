@@ -276,7 +276,7 @@ export default function SettingsPanel({
         <div style={{ marginBottom: 6 }}>
           <Lbl>Your Letter</Lbl>
           <textarea value={wlText} onChange={e => setWlText(e.target.value)} rows={5}
-            placeholder={"This is our world \u2014 every place we've been, every adventure we've shared...\n\nSpin the globe. Click the hearts. This is our story.\n\nI love you."}
+            placeholder={"This is our world: every place we've been, every adventure we've shared...\n\nSpin the globe. Click the hearts. This is our story.\n\nI love you."}
             style={{ ...inputStyle(), resize: "vertical", lineHeight: 1.7 }} />
         </div>
         <button

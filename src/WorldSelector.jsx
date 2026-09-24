@@ -1795,13 +1795,13 @@ export default function WorldSelector({ onSelect, onSignOut, worlds = [], onWorl
         const hasWorlds = worlds.length > 0;
         const steps = [
           { title: "Welcome to Your Cosmos",
-            body: "This is your universe. Every world you create or join orbits here \u2014 your personal cosmos of adventures.",
+            body: "This is your universe. Every world you create or join orbits here: your personal cosmos of adventures.",
             icon: "✨", hint: "It grows as you add worlds" },
           { title: "Your Central World",
-            body: "The glowing orb at the center is My World \u2014 your personal travel diary. Click it to jump in and start adding trips.",
+            body: "The glowing orb at the center is My World, your personal travel diary. Click it to jump in and start adding trips.",
             icon: "🌍", hint: "Click the center orb to enter" },
           ...(hasWorlds ? [{ title: "Shared Worlds",
-            body: "The orbs orbiting around you are shared worlds \u2014 partner trips, friend adventures, family vacations. Each one is a separate globe you share with others.",
+            body: "The orbs orbiting around you are shared worlds: partner trips, friend adventures, family vacations. Each one is a separate globe you share with others.",
             icon: "💫", hint: "Click any orbiting world to enter it" }] : []),
           { title: "Add & Share",
             body: "Use the bottom bar to create new worlds, invite people to join yours, or connect with friends to see their travels.",

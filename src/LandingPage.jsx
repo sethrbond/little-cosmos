@@ -23,7 +23,7 @@ const DEMO_STORIES = {
       note: 'anniversary. got lost in the gothic quarter. found a wine bar with exactly four candles. perfect.',
       dwell: 3000, gradient: 'linear-gradient(135deg, #f0c27f, #d4945a)' },
     { city: 'Bali', emoji: '\u{1F3D6}\uFE0F', lat: -8.41, lng: 115.19, dates: 'Aug 1\u201312, 2023',
-      note: 'honeymoon. rice terraces at sunrise. temple bells at dusk. i kept thinking \u2014 this is real, this is ours.',
+      note: 'honeymoon. rice terraces at sunrise. temple bells at dusk. i kept thinking: this is real, this is ours.',
       dwell: 4200, gradient: 'linear-gradient(135deg, #a8e6a3, #68b898)' },
   ],
   friends: [
@@ -869,7 +869,7 @@ const features = [
   {
     icon: '\u{1F4F8}',
     title: 'A Scrapbook That Spins',
-    desc: 'Photos show up like little polaroids. Press play and the whole thing comes alive \u2014 your memories, in order, right where they happened.',
+    desc: 'Photos show up like little polaroids. Press play and the whole thing comes alive: your memories, in order, right where they happened.',
   },
   {
     icon: '\u2728',
