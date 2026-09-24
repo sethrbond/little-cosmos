@@ -174,8 +174,20 @@ const HERO_CITIES = [
 function HeroGlobe({ phase, onSequenceDone }) {
   const ref = useRef(null)
   const sceneRef = useRef(null)
-  // A fixed 420px canvas ran past both edges of a 390px phone; keep a 16px gutter.
-  const [size] = useState(() => (typeof window === 'undefined' ? 420 : Math.min(420, Math.max(260, window.innerWidth - 32))))
+  // A fixed 420px canvas ran past both edges of a 390px phone; keep a 16px gutter,
+  // and follow rotation/resize so a turned phone does not bring the overflow back.
+  const fitSize = () => (typeof window === 'undefined' ? 420 : Math.min(420, Math.max(260, window.innerWidth - 32)))
+  const [size, setSize] = useState(fitSize)
+  useEffect(() => {
+    const onResize = () => setSize(fitSize())
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+  useEffect(() => {
+    const s = sceneRef.current
+    if (!s) return
+    s.renderer.setSize(size, size)
+  }, [size])
 
   // Build the globe scene once
   useEffect(() => {
