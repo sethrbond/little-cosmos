@@ -174,13 +174,15 @@ const HERO_CITIES = [
 function HeroGlobe({ phase, onSequenceDone }) {
   const ref = useRef(null)
   const sceneRef = useRef(null)
+  // A fixed 420px canvas ran past both edges of a 390px phone; keep a 16px gutter.
+  const [size] = useState(() => (typeof window === 'undefined' ? 420 : Math.min(420, Math.max(260, window.innerWidth - 32))))
 
   // Build the globe scene once
   useEffect(() => {
     const el = ref.current
     if (!el) return
 
-    const w = 420, h = 420
+    const w = size, h = size
     const { scene, camera, renderer, globe, wire } = buildGlobeScene(el, w, h)
 
     const markerMeshes = []
@@ -340,7 +342,7 @@ function HeroGlobe({ phase, onSequenceDone }) {
 
   return (
     <div ref={ref} aria-label="Interactive 3D globe" role="img" style={{
-      width: 420, height: 420,
+      width: size, height: size,
       filter: 'drop-shadow(0 0 50px rgba(200,170,110,0.18))',
       cursor: phase >= 5 ? 'grab' : 'default',
       touchAction: 'none',
