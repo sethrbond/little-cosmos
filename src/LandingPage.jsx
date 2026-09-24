@@ -1216,18 +1216,20 @@ export default function LandingPage({ onSignIn, onSignUp }) {
             { name: 'Family', desc: 'For generations', color: '#c4956a', icon: '\u{1F468}\u200D\u{1F469}\u200D\u{1F467}\u200D\u{1F466}' },
             { name: 'Personal', desc: 'For your solo adventures', color: '#c9a96e', icon: '\u{1F30D}' },
           ].map((w, i) => (
-            <div key={"world-" + i} style={{
+            // These lifted on hover like buttons but did nothing on click; each now opens sign-up.
+            <button type="button" key={"world-" + i} onClick={onSignUp} aria-label={`Start a ${w.name} world`} style={{
               padding: '24px 20px', borderRadius: 16, textAlign: 'center',
               background: `linear-gradient(145deg, ${w.color}08, ${w.color}03)`,
               border: `1px solid ${w.color}18`,
+              color: 'inherit', fontFamily: FONT, cursor: 'pointer',
               transition: 'transform 0.3s, border-color 0.3s',
             }}
             onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.borderColor = `${w.color}35` }}
             onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.borderColor = `${w.color}18` }}>
               <div style={{ fontSize: 28, marginBottom: 10 }}>{w.icon}</div>
               <div style={{ fontSize: 15, fontWeight: 500, color: w.color, marginBottom: 4, letterSpacing: 0.3 }}>{w.name}</div>
-              <div style={{ fontSize: 11, opacity: 0.55 }}>{w.desc}</div>
-            </div>
+              <div style={{ fontSize: 12, opacity: 0.65 }}>{w.desc}</div>
+            </button>
           ))}
         </div>
       </section>
